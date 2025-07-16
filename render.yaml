@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: evalmatch-ai
+    env: node
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: ./run.sh
+    healthCheckPath: /api/health
+    healthCheckTimeout: 5
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: RUN_MIGRATIONS
+        value: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: evalmatch-db
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false # This requires manual configuration in the Render dashboard
+    initialDeployHook: npx tsx server/migrate.ts
+
+databases:
+  - name: evalmatch-db
+    plan: starter
+    postgresMajorVersion: 15
+    ipAllowList: [] # only allow internal connections
+
+buildFilter:
+  paths:
+    - package.json
+    - client/**
+    - server/**
+    - shared/**
+    - run.sh
+    - Dockerfile
+    - Procfile

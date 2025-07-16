@@ -1,0 +1,13 @@
+{
+  "database": {
+    "useSimplifiedConnection": true,
+    "maxConnections": 5,
+    "connectionTimeout": 30000,
+    "idleTimeout": 30000
+  },
+  "server": {
+    "port": 5000,
+    "host": "0.0.0.0",
+    "disableHeartbeat": true
+  }
+}
