@@ -3,7 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
 import { config } from "./config";
-import { initializeDatabase } from "./db-setup";
+// import { initializeDatabase } from "./db-setup"; // imported conditionally below
 import { initializeMonitoring, logger } from "./monitoring";
 
 const app = express();
@@ -51,6 +51,7 @@ if (app.get("env") === "development") {
   if (config.isDatabaseEnabled) {
     try {
       logger.info('Setting up database schema...');
+      const { initializeDatabase } = await import("./db-setup");
       const result = await initializeDatabase();
       if (result.success) {
         logger.info('Database setup complete: ' + result.message);

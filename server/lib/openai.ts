@@ -8,10 +8,10 @@ import {
   type BiasAnalysisResponse,
 } from "@shared/schema";
 
-// Initialize OpenAI client
-const openai = new OpenAI({ 
+// Initialize OpenAI client only if API key is available
+const openai = process.env.PR_OPEN_API_KEY ? new OpenAI({ 
   apiKey: process.env.PR_OPEN_API_KEY
-});
+}) : null;
 
 // Log a message to help debug API key issues
 console.log(`OpenAI API key configuration: ${process.env.PR_OPEN_API_KEY ? "Key is set" : "Key is not set"}`);
@@ -300,6 +300,12 @@ export async function analyzeResume(resumeText: string): Promise<AnalyzeResumeRe
   };
 
   try {
+    // Return fallback if OpenAI client is not available
+    if (!openai) {
+      console.log("OpenAI client not available, returning fallback response");
+      return fallbackResponse;
+    }
+    
     // Generate cache key based on resume text
     const cacheKey = calculateHash(resumeText);
     

@@ -269,11 +269,11 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Import the database storage implementation
-import { DatabaseStorage } from './db-storage';
+// Import the storage initialization function
+import { initializeStorage } from './storage-switcher';
 
 // Initialize memory storage as fallback (for testing purposes)
 const memStorage = new MemStorage();
 
-// Initialize and export database storage
-export const storage = new DatabaseStorage();
+// Initialize and export storage (will be either database or memory based on config)
+export const storage = await initializeStorage();
