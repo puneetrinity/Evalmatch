@@ -1,0 +1,93 @@
+# RunPod-optimized Dockerfile for AI Search System
+FROM python:3.10-slim
+
+# Set environment variables for RunPod
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PORT=8000
+
+# Set default RunPod environment variables (will be overridden at runtime)
+ENV RUNPOD_POD_ID=unknown \
+    RUNPOD_TCP_PORT_8000=8000
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies including Ollama and Redis
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    curl \
+    git \
+    supervisor \
+    wget \
+    ca-certificates \
+    redis-server \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean \
+    && curl -fsSL https://ollama.com/install.sh | sh \
+    && ollama --version \
+    && redis-server --version
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt requirements-dev.txt ./
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -r requirements-dev.txt && \
+    pip cache purge
+
+# Copy application code
+COPY app ./app
+COPY scripts ./scripts
+COPY docker ./docker
+COPY .env* ./
+
+# Copy RunPod-specific configurations - FORCE CORRECT FILES - CACHE BUST v5
+COPY docker/supervisor-runpod.conf /etc/supervisor/conf.d/ai-search.conf
+COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
+
+# ULTRA-AGGRESSIVE VERIFICATION - Ensure no /app/logs references exist
+RUN echo "=== ULTRA-AGGRESSIVE SUPERVISOR CONFIG VERIFICATION ===" && \
+    echo "BUILD TIME: $(date)" && \
+    echo "Checking for /app/logs references (should be NONE):" && \
+    grep -r "/app/logs" /etc/supervisor/ || echo "✅ No /app/logs references found" && \
+    echo "Verifying correct log paths:" && \
+    cat /etc/supervisor/conf.d/ai-search.conf | grep -E "(stderr_logfile|stdout_logfile)" && \
+    echo "Checking program section names:" && \
+    grep "^\[program:" /etc/supervisor/conf.d/ai-search.conf && \
+    echo "Checking model-init autostart setting:" && \
+    grep -A 10 "^\[program:model-init\]" /etc/supervisor/conf.d/ai-search.conf && \
+    echo "Verifying supervisord.conf exists and is readable:" && \
+    test -r /etc/supervisor/supervisord.conf && \
+    echo "✅ Supervisord config file is accessible" && \
+    echo "Full config file for verification:" && \
+    cat /etc/supervisor/conf.d/ai-search.conf && \
+    echo "=== VERIFICATION COMPLETE ==="
+
+# Create directories and set permissions - COMPREHENSIVE
+RUN mkdir -p /var/log/supervisor /app/logs /root/.ollama/models /var/run /tmp && \
+    chmod 755 /app/logs /var/log/supervisor /var/run && \
+    chown root:root /app/logs /var/log/supervisor /var/run && \
+    chmod +x scripts/*.py scripts/*.sh 2>/dev/null || true && \
+    chmod +x scripts/runpod-entrypoint.sh && \
+    touch /var/log/supervisor/supervisord.log && \
+    touch /var/log/supervisor/redis.err.log /var/log/supervisor/redis.out.log && \
+    touch /var/log/supervisor/ollama.err.log /var/log/supervisor/ollama.out.log && \
+    touch /var/log/supervisor/api.err.log /var/log/supervisor/api.out.log && \
+    touch /var/log/supervisor/system-init.err.log /var/log/supervisor/system-init.out.log && \
+    touch /var/log/supervisor/model-init.err.log /var/log/supervisor/model-init.out.log && \
+    touch /var/log/supervisor/health.err.log /var/log/supervisor/health.out.log && \
+    chmod 666 /var/log/supervisor/*.log && \
+    chmod +x scripts/runpod-startup.sh scripts/verify-supervisor-config.sh scripts/emergency-supervisor-rewrite.sh && \
+    chmod 700 /var/run
+
+# Expose the application port
+EXPOSE 8000
+
+# Health check optimized for RunPod
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+    CMD curl --fail http://localhost:8000/health/live || exit 1
+
+# Use the original working startup script
+CMD ["/bin/bash", "-c", "/app/scripts/runpod-startup.sh"]

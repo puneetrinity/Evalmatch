@@ -1,0 +1,9 @@
+
+            Machine Learning algorithms build models based on training data to make predictions or decisions.
+            
+            Supervised Learning uses labeled training data to learn a mapping from inputs to outputs.
+            Unsupervised Learning finds hidden patterns in data without labeled examples.
+            Reinforcement Learning learns through interaction with an environment.
+            
+            Popular algorithms include Decision Trees, Random Forest, Support Vector Machines, and Neural Networks.
+            

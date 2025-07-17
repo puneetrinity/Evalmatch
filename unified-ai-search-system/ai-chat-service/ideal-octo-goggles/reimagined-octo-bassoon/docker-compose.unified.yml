@@ -1,0 +1,107 @@
+# Unified Docker Compose for Connected AI Systems
+# ubiquitous-octo-invention + ideal-octo-goggles
+# This configuration runs both systems and enables communication between them
+
+version: '3.8'
+
+services:
+  # Redis cache service (shared by both systems)
+  redis:
+    image: redis:7-alpine
+    container_name: ai-unified-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - ai-network
+
+  # Unified AI System (both services in one container)
+  unified-ai-system:
+    build:
+      context: .
+      dockerfile: Dockerfile.unified
+    container_name: unified-ai-system
+    ports:
+      - "8000:8000"   # ubiquitous-octo-invention
+      - "8001:8001"   # ideal-octo-goggles
+    environment:
+      - PYTHONPATH=/app/ubiquitous-octo-invention:/app/ideal-octo-goggles
+      - PORT=8000
+      - SEARCH_PORT=8001
+      - ENVIRONMENT=production
+      - REDIS_URL=redis://redis:6379
+      - DEBUG=false
+    volumes:
+      # Mount source code for development
+      - ./:/app/ubiquitous-octo-invention
+      - ../ideal-octo-goggles:/app/ideal-octo-goggles
+      # Mount logs
+      - ./logs:/var/log/unified-ai-system
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health", "&&", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - ai-network
+
+  # Nginx reverse proxy
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: ai-nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"       # Main entry point
+      - "443:443"     # HTTPS (if needed)
+    volumes:
+      - ./nginx-unified.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - unified-ai-system
+    networks:
+      - ai-network
+
+  # Optional: Monitoring dashboard
+  monitoring:
+    image: prom/prometheus:latest
+    container_name: ai-monitoring
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - ai-network
+    depends_on:
+      - unified-ai-system
+
+volumes:
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+
+networks:
+  ai-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16

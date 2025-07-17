@@ -1,0 +1,79 @@
+# Production-ready Dockerfile for AI Search System with improved build resilience
+FROM python:3.10-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PORT=8000 \
+    PIP_DEFAULT_TIMEOUT=100 \
+    PIP_RETRIES=10
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copy requirements files
+COPY requirements.txt requirements-dev.txt ./
+
+# Install Python dependencies with improved resilience
+RUN pip install --upgrade pip setuptools wheel
+
+# Install core requirements first (most likely to succeed)
+RUN pip install --no-cache-dir --timeout 300 \
+    fastapi[standard]>=0.104.0 \
+    uvicorn[standard]>=0.23.0 \
+    pydantic>=2.3.0 \
+    pydantic-settings>=2.0.0
+
+# Install requirements in smaller batches to handle network issues
+RUN pip install --no-cache-dir --timeout 300 \
+    httpx>=0.24.0 \
+    aiohttp>=3.8.0 \
+    requests>=2.31.0 \
+    redis>=4.5.0 \
+    hiredis>=2.2.0
+
+# Install LangChain packages
+RUN pip install --no-cache-dir --timeout 300 \
+    langgraph>=0.0.40 \
+    langchain>=0.1.0 \
+    langchain-core>=0.1.0
+
+# Install remaining packages with retry
+RUN pip install --no-cache-dir --timeout 300 --retries 10 -r requirements.txt || \
+    pip install --no-cache-dir --timeout 600 --retries 15 -r requirements.txt
+
+# Install dev requirements (optional, can fail)
+RUN pip install --no-cache-dir --timeout 300 -r requirements-dev.txt || echo "Dev requirements install failed, continuing..."
+
+# Clean pip cache
+RUN pip cache purge
+
+# Copy application code
+COPY app ./app
+COPY scripts ./scripts
+COPY .env* ./
+
+# Create non-root user for security
+RUN useradd --create-home --shell /bin/bash appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+# Expose the application port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl --fail http://localhost:8000/health/live || exit 1
+
+# Default command
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

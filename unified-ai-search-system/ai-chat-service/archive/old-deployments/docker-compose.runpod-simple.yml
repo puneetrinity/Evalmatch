@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  ai-search:
+    build:
+      context: .
+      dockerfile: Dockerfile.runpod-direct
+    container_name: ai-search-system
+    
+    # CRITICAL: Enable TTY and stdin for RunPod terminal access
+    tty: true
+    stdin_open: true
+    
+    # Port mapping
+    ports:
+      - "8000:8000"    # FastAPI app
+      - "11434:11434"  # Ollama
+      - "6379:6379"    # Redis
+    
+    # Environment variables
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONUNBUFFERED=1
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+    
+    # GPU configuration
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    
+    # Resource limits
+    mem_limit: 16g
+    shm_size: 2g
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Volume mounts for persistence
+    volumes:
+      - ./logs:/workspace/logs
+      - ollama_models:/root/.ollama
+      - redis_data:/var/lib/redis
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
+
+# Named volumes for data persistence
+volumes:
+  ollama_models:
+    driver: local
+  redis_data:
+    driver: local
+
+# Network configuration
+networks:
+  default:
+    driver: bridge

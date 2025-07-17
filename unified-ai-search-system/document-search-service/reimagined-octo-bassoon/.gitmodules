@@ -1,0 +1,6 @@
+[submodule "ubiquitous-octo-invention"]
+	path = ubiquitous-octo-invention
+	url = https://github.com/puneetrinity/ubiquitous-octo-invention.git
+[submodule "ideal-octo-goggles"]
+	path = ideal-octo-goggles
+	url = https://github.com/puneetrinity/ideal-octo-goggles.git

@@ -1,0 +1,45 @@
+services:
+  app:
+    build: .
+    container_name: ai-search-app
+    env_file:
+      - .env
+    
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - ollama
+    restart: unless-stopped
+    volumes:
+      - ./app:/app/app
+      - ./scripts:/app/scripts
+      - ./docker/prometheus.yml:/app/docker/prometheus.yml
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  redis:
+    image: redis:7-alpine
+    container_name: ai-search-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai-search-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+volumes:
+  redis_data:
+  ollama_data:

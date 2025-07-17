@@ -1,0 +1,22 @@
+fastapi
+uvicorn
+numpy
+scikit-learn
+numba
+mmh3
+sentence-transformers
+faiss-cpu
+pandas
+redis
+aiofiles
+pydantic-settings
+pytest
+psutil
+
+# RAG-specific dependencies
+beautifulsoup4>=4.11.1
+python-multipart>=0.0.6
+python-magic-bin>=0.4.14  # For Windows
+chardet>=5.1.0
+nltk>=3.8.1
+langdetect>=1.0.9

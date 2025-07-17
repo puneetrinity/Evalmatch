@@ -1,0 +1,85 @@
+# Docker Compose for RunPod A5000 deployment
+# Single container with all services managed by supervisor
+version: '3.8'
+
+services:
+  ai-search-runpod:
+    build:
+      context: .
+      dockerfile: Dockerfile.runpod
+    image: advancellmsearch/ai-search-system:runpod-latest
+    container_name: ai-search-runpod
+    
+    # CRITICAL: Enable TTY and stdin for RunPod terminal access
+    tty: true
+    stdin_open: true
+    
+    # GPU configuration for A5000
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    
+    # Environment variables
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      - REDIS_URL=redis://localhost:6379
+      - OLLAMA_HOST=http://localhost:11434
+      - OLLAMA_MODELS=/root/.ollama/models
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_ORIGINS=*
+      - ENVIRONMENT=production
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - LOG_LEVEL=INFO
+      - DEFAULT_MODEL=phi3:mini
+    
+    # Port mapping
+    ports:
+      - "8000:8000"    # FastAPI app
+      - "11434:11434"  # Ollama
+      - "6379:6379"    # Redis
+      # SSH removed for security - use RunPod terminal instead
+    
+    # Volume mounts for persistence
+    volumes:
+      - ai_search_models:/root/.ollama
+      - ai_search_data:/workspace/data
+      - ai_search_logs:/workspace/logs
+      - ai_search_redis:/var/lib/redis
+    
+    # Resource limits
+    mem_limit: 16g
+    memswap_limit: 20g
+    shm_size: 2g
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
+
+# Named volumes for data persistence
+volumes:
+  ai_search_models:
+    driver: local
+  ai_search_data:
+    driver: local
+  ai_search_logs:
+    driver: local
+  ai_search_redis:
+    driver: local
+
+# Network configuration
+networks:
+  default:
+    driver: bridge

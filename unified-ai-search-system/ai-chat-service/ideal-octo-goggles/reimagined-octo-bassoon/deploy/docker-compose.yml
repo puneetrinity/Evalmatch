@@ -1,0 +1,99 @@
+# Clean deployment configuration for AI Search System
+# This is the primary deployment file - streamlined and production-ready
+
+version: '3.8'
+
+services:
+  # Main Application Service
+  ai-search:
+    build:
+      context: ..
+      dockerfile: Dockerfile.production
+    image: ai-search-system:latest
+    container_name: ai-search-system
+    
+    # Environment configuration
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - OLLAMA_HOST=http://localhost:11434
+      - ENVIRONMENT=production
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - LOG_LEVEL=INFO
+      - DEFAULT_MODEL=phi3:mini
+      - PYTHONUNBUFFERED=1
+    
+    # Port mappings
+    ports:
+      - "8000:8000"    # FastAPI application
+      - "11434:11434"  # Ollama API
+    
+    # Volume mounts for persistence
+    volumes:
+      - ollama_models:/root/.ollama
+      - app_logs:/var/log/supervisor
+      - app_cache:/app/cache
+    
+    # Dependencies
+    depends_on:
+      - redis
+    
+    # Resource management
+    mem_limit: 8g
+    shm_size: 1g
+    
+    # Health monitoring
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # Restart policy
+    restart: unless-stopped
+
+  # Redis Cache Service
+  redis:
+    image: redis:7-alpine
+    container_name: ai-search-redis
+    
+    # Redis configuration
+    command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy allkeys-lru
+    
+    # Port mapping
+    ports:
+      - "6379:6379"
+    
+    # Volume for persistence
+    volumes:
+      - redis_data:/data
+    
+    # Health monitoring
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    
+    # Restart policy
+    restart: unless-stopped
+
+# Named volumes for data persistence
+volumes:
+  ollama_models:
+    driver: local
+  redis_data:
+    driver: local
+  app_logs:
+    driver: local
+  app_cache:
+    driver: local
+
+# Network configuration
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

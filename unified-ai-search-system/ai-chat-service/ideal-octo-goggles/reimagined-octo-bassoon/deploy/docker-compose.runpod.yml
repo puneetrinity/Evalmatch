@@ -1,0 +1,86 @@
+# RunPod GPU Cloud deployment configuration
+# Optimized for A5000/A6000 GPU instances with terminal access
+
+version: '3.8'
+
+services:
+  ai-search-runpod:
+    build:
+      context: ..
+      dockerfile: Dockerfile.runpod.fixed
+    image: ai-search-system:runpod-latest
+    container_name: ai-search-runpod
+    
+    # CRITICAL: Terminal access settings for RunPod
+    tty: true
+    stdin_open: true
+    
+    # GPU configuration
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    
+    # Environment variables for RunPod
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      - REDIS_URL=redis://localhost:6379
+      - OLLAMA_HOST=http://localhost:11434
+      - OLLAMA_MODELS=/root/.ollama/models
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_ORIGINS=*
+      - ENVIRONMENT=production
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - LOG_LEVEL=INFO
+      - DEFAULT_MODEL=phi3:mini
+      - PYTHONUNBUFFERED=1
+    
+    # Port mappings (RunPod proxy will handle external access)
+    ports:
+      - "8000:8000"    # FastAPI app
+      - "11434:11434"  # Ollama API
+      - "6379:6379"    # Redis
+    
+    # Volume mounts for GPU/RunPod persistence
+    volumes:
+      - runpod_models:/root/.ollama
+      - runpod_logs:/var/log/supervisor
+      - runpod_cache:/app/cache
+      - runpod_workspace:/workspace
+    
+    # Resource limits for GPU instances
+    mem_limit: 24g
+    memswap_limit: 32g
+    shm_size: 4g
+    
+    # Health monitoring
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
+    
+    # Restart policy
+    restart: unless-stopped
+
+# Named volumes for RunPod persistence
+volumes:
+  runpod_models:
+    driver: local
+  runpod_logs:
+    driver: local
+  runpod_cache:
+    driver: local
+  runpod_workspace:
+    driver: local
+
+# Network configuration
+networks:
+  default:
+    driver: bridge

@@ -1,0 +1,147 @@
+# Unified Docker Compose for Connected AI Systems
+# ubiquitous-octo-invention + ideal-octo-goggles
+# This configuration runs both systems and enables communication between them
+
+version: '3.8'
+
+services:
+  # Redis cache service (shared by both systems)
+  redis:
+    image: redis:7-alpine
+    container_name: ai-unified-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - ai-network
+
+  # ubiquitous-octo-invention (Conversation Intelligence)
+  conversation-ai:
+    build:
+      context: ./ubiquitous-octo-invention
+      dockerfile: Dockerfile.production
+    container_name: conversation-ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"     # Main API
+      - "11434:11434"   # Ollama port
+    environment:
+      - ENVIRONMENT=production
+      - REDIS_URL=redis://redis:6379
+      - OLLAMA_HOST=http://localhost:11434
+      - PYTHONPATH=/app
+      - LOG_LEVEL=info
+      - DOCUMENT_SEARCH_URL=http://document-search:8000
+      - ENABLE_DOCUMENT_SEARCH=true
+    volumes:
+      - ./ubiquitous-octo-invention/app:/app/app:ro
+      - ollama_models:/home/appuser/.ollama/models
+      - conversation_logs:/var/log/supervisor
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ai-network
+
+  # ideal-octo-goggles (Document Search)
+  document-search:
+    build:
+      context: ./ideal-octo-goggles
+      dockerfile: Dockerfile
+    container_name: document-search
+    restart: unless-stopped
+    ports:
+      - "8080:8000"  # Document search API
+    volumes:
+      - ./ideal-octo-goggles/data:/app/data
+      - ./ideal-octo-goggles/indexes:/app/indexes
+      - document_logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - EMBEDDING_MODEL_NAME=all-MiniLM-L6-v2
+      - EMBEDDING_DIM=384
+      - USE_GPU=false
+      - INDEX_PATH=/app/indexes
+      - REDIS_URL=redis://redis:6379
+      - CONVERSATION_AI_URL=http://conversation-ai:8000
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v2/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ai-network
+
+  # Nginx proxy for unified access
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: ai-nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"       # Main entry point
+      - "443:443"     # HTTPS (if needed)
+    volumes:
+      - ./nginx-unified.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - conversation-ai
+      - document-search
+    networks:
+      - ai-network
+
+  # Monitoring and health dashboard (optional)
+  monitoring:
+    image: prom/prometheus:latest
+    container_name: ai-monitoring
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - ai-network
+    depends_on:
+      - conversation-ai
+      - document-search
+
+volumes:
+  redis_data:
+    driver: local
+  ollama_models:
+    driver: local
+  conversation_logs:
+    driver: local
+  document_logs:
+    driver: local
+  prometheus_data:
+    driver: local
+
+networks:
+  ai-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,0 +1,60 @@
+# Multi-stage Dockerfile for the Unified AI Search System
+# This builds both ubiquitous-octo-invention and ideal-octo-goggles in one container
+
+FROM python:3.10-slim as base
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PORT=8000 \
+    SEARCH_PORT=8001
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Copy requirements for both applications
+COPY requirements.txt ./ubiquitous-requirements.txt
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r ubiquitous-requirements.txt
+
+# Install additional dependencies for the unified system
+RUN pip install --no-cache-dir \
+    uvicorn[standard] \
+    fastapi \
+    aiohttp \
+    asyncio \
+    supervisor
+
+# Copy source code for both applications
+COPY . ./ubiquitous-octo-invention/
+
+# Create supervisor configuration
+RUN mkdir -p /var/log/supervisor
+
+# Create startup script
+COPY docker/start-unified.sh /start-unified.sh
+COPY docker/start-ideal-octo.py /start-ideal-octo.py
+RUN chmod +x /start-unified.sh
+
+# Create supervisor config
+COPY docker/unified-supervisor.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Expose ports
+EXPOSE 8000 8001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/health && curl -f http://localhost:8001/health || exit 1
+
+# Start the unified system
+CMD ["/start-unified.sh"]

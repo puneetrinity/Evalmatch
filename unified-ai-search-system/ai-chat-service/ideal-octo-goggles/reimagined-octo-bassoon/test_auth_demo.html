@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Search System - Authentication Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .auth-section {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #ccc;
+        }
+        .message.user {
+            background: #e8f5e8;
+            border-left-color: #4caf50;
+        }
+        .message.assistant {
+            background: #fff3e0;
+            border-left-color: #ff9800;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #f44336;
+        }
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #4caf50;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .input-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            min-height: 100px;
+            resize: vertical;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.connected {
+            background: #4caf50;
+            color: white;
+        }
+        .status.disconnected {
+            background: #f44336;
+            color: white;
+        }
+        .metadata {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            padding: 5px;
+            background: #f9f9f9;
+            border-radius: 3px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+        .tab.active {
+            background: #2196f3;
+            color: white;
+            border-bottom-color: #2196f3;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 AI Search System - Authentication Demo</h1>
+        
+        <div class="auth-section">
+            <h3>Authentication Settings</h3>
+            <div class="input-group">
+                <label for="apiKey">API Key (optional - leave empty for anonymous):</label>
+                <select id="authMode" onchange="updateApiKey()">
+                    <option value="anonymous">Anonymous User</option>
+                    <option value="dev-user">Development User (Pro Tier)</option>
+                    <option value="dev-test">Development Test (Free Tier)</option>
+                    <option value="custom">Custom API Key</option>
+                </select>
+                <input type="text" id="apiKey" placeholder="Enter custom API key..." style="margin-top: 10px; display: none;">
+            </div>
+            <div class="input-group">
+                <label for="baseUrl">API Base URL:</label>
+                <input type="text" id="baseUrl" value="http://localhost:8000">
+            </div>
+            <button onclick="testConnection()">Test Connection</button>
+            <span id="connectionStatus" class="status disconnected">Not Connected</span>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('chat')">💬 Chat</div>
+            <div class="tab" onclick="switchTab('search')">🔍 Search</div>
+            <div class="tab" onclick="switchTab('research')">📊 Research</div>
+        </div>
+
+        <!-- Chat Tab -->
+        <div id="chat-tab" class="tab-content active">
+            <h3>Chat API Test</h3>
+            <div class="input-group">
+                <label for="chatMessage">Message:</label>
+                <textarea id="chatMessage" placeholder="Type your message here...">Hello! Can you help me understand how this AI system works?</textarea>
+            </div>
+            <div class="input-group">
+                <label for="quality">Quality Level:</label>
+                <select id="quality">
+                    <option value="minimal">Minimal (Fast, Basic)</option>
+                    <option value="balanced" selected>Balanced (Recommended)</option>
+                    <option value="premium">Premium (Detailed, Slower)</option>
+                </select>
+            </div>
+            <button onclick="sendChatMessage()">Send Chat Message</button>
+            <button onclick="startStreamingChat()">Stream Response</button>
+            <div id="chatResults"></div>
+        </div>
+
+        <!-- Search Tab -->
+        <div id="search-tab" class="tab-content">
+            <h3>Search API Test</h3>
+            <div class="input-group">
+                <label for="searchQuery">Search Query:</label>
+                <input type="text" id="searchQuery" placeholder="Enter search query..." value="latest artificial intelligence trends">
+            </div>
+            <div class="input-group">
+                <label for="maxResults">Max Results:</label>
+                <select id="maxResults">
+                    <option value="5">5 Results</option>
+                    <option value="10" selected>10 Results</option>
+                    <option value="20">20 Results</option>
+                </select>
+            </div>
+            <button onclick="performSearch()">Search</button>
+            <div id="searchResults"></div>
+        </div>
+
+        <!-- Research Tab -->
+        <div id="research-tab" class="tab-content">
+            <h3>Research API Test</h3>
+            <div class="input-group">
+                <label for="researchTopic">Research Topic:</label>
+                <input type="text" id="researchTopic" placeholder="Enter research topic..." value="machine learning applications in healthcare">
+            </div>
+            <button onclick="performResearch()">Start Deep Research</button>
+            <div id="researchResults"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentApiKey = '';
+        let isConnected = false;
+
+        function updateApiKey() {
+            const mode = document.getElementById('authMode').value;
+            const customInput = document.getElementById('apiKey');
+            
+            switch(mode) {
+                case 'anonymous':
+                    currentApiKey = '';
+                    customInput.style.display = 'none';
+                    break;
+                case 'dev-user':
+                    currentApiKey = 'dev-user-token';
+                    customInput.style.display = 'none';
+                    break;
+                case 'dev-test':
+                    currentApiKey = 'dev-test-token';
+                    customInput.style.display = 'none';
+                    break;
+                case 'custom':
+                    customInput.style.display = 'block';
+                    currentApiKey = customInput.value;
+                    break;
+            }
+        }
+
+        function getHeaders() {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (currentApiKey) {
+                headers['Authorization'] = `Bearer ${currentApiKey}`;
+            }
+            
+            return headers;
+        }
+
+        function getBaseUrl() {
+            return document.getElementById('baseUrl').value.replace(/\/$/, '');
+        }
+
+        async function testConnection() {
+            const baseUrl = getBaseUrl();
+            const statusElement = document.getElementById('connectionStatus');
+            
+            try {
+                statusElement.textContent = 'Testing...';
+                statusElement.className = 'status';
+                
+                const response = await fetch(`${baseUrl}/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusElement.textContent = 'Connected ✓';
+                    statusElement.className = 'status connected';
+                    isConnected = true;
+                    showSuccess(`Connected to AI Search System! Status: ${data.status}`);
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                statusElement.textContent = 'Connection Failed ✗';
+                statusElement.className = 'status disconnected';
+                isConnected = false;
+                showError(`Connection failed: ${error.message}`);
+            }
+        }
+
+        async function sendChatMessage() {
+            if (!isConnected) {
+                showError('Please test connection first');
+                return;
+            }
+
+            const message = document.getElementById('chatMessage').value.trim();
+            const quality = document.getElementById('quality').value;
+            
+            if (!message) {
+                showError('Please enter a message');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('chatResults');
+            resultsDiv.innerHTML = '<div class="message">Sending message...</div>';
+
+            try {
+                const baseUrl = getBaseUrl();
+                const response = await fetch(`${baseUrl}/api/v1/chat/complete`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({
+                        message: message,
+                        quality_requirement: quality,
+                        max_cost: 0.10,
+                        max_execution_time: 30
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                resultsDiv.innerHTML = `
+                    <div class="message user">
+                        <strong>User:</strong> ${message}
+                    </div>
+                    <div class="message assistant">
+                        <strong>Assistant:</strong> ${data.data.response}
+                        <div class="metadata">
+                            Query ID: ${data.metadata.query_id}<br>
+                            Execution Time: ${data.metadata.execution_time.toFixed(2)}s<br>
+                            Cost: $${data.metadata.cost.toFixed(4)}<br>
+                            Models Used: ${data.metadata.models_used.join(', ')}
+                        </div>
+                    </div>
+                `;
+                
+                showSuccess('Chat message sent successfully!');
+            } catch (error) {
+                resultsDiv.innerHTML = '';
+                showError(`Chat failed: ${error.message}`);
+            }
+        }
+
+        async function startStreamingChat() {
+            if (!isConnected) {
+                showError('Please test connection first');
+                return;
+            }
+
+            const message = document.getElementById('chatMessage').value.trim();
+            
+            if (!message) {
+                showError('Please enter a message');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('chatResults');
+            resultsDiv.innerHTML = `
+                <div class="message user">
+                    <strong>User:</strong> ${message}
+                </div>
+                <div class="message assistant">
+                    <strong>Assistant:</strong> <span id="streamingResponse"></span>
+                </div>
+            `;
+
+            try {
+                const baseUrl = getBaseUrl();
+                const response = await fetch(`${baseUrl}/api/v1/chat/stream`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: message }]
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                const responseElement = document.getElementById('streamingResponse');
+                let fullResponse = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') return;
+                            
+                            try {
+                                const parsed = JSON.parse(data);
+                                const content = parsed.choices?.[0]?.delta?.content;
+                                if (content) {
+                                    fullResponse += content;
+                                    responseElement.textContent = fullResponse;
+                                }
+                            } catch (e) {
+                                // Skip invalid JSON
+                            }
+                        }
+                    }
+                }
+                
+                showSuccess('Streaming chat completed!');
+            } catch (error) {
+                resultsDiv.innerHTML = '';
+                showError(`Streaming failed: ${error.message}`);
+            }
+        }
+
+        async function performSearch() {
+            if (!isConnected) {
+                showError('Please test connection first');
+                return;
+            }
+
+            const query = document.getElementById('searchQuery').value.trim();
+            const maxResults = parseInt(document.getElementById('maxResults').value);
+            
+            if (!query) {
+                showError('Please enter a search query');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.innerHTML = '<div class="message">Searching...</div>';
+
+            try {
+                const baseUrl = getBaseUrl();
+                const response = await fetch(`${baseUrl}/api/v1/search/basic`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({
+                        query: query,
+                        max_results: maxResults
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                let resultsHtml = `<div class="message"><strong>Search Results for:</strong> "${query}"</div>`;
+                
+                if (data.data && data.data.results) {
+                    data.data.results.forEach((result, index) => {
+                        resultsHtml += `
+                            <div class="message">
+                                <strong>${index + 1}. ${result.title}</strong><br>
+                                ${result.snippet}<br>
+                                <small><a href="${result.url}" target="_blank">${result.url}</a></small>
+                            </div>
+                        `;
+                    });
+                } else {
+                    resultsHtml += '<div class="message">No results found</div>';
+                }
+                
+                resultsDiv.innerHTML = resultsHtml;
+                showSuccess('Search completed!');
+            } catch (error) {
+                resultsDiv.innerHTML = '';
+                showError(`Search failed: ${error.message}`);
+            }
+        }
+
+        async function performResearch() {
+            if (!isConnected) {
+                showError('Please test connection first');
+                return;
+            }
+
+            const topic = document.getElementById('researchTopic').value.trim();
+            
+            if (!topic) {
+                showError('Please enter a research topic');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('researchResults');
+            resultsDiv.innerHTML = '<div class="message">Starting deep research...</div>';
+
+            try {
+                const baseUrl = getBaseUrl();
+                const response = await fetch(`${baseUrl}/api/v1/research/deep-dive`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({
+                        topic: topic,
+                        depth: 'standard'
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                resultsDiv.innerHTML = `
+                    <div class="message">
+                        <strong>Research Report:</strong> ${topic}<br><br>
+                        ${data.data.analysis || 'Research completed successfully!'}
+                        <div class="metadata">
+                            Sources: ${data.data.sources_count || 0}<br>
+                            Confidence: ${data.metadata.confidence || 'N/A'}
+                        </div>
+                    </div>
+                `;
+                
+                showSuccess('Research completed!');
+            } catch (error) {
+                resultsDiv.innerHTML = '';
+                showError(`Research failed: ${error.message}`);
+            }
+        }
+
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            document.body.appendChild(errorDiv);
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success';
+            successDiv.textContent = message;
+            document.body.appendChild(successDiv);
+            setTimeout(() => successDiv.remove(), 3000);
+        }
+
+        // Initialize
+        updateApiKey();
+        
+        // Custom API key input handler
+        document.getElementById('apiKey').addEventListener('input', function() {
+            if (document.getElementById('authMode').value === 'custom') {
+                currentApiKey = this.value;
+            }
+        });
+    </script>
+</body>
+</html>

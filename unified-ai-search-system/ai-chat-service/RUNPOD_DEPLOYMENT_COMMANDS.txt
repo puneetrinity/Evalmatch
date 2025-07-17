@@ -1,0 +1,35 @@
+# RunPod Deployment Commands
+# =========================
+
+# 1. Use the pre-built Docker image from GitHub Container Registry
+# No need to build locally - the image is automatically built via GitHub Actions
+
+# 2. Create RunPod deployment with these settings:
+# - Container Image: ghcr.io/puneetrinity/ubiquitous-octo-invention:latest
+# - Container Disk: 20GB (minimum)
+# - Expose HTTP Ports: 8000
+# - GPU: A5000 or better (recommended)
+
+# 3. Environment Variables to set in RunPod:
+# RUNPOD_POD_ID=$RUNPOD_POD_ID
+# RUNPOD_TCP_PORT_8000=8000
+# OLLAMA_BASE_URL=http://localhost:11434
+# ENVIRONMENT=production
+
+# 4. After deployment, test with:
+curl http://$RUNPOD_PUBLIC_IP:$RUNPOD_TCP_PORT_8000/health/live
+
+# 5. Test chat API:
+curl -X POST http://$RUNPOD_PUBLIC_IP:$RUNPOD_TCP_PORT_8000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello, how are you?", "stream": false}'
+
+# 6. Check container logs:
+# From RunPod terminal:
+docker logs $(docker ps -q) --tail 100
+
+# 7. Debug inside container:
+docker exec -it $(docker ps -q) bash
+# Then run:
+supervisorctl status
+tail -f /var/log/supervisor/api.log

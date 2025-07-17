@@ -1,0 +1,138 @@
+# Docker Compose for Integrated Ultra Fast Search + ubiquitous-octo-invention
+# This configuration runs both systems and connects them
+
+version: '3.8'
+
+services:
+  # Ultra Fast Search System
+  ultra-fast-search:
+    build:
+      context: ./ultra_fast_search_system
+      dockerfile: Dockerfile
+    container_name: ultra-fast-search
+    ports:
+      - "8080:8000"  # Changed port to avoid conflict
+    volumes:
+      - ./ultra_fast_search_system/indexes:/app/indexes
+      - ./ultra_fast_search_system/data:/app/data
+      - ./ultra_fast_search_system/logs:/app/logs
+    environment:
+      - EMBEDDING_MODEL_NAME=all-MiniLM-L6-v2
+      - EMBEDDING_DIM=384
+      - USE_GPU=false
+      - INDEX_PATH=/app/indexes
+    networks:
+      - ai-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v2/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Nginx Proxy for Ultra Fast Search
+  ultra-fast-nginx:
+    image: nginx:alpine
+    container_name: ultra-fast-nginx
+    ports:
+      - "8081:80"  # Ultra Fast Search accessible via port 8081
+    volumes:
+      - ./ultra_fast_search_system/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - ultra-fast-search
+    networks:
+      - ai-network
+
+  # Redis for both systems
+  redis:
+    image: redis:7-alpine
+    container_name: integrated-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - ai-network
+    command: redis-server --appendonly yes
+
+  # PostgreSQL for the AI system (if needed)
+  postgres:
+    image: postgres:15-alpine
+    container_name: integrated-postgres
+    environment:
+      POSTGRES_DB: ai_system
+      POSTGRES_USER: ai_user
+      POSTGRES_PASSWORD: ai_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - ai-network
+
+  # ubiquitous-octo-invention AI System
+  ai-system:
+    build:
+      context: ./ubiquitous-octo-invention
+      dockerfile: Dockerfile
+    container_name: ai-system
+    ports:
+      - "8000:8000"  # Main AI system on port 8000
+    volumes:
+      - ./ubiquitous-octo-invention:/app
+      - ./integration:/app/integration  # Mount integration files
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://ai_user:ai_password@postgres:5432/ai_system
+      - ULTRA_FAST_SEARCH_URL=http://ultra-fast-nginx:80
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    depends_on:
+      - redis
+      - postgres
+      - ultra-fast-search
+    networks:
+      - ai-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Optional: Monitoring with Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: integrated-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - ai-network
+    profiles:
+      - monitoring
+
+  # Optional: Visualization with Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: integrated-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - ai-network
+    profiles:
+      - monitoring
+
+networks:
+  ai-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  postgres-data:
+  grafana-data:

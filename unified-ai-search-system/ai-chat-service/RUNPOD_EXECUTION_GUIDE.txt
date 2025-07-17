@@ -1,0 +1,370 @@
+# 🚀 RUNPOD EXECUTION COMMANDS
+# Copy and paste these commands one by one in your RunPod terminal
+
+# =============================================================================
+# STEP 1: QUICK FIX EXECUTION (Run this first)
+# =============================================================================
+
+# Navigate to workspace and apply the comprehensive fix
+cd /workspace
+curl -s https://raw.githubusercontent.com/puneetrinity/ubiquitous-octo-invention/main/scripts/final-comprehensive-fix.sh | bash
+
+# =============================================================================
+# STEP 2: MANUAL BACKUP EXECUTION (If curl fails)
+# =============================================================================
+
+# Create the fix script manually
+cat > /workspace/fix-all-issues.sh << 'EOF'
+#!/bin/bash
+echo "🚀 COMPREHENSIVE AI SEARCH SYSTEM FIX"
+echo "====================================="
+
+# Stop all services
+supervisorctl stop all
+sleep 3
+
+# Fix Redis startup
+echo "🔧 Fixing Redis..."
+redis-cli shutdown 2>/dev/null || true
+supervisorctl start redis
+sleep 5
+
+# Test Redis
+if redis-cli ping > /dev/null 2>&1; then
+    echo "✅ Redis: Connected"
+else
+    echo "❌ Redis: Failed, trying manual start"
+    redis-server --daemonize yes --bind 0.0.0.0 --port 6379 --protected-mode no &
+    sleep 3
+fi
+
+# Start Ollama
+echo "🔧 Starting Ollama..."
+supervisorctl start ollama
+sleep 10
+
+# Fix FastAPI main.py for proper initialization
+echo "🔧 Fixing FastAPI initialization..."
+cd /app
+
+# Backup original
+cp main.py main.py.backup
+
+# Create comprehensive FastAPI fix
+cat > fix_fastapi.py << 'PYTHON_EOF'
+import sys
+sys.path.insert(0, '/app')
+
+# Read current main.py
+with open('/app/main.py', 'r') as f:
+    content = f.read()
+
+# Enhanced lifespan function
+new_lifespan = '''
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager with comprehensive initialization"""
+    logger.info("🚀 Starting FastAPI application...")
+    
+    try:
+        # Initialize Redis
+        logger.info("📡 Initializing Redis...")
+        redis_client = get_redis_client()
+        if redis_client:
+            try:
+                await redis_client.ping()
+                logger.info("✅ Redis connected")
+            except:
+                logger.warning("⚠️ Redis connection failed")
+                redis_client = None
+        
+        # Initialize ModelManager
+        logger.info("🤖 Initializing ModelManager...")
+        from app.models.manager import ModelManager
+        model_manager = ModelManager()
+        await model_manager.initialize()
+        models = await model_manager.get_available_models()
+        logger.info(f"✅ ModelManager ready with {len(models)} models")
+        
+        # Initialize ChatGraph
+        logger.info("💬 Initializing ChatGraph...")
+        from app.graphs.chat_graph import ChatGraph
+        chat_graph = ChatGraph(model_manager)
+        
+        # Initialize SearchGraph
+        logger.info("🔍 Initializing SearchGraph...")
+        from app.graphs.search_graph import SearchGraph
+        search_graph = SearchGraph(model_manager)
+        
+        # Store in app state
+        app.state.model_manager = model_manager
+        app.state.chat_graph = chat_graph
+        app.state.search_graph = search_graph
+        app.state.redis_client = redis_client
+        
+        logger.info("🎉 All components initialized!")
+        
+    except Exception as e:
+        logger.error(f"❌ Initialization error: {e}")
+        # Continue anyway for debugging
+        
+    yield
+    
+    # Cleanup
+    logger.info("🧹 Cleaning up...")
+    if hasattr(app.state, 'redis_client') and app.state.redis_client:
+        try:
+            await app.state.redis_client.close()
+        except:
+            pass
+'''
+
+# Enhanced chat endpoint
+new_chat_endpoint = '''
+@app.post("/api/v1/chat", response_model=ChatResponse)
+async def chat_endpoint(request: ChatRequest) -> ChatResponse:
+    """Enhanced chat endpoint"""
+    correlation_id = str(uuid.uuid4())
+    query_id = str(uuid.uuid4())
+    
+    logger.info(f"Chat request received: {request.query[:50]}...")
+    
+    try:
+        # Validate input
+        if not request.query or not request.query.strip():
+            return ChatResponse(
+                response="Please provide a valid question.",
+                query_id=query_id,
+                correlation_id=correlation_id,
+                success=True
+            )
+        
+        # Check if graph is initialized
+        if not hasattr(app.state, 'chat_graph') or app.state.chat_graph is None:
+            logger.error("ChatGraph not initialized")
+            return ChatResponse(
+                response="Chat system is starting up. Please try again in a moment.",
+                query_id=query_id,
+                correlation_id=correlation_id,
+                success=False
+            )
+        
+        # Create graph state
+        from app.graphs.base import GraphState
+        state = GraphState(
+            query=request.query.strip(),
+            query_id=query_id,
+            conversation_id=request.conversation_id or str(uuid.uuid4())
+        )
+        
+        # Execute chat graph
+        logger.info("Executing chat graph...")
+        result = await app.state.chat_graph.execute(state)
+        
+        # Extract response with fallbacks
+        final_response = None
+        
+        if hasattr(result, 'final_response') and result.final_response:
+            final_response = result.final_response
+        elif hasattr(result, 'response') and result.response:
+            final_response = result.response
+        elif isinstance(result, dict):
+            final_response = result.get('final_response') or result.get('response')
+        
+        # Clean response
+        if final_response:
+            final_response = final_response.strip()
+            # Remove duplicate content
+            if '---' in final_response:
+                parts = final_response.split('---')
+                for part in parts:
+                    if part.strip() and len(part.strip()) > 10:
+                        final_response = part.strip()
+                        break
+        
+        # Fallback response
+        if not final_response or final_response.lower() in ['missing', 'none', '']:
+            final_response = "I'm here to help! Could you please rephrase your question?"
+        
+        logger.info(f"Response generated: {len(final_response)} characters")
+        
+        return ChatResponse(
+            response=final_response,
+            query_id=query_id,
+            correlation_id=correlation_id,
+            success=True
+        )
+        
+    except Exception as e:
+        logger.error(f"Chat endpoint error: {e}")
+        return ChatResponse(
+            response="I encountered an issue. Please try again.",
+            query_id=query_id,
+            correlation_id=correlation_id,
+            success=False
+        )
+'''
+
+# Replace lifespan function
+import re
+
+# Find and replace lifespan
+if '@asynccontextmanager' in content and 'async def lifespan' in content:
+    # Simple replacement approach
+    lines = content.split('\n')
+    new_lines = []
+    skip_lines = False
+    
+    for line in lines:
+        if '@asynccontextmanager' in line or ('async def lifespan' in line and 'app: FastAPI' in line):
+            skip_lines = True
+            new_lines.append(new_lifespan.strip())
+            continue
+        
+        if skip_lines:
+            # Skip until we find the next function/class definition
+            if line.strip().startswith(('def ', 'class ', '@app.')) and 'lifespan' not in line:
+                skip_lines = False
+                new_lines.append(line)
+            continue
+        
+        new_lines.append(line)
+    
+    content = '\n'.join(new_lines)
+
+# Replace chat endpoint
+if '@app.post("/api/v1/chat"' in content:
+    lines = content.split('\n')
+    new_lines = []
+    skip_lines = False
+    
+    for line in lines:
+        if '@app.post("/api/v1/chat"' in line:
+            skip_lines = True
+            new_lines.append(new_chat_endpoint.strip())
+            continue
+        
+        if skip_lines:
+            # Skip until next function/endpoint
+            if line.strip().startswith(('@app.', 'def ', 'class ')) and 'chat_endpoint' not in line:
+                skip_lines = False
+                new_lines.append(line)
+            continue
+        
+        new_lines.append(line)
+    
+    content = '\n'.join(new_lines)
+
+# Write the updated content
+with open('/app/main.py', 'w') as f:
+    f.write(content)
+
+print("✅ FastAPI main.py updated successfully")
+PYTHON_EOF
+
+python3 fix_fastapi.py
+
+echo "🔧 Starting FastAPI..."
+supervisorctl start ai-search-app
+sleep 15
+
+echo "🧪 Testing the system..."
+
+# Test Redis
+if redis-cli ping > /dev/null 2>&1; then
+    echo "✅ Redis: OK"
+else
+    echo "❌ Redis: Failed"
+fi
+
+# Test Ollama
+if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+    echo "✅ Ollama: OK"
+else
+    echo "❌ Ollama: Failed"
+fi
+
+# Test FastAPI
+if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+    echo "✅ FastAPI: OK"
+else
+    echo "❌ FastAPI: Failed"
+fi
+
+# Test chat endpoint
+echo "🗣️ Testing chat endpoint..."
+CHAT_RESULT=$(curl -s -X POST http://localhost:8000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Hello, how are you?"}')
+
+if echo "$CHAT_RESULT" | grep -q '"success":true'; then
+    echo "✅ Chat endpoint: SUCCESS!"
+    echo "Response: $CHAT_RESULT"
+else
+    echo "❌ Chat endpoint: Failed"
+    echo "Response: $CHAT_RESULT"
+fi
+
+# System status
+echo "📊 System status:"
+curl -s http://localhost:8000/api/v1/system/status | jq '.' 2>/dev/null || curl -s http://localhost:8000/api/v1/system/status
+
+echo "🎉 Fix complete!"
+EOF
+
+# Make executable and run
+chmod +x /workspace/fix-all-issues.sh
+/workspace/fix-all-issues.sh
+
+# =============================================================================
+# STEP 3: VERIFICATION COMMANDS
+# =============================================================================
+
+# Check all services are running
+supervisorctl status
+
+# Test each component
+echo "Testing Redis:"
+redis-cli ping
+
+echo "Testing Ollama:"
+curl -s http://localhost:11434/api/tags | head -5
+
+echo "Testing FastAPI:"
+curl -s http://localhost:8000/health
+
+echo "Testing Chat Endpoint:"
+curl -X POST http://localhost:8000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Hello test"}' | jq '.'
+
+echo "System Status:"
+curl -s http://localhost:8000/api/v1/system/status | jq '.'
+
+# =============================================================================
+# STEP 4: TROUBLESHOOTING (If issues persist)
+# =============================================================================
+
+# View logs
+echo "FastAPI logs (last 20 lines):"
+tail -20 /workspace/logs/app.out.log
+
+echo "Redis logs:"
+tail -10 /workspace/logs/redis.out.log
+
+echo "Ollama logs:"
+tail -10 /workspace/logs/ollama.out.log
+
+# Manual service restart if needed
+# supervisorctl restart all
+
+# =============================================================================
+# STEP 5: SUCCESS VERIFICATION
+# =============================================================================
+
+# If everything works, you should see:
+# ✅ Redis: OK
+# ✅ Ollama: OK  
+# ✅ FastAPI: OK
+# ✅ Chat endpoint: SUCCESS!
+# System status showing all components as "healthy" or "ready"

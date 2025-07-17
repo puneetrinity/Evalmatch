@@ -1,0 +1,23 @@
+# requirements-dev.txt
+# Development dependencies
+# Python version: 3.10.x recommended for compatibility
+
+-r requirements.txt
+
+# Testing
+pytest
+pytest-asyncio
+pytest-cov==4.1.0
+httpx==0.25.2
+asgi_lifespan
+
+# Code quality
+black==23.11.0
+flake8==6.1.0
+mypy==1.7.1
+isort==5.12.0
+ruff==0.1.6
+
+# Development tools
+pre-commit==3.5.0
+jupyter==1.0.0

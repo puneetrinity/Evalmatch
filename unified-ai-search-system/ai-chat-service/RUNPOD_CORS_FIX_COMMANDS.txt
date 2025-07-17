@@ -1,0 +1,23 @@
+# EMERGENCY CORS FIX - One-liner commands for RunPod terminal
+# Copy and paste these commands one by one into your RunPod terminal
+
+# 1. Download the emergency fix script
+curl -o /tmp/cors-fix.sh https://raw.githubusercontent.com/puneetrinity/ubiquitous-octo-invention/main/scripts/emergency-cors-fix.sh
+
+# 2. Make it executable and run it
+chmod +x /tmp/cors-fix.sh && /tmp/cors-fix.sh
+
+# OR if curl doesn't work, use this direct approach:
+# 3. Alternative: Direct supervisor update (copy/paste this entire block)
+supervisorctl stop ai-search-app && \
+export ALLOWED_ORIGINS="http://localhost:3000,http://localhost:8000,https://feb7cb5f-ab08-463c-86a3-8fc7230da68e-00-3ruaw352aa5oh.kirk.replit.dev" && \
+echo "Updated ALLOWED_ORIGINS: $ALLOWED_ORIGINS" && \
+supervisorctl start ai-search-app && \
+supervisorctl status ai-search-app
+
+# 4. Quick verification (check if CORS is working)
+curl -H "Origin: https://feb7cb5f-ab08-463c-86a3-8fc7230da68e-00-3ruaw352aa5oh.kirk.replit.dev" \
+     -H "Access-Control-Request-Method: POST" \
+     -H "Access-Control-Request-Headers: content-type" \
+     -X OPTIONS \
+     http://localhost:8000/api/v1/chat/complete

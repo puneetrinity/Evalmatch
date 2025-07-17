@@ -1,0 +1,32 @@
+# Lightweight Dockerfile for Railway deployment
+FROM python:3.11-slim
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Install minimal system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip
+RUN pip install --upgrade pip
+
+# Copy the lightweight dependencies file
+COPY requirements-railway.txt requirements.txt
+
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the application code
+COPY ./app /app/app
+
+# Create directories for indexes and data
+RUN mkdir -p /app/indexes /app/data
+
+# Expose port
+EXPOSE 8000
+
+# Command to run the application
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

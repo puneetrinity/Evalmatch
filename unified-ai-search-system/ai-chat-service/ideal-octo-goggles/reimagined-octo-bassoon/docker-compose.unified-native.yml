@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Ollama service for local LLM inference
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Unified AI Platform (100% integrated system)
+  unified-ai-platform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - REDIS_URL=redis://redis:6379
+      - OLLAMA_HOST=http://ollama:11434
+      - DEFAULT_MODEL=phi3:mini
+      - FALLBACK_MODEL=phi3:mini
+      - DEFAULT_MONTHLY_BUDGET=20.0
+      - RATE_LIMIT_PER_MINUTE=60
+      - TARGET_RESPONSE_TIME=2.5
+      # Native Search Engine Configuration
+      - EMBEDDING_MODEL_NAME=all-MiniLM-L6-v2
+      - EMBEDDING_DIM=384
+      - USE_GPU=false
+      - INDEX_PATH=/app/indexes
+      - CHUNK_SIZE=1000
+      - CHUNK_OVERLAP=100
+      # API Keys (add your own for enhanced web search)
+      - BRAVE_API_KEY=${BRAVE_API_KEY:-}
+      - SCRAPINGBEE_API_KEY=${SCRAPINGBEE_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - ai_indexes:/app/indexes
+      - ai_data:/app/data
+      - ./static:/app/static
+    depends_on:
+      - redis
+      - ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # Nginx reverse proxy (optional, for production)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.unified.conf:/etc/nginx/nginx.conf:ro
+      - ./static:/usr/share/nginx/html/static:ro
+    depends_on:
+      - unified-ai-platform
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  ollama_data:
+  ai_indexes:
+  ai_data:
+
+networks:
+  default:
+    driver: bridge

@@ -1,0 +1,31 @@
+# ONE-LINER COMMANDS TO FIX AI SERVICE ON RUNPOD
+# Copy and paste these commands one by one into your RunPod terminal
+
+# 1. Download and run the diagnostic script
+curl -s https://raw.githubusercontent.com/puneetrinity/ubiquitous-octo-invention/main/scripts/diagnose-ai-service.sh | bash
+
+# 2. If diagnostic shows issues, run the emergency fix
+curl -s https://raw.githubusercontent.com/puneetrinity/ubiquitous-octo-invention/main/scripts/fix-empty-response.sh | bash
+
+# 3. Quick manual fixes (run these if the above scripts don't work)
+
+# Force pull a working model
+ollama pull tinyllama:latest
+
+# Test model directly
+curl -X POST http://localhost:11434/api/generate -H "Content-Type: application/json" -d '{"model":"tinyllama:latest","prompt":"Say hello","stream":false}'
+
+# Restart all services
+supervisorctl restart all && sleep 10
+
+# Test the chat endpoint
+curl -X POST http://localhost:8000/api/v1/chat/complete -H "Content-Type: application/json" -d '{"message":"Hello test","stream":false}'
+
+# 4. Alternative: Start model initialization manually
+supervisorctl stop model-init && supervisorctl start model-init
+
+# 5. Check logs if still failing
+supervisorctl tail ai-search-app stderr
+
+# 6. Nuclear option: Restart everything
+supervisorctl restart all && sleep 15 && curl -X POST http://localhost:8000/api/v1/chat/complete -H "Content-Type: application/json" -d '{"message":"Test after restart","stream":false}'

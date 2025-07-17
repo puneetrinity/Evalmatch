@@ -1,0 +1,33 @@
+
+[
+    {
+        "id": "resume_1",
+        "name": "Alice Johnson",
+        "experience_years": 8,
+        "seniority_level": "senior",
+        "skills": ["Python", "PyTorch", "TensorFlow", "Scikit-learn", "AWS", "Docker"],
+        "technologies": ["Python", "PyTorch", "AWS"],
+        "title": "Senior Machine Learning Engineer",
+        "description": "Experienced ML engineer with a focus on deep learning and computer vision."
+    },
+    {
+        "id": "resume_2",
+        "name": "Bob Williams",
+        "experience_years": 5,
+        "seniority_level": "mid",
+        "skills": ["JavaScript", "React", "Node.js", "MongoDB", "GraphQL"],
+        "technologies": ["React", "Node.js", "MongoDB"],
+        "title": "Full-Stack Developer",
+        "description": "Passionate full-stack developer building modern web applications."
+    },
+    {
+        "id": "resume_3",
+        "name": "Charlie Brown",
+        "experience_years": 10,
+        "seniority_level": "lead",
+        "skills": ["Java", "Spring Boot", "Kubernetes", "Kafka", "PostgreSQL"],
+        "technologies": ["Java", "Spring Boot", "Kubernetes"],
+        "title": "Lead Software Architect",
+        "description": "Designing and building scalable and resilient distributed systems."
+    }
+]

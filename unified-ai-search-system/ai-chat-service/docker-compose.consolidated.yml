@@ -1,0 +1,107 @@
+# Consolidated Docker Compose Configuration
+# This file consolidates the various docker-compose configurations into a single,
+# standardized approach for different environments
+
+version: '3.8'
+
+services:
+  # Redis cache service
+  redis:
+    image: redis:7-alpine
+    container_name: ai-search-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - ai-search-network
+
+  # Main AI Search API service
+  ai-search-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    container_name: ai-search-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "11434:11434"  # Ollama port
+    environment:
+      - ENVIRONMENT=production
+      - REDIS_URL=redis://redis:6379
+      - OLLAMA_HOST=http://localhost:11434
+      - PYTHONPATH=/app
+      - LOG_LEVEL=info
+    volumes:
+      - ./app:/app/app:ro  # Read-only app code mount for development
+      - ollama_models:/home/appuser/.ollama/models
+      - app_logs:/var/log/supervisor
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ai-search-network
+
+  # Development variant with code reload
+  ai-search-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-search-dev
+    restart: unless-stopped
+    ports:
+      - "8001:8000"  # Different port for dev
+      - "11435:11434"  # Different Ollama port for dev
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - REDIS_URL=redis://redis:6379
+      - OLLAMA_HOST=http://localhost:11434
+      - PYTHONPATH=/app
+      - LOG_LEVEL=debug
+    volumes:
+      - .:/app  # Full project mount for development
+      - ollama_models_dev:/home/appuser/.ollama/models
+    depends_on:
+      - redis
+    command: ["shell"]  # Start in shell mode for debugging
+    profiles:
+      - development
+    networks:
+      - ai-search-network
+
+volumes:
+  redis_data:
+    name: ai-search-redis-data
+  ollama_models:
+    name: ai-search-ollama-models
+  ollama_models_dev:
+    name: ai-search-ollama-models-dev
+  app_logs:
+    name: ai-search-logs
+
+networks:
+  ai-search-network:
+    name: ai-search-network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Usage:
+# Production: docker-compose -f docker-compose.consolidated.yml up -d
+# Development: docker-compose -f docker-compose.consolidated.yml --profile development up -d
+# Testing: docker-compose -f docker-compose.consolidated.yml up redis  # Start only Redis for tests

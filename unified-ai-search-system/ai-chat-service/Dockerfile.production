@@ -1,0 +1,177 @@
+# Production Dockerfile for app A5000 Deployment
+# Simplified version without development dependencies
+FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    CUDA_VISIBLE_DEVICES=0 \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+    PYTHONPATH=/app \
+    PYTHONWARNINGS=ignore::DeprecationWarning \
+    OLLAMA_HOST=0.0.0.0:11434 \
+    OLLAMA_MODELS=/root/.ollama/models \
+    REDIS_URL=redis://localhost:6379
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    curl \
+    wget \
+    git \
+    build-essential \
+    gcc \
+    g++ \
+    python3.10 \
+    python3.10-dev \
+    python3-pip \
+    python3.10-venv \
+    redis-server \
+    supervisor \
+    jq \
+    netcat \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create symbolic links for python
+RUN ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
+    ln -sf /usr/bin/python3.10 /usr/bin/python
+
+# Upgrade pip 
+RUN python3 -m pip install --upgrade pip setuptools wheel
+
+# Install Ollama
+RUN curl -fsSL https://ollama.ai/install.sh | sh
+
+# Create application user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Copy and install Python dependencies
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Create necessary directories first
+RUN mkdir -p /app/logs /app/data /app/models /home/appuser/.ollama/models /var/log/supervisor /var/run /etc/supervisor/conf.d && \
+    chmod 755 /app/logs /app/data /app/models /home/appuser/.ollama && \
+    chmod 755 /home/appuser/.ollama/models /var/log/supervisor /var/run /etc/supervisor /etc/supervisor/conf.d && \
+    chown -R appuser:appuser /app /home/appuser/.ollama
+
+# Copy application code to /app
+COPY app ./app
+COPY scripts ./scripts
+
+# Create .env.example directly to avoid copy issues
+RUN cat > .env.example << 'EOF'
+# Environment configuration for AI Search System
+APP_NAME="AI Search System"
+ENVIRONMENT=production
+DEBUG=false
+API_HOST=0.0.0.0
+API_PORT=8000
+
+# Ollama Configuration
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_TIMEOUT=60
+OLLAMA_MAX_RETRIES=3
+DEFAULT_MODEL=phi3:mini
+FALLBACK_MODEL=tinyllama:latest
+
+# Redis Configuration
+REDIS_URL=redis://localhost:6379
+REDIS_MAX_CONNECTIONS=20
+REDIS_TIMEOUT=5
+
+# Search Providers
+BRAVE_SEARCH_API_KEY=your_brave_search_api_key_here
+SCRAPINGBEE_API_KEY=your_scrapingbee_api_key_here
+
+# ClickHouse Analytics
+CLICKHOUSE_HOST=localhost
+CLICKHOUSE_PORT=8123
+CLICKHOUSE_DATABASE=ai_search_metrics
+CLICKHOUSE_USERNAME=default
+CLICKHOUSE_PASSWORD=
+
+# Performance Settings
+CACHE_TTL_SHORT=1800
+CACHE_TTL_MEDIUM=3600
+CACHE_TTL_LONG=7200
+MODEL_MEMORY_LIMIT_GB=20
+ENABLE_MODEL_SWAPPING=true
+
+# Security
+JWT_SECRET_KEY=your_jwt_secret_key_here
+JWT_ALGORITHM=HS256
+JWT_EXPIRATION_HOURS=24
+
+# Monitoring
+LOG_LEVEL=INFO
+ENABLE_PROMETHEUS_METRICS=true
+PROMETHEUS_PORT=9090
+
+# RunPod Settings
+CUDA_VISIBLE_DEVICES=0
+NVIDIA_VISIBLE_DEVICES=all
+CONTAINER_SHARED_MEMORY_SIZE=2g
+EOF
+
+# Create log directories BEFORE copying supervisor config to prevent timing issues
+RUN mkdir -p /app/logs /var/log/supervisor && \
+    chmod 755 /app/logs /var/log/supervisor
+
+COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
+COPY docker/supervisor.conf /etc/supervisor/conf.d/ai-search.conf
+COPY docker/init-models.sh /app/init-models.sh
+COPY start-app.sh /app/start-app.sh
+COPY start-app-production.sh /app/start-app-production.sh
+
+# Fix line endings and permissions
+RUN sed -i 's/\r$//' /app/start-app.sh /app/start-app-production.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh /app/scripts/wait-for-services.sh /app/scripts/supervisorctl-wrapper.sh && \
+    chmod +x /app/start-app.sh /app/start-app-production.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh /app/scripts/wait-for-services.sh /app/scripts/supervisorctl-wrapper.sh && \
+    ln -sf /app/scripts/supervisorctl-wrapper.sh /usr/local/bin/supervisorctl-clean && \
+    echo "=== Final verification ===" && \
+    ls -la /app/ && \
+    ls -la /etc/supervisor/conf.d/ && \
+    echo "Config file size:" && \
+    wc -l /etc/supervisor/conf.d/ai-search.conf
+
+# Create symlinks in workspace pointing to /app (after creating directories)
+RUN mkdir -p /workspace && \
+    ln -sf /app /workspace/app && \
+    ln -sf /app/init-models.sh /workspace/init-models.sh && \
+    ln -sf /app/start-app.sh /workspace/start-app.sh && \
+    ln -sf /app/scripts/health-check.sh /workspace/health-check.sh && \
+    ln -sf /app/scripts/supervisord-wrapper.sh /workspace/supervisord-wrapper.sh
+
+# Create default .env from example (if it doesn't exist)
+RUN cp .env.example .env
+
+# Verify config files are copied correctly
+RUN echo "=== Verifying supervisor config ===" && \
+    ls -la /etc/supervisor/conf.d/ && \
+    echo "=== Config file contents ===" && \
+    cat /etc/supervisor/conf.d/ai-search.conf && \
+    echo "=== End config verification ==="
+
+# Expose ports (removed SSH port 22 for security)
+EXPOSE 8000 11434 6379
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/health/live || exit 1
+
+# Create a flexible entrypoint that allows both supervised mode and shell access
+COPY docker/flexible-entrypoint.sh /app/flexible-entrypoint.sh
+RUN chmod +x /app/flexible-entrypoint.sh
+
+# Start services
+ENTRYPOINT ["/app/flexible-entrypoint.sh"]
+CMD ["supervised"]

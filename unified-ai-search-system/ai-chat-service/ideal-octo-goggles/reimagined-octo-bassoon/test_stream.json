@@ -1,0 +1,6 @@
+{
+  "messages": [
+    {"role": "user", "content": "Tell me about AI in 3 sentences"}
+  ],
+  "session_id": "stream_test_session"
+}

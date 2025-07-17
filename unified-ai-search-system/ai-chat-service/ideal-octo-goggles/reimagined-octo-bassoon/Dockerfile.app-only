@@ -1,0 +1,113 @@
+# Streamlined Dockerfile - Complete app without pre-downloaded models
+# Models will be pulled on-demand on RunPod
+FROM python:3.10-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    wget \
+    build-essential \
+    redis-server \
+    supervisor \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip
+RUN pip install --upgrade pip
+
+# Install Ollama (but don't pull models yet)
+RUN curl -fsSL https://ollama.ai/install.sh | sh
+
+# Copy and install Python dependencies
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy complete application code
+COPY app ./app
+COPY scripts ./scripts
+COPY .env.example .env
+
+# Create log directories BEFORE copying supervisor config to prevent timing issues
+RUN mkdir -p /app/logs /var/log/supervisor && \
+    chmod 755 /app/logs /var/log/supervisor
+
+# Copy docker configuration files
+COPY docker/supervisor.conf /etc/supervisor/conf.d/ai-search.conf
+
+# Create startup script that skips model downloads
+RUN cat > ./start-app.sh << 'EOF'
+#!/bin/bash
+set -e
+
+echo "🚀 Starting AI Search System (models will be pulled on-demand)..."
+
+# Create log directory
+mkdir -p /app/logs /var/log/supervisor
+
+# Set environment variables
+export REDIS_URL="redis://localhost:6379"
+export OLLAMA_HOST="http://localhost:11434"
+export ENVIRONMENT="production"
+export API_HOST="0.0.0.0"
+export API_PORT="8000"
+
+# Start services with supervisor
+exec "$@"
+EOF
+
+RUN chmod +x ./start-app.sh
+
+# Create model pull script for RunPod usage
+RUN cat > ./pull-recruitment-models.sh << 'EOF'
+#!/bin/bash
+echo "📥 Pulling recruitment models..."
+
+# Wait for Ollama to be ready
+for i in {1..30}; do
+    if curl -f http://localhost:11434/api/version > /dev/null 2>&1; then
+        echo "✅ Ollama is ready"
+        break
+    fi
+    echo "Waiting for Ollama... ($i/30)"
+    sleep 5
+done
+
+# Pull models in priority order
+echo "🔄 Pulling Tier 0: Lightweight models"
+ollama pull phi3:mini || echo "⚠️ Failed to pull phi3:mini"
+
+echo "🔄 Pulling Tier 1: Primary recruitment models"
+ollama pull tinyllama:latest || echo "⚠️ Failed to pull tinyllama"
+
+echo "🔄 Pulling Tier 2: Advanced models (optional)"
+ollama pull deepseek-llm:7b || echo "⚠️ Failed to pull deepseek-llm:7b"
+ollama pull mistral:7b || echo "⚠️ Failed to pull mistral:7b"
+ollama pull llama3:8b || echo "⚠️ Failed to pull llama3:8b"
+
+echo "✅ Model pulling completed"
+ollama list
+EOF
+
+RUN chmod +x ./pull-recruitment-models.sh
+
+# Create directories
+RUN mkdir -p /workspace/logs /workspace/data
+
+# Expose ports
+EXPOSE 8000 11434 6379
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/health/live || exit 1
+
+# Start services without model downloads
+ENTRYPOINT ["./start-app.sh"]
+CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]

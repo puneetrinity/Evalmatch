@@ -1,0 +1,67 @@
+# Universal RunPod Dockerfile for AI Search System
+# Works with or without GPU support
+FROM ubuntu:22.04
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    DEBIAN_FRONTEND=noninteractive \
+    CUDA_VISIBLE_DEVICES=0 \
+    OLLAMA_HOST=0.0.0.0:11434
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-dev \
+    curl \
+    wget \
+    build-essential \
+    git \
+    redis-server \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Ollama
+RUN curl -fsSL https://ollama.com/install.sh | sh
+
+# Set working directory
+WORKDIR /app
+
+# Copy and install Python dependencies
+COPY requirements.txt ./
+RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip3 install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY app ./app
+COPY start-app-production.sh ./start-app.sh
+
+# Create .env configuration directly
+RUN cat > .env << 'EOF'
+# AI Search System Configuration
+ENVIRONMENT=production
+API_HOST=0.0.0.0
+API_PORT=8000
+OLLAMA_HOST=http://localhost:11434
+REDIS_URL=redis://localhost:6379
+DEFAULT_MODEL=phi3:mini
+FALLBACK_MODEL=tinyllama:latest
+CUDA_VISIBLE_DEVICES=0
+LOG_LEVEL=INFO
+EOF
+
+# Create necessary directories and set permissions
+RUN mkdir -p /app/logs /app/data /app/models /root/.ollama/models && \
+    chmod +x /app/start-app.sh && \
+    chmod -R 755 /app/logs /app/data /app/models
+
+# Expose ports
+EXPOSE 8000 11434
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl --fail http://localhost:8000/health || exit 1
+
+# Start the application
+CMD ["/app/start-app.sh"]

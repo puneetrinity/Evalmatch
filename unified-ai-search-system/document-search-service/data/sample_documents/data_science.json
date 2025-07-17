@@ -1,0 +1,14 @@
+{
+  "title": "Data Science Overview",
+  "description": "An introduction to data science concepts and tools",
+  "sections": [
+    {
+      "title": "What is Data Science?",
+      "content": "Data science is an interdisciplinary field that uses scientific methods, processes, algorithms and systems to extract knowledge and insights from structured and unstructured data."
+    },
+    {
+      "title": "Key Tools",
+      "content": "Python, R, SQL, Jupyter Notebooks, Pandas, NumPy, Scikit-learn, TensorFlow, PyTorch"
+    }
+  ]
+}

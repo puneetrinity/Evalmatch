@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Ollama service for local LLM inference
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Ultra-Fast Search Engine (ideal-octo-goggles)
+  search-engine:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - EMBEDDING_MODEL_NAME=all-MiniLM-L6-v2
+      - EMBEDDING_DIM=384
+      - USE_GPU=false
+      - INDEX_PATH=/app/indexes
+      - LOG_LEVEL=INFO
+    volumes:
+      - search_indexes:/app/indexes
+      - search_data:/app/data
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # AI Chat & Orchestration (reimagined-octo-bassoon)
+  ai-platform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - REDIS_URL=redis://redis:6379
+      - OLLAMA_HOST=http://ollama:11434
+      - DOCUMENT_SEARCH_URL=http://search-engine:8001
+      - DEFAULT_MODEL=phi3:mini
+      - FALLBACK_MODEL=phi3:mini
+      - DEFAULT_MONTHLY_BUDGET=20.0
+      - RATE_LIMIT_PER_MINUTE=60
+      - TARGET_RESPONSE_TIME=2.5
+      # Add your API keys here for full functionality
+      - BRAVE_API_KEY=${BRAVE_API_KEY:-}
+      - SCRAPINGBEE_API_KEY=${SCRAPINGBEE_API_KEY:-}
+    volumes:
+      - ai_data:/app/data
+      - ./static:/app/static
+    depends_on:
+      - redis
+      - ollama
+      - search-engine
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # Nginx reverse proxy for unified access
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.demo.conf:/etc/nginx/nginx.conf:ro
+      - ./static:/usr/share/nginx/html/static:ro
+    depends_on:
+      - ai-platform
+      - search-engine
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  ollama_data:
+  search_indexes:
+  search_data:
+  ai_data:
+
+networks:
+  default:
+    driver: bridge

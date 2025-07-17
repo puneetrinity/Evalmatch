@@ -1,0 +1,9 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy test files
+COPY app/test_basic.py app/test_basic.py
+
+# Test 6: Basic HTTP server that listens on PORT
+CMD ["python", "app/test_basic.py"]

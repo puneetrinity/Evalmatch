@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Search System</title>
+    <!-- Updated: 2025-07-14 with bulk upload feature -->
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        button {
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .results {
+            margin-top: 20px;
+        }
+        .result-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        .result-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .result-title {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .result-description {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        .result-skills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .skill-tag {
+            background: #e7f3ff;
+            color: #0066cc;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .result-meta {
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            gap: 15px;
+        }
+        .upload-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-top: 30px;
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .form-group {
+            flex: 1;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        textarea {
+            height: 60px;
+            resize: vertical;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .stats {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .file-upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 6px;
+            padding: 30px;
+            text-align: center;
+            background: #fafafa;
+            margin: 15px 0;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        .file-upload-area:hover {
+            border-color: #007bff;
+            background: #f0f8ff;
+        }
+        .file-upload-area.dragover {
+            border-color: #007bff;
+            background: #e7f3ff;
+        }
+        .file-list {
+            margin: 15px 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .file-item.uploading {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+        }
+        .file-item.success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .file-item.error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .file-remove {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 2px 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #007bff;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .tab-container {
+            margin: 30px 0;
+        }
+        .tab-buttons {
+            display: flex;
+            border-bottom: 2px solid #e9ecef;
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+        }
+        .tab-button.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 ML Search System</h1>
+        
+        <div class="stats" id="stats">
+            Loading system status...
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="searchQuery" placeholder="Search for skills, technologies, experience..." />
+            <button onclick="search()">Search</button>
+        </div>
+
+        <div id="results" class="results"></div>
+
+        <div class="tab-container">
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="switchTab('profile')">📋 Add Profile</button>
+                <button class="tab-button" onclick="switchTab('bulk')">📁 Bulk Upload Files</button>
+            </div>
+
+            <div id="profile-tab" class="tab-content active">
+                <div class="upload-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input type="text" id="name" placeholder="John Doe" />
+                        </div>
+                        <div class="form-group">
+                            <label>Title</label>
+                            <input type="text" id="title" placeholder="Senior Software Engineer" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="description" placeholder="Brief description of expertise and background"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Skills (comma-separated)</label>
+                            <input type="text" id="skills" placeholder="Python, JavaScript, React, Node.js" />
+                        </div>
+                        <div class="form-group">
+                            <label>Technologies (comma-separated)</label>
+                            <input type="text" id="technologies" placeholder="Docker, Kubernetes, AWS, PostgreSQL" />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Experience Years</label>
+                            <input type="number" id="experience_years" min="0" max="50" value="3" />
+                        </div>
+                        <div class="form-group">
+                            <label>Seniority Level</label>
+                            <select id="seniority_level">
+                                <option value="junior">Junior</option>
+                                <option value="mid">Mid-level</option>
+                                <option value="senior">Senior</option>
+                                <option value="lead">Lead</option>
+                                <option value="principal">Principal</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Experience Details</label>
+                        <textarea id="experience" placeholder="Detailed experience description"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Notable Projects</label>
+                        <textarea id="projects" placeholder="Key projects and achievements"></textarea>
+                    </div>
+                    <button onclick="addProfile()" style="width: 100%; margin-top: 10px;">Add Profile</button>
+                    <div id="uploadStatus"></div>
+                </div>
+            </div>
+
+            <div id="bulk-tab" class="tab-content">
+                <div class="upload-form">
+                    <h4>📁 Upload Multiple Files</h4>
+                    <p>Supported formats: PDF, DOC/DOCX, Excel (XLS/XLSX), HTML, CSV, TXT, JSON</p>
+                    
+                    <div class="file-upload-area" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                        <div>
+                            <strong>📤 Click here or drag & drop files</strong><br>
+                            <span style="color: #666; font-size: 14px;">Multiple file selection supported</span>
+                        </div>
+                    </div>
+                    
+                    <input type="file" id="fileInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.html,.csv,.txt,.json" style="display: none;" />
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Default Tags (comma-separated)</label>
+                            <input type="text" id="defaultTags" placeholder="resume, candidate, tech" />
+                        </div>
+                        <div class="form-group">
+                            <label>Default Description</label>
+                            <input type="text" id="defaultDescription" placeholder="Uploaded document" />
+                        </div>
+                    </div>
+                    
+                    <div id="fileList" class="file-list"></div>
+                    
+                    <div class="progress-bar" id="overallProgress" style="display: none;">
+                        <div class="progress-fill" id="overallProgressFill"></div>
+                    </div>
+                    
+                    <button id="uploadBtn" onclick="uploadAllFiles()" style="width: 100%; margin-top: 10px;" disabled>
+                        Upload All Files
+                    </button>
+                    
+                    <div id="bulkUploadStatus"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+        let selectedFiles = [];
+
+        // Load system stats on page load
+        window.onload = function() {
+            loadStats();
+            // Allow Enter key to trigger search
+            document.getElementById('searchQuery').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') search();
+            });
+            
+            // Setup file upload handlers
+            setupFileUpload();
+        };
+
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_BASE}/api/status`);
+                const data = await response.json();
+                document.getElementById('stats').innerHTML = `
+                    📊 System: ${data.system} | 
+                    🔍 Search Engine: ${data.search_engine} | 
+                    📚 Documents: ${data.documents.total_indexed} | 
+                    🧠 ML: ${data.ml_components.sentence_transformers ? 'Active' : 'Fallback'}
+                `;
+            } catch (error) {
+                document.getElementById('stats').innerHTML = '⚠️ Unable to load system status';
+            }
+        }
+
+        async function search() {
+            const query = document.getElementById('searchQuery').value.trim();
+            if (!query) return;
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">🔍 Searching...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}&limit=20`);
+                const data = await response.json();
+
+                if (data.results.length === 0) {
+                    resultsDiv.innerHTML = '<div class="loading">No results found. Try different keywords.</div>';
+                    return;
+                }
+
+                resultsDiv.innerHTML = `
+                    <h3>🎯 Found ${data.total_found} result(s) in ${data.response_time_ms}ms</h3>
+                    ${data.results.map(result => `
+                        <div class="result-item">
+                            <div class="result-name">${result.name}</div>
+                            <div class="result-title">${result.title}</div>
+                            <div class="result-description">${result.description}</div>
+                            <div class="result-skills">
+                                ${result.skills.map(skill => `<span class="skill-tag">${skill}</span>`).join('')}
+                            </div>
+                            <div class="result-meta">
+                                <span>📅 ${result.experience_years} years</span>
+                                <span>🎖️ ${result.seniority_level}</span>
+                                <span>🔢 Score: ${result.scores?.combined || 'N/A'}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="error">❌ Search failed. Please try again.</div>';
+            }
+        }
+
+        async function addProfile() {
+            const profile = {
+                name: document.getElementById('name').value.trim(),
+                title: document.getElementById('title').value.trim(),
+                description: document.getElementById('description').value.trim(),
+                skills: document.getElementById('skills').value.split(',').map(s => s.trim()).filter(s => s),
+                technologies: document.getElementById('technologies').value.split(',').map(s => s.trim()).filter(s => s),
+                experience_years: parseInt(document.getElementById('experience_years').value) || 0,
+                seniority_level: document.getElementById('seniority_level').value,
+                experience: document.getElementById('experience').value.trim(),
+                projects: document.getElementById('projects').value.trim()
+            };
+
+            if (!profile.name || !profile.title) {
+                document.getElementById('uploadStatus').innerHTML = '<div class="error">Name and title are required</div>';
+                return;
+            }
+
+            document.getElementById('uploadStatus').innerHTML = '<div class="loading">⬆️ Uploading...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/documents`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(profile)
+                });
+
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    document.getElementById('uploadStatus').innerHTML = '<div class="success">✅ Profile added successfully!</div>';
+                    // Clear form
+                    ['name', 'title', 'description', 'skills', 'technologies', 'experience', 'projects'].forEach(id => {
+                        document.getElementById(id).value = '';
+                    });
+                    document.getElementById('experience_years').value = '3';
+                    document.getElementById('seniority_level').value = 'junior';
+                    // Refresh stats
+                    loadStats();
+                } else {
+                    throw new Error(data.message || 'Upload failed');
+                }
+            } catch (error) {
+                document.getElementById('uploadStatus').innerHTML = '<div class="error">❌ Upload failed. Please try again.</div>';
+            }
+        }
+
+        // Tab switching function
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+
+        // File upload setup
+        function setupFileUpload() {
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+
+            // Handle file input change
+            fileInput.addEventListener('change', function(e) {
+                handleFiles(e.target.files);
+            });
+
+            // Handle drag and drop
+            dropZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+
+            dropZone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+            });
+
+            dropZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                handleFiles(e.dataTransfer.files);
+            });
+        }
+
+        // Handle selected files
+        function handleFiles(files) {
+            for (let file of files) {
+                // Check if file already exists
+                if (!selectedFiles.find(f => f.name === file.name && f.size === file.size)) {
+                    selectedFiles.push({
+                        file: file,
+                        id: Math.random().toString(36).substr(2, 9),
+                        status: 'pending'
+                    });
+                }
+            }
+            updateFileList();
+            updateUploadButton();
+        }
+
+        // Update file list display
+        function updateFileList() {
+            const fileList = document.getElementById('fileList');
+            
+            if (selectedFiles.length === 0) {
+                fileList.innerHTML = '<p style="text-align: center; color: #666;">No files selected</p>';
+                return;
+            }
+
+            fileList.innerHTML = selectedFiles.map(fileObj => `
+                <div class="file-item ${fileObj.status}" id="file-${fileObj.id}">
+                    <div>
+                        <strong>${fileObj.file.name}</strong>
+                        <span style="color: #666; margin-left: 10px;">(${formatFileSize(fileObj.file.size)})</span>
+                        ${fileObj.status === 'uploading' ? '<div style="color: #856404;">Uploading...</div>' : ''}
+                        ${fileObj.status === 'success' ? '<div style="color: #155724;">✅ Uploaded successfully</div>' : ''}
+                        ${fileObj.status === 'error' ? '<div style="color: #721c24;">❌ Upload failed</div>' : ''}
+                    </div>
+                    ${fileObj.status === 'pending' ? `<button class="file-remove" onclick="removeFile('${fileObj.id}')">Remove</button>` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Remove file from list
+        function removeFile(fileId) {
+            selectedFiles = selectedFiles.filter(f => f.id !== fileId);
+            updateFileList();
+            updateUploadButton();
+        }
+
+        // Update upload button state
+        function updateUploadButton() {
+            const uploadBtn = document.getElementById('uploadBtn');
+            const pendingFiles = selectedFiles.filter(f => f.status === 'pending');
+            
+            uploadBtn.disabled = pendingFiles.length === 0;
+            uploadBtn.textContent = pendingFiles.length > 0 ? 
+                `Upload ${pendingFiles.length} File(s)` : 
+                'No Files to Upload';
+        }
+
+        // Upload all files
+        async function uploadAllFiles() {
+            const defaultTags = document.getElementById('defaultTags').value.trim();
+            const defaultDescription = document.getElementById('defaultDescription').value.trim();
+            const statusDiv = document.getElementById('bulkUploadStatus');
+            const progressBar = document.getElementById('overallProgress');
+            const progressFill = document.getElementById('overallProgressFill');
+            
+            const pendingFiles = selectedFiles.filter(f => f.status === 'pending');
+            
+            if (pendingFiles.length === 0) return;
+
+            // Show progress bar
+            progressBar.style.display = 'block';
+            progressFill.style.width = '0%';
+            
+            statusDiv.innerHTML = '<div class="loading">📤 Starting bulk upload...</div>';
+            
+            let completed = 0;
+            let successful = 0;
+            let failed = 0;
+
+            // Upload files one by one
+            for (let fileObj of pendingFiles) {
+                // Update file status to uploading
+                fileObj.status = 'uploading';
+                updateFileList();
+                
+                try {
+                    const formData = new FormData();
+                    formData.append('file', fileObj.file);
+                    formData.append('title', fileObj.file.name.replace(/\.[^/.]+$/, "")); // Remove extension
+                    formData.append('description', defaultDescription || `Uploaded file: ${fileObj.file.name}`);
+                    formData.append('tags', defaultTags);
+
+                    const response = await fetch(`${API_BASE}/api/documents/upload`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        fileObj.status = 'success';
+                        successful++;
+                    } else {
+                        fileObj.status = 'error';
+                        failed++;
+                    }
+                } catch (error) {
+                    fileObj.status = 'error';
+                    failed++;
+                }
+                
+                completed++;
+                
+                // Update progress
+                const progress = (completed / pendingFiles.length) * 100;
+                progressFill.style.width = progress + '%';
+                
+                // Update file list
+                updateFileList();
+                
+                // Update status
+                statusDiv.innerHTML = `
+                    <div class="loading">
+                        📤 Progress: ${completed}/${pendingFiles.length} files processed
+                        ${successful > 0 ? `✅ ${successful} successful` : ''}
+                        ${failed > 0 ? `❌ ${failed} failed` : ''}
+                    </div>
+                `;
+            }
+
+            // Final status
+            const finalMessage = `
+                <div class="${failed === 0 ? 'success' : 'error'}">
+                    🎉 Bulk upload completed!<br>
+                    ✅ ${successful} files uploaded successfully
+                    ${failed > 0 ? `<br>❌ ${failed} files failed` : ''}
+                </div>
+            `;
+            
+            statusDiv.innerHTML = finalMessage;
+            
+            // Hide progress bar after a delay
+            setTimeout(() => {
+                progressBar.style.display = 'none';
+            }, 2000);
+            
+            // Update upload button
+            updateUploadButton();
+            
+            // Refresh stats
+            loadStats();
+        }
+
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+</html>

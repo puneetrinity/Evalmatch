@@ -1,0 +1,36 @@
+# Fast incremental build Dockerfile
+FROM reimagined-octo-bassoon:latest
+
+# Copy only changed files to minimize build time
+COPY app/api/security.py /app/app/api/security.py
+COPY app/api/chat.py /app/app/api/chat.py
+COPY app/api/unified_search.py /app/app/api/unified_search.py
+COPY app/cache/redis_client.py /app/app/cache/redis_client.py
+COPY app/core/async_utils.py /app/app/core/async_utils.py
+COPY app/core/config.py /app/app/core/config.py
+COPY app/core/memory_manager.py /app/app/core/memory_manager.py
+COPY app/dependencies.py /app/app/dependencies.py
+COPY app/main.py /app/app/main.py
+COPY app/models/manager.py /app/app/models/manager.py
+COPY app/optimization/performance_tuner.py /app/app/optimization/performance_tuner.py
+COPY app/performance/optimization.py /app/app/performance/optimization.py
+COPY app/providers/search_providers.py /app/app/providers/search_providers.py
+COPY app/graphs/search_graph.py /app/app/graphs/search_graph.py
+COPY app/storage/clickhouse_client.py /app/app/storage/clickhouse_client.py
+COPY app/graphs/unified_search_graph.py /app/app/graphs/unified_search_graph.py
+COPY app/graphs/document_search_node.py /app/app/graphs/document_search_node.py
+COPY app/providers/document_search/ultra_fast_provider.py /app/app/providers/document_search/ultra_fast_provider.py
+COPY static/unified_chat.html /app/static/unified_chat.html
+COPY .env* /app/
+
+# Fix permissions
+USER root
+RUN chown -R appuser:appuser /app
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl --fail http://localhost:8000/health/live || exit 1
+
+# Default command
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

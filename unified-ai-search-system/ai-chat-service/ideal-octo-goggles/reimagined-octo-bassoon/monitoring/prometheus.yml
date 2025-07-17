@@ -1,0 +1,53 @@
+# Prometheus configuration for Unified AI Platform
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Conversation AI monitoring
+  - job_name: 'conversation-ai'
+    static_configs:
+      - targets: ['conversation-ai:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Document Search monitoring
+  - job_name: 'document-search'
+    static_configs:
+      - targets: ['document-search:8000']
+    metrics_path: '/api/v2/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Redis monitoring (if redis_exporter is available)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    
+  # Nginx monitoring
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-proxy:80']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+# Alerting rules (optional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093

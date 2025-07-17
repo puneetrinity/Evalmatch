@@ -1,0 +1,71 @@
+# Simplified Docker Compose for local testing
+version: '3.8'
+
+services:
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    container_name: ai-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - ai-network
+
+  # Conversation AI (ubiquitous-octo-invention)
+  conversation-ai:
+    build:
+      context: ./ubiquitous-octo-invention
+      dockerfile: Dockerfile.simple
+    image: conversation-ai:latest
+    container_name: conversation-ai
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - ai-network
+
+  # Document Search (ideal-octo-goggles)
+  document-search:
+    build:
+      context: ./ideal-octo-goggles
+      dockerfile: Dockerfile.simple
+    image: document-search:latest
+    container_name: document-search
+    ports:
+      - "8080:8000"
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - ai-network
+
+  # Simple nginx proxy
+  nginx:
+    image: nginx:alpine
+    container_name: ai-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx-simple.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - conversation-ai
+      - document-search
+    networks:
+      - ai-network
+
+networks:
+  ai-network:
+    driver: bridge

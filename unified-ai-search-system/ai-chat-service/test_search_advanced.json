@@ -1,0 +1,13 @@
+{
+  "query": "machine learning applications",
+  "max_results": 5,
+  "search_type": "comprehensive",
+  "quality_requirement": "high",
+  "budget": 5.0,
+  "include_content": true,
+  "include_summary": true,
+  "filters": {},
+  "domains": [],
+  "timeout": 60,
+  "advanced_options": {}
+}

@@ -1,0 +1,176 @@
+name: Maintenance
+
+on:
+  schedule:
+    # Run weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+jobs:
+  dependency-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install safety pip-audit
+
+      - name: Run security audit
+        run: |
+          echo "## 🔒 Security Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Run safety check
+          safety check --json > safety_report.json || true
+          if [ -s safety_report.json ]; then
+            echo "### ⚠️ Safety Issues Found" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+            cat safety_report.json >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ No Safety Issues Found" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Run pip-audit
+          pip-audit --format=json --output=pip_audit_report.json || true
+          if [ -s pip_audit_report.json ]; then
+            echo "### ⚠️ Pip Audit Issues Found" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+            cat pip_audit_report.json >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ No Pip Audit Issues Found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  docker-cleanup:
+    name: Container Registry Cleanup
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Delete old container images
+        uses: actions/delete-package-versions@v4
+        with:
+          package-name: ${{ github.event.repository.name }}
+          package-type: 'container'
+          min-versions-to-keep: 10
+          delete-only-untagged-versions: true
+
+  performance-check:
+    name: Performance Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build test image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.production
+          load: true
+          tags: ai-search:test
+          cache-from: type=gha
+
+      - name: Run performance tests
+        run: |
+          echo "## 📊 Performance Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Start container
+          docker run -d --name ai-search-perf -p 8000:8000 ai-search:test
+          
+          # Wait for startup
+          sleep 30
+          
+          # Basic performance tests
+          echo "### 🏥 Health Check Performance" >> $GITHUB_STEP_SUMMARY
+          START_TIME=$(date +%s%N)
+          curl -f http://localhost:8000/health >/dev/null 2>&1
+          END_TIME=$(date +%s%N)
+          HEALTH_TIME=$(( (END_TIME - START_TIME) / 1000000 ))
+          echo "- Health endpoint: ${HEALTH_TIME}ms" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Container Metrics" >> $GITHUB_STEP_SUMMARY
+          
+          # Memory usage
+          MEMORY_USAGE=$(docker stats ai-search-perf --no-stream --format "{{.MemUsage}}")
+          echo "- Memory Usage: ${MEMORY_USAGE}" >> $GITHUB_STEP_SUMMARY
+          
+          # Image size
+          IMAGE_SIZE=$(docker images ai-search:test --format "{{.Size}}")
+          echo "- Image Size: ${IMAGE_SIZE}" >> $GITHUB_STEP_SUMMARY
+          
+          # CPU usage
+          CPU_USAGE=$(docker stats ai-search-perf --no-stream --format "{{.CPUPerc}}")
+          echo "- CPU Usage: ${CPU_USAGE}" >> $GITHUB_STEP_SUMMARY
+          
+          # Cleanup
+          docker stop ai-search-perf
+          docker rm ai-search-perf
+
+  repository-health:
+    name: Repository Health Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Analyze repository health
+        run: |
+          echo "## 📈 Repository Health Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # File count and sizes
+          TOTAL_FILES=$(find . -type f | wc -l)
+          REPO_SIZE=$(du -sh . | cut -f1)
+          echo "### 📁 Repository Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "- Total Files: ${TOTAL_FILES}" >> $GITHUB_STEP_SUMMARY
+          echo "- Repository Size: ${REPO_SIZE}" >> $GITHUB_STEP_SUMMARY
+          
+          # Code metrics
+          PYTHON_FILES=$(find . -name "*.py" | wc -l)
+          PYTHON_LINES=$(find . -name "*.py" -exec wc -l {} + | tail -1 | awk '{print $1}')
+          echo "- Python Files: ${PYTHON_FILES}" >> $GITHUB_STEP_SUMMARY
+          echo "- Python Lines: ${PYTHON_LINES}" >> $GITHUB_STEP_SUMMARY
+          
+          # Docker files
+          DOCKER_FILES=$(find . -name "Dockerfile*" | wc -l)
+          echo "- Docker Files: ${DOCKER_FILES}" >> $GITHUB_STEP_SUMMARY
+          
+          # Scripts
+          SCRIPT_FILES=$(find scripts/ -name "*.sh" -o -name "*.py" 2>/dev/null | wc -l)
+          echo "- Script Files: ${SCRIPT_FILES}" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔄 Recent Activity" >> $GITHUB_STEP_SUMMARY
+          
+          # Recent commits
+          RECENT_COMMITS=$(git log --oneline --since="7 days ago" | wc -l)
+          echo "- Commits (Last 7 days): ${RECENT_COMMITS}" >> $GITHUB_STEP_SUMMARY
+          
+          # Last commit info
+          LAST_COMMIT=$(git log -1 --pretty=format:"%h - %s (%cr)")
+          echo "- Last Commit: ${LAST_COMMIT}" >> $GITHUB_STEP_SUMMARY
