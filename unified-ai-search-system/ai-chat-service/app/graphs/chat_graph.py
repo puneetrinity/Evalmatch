@@ -4,7 +4,6 @@ Implements sophisticated chat workflows with model selection and optimization.
 
 Complete fixed version addressing LangGraph START/END constants and compilation issues.
 """
-
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -150,11 +149,11 @@ class IntentClassifierNode(BaseGraphNode):
         self.model_manager = model_manager
 
     async def execute(self, state: GraphState, **kwargs) -> NodeResult:
-        import asyncio
         import time
+        import asyncio
 
         start_time = time.time()
-        correlation_id = getattr(state, "query_id", None)
+        correlation_id = getattr(state, 'query_id', None)
         logger.debug(
             f"[IntentClassifierNode] ENTER: {start_time} state.query_id={correlation_id}"
         )
@@ -172,29 +171,21 @@ class IntentClassifierNode(BaseGraphNode):
             health_ok = False
             try:
                 # Use asyncio.create_task to make health check non-blocking
-                health_task = asyncio.create_task(
-                    self.model_manager.ollama_client.health_check()
-                )
+                health_task = asyncio.create_task(self.model_manager.ollama_client.health_check())
                 health_ok = await asyncio.wait_for(health_task, timeout=1.0)
             except (asyncio.TimeoutError, Exception) as health_exc:
-                logger.debug(
-                    f"[IntentClassifierNode] Ollama health check failed/timeout: {health_exc} | correlation_id={correlation_id}"
-                )
+                logger.debug(f"[IntentClassifierNode] Ollama health check failed/timeout: {health_exc} | correlation_id={correlation_id}")
                 # Don't fail the request, just skip to fallback
                 health_ok = False
             if not health_ok:
-                logger.warning(
-                    f"[IntentClassifierNode] Ollama unhealthy, falling back to rule-based | correlation_id={correlation_id}"
-                )
+                logger.warning(f"[IntentClassifierNode] Ollama unhealthy, falling back to rule-based | correlation_id={correlation_id}")
                 intent = self._classify_intent_rule_based(query)
                 classification_method = "rule_based_healthcheck"
             else:
                 try:
                     model_start = time.time()
                     try:
-                        logger.debug(
-                            f"[IntentClassifierNode] BEFORE ModelManager.generate {time.time()} | correlation_id={correlation_id}"
-                        )
+                        logger.debug(f"[IntentClassifierNode] BEFORE ModelManager.generate {time.time()} | correlation_id={correlation_id}")
                         result = await asyncio.wait_for(
                             self.model_manager.generate(
                                 model_name=model_name,
@@ -204,31 +195,12 @@ class IntentClassifierNode(BaseGraphNode):
                             ),
                             timeout=timeout,
                         )
-                        logger.debug(
-                            f"[IntentClassifierNode] AFTER ModelManager.generate {time.time()} | correlation_id={correlation_id}",
-                            result=str(result),
-                        )
+                        logger.debug(f"[IntentClassifierNode] AFTER ModelManager.generate {time.time()} | correlation_id={correlation_id}", result=str(result))
                         elapsed = time.time() - model_start
                         logger.debug(
                             f"[IntentClassifierNode] Model call completed in {elapsed:.2f}s | correlation_id={correlation_id}"
                         )
                         if result.success:
-                            # Track which model was used for intent classification
-                            if hasattr(result, "model_used") and result.model_used:
-                                if not hasattr(state, "models_used"):
-                                    state.models_used = set()
-                                state.models_used.add(result.model_used)
-                                logger.debug(
-                                    f"[IntentClassifierNode] Tracked model usage: {result.model_used}"
-                                )
-                            elif model_name:
-                                if not hasattr(state, "models_used"):
-                                    state.models_used = set()
-                                state.models_used.add(model_name)
-                                logger.debug(
-                                    f"[IntentClassifierNode] Tracked model usage (fallback): {model_name}"
-                                )
-
                             intent = result.text.strip().lower()
                             if intent in [
                                 "question",
@@ -243,29 +215,21 @@ class IntentClassifierNode(BaseGraphNode):
                                 intent = self._classify_intent_rule_based(query)
                                 classification_method = "rule_based_fallback"
                         else:
-                            logger.error(
-                                f"[IntentClassifierNode] Model call failed: {result.error} | correlation_id={correlation_id}"
-                            )
+                            logger.error(f"[IntentClassifierNode] Model call failed: {result.error} | correlation_id={correlation_id}")
                             intent = self._classify_intent_rule_based(query)
                             classification_method = "rule_based"
                     except asyncio.TimeoutError:
                         elapsed = time.time() - model_start
-                        logger.error(
-                            f"[IntentClassifierNode] Model call timed out after {timeout}s, falling back to rule-based | prompt_len={len(classification_prompt)} | model={model_name} | elapsed={elapsed:.2f}s | correlation_id={correlation_id}"
-                        )
+                        logger.error(f"[IntentClassifierNode] Model call timed out after {timeout}s, falling back to rule-based | prompt_len={len(classification_prompt)} | model={model_name} | elapsed={elapsed:.2f}s | correlation_id={correlation_id}")
                         intent = self._classify_intent_rule_based(query)
                         classification_method = "rule_based_timeout"
                     except Exception as e:
                         elapsed = time.time() - model_start
-                        logger.error(
-                            f"[IntentClassifierNode] Model call failed: {e}, falling back to rule-based | prompt_len={len(classification_prompt)} | model={model_name} | elapsed={elapsed:.2f}s | correlation_id={correlation_id}"
-                        )
+                        logger.error(f"[IntentClassifierNode] Model call failed: {e}, falling back to rule-based | prompt_len={len(classification_prompt)} | model={model_name} | elapsed={elapsed:.2f}s | correlation_id={correlation_id}")
                         intent = self._classify_intent_rule_based(query)
                         classification_method = "rule_based"
                 except Exception as e:
-                    logger.error(
-                        f"[IntentClassifierNode] Model call outer exception: {e} | correlation_id={correlation_id}"
-                    )
+                    logger.error(f"[IntentClassifierNode] Model call outer exception: {e} | correlation_id={correlation_id}")
                     intent = self._classify_intent_rule_based(query)
                     classification_method = "rule_based"
             complexity = self._calculate_complexity(query)
@@ -290,9 +254,7 @@ class IntentClassifierNode(BaseGraphNode):
             )
         except Exception as e:
             duration = time.time() - start_time
-            logger.error(
-                f"[IntentClassifierNode] Error: {e} | correlation_id={correlation_id}"
-            )
+            logger.error(f"[IntentClassifierNode] Error: {e} | correlation_id={correlation_id}")
             logger.debug(
                 f"[IntentClassifierNode] EXIT (error): {time.time()} duration={duration}"
             )
@@ -359,7 +321,7 @@ class ResponseGeneratorNode(BaseGraphNode):
         Maps state.query_intent to a TaskType enum or string as expected by ModelManager.
         """
         # Example mapping, adjust as needed for your TaskType enum
-        intent = getattr(state, "query_intent", None)
+        intent = getattr(state, 'query_intent', None)
         if not intent:
             return "general"
         mapping = {
@@ -377,7 +339,7 @@ class ResponseGeneratorNode(BaseGraphNode):
         Selects the optimal model using ModelManager based on task type and quality requirement.
         """
         task_type = self._determine_task_type(state)
-        quality = getattr(state, "quality_requirement", None)
+        quality = getattr(state, 'quality_requirement', None)
         # Fallback to default if not set
         if not quality:
             quality = "balanced"
@@ -389,32 +351,34 @@ class ResponseGeneratorNode(BaseGraphNode):
         Build a comprehensive prompt for response generation based on conversation state.
         """
         query = state.processed_query or state.original_query
-        intent = getattr(state, "query_intent", "conversation")
-        complexity = getattr(state, "query_complexity", 0.5)
-        quality = getattr(state, "quality_requirement", "balanced")
+        intent = getattr(state, 'query_intent', 'conversation')
+        complexity = getattr(state, 'query_complexity', 0.5)
+        quality = getattr(state, 'quality_requirement', 'balanced')
         system_instructions = self._get_system_instructions(intent, quality)
         context_section = self._build_conversation_context(state)
         query_section = self._build_query_section(query, intent, complexity)
-        prompt_parts = [system_instructions, context_section, query_section]
+        prompt_parts = [
+            system_instructions,
+            context_section,
+            query_section
+        ]
         prompt = "\n\n".join(part for part in prompt_parts if part.strip())
         return prompt
 
     def _get_system_instructions(self, intent: str, quality: str) -> str:
-        base_instruction = (
-            "You are a helpful, knowledgeable, and friendly AI assistant."
-        )
+        base_instruction = "You are a helpful, knowledgeable, and friendly AI assistant."
         intent_instructions = {
-            "code": "You specialize in programming and technical problem-solving. Provide clear, working code examples with explanations.",
-            "creative": "You excel at creative writing and imaginative tasks. Be expressive, engaging, and original in your responses.",
-            "analysis": "You are skilled at analytical thinking and detailed examination. Provide thorough, well-reasoned analysis with supporting evidence.",
-            "question": "You provide clear, accurate answers to questions. Be informative and comprehensive while staying focused on the question.",
-            "request": "You help users accomplish tasks and fulfill requests. Be practical, actionable, and solution-oriented.",
-            "conversation": "You engage in natural, friendly conversation. Be personable while remaining helpful and informative.",
+            'code': "You specialize in programming and technical problem-solving. Provide clear, working code examples with explanations.",
+            'creative': "You excel at creative writing and imaginative tasks. Be expressive, engaging, and original in your responses.",
+            'analysis': "You are skilled at analytical thinking and detailed examination. Provide thorough, well-reasoned analysis with supporting evidence.",
+            'question': "You provide clear, accurate answers to questions. Be informative and comprehensive while staying focused on the question.",
+            'request': "You help users accomplish tasks and fulfill requests. Be practical, actionable, and solution-oriented.",
+            'conversation': "You engage in natural, friendly conversation. Be personable while remaining helpful and informative."
         }
         quality_adjustments = {
-            "minimal": "Keep your response concise and to the point.",
-            "balanced": "Provide a well-balanced response with appropriate detail.",
-            "premium": "Provide a comprehensive, detailed response with thorough explanations and examples.",
+            'minimal': "Keep your response concise and to the point.",
+            'balanced': "Provide a well-balanced response with appropriate detail.",
+            'premium': "Provide a comprehensive, detailed response with thorough explanations and examples."
         }
         instructions = [base_instruction]
         if intent in intent_instructions:
@@ -424,37 +388,24 @@ class ResponseGeneratorNode(BaseGraphNode):
         return " ".join(instructions)
 
     def _build_conversation_context(self, state: GraphState) -> str:
-        conversation_history = getattr(state, "conversation_history", [])
+        conversation_history = getattr(state, 'conversation_history', [])
         if not conversation_history:
             return ""
-
         context_lines = ["Previous conversation:"]
-        recent_history = (
-            conversation_history[-5:]  # Keep last 5 exchanges for context
-            if len(conversation_history) > 5
-            else conversation_history
-        )
-
+        recent_history = conversation_history[-10:] if len(conversation_history) > 10 else conversation_history
         for entry in recent_history:
-            # Handle both old format (role/content) and new format (user_message/assistant_response)
-            if "user_message" in entry and "assistant_response" in entry:
-                context_lines.append(f"User: {entry['user_message']}")
-                context_lines.append(f"Assistant: {entry['assistant_response']}")
-            elif "role" in entry and "content" in entry:
-                role = entry.get("role", "unknown")
-                content = entry.get("content", "")
-                if role == "user":
-                    context_lines.append(f"User: {content}")
-                elif role == "assistant":
-                    context_lines.append(f"Assistant: {content}")
-
-        context_lines.append("")  # Add blank line before current query
+            role = entry.get('role', 'unknown')
+            content = entry.get('content', '')
+            if role == 'user':
+                context_lines.append(f"User: {content}")
+            elif role == 'assistant':
+                context_lines.append(f"Assistant: {content}")
         return "\n".join(context_lines)
 
     def _build_query_section(self, query: str, intent: str, complexity: float) -> str:
         query_lines = [
             f"Current query (intent: {intent}, complexity: {complexity:.1f}):",
-            query,
+            query
         ]
         return "\n".join(query_lines)
 
@@ -463,54 +414,56 @@ class ResponseGeneratorNode(BaseGraphNode):
         Calculate the maximum number of tokens for response generation based on
         query intent, complexity, quality requirements, and specific use cases.
         """
-        intent = getattr(state, "query_intent", "conversation")
-        complexity = getattr(state, "query_complexity", 0.5)
-        quality = getattr(state, "quality_requirement", "balanced")
+        intent = getattr(state, 'query_intent', 'conversation')
+        complexity = getattr(state, 'query_complexity', 0.5)
+        quality = getattr(state, 'quality_requirement', 'balanced')
         query = (state.processed_query or state.original_query).lower()
-        if intent == "analysis" and any(
-            term in query
-            for term in [
-                "candidate analysis",
-                "interview script",
-                "interview questions",
-                "candidate evaluation",
-                "interview preparation",
-                "screening questions",
-                "behavioral interview",
-                "technical interview",
-                "interview guide",
-            ]
-        ):
+        if intent == 'analysis' and any(term in query for term in [
+            'candidate analysis', 'interview script', 'interview questions',
+            'candidate evaluation', 'interview preparation', 'screening questions',
+            'behavioral interview', 'technical interview', 'interview guide']):
             return self._get_candidate_interview_tokens(quality)
-        elif intent == "analysis" and (
-            "resume" in query or "cv" in query or "curriculum vitae" in query
-        ):
+        elif intent == 'analysis' and ('resume' in query or 'cv' in query or 'curriculum vitae' in query):
             return self._get_resume_analysis_tokens(quality)
-        elif intent == "analysis" and any(
-            term in query for term in ["analyze", "review", "evaluation", "assessment"]
-        ):
+        elif intent == 'analysis' and any(term in query for term in ['analyze', 'review', 'evaluation', 'assessment']):
             return self._get_document_analysis_tokens(quality)
-        elif intent == "code":
+        elif intent == 'code':
             return self._get_code_tokens(quality, complexity)
-        elif intent == "creative":
+        elif intent == 'creative':
             return self._get_creative_tokens(quality, complexity)
         else:
             return self._get_standard_tokens(quality, complexity)
 
     def _get_candidate_interview_tokens(self, quality: str) -> int:
-        interview_limits = {"minimal": 5000, "balanced": 10000, "premium": 15000}
+        interview_limits = {
+            'minimal': 5000,
+            'balanced': 10000,
+            'premium': 15000
+        }
         return interview_limits.get(quality, 10000)
 
     def _get_resume_analysis_tokens(self, quality: str) -> int:
-        resume_limits = {"minimal": 2000, "balanced": 5000, "premium": 8000}
+        resume_limits = {
+            'minimal': 2000,
+            'balanced': 5000,
+            'premium': 8000
+        }
         return resume_limits.get(quality, 5000)
 
     def _get_document_analysis_tokens(self, quality: str) -> int:
-        analysis_limits = {"minimal": 800, "balanced": 1500, "premium": 2500}
+        analysis_limits = {
+            'minimal': 800,
+            'balanced': 1500,
+            'premium': 2500
+        }
         return analysis_limits.get(quality, 1500)
 
     def _get_code_tokens(self, quality: str, complexity: float) -> int:
-        base_limits = {"minimal": 400, "balanced": 800, "premium": 1200}
+        base_limits = {
+            'minimal': 400,
+            'balanced': 800,
+            'premium': 1200
+        }
         base_limit = base_limits.get(quality, 800)
         if complexity >= 0.8:
             return int(base_limit * 1.5)
@@ -520,7 +473,11 @@ class ResponseGeneratorNode(BaseGraphNode):
             return base_limit
 
     def _get_creative_tokens(self, quality: str, complexity: float) -> int:
-        base_limits = {"minimal": 300, "balanced": 600, "premium": 1000}
+        base_limits = {
+            'minimal': 300,
+            'balanced': 600,
+            'premium': 1000
+        }
         base_limit = base_limits.get(quality, 600)
         if complexity >= 0.7:
             return int(base_limit * 1.4)
@@ -530,7 +487,11 @@ class ResponseGeneratorNode(BaseGraphNode):
             return base_limit
 
     def _get_standard_tokens(self, quality: str, complexity: float) -> int:
-        base_limits = {"minimal": 256, "balanced": 512, "premium": 1024}
+        base_limits = {
+            'minimal': 256,
+            'balanced': 512,
+            'premium': 1024
+        }
         base_limit = base_limits.get(quality, 512)
         if complexity >= 0.8:
             return int(base_limit * 1.5)
@@ -543,20 +504,20 @@ class ResponseGeneratorNode(BaseGraphNode):
         """
         Calculate the temperature parameter for model generation based on intent and quality.
         """
-        intent = getattr(state, "query_intent", "conversation")
-        quality = getattr(state, "quality_requirement", "balanced")
+        intent = getattr(state, 'query_intent', 'conversation')
+        quality = getattr(state, 'quality_requirement', 'balanced')
         intent_temperatures = {
-            "code": 0.1,
-            "analysis": 0.2,
-            "question": 0.3,
-            "request": 0.4,
-            "conversation": 0.6,
-            "creative": 0.8,
+            'code': 0.1,
+            'analysis': 0.2,
+            'question': 0.3,
+            'request': 0.4,
+            'conversation': 0.6,
+            'creative': 0.8
         }
         base_temp = intent_temperatures.get(intent, 0.5)
-        if quality == "minimal":
+        if quality == 'minimal':
             return max(0.1, base_temp - 0.1)
-        elif quality == "premium":
+        elif quality == 'premium':
             return min(0.9, base_temp + 0.1)
         else:
             return base_temp
@@ -577,11 +538,11 @@ class ResponseGeneratorNode(BaseGraphNode):
         return cleaned
 
     async def execute(self, state: GraphState, **kwargs) -> NodeResult:
-        import asyncio
         import time
+        import asyncio
 
         start_time = time.time()
-        correlation_id = getattr(state, "query_id", None)
+        correlation_id = getattr(state, 'query_id', None)
         logger.debug(
             f"[ResponseGeneratorNode] ENTER: {start_time} state.query_id={correlation_id}"
         )
@@ -600,30 +561,16 @@ class ResponseGeneratorNode(BaseGraphNode):
             )
             health_ok = False
             try:
-                health_ok = await asyncio.wait_for(
-                    self.model_manager.ollama_client.health_check(), timeout=1.0
-                )
+                health_ok = await asyncio.wait_for(self.model_manager.ollama_client.health_check(), timeout=1.0)
             except Exception as health_exc:
-                logger.error(
-                    f"[ResponseGeneratorNode] Ollama health check failed: {health_exc} | correlation_id={correlation_id}"
-                )
+                logger.error(f"[ResponseGeneratorNode] Ollama health check failed: {health_exc} | correlation_id={correlation_id}")
             if not health_ok:
-                logger.warning(
-                    f"[ResponseGeneratorNode] Ollama unhealthy, falling back to safe response | correlation_id={correlation_id}"
-                )
-                fallback_response = create_structured_fallback_response(
-                    "Health check failed - Ollama service unavailable",
-                    correlation_id=correlation_id
-                )
-                state.final_response = fallback_response["response"]
-                state.metadata = fallback_response["metadata"]
-                logger.debug(
-                    f"[ResponseGeneratorNode] FAILURE PATH: state.final_response = '{state.final_response}'"
-                )
+                logger.warning(f"[ResponseGeneratorNode] Ollama unhealthy, falling back to safe response | correlation_id={correlation_id}")
+                fallback_response = "I'm having trouble generating a response right now."
+                state.final_response = fallback_response
+                logger.debug(f"[ResponseGeneratorNode] FAILURE PATH: state.final_response = '{state.final_response}'")
                 duration = time.time() - start_time
-                logger.debug(
-                    f"[ResponseGeneratorNode] EXIT (healthcheck fail): {time.time()} duration={duration}"
-                )
+                logger.debug(f"[ResponseGeneratorNode] EXIT (healthcheck fail): {time.time()} duration={duration}")
                 return NodeResult(
                     success=False,
                     data={"response": fallback_response},
@@ -634,9 +581,7 @@ class ResponseGeneratorNode(BaseGraphNode):
             try:
                 model_start = time.time()
                 try:
-                    logger.debug(
-                        f"[ResponseGeneratorNode] BEFORE ModelManager.generate {time.time()} | correlation_id={correlation_id}"
-                    )
+                    logger.debug(f"[ResponseGeneratorNode] BEFORE ModelManager.generate {time.time()} | correlation_id={correlation_id}")
                     result = await asyncio.wait_for(
                         self.model_manager.generate(
                             model_name=model_name,
@@ -646,62 +591,34 @@ class ResponseGeneratorNode(BaseGraphNode):
                         ),
                         timeout=timeout,
                     )
-                    logger.debug(
-                        f"[ResponseGeneratorNode] AFTER ModelManager.generate {time.time()} | correlation_id={correlation_id}",
-                        result=str(result),
-                    )
+                    logger.debug(f"[ResponseGeneratorNode] AFTER ModelManager.generate {time.time()} | correlation_id={correlation_id}", result=str(result))
                     elapsed = time.time() - model_start
-                    logger.debug(
-                        f"[ResponseGeneratorNode] Model call completed in {elapsed:.2f}s | correlation_id={correlation_id}"
-                    )
+                    logger.debug(f"[ResponseGeneratorNode] Model call completed in {elapsed:.2f}s | correlation_id={correlation_id}")
                 except asyncio.TimeoutError:
                     elapsed = time.time() - model_start
-                    logger.error(
-                        f"[ResponseGeneratorNode] Model call timed out after {timeout}s, falling back to safe response | prompt_len={len(prompt)} | model={model_name} | elapsed={elapsed:.2f}s | correlation_id={correlation_id}"
-                    )
+                    logger.error(f"[ResponseGeneratorNode] Model call timed out after {timeout}s, falling back to safe response | prompt_len={len(prompt)} | model={model_name} | elapsed={elapsed:.2f}s | correlation_id={correlation_id}")
                     result = None
                 except Exception as e:
                     elapsed = time.time() - model_start
-                    logger.error(
-                        f"[ResponseGeneratorNode] Model call failed: {e}, falling back to safe response | prompt_len={len(prompt)} | model={model_name} | elapsed={elapsed:.2f}s | correlation_id={correlation_id}"
-                    )
+                    logger.error(f"[ResponseGeneratorNode] Model call failed: {e}, falling back to safe response | prompt_len={len(prompt)} | model={model_name} | elapsed={elapsed:.2f}s | correlation_id={correlation_id}")
                     result = None
                 logger.debug(
                     "[ResponseGeneratorNode] Raw model response",
                     model_name=model_name,
-                    raw_response=getattr(result, "text", None) if result else None,
-                    success=getattr(result, "success", None) if result else None,
-                    error=getattr(result, "error", None) if result else None,
+                    raw_response=getattr(result, 'text', None) if result else None,
+                    success=getattr(result, 'success', None) if result else None,
+                    error=getattr(result, 'error', None) if result else None,
                     query_id=correlation_id,
                 )
                 if result and result.success:
                     logger.debug(
                         "[ResponseGeneratorNode] Diagnostic: About to post-process response",
-                        raw_model_response=getattr(result, "text", None),
+                        raw_model_response=getattr(result, 'text', None),
                         query_id=correlation_id,
                     )
                     response = self._post_process_response(result.text, state)
                     state.final_response = response
-
-                    # Track which model was used for this response
-                    if hasattr(result, "model_used") and result.model_used:
-                        if not hasattr(state, "models_used"):
-                            state.models_used = set()
-                        state.models_used.add(result.model_used)
-                        logger.debug(
-                            f"[ResponseGeneratorNode] Tracked model usage: {result.model_used}"
-                        )
-                    elif model_name:
-                        # Fallback: use the selected model name
-                        if not hasattr(state, "models_used"):
-                            state.models_used = set()
-                        state.models_used.add(model_name)
-                        logger.debug(
-                            f"[ResponseGeneratorNode] Tracked model usage (fallback): {model_name}"
-                        )
-                    logger.debug(
-                        f"[ResponseGeneratorNode] SUCCESS PATH: state.final_response = '{state.final_response}'"
-                    )
+                    logger.debug(f"[ResponseGeneratorNode] SUCCESS PATH: state.final_response = '{state.final_response}'")
                     logger.debug(
                         "[ResponseGeneratorNode] Diagnostic: After post-processing",
                         post_processed_response=response,
@@ -721,12 +638,8 @@ class ResponseGeneratorNode(BaseGraphNode):
                         f"[ResponseGeneratorNode] Success. state.query_id={correlation_id}"
                     )
                     duration = time.time() - start_time
-                    logger.debug(
-                        f"[ResponseGeneratorNode] EXIT: {time.time()} duration={duration}"
-                    )
-                    logger.debug(
-                        f"[ResponseGeneratorNode] SETTING state.final_response = {state.final_response}"
-                    )
+                    logger.debug(f"[ResponseGeneratorNode] EXIT: {time.time()} duration={duration}")
+                    logger.debug(f"[ResponseGeneratorNode] SETTING state.final_response = {state.final_response}")
                     return NodeResult(
                         success=True,
                         data={"response": response},
@@ -736,22 +649,14 @@ class ResponseGeneratorNode(BaseGraphNode):
                         model_used=model_name,
                     )
                 else:
-                    fallback_response = create_structured_fallback_response(
-                        "Model generation failed - please try again",
-                        correlation_id=correlation_id
+                    fallback_response = (
+                        "I'm having trouble generating a response right now."
                     )
-                    state.final_response = fallback_response["response"]
-                    state.metadata = fallback_response["metadata"]
-                    logger.debug(
-                        f"[ResponseGeneratorNode] FAILURE PATH: state.final_response = '{state.final_response}'"
-                    )
+                    state.final_response = fallback_response
+                    logger.debug(f"[ResponseGeneratorNode] FAILURE PATH: state.final_response = '{state.final_response}'")
                     duration = time.time() - start_time
-                    logger.debug(
-                        f"[ResponseGeneratorNode] EXIT (model failure): {time.time()} duration={duration}"
-                    )
-                    logger.debug(
-                        f"[ResponseGeneratorNode] SETTING state.final_response = {state.final_response}"
-                    )
+                    logger.debug(f"[ResponseGeneratorNode] EXIT (model failure): {time.time()} duration={duration}")
+                    logger.debug(f"[ResponseGeneratorNode] SETTING state.final_response = {state.final_response}")
                     return NodeResult(
                         success=False,
                         data={"response": fallback_response},
@@ -762,17 +667,11 @@ class ResponseGeneratorNode(BaseGraphNode):
             except Exception as e:
                 fallback_response = "I encountered an error. Please try again."
                 state.final_response = fallback_response
-                logger.debug(
-                    f"[ResponseGeneratorNode] EXCEPTION PATH: state.final_response = '{state.final_response}'"
-                )
+                logger.debug(f"[ResponseGeneratorNode] EXCEPTION PATH: state.final_response = '{state.final_response}'")
                 logger.error(f"[ResponseGeneratorNode] Error: {e}")
                 duration = time.time() - start_time
-                logger.debug(
-                    f"[ResponseGeneratorNode] EXIT (error): {time.time()} duration={duration}"
-                )
-                logger.debug(
-                    f"[ResponseGeneratorNode] SETTING state.final_response = {state.final_response}"
-                )
+                logger.debug(f"[ResponseGeneratorNode] EXIT (error): {time.time()} duration={duration}")
+                logger.debug(f"[ResponseGeneratorNode] SETTING state.final_response = {state.final_response}")
                 return NodeResult(
                     success=False,
                     data={"response": fallback_response},
@@ -783,17 +682,11 @@ class ResponseGeneratorNode(BaseGraphNode):
         except Exception as e:
             fallback_response = "I encountered an error. Please try again."
             state.final_response = fallback_response
-            logger.debug(
-                f"[ResponseGeneratorNode] EXCEPTION PATH: state.final_response = '{state.final_response}'"
-            )
+            logger.debug(f"[ResponseGeneratorNode] EXCEPTION PATH: state.final_response = '{state.final_response}'")
             logger.error(f"[ResponseGeneratorNode] Error: {e}")
             duration = time.time() - start_time
-            logger.debug(
-                f"[ResponseGeneratorNode] EXIT (error): {time.time()} duration={duration}"
-            )
-            logger.debug(
-                f"[ResponseGeneratorNode] SETTING state.final_response = {state.final_response}"
-            )
+            logger.debug(f"[ResponseGeneratorNode] EXIT (error): {time.time()} duration={duration}")
+            logger.debug(f"[ResponseGeneratorNode] SETTING state.final_response = {state.final_response}")
             return NodeResult(
                 success=False,
                 data={"response": fallback_response},
@@ -846,16 +739,12 @@ class CacheUpdateNode(BaseGraphNode):
                 "timestamp": datetime.now().isoformat(),
                 "intent": getattr(state, "query_intent", "unknown"),
                 "complexity": getattr(state, "query_complexity", 0.0),
-                "total_cost": (
-                    state.calculate_total_cost()
-                    if hasattr(state, "calculate_total_cost")
-                    else None
-                ),
-                "execution_time": (
-                    state.calculate_total_time()
-                    if hasattr(state, "calculate_total_time")
-                    else None
-                ),
+                "total_cost": state.calculate_total_cost()
+                if hasattr(state, "calculate_total_cost")
+                else None,
+                "execution_time": state.calculate_total_time()
+                if hasattr(state, "calculate_total_time")
+                else None,
                 "models_used": [
                     result["result"].model_used
                     for result in getattr(state, "node_results", {}).values()
@@ -913,11 +802,9 @@ class CacheUpdateNode(BaseGraphNode):
                     "complexity": getattr(state, "query_complexity", 0.0),
                     "timestamp": datetime.now().isoformat(),
                     "success": bool(getattr(state, "final_response", None)),
-                    "cost": (
-                        state.calculate_total_cost()
-                        if hasattr(state, "calculate_total_cost")
-                        else None
-                    ),
+                    "cost": state.calculate_total_cost()
+                    if hasattr(state, "calculate_total_cost")
+                    else None,
                 }
 
                 # Get existing patterns
@@ -1034,7 +921,6 @@ class ChatGraph(BaseGraph):
         super().__init__(GraphType.CHAT, "chat_graph")
         self.model_manager = model_manager
         self.cache_manager = cache_manager
-        self.is_initialized = False
         self.execution_stats = {
             "total_executions": 0,
             "successful_executions": 0,
@@ -1043,14 +929,6 @@ class ChatGraph(BaseGraph):
         }
         # Automatically build the graph
         self.build()
-        self.is_initialized = True
-
-    async def initialize(self):
-        """Initialize the chat graph (already done in constructor)"""
-        if not self.is_initialized:
-            self.build()
-            self.is_initialized = True
-        logger.info("ChatGraph initialized", node_count=len(self.nodes))
 
     def get_performance_stats(self) -> Dict[str, Any]:
         stats = self.execution_stats.copy()
@@ -1088,6 +966,7 @@ class ChatGraph(BaseGraph):
         from app.graphs.base import EndNode
 
         return {
+            "start": ContextManagerNode(self.cache_manager),  # Entrypoint for LangGraph
             "context_manager": ContextManagerNode(self.cache_manager),
             "intent_classifier": IntentClassifierNode(self.model_manager),
             "response_generator": ResponseGeneratorNode(self.model_manager),
@@ -1101,6 +980,7 @@ class ChatGraph(BaseGraph):
         Define the flow between nodes using descriptive node keys.
         """
         return [
+            ("start", "context_manager"),  # Entry edge for LangGraph
             ("context_manager", "intent_classifier"),
             ("intent_classifier", "response_generator"),
             ("response_generator", "cache_update"),
@@ -1119,10 +999,8 @@ class ChatGraph(BaseGraph):
     def _check_for_errors(self, state: GraphState) -> str:
         """Check if there are errors that need handling - prevent infinite loops."""
         # Circuit breaker: if execution path is too long, force end
-        if hasattr(state, "execution_path") and len(state.execution_path) > 15:
-            logger.error(
-                f"[ChatGraph] Circuit breaker tripped: execution_path too long ({len(state.execution_path)}). Forcing end."
-            )
+        if hasattr(state, 'execution_path') and len(state.execution_path) > 15:
+            logger.error(f"[ChatGraph] Circuit breaker tripped: execution_path too long ({len(state.execution_path)}). Forcing end.")
             return "continue"  # Will route to 'end' in define_edges
         if state.errors and "error_handler" not in state.execution_path:
             return "error_handler"
@@ -1131,10 +1009,10 @@ class ChatGraph(BaseGraph):
     def build(self) -> None:
         """Build the chat graph with conditional routing."""
         # Check if already built to prevent double compilation
-        if hasattr(self, "_compiled") and self._compiled:
+        if hasattr(self, '_compiled') and self._compiled:
             logger.debug("Graph already built, skipping compilation")
             return
-
+        
         # Call parent build which will handle START/END properly
         # This will compile the graph, so no modifications after this point
         super().build()
@@ -1142,7 +1020,6 @@ class ChatGraph(BaseGraph):
 
     async def execute(self, state: GraphState) -> GraphState:
         import time
-
         start_time = time.time()
         logger.debug(
             f"[ChatGraph] ENTER execute: {start_time} state.query_id={getattr(state, 'query_id', None)}"
@@ -1153,9 +1030,7 @@ class ChatGraph(BaseGraph):
             logger.debug(
                 f"[ChatGraph] Success. state.query_id={getattr(state, 'query_id', None)}"
             )
-            logger.debug(
-                f"[ChatGraph] AFTER GRAPH EXECUTION: result.final_response = '{getattr(result, 'final_response', 'MISSING')}'"
-            )
+            logger.debug(f"[ChatGraph] AFTER GRAPH EXECUTION: result.final_response = '{getattr(result, 'final_response', 'MISSING')}'")
             if len(result.errors) <= 2:
                 self.execution_stats["successful_executions"] += 1
             for node_name in result.execution_path:
@@ -1175,136 +1050,46 @@ class ChatGraph(BaseGraph):
             execution_time = time.time() - start_time
             self.execution_stats["total_execution_time"] += execution_time
             if not getattr(result, "final_response", None):
-                logger.error(
-                    f"[ChatGraph] Missing final_response after graph execution! state.query_id={getattr(state, 'query_id', None)} | node_results={getattr(result, 'node_results', {})}"
-                )
+                logger.error(f"[ChatGraph] Missing final_response after graph execution! state.query_id={getattr(state, 'query_id', None)} | node_results={getattr(result, 'node_results', {})}")
                 # Try to recover from response_generator node specifically
-                logger.debug(
-                    "[ChatGraph] Attempting recovery - checking for response_generator in node_results"
-                )
+                logger.debug(f"[ChatGraph] Attempting recovery - checking for response_generator in node_results")
                 if "response_generator" in result.node_results:
-                    logger.debug("[ChatGraph] Found response_generator node")
+                    logger.debug(f"[ChatGraph] Found response_generator node")
                     node_result = result.node_results["response_generator"]["result"]
-                    logger.debug(
-                        f"[ChatGraph] response_generator node_result: {node_result}"
-                    )
-                    response = (
-                        node_result.data.get("response")
-                        if node_result and hasattr(node_result, "data")
-                        else None
-                    )
+                    logger.debug(f"[ChatGraph] response_generator node_result: {node_result}")
+                    response = node_result.data.get("response") if node_result and hasattr(node_result, 'data') else None
                     logger.debug(f"[ChatGraph] Extracted response: {response}")
                     if response:
                         result.final_response = response
-                        logger.warning(
-                            f"[ChatGraph] ✅ RECOVERED final_response from response_generator: {response[:100]}..."
-                        )
+                        logger.warning(f"[ChatGraph] ✅ RECOVERED final_response from response_generator: {response[:100]}...")
                     else:
-                        logger.error(
-                            "[ChatGraph] ❌ No response found in response_generator data"
-                        )
+                        logger.error(f"[ChatGraph] ❌ No response found in response_generator data")
                 # If that doesn't work, try the last node as fallback
                 else:
-                    logger.debug(
-                        "[ChatGraph] response_generator not found in node_results, trying last node"
-                    )
-                    last_node = (
-                        result.execution_path[-1] if result.execution_path else None
-                    )
+                    logger.debug(f"[ChatGraph] response_generator not found in node_results, trying last node")
+                    last_node = result.execution_path[-1] if result.execution_path else None
                     if last_node and last_node in result.node_results:
                         node_result = result.node_results[last_node]["result"]
-                        response = (
-                            node_result.data.get("response")
-                            if node_result and hasattr(node_result, "data")
-                            else None
-                        )
+                        response = node_result.data.get("response") if node_result and hasattr(node_result, 'data') else None
                         if response:
                             result.final_response = response
-                            logger.warning(
-                                f"[ChatGraph] Recovered final_response from last node result: {response}"
-                            )
-            logger.debug(
-                f"[ChatGraph] EXIT execute: {time.time()} duration={execution_time}"
-            )
+                            logger.warning(f"[ChatGraph] Recovered final_response from last node result: {response}")
+            logger.debug(f"[ChatGraph] EXIT execute: {time.time()} duration={execution_time}")
             return result
         except Exception as e:
             logger.error(f"[ChatGraph] Error: {e}")
             execution_time = time.time() - start_time
             self.execution_stats["total_execution_time"] += execution_time
-            logger.debug(
-                f"[ChatGraph] EXIT execute (error): {time.time()} duration={execution_time}"
-            )
+            logger.debug(f"[ChatGraph] EXIT execute (error): {time.time()} duration={execution_time}")
             state.errors.append(f"Graph execution failed: {str(e)}")
             return state
-
-    async def shutdown(self):
-        """Shutdown the chat graph and cleanup resources."""
-        logger.info("🔄 Shutting down ChatGraph...")
-
-        try:
-            # Shutdown model manager if it belongs to this graph
-            if hasattr(self.model_manager, "shutdown"):
-                await self.model_manager.shutdown()
-
-            # Shutdown cache manager if it belongs to this graph
-            if hasattr(self.cache_manager, "cleanup"):
-                await self.cache_manager.cleanup()
-
-            self.is_initialized = False
-            logger.info("✅ ChatGraph shutdown completed")
-
-        except Exception as e:
-            logger.warning(f"⚠️ ChatGraph shutdown warning: {e}")
-
-
-def create_structured_fallback_response(error_message: str, correlation_id: str = None) -> dict:
-    """Create a structured fallback response with proper metadata."""
-    from datetime import datetime
-    
-    return {
-        "response": "I'm experiencing technical difficulties. Please try again in a moment.",
-        "metadata": {
-            "error_type": "fallback_response",
-            "error_message": error_message,
-            "correlation_id": correlation_id or "unknown",
-            "timestamp": datetime.utcnow().isoformat(),
-            "confidence": 0.0,
-            "model_used": "fallback",
-            "execution_time": 0.0,
-            "cost": 0.0
-        }
-    }
-
-
-async def create_chat_graph(model_manager: ModelManager, cache_manager=None) -> ChatGraph:
-    """
-    Factory function to create and initialize a ChatGraph instance.
-    
-    Args:
-        model_manager: The ModelManager instance for LLM operations
-        cache_manager: Optional cache manager for caching responses
-        
-    Returns:
-        Initialized ChatGraph instance
-    """
-    logger.info("Creating ChatGraph instance")
-    
-    # Create the graph instance
-    chat_graph = ChatGraph(model_manager, cache_manager)
-    
-    logger.info("ChatGraph created successfully", 
-                graph_type=chat_graph.graph_type.value,
-                node_count=len(chat_graph.nodes))
-    
-    return chat_graph
 
 
 # Export main classes
 __all__ = [
     "ChatGraph",
-    "create_chat_graph",  # Add the factory function to exports
     "ContextManagerNode",
-    "IntentClassifierNode", 
+    "IntentClassifierNode",
     "ResponseGeneratorNode",
     "CacheUpdateNode",
     "ConversationContext",

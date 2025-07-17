@@ -364,7 +364,7 @@
     </div>
 
     <script>
-        const API_BASE = '';
+        const API_BASE = window.location.hostname.includes("proxy.runpod.net") ? "https://" + window.location.hostname.replace("-8000", "-8001") : "http://localhost:8001";
         let selectedFiles = [];
 
         // Load system stats on page load
@@ -381,7 +381,7 @@
 
         async function loadStats() {
             try {
-                const response = await fetch(`${API_BASE}/api/status`);
+                const response = await fetch(`${API_BASE}/health`);
                 const data = await response.json();
                 document.getElementById('stats').innerHTML = `
                     📊 System: ${data.system} | 
@@ -402,7 +402,7 @@
             resultsDiv.innerHTML = '<div class="loading">🔍 Searching...</div>';
 
             try {
-                const response = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}&limit=20`);
+                const response = await fetch(`${API_BASE}/api/v2/search/ultra-fast?q=q=${encodeURIComponent(query)}&limit=20`);
                 const data = await response.json();
 
                 if (data.results.length === 0) {
@@ -619,14 +619,16 @@
                     formData.append('description', defaultDescription || `Uploaded file: ${fileObj.file.name}`);
                     formData.append('tags', defaultTags);
 
-                    const response = await fetch(`${API_BASE}/api/documents/upload`, {
+                    const response = await fetch(`${API_BASE}/api/v2/rag/documents`, {
                         method: 'POST',
                         body: formData
                     });
 
+                    if (!response.ok) { throw new Error("HTTP " + response.status + ": " + response.statusText); }
                     const result = await response.json();
+                    console.log("Upload response:", result);
                     
-                    if (result.status === 'success') {
+                    if (result.status === 'processing' || result.processing_started === true) {
                         fileObj.status = 'success';
                         successful++;
                     } else {

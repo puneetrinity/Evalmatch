@@ -1,0 +1,12 @@
+# Configuration for document search provider
+DOCUMENT_SEARCH_CONFIG = {
+    "base_url": "http://host.docker.internal:8001",  # ideal-octo-goggles URL
+    "timeout": 30.0,
+    "max_results": 10,
+    "api_endpoints": {
+        "search": "/api/v2/search/ultra-fast",
+        "upload": "/api/v2/admin/documents",
+        "health": "/api/v2/health",
+        "performance": "/api/v2/search/performance"
+    }
+}

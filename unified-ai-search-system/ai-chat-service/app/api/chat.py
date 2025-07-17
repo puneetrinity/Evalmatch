@@ -316,6 +316,9 @@ async def chat_complete(
         app_state = getattr(request.app.state, "app_state", {})
 
         chat_graph_instance = app_state.get("chat_graph")
+        # Initialize cache_manager for use throughout function
+        from app.dependencies import get_cache_manager
+        cache_manager = get_cache_manager()
         if chat_graph_instance is None:
             logger.error(
                 "ChatGraph not found in app state - using fallback initialization"
