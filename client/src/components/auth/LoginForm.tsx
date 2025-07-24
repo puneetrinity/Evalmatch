@@ -37,13 +37,17 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
     setError('');
 
     try {
+      console.log('[LOGIN] Starting login attempt for:', email);
       await signIn(email, password);
+      console.log('[LOGIN] Login successful for:', email);
+      
       toast({
         title: "Welcome back!",
         description: "You have been successfully signed in.",
       });
       onSuccess?.();
     } catch (error: any) {
+      console.error('[LOGIN] Login failed:', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -55,13 +59,17 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
     setError('');
 
     try {
+      console.log('[LOGIN] Starting Google login...');
       await signInWithGoogle();
+      console.log('[LOGIN] Google login redirect initiated');
+      
       toast({
         title: "Welcome!",
         description: "You have been successfully signed in with Google.",
       });
       onSuccess?.();
     } catch (error: any) {
+      console.error('[LOGIN] Google login error:', error);
       if (error.message === 'Redirecting to Google sign-in...') {
         setError('Redirecting to Google...');
         // Don't set loading to false - keep loading during redirect
