@@ -28,10 +28,10 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Debug logging for Firebase config (only log whether values exist, not the actual values)
+// Debug logging for Firebase config with actual auth domain value
 console.log('Firebase config loaded:', {
   apiKey: firebaseConfig.apiKey ? 'SET' : 'MISSING',
-  authDomain: firebaseConfig.authDomain ? 'SET' : 'MISSING',
+  authDomain: firebaseConfig.authDomain || 'MISSING',
   projectId: firebaseConfig.projectId ? 'SET' : 'MISSING',
   storageBucket: firebaseConfig.storageBucket ? 'SET' : 'MISSING',
   messagingSenderId: firebaseConfig.messagingSenderId ? 'SET' : 'MISSING',
