@@ -48,18 +48,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           });
         });
         
-        // Only process redirect result if component is still mounted
-        if (mounted) {
-          try {
-            const redirectUser = await authService.handleGoogleRedirectResult();
-            if (redirectUser && mounted) {
-              console.log('Redirect authentication successful');
-              // The auth state change listener will handle setting the user
-            }
-          } catch (error) {
-            console.error('Error handling Google redirect result:', error);
-          }
-        }
+        // No redirect handling needed for popup-only authentication
       } catch (error) {
         console.error('Error initializing auth:', error);
       }
@@ -113,18 +102,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setLoading(true);
     try {
       const user = await authService.signInWithGoogle();
-      setLoading(false);
       return user;
-    } catch (error) {
-      // Handle redirect case properly
-      if (error instanceof Error && error.message === 'REDIRECTING_TO_GOOGLE') {
-        // Keep loading state true during redirect
-        console.log('Redirecting to Google for authentication...');
-        // Don't set loading to false - let the redirect happen
-        throw error;
-      }
+    } finally {
       setLoading(false);
-      throw error;
     }
   };
 

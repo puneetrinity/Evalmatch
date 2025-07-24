@@ -62,14 +62,8 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
       });
       onSuccess?.();
     } catch (error: any) {
-      // Handle redirect case
-      if (error.message === 'REDIRECTING_TO_GOOGLE') {
-        // Show user that redirect is happening
-        setError('Redirecting to Google for authentication...');
-        // Don't set loading to false - keep the loading state during redirect
-        return;
-      }
       setError(error.message);
+    } finally {
       setLoading(false);
     }
   };

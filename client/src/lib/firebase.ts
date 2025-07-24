@@ -14,8 +14,6 @@ import {
   User,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
   sendPasswordResetEmail,
   updateProfile
 } from 'firebase/auth';
@@ -99,7 +97,7 @@ export const authService = {
     }
   },
 
-  // Sign in with Google (popup with automatic redirect fallback)
+  // Sign in with Google using popup only
   async signInWithGoogle(): Promise<User> {
     try {
       console.log('Attempting Google popup sign in...');
@@ -108,69 +106,14 @@ export const authService = {
       return result.user;
     } catch (error: any) {
       console.error('Google popup sign in failed:', error.code, error.message);
-      
-      // If popup fails, automatically try redirect
-      if (error.code === 'auth/popup-blocked' || 
-          error.code === 'auth/popup-closed-by-user' ||
-          error.code === 'auth/cancelled-popup-request' ||
-          error.code === 'auth/unauthorized-domain' ||
-          error.code === 'auth/operation-not-allowed') {
-        console.log('Popup failed, initiating redirect...');
-        
-        // Store authentication intent
-        localStorage.setItem('auth-intent', 'google-signin');
-        localStorage.setItem('auth-timestamp', Date.now().toString());
-        
-        try {
-          await signInWithRedirect(auth, googleProvider);
-          // The redirect will happen, so we throw a specific error
-          throw new Error('REDIRECTING_TO_GOOGLE');
-        } catch (redirectError: any) {
-          console.error('Google redirect sign in error:', redirectError);
-          throw new Error(getAuthErrorMessage(redirectError.code));
-        }
-      }
-      
       throw new Error(getAuthErrorMessage(error.code));
     }
   },
 
-  // Handle Google redirect result (call this on app startup)
+  // No redirect handling needed - using popup only
   async handleGoogleRedirectResult(): Promise<User | null> {
-    try {
-      // Check if there was an authentication intent
-      const authIntent = localStorage.getItem('auth-intent');
-      const authTimestamp = localStorage.getItem('auth-timestamp');
-      
-      // Only process redirect result if there was a recent auth intent (within 5 minutes)
-      const now = Date.now();
-      const timestamp = authTimestamp ? parseInt(authTimestamp, 10) : 0;
-      const isRecentIntent = authIntent && (now - timestamp) < 5 * 60 * 1000;
-      
-      if (!isRecentIntent) {
-        return null;
-      }
-      
-      console.log('Processing Google redirect result...');
-      const result = await getRedirectResult(auth);
-      
-      // Clear the intent regardless of result
-      localStorage.removeItem('auth-intent');
-      localStorage.removeItem('auth-timestamp');
-      
-      if (result && result.user) {
-        console.log('Google redirect sign in successful:', result.user.email);
-        return result.user;
-      }
-      
-      return null;
-    } catch (error: any) {
-      console.error('Google redirect result error:', error);
-      // Clear intent on error
-      localStorage.removeItem('auth-intent');
-      localStorage.removeItem('auth-timestamp');
-      throw new Error(getAuthErrorMessage(error.code));
-    }
+    // Not using redirects, just return null
+    return null;
   },
 
   // Sign out
