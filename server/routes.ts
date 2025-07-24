@@ -57,6 +57,8 @@ import {
 } from "./lib/tiered-ai-provider";
 import { createDefaultUserTier, UserTierInfo } from "@shared/user-tiers";
 import { generateSessionId, registerSession } from "./lib/session-utils";
+import { apiRateLimiter, uploadRateLimiter } from "./middleware/rate-limiter";
+import { secureUpload, validateUploadedFile } from "./lib/secure-upload";
 
 // Helper function to get user tier information
 async function getUserTierInfo(userId: string): Promise<UserTierInfo> {
@@ -142,6 +144,9 @@ function validateRequest<T>(schema: z.ZodType<T>, body: any): T {
 export async function registerRoutes(app: Express): Promise<Server> {
   // API Routes
   // Prefix all routes with /api
+  
+  // Apply general API rate limiting to all /api routes
+  app.use('/api/', apiRateLimiter);
 
   // Health check endpoint - Enhanced for Render deployment
   app.get("/api/health", async (req: Request, res: Response) => {
@@ -401,11 +406,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Upload and process resume (requires authentication)
+  // Upload and process resume (requires authentication with enhanced security)
   app.post(
     "/api/resumes",
     authenticateUser,
-    upload.single("file"),
+    uploadRateLimiter,
+    secureUpload.single("file"),
+    validateUploadedFile,
     async (req: Request, res: Response) => {
       try {
         if (!req.file) {
