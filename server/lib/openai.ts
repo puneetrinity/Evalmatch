@@ -10,12 +10,12 @@ import {
 } from "@shared/schema";
 
 // Initialize OpenAI client only if API key is available
-const openai = process.env.PR_OPEN_API_KEY ? new OpenAI({ 
-  apiKey: process.env.PR_OPEN_API_KEY
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({ 
+  apiKey: process.env.OPENAI_API_KEY
 }) : null;
 
 // Log a message to help debug API key issues
-console.log(`OpenAI API key configuration: ${process.env.PR_OPEN_API_KEY ? "Key is set" : "Key is not set"}`);
+console.log(`OpenAI API key configuration: ${process.env.OPENAI_API_KEY ? "Key is set" : "Key is not set"}`);
 
 // The newest OpenAI model is "gpt-4o" which was released May 13, 2024. 
 // Do not change this unless explicitly requested by the user
