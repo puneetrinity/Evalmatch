@@ -28,6 +28,26 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
+// Debug logging for Firebase config (only log whether values exist, not the actual values)
+console.log('Firebase config loaded:', {
+  apiKey: firebaseConfig.apiKey ? 'SET' : 'MISSING',
+  authDomain: firebaseConfig.authDomain ? 'SET' : 'MISSING',
+  projectId: firebaseConfig.projectId ? 'SET' : 'MISSING',
+  storageBucket: firebaseConfig.storageBucket ? 'SET' : 'MISSING',
+  messagingSenderId: firebaseConfig.messagingSenderId ? 'SET' : 'MISSING',
+  appId: firebaseConfig.appId ? 'SET' : 'MISSING'
+});
+
+// Validate that all required Firebase config values are present
+const requiredFields = ['apiKey', 'authDomain', 'projectId', 'appId'];
+const missingFields = requiredFields.filter(field => !firebaseConfig[field as keyof typeof firebaseConfig]);
+
+if (missingFields.length > 0) {
+  const error = `Firebase configuration missing required fields: ${missingFields.join(', ')}. Please ensure VITE_FIREBASE_* environment variables are set during build.`;
+  console.error(error);
+  throw new Error(error);
+}
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
