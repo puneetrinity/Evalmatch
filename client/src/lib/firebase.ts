@@ -106,6 +106,8 @@ export const authService = {
         authDomain: firebaseConfig.authDomain,
         projectId: firebaseConfig.projectId
       });
+      console.log('Current window origin:', window.location.origin);
+      console.log('Google provider scopes:', googleProvider.scopes);
       
       const result = await signInWithPopup(auth, googleProvider);
       console.log('Google popup sign in successful:', result.user.email);
