@@ -36,30 +36,57 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Handle Google redirect result on app startup
-    const handleRedirectResult = async () => {
+    let mounted = true;
+    
+    const initializeAuth = async () => {
       try {
-        await authService.handleGoogleRedirectResult();
+        // Wait for Firebase Auth to be ready
+        await new Promise<void>(resolve => {
+          const unsubscribe = authService.onAuthStateChanged(() => {
+            unsubscribe();
+            resolve();
+          });
+        });
+        
+        // Only process redirect result if component is still mounted
+        if (mounted) {
+          try {
+            const redirectUser = await authService.handleGoogleRedirectResult();
+            if (redirectUser && mounted) {
+              console.log('Redirect authentication successful');
+              // The auth state change listener will handle setting the user
+            }
+          } catch (error) {
+            console.error('Error handling Google redirect result:', error);
+          }
+        }
       } catch (error) {
-        console.error('Error handling Google redirect result:', error);
+        console.error('Error initializing auth:', error);
       }
     };
-    
-    handleRedirectResult();
 
+    // Start auth initialization
+    initializeAuth();
+
+    // Set up auth state listener
     const unsubscribe = authService.onAuthStateChanged((user) => {
-      setUser(user);
-      setLoading(false);
-      
-      // Log authentication state changes for debugging
-      if (user) {
-        console.log('User signed in:', { uid: user.uid, email: user.email, displayName: user.displayName });
-      } else {
-        console.log('User signed out');
+      if (mounted) {
+        setUser(user);
+        setLoading(false);
+        
+        // Log authentication state changes for debugging
+        if (user) {
+          console.log('User signed in:', { uid: user.uid, email: user.email, displayName: user.displayName });
+        } else {
+          console.log('User signed out');
+        }
       }
     });
 
-    return unsubscribe;
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string): Promise<User> => {
@@ -86,11 +113,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setLoading(true);
     try {
       const user = await authService.signInWithGoogle();
+      setLoading(false);
       return user;
     } catch (error) {
-      // Don't set loading to false if we're redirecting
-      if (error instanceof Error && error.message.includes('Redirecting')) {
-        return new Promise(() => {}); // Never resolves since we're redirecting
+      // Handle redirect case properly
+      if (error instanceof Error && error.message === 'REDIRECTING_TO_GOOGLE') {
+        // Keep loading state true during redirect
+        console.log('Redirecting to Google for authentication...');
+        // Don't set loading to false - let the redirect happen
+        throw error;
       }
       setLoading(false);
       throw error;
