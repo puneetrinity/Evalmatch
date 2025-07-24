@@ -6,6 +6,7 @@ import {
   type AnalyzeResumeResponse, type AnalyzeJobDescriptionResponse, 
   type MatchAnalysisResponse, type InterviewQuestionsResponse
 } from "@shared/schema";
+import { UserTierInfo } from "@shared/user-tiers";
 
 // Extended storage interface with all methods needed for the resume analyzer
 export interface IStorage {
@@ -47,6 +48,10 @@ export interface IStorage {
     analysis: AnalysisResult | undefined;
     questions: InterviewQuestions | undefined;
   }>;
+  
+  // User tier methods (optional - fallback to default if not implemented)
+  getUserTierInfo?(userId: string): Promise<UserTierInfo | undefined>;
+  saveUserTierInfo?(userId: string, tierInfo: UserTierInfo): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -55,6 +60,7 @@ export class MemStorage implements IStorage {
   private jobDescriptionsData: Map<number, JobDescription>;
   private analysisResultsData: Map<number, AnalysisResult>;
   private interviewQuestionsData: Map<number, InterviewQuestions>;
+  private userTiersData: Map<string, UserTierInfo>;
   
   // Counters for IDs
   private userCurrentId: number;
@@ -69,6 +75,7 @@ export class MemStorage implements IStorage {
     this.jobDescriptionsData = new Map();
     this.analysisResultsData = new Map();
     this.interviewQuestionsData = new Map();
+    this.userTiersData = new Map();
     
     this.userCurrentId = 1;
     this.resumeCurrentId = 1;
@@ -287,6 +294,15 @@ export class MemStorage implements IStorage {
       analysis,
       questions,
     };
+  }
+
+  // User tier methods
+  async getUserTierInfo(userId: string): Promise<UserTierInfo | undefined> {
+    return this.userTiersData.get(userId);
+  }
+
+  async saveUserTierInfo(userId: string, tierInfo: UserTierInfo): Promise<void> {
+    this.userTiersData.set(userId, tierInfo);
   }
 }
 

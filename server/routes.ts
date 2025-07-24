@@ -39,15 +39,58 @@ interface ApiMatchAnalysis {
 }
 
 import {
-  analyzeResume,
-  analyzeJobDescription,
-  analyzeMatch,
-  generateInterviewQuestions,
-  analyzeBias,
+  analyzeResume as analyzeResumeBasic,
+  analyzeJobDescription as analyzeJobDescriptionBasic,
+  analyzeMatch as analyzeMatchBasic,
+  generateInterviewQuestions as generateInterviewQuestionsBasic,
+  analyzeBias as analyzeBiasBasic,
   getAIServiceStatus,
   analyzeResumeFairness,
 } from "./lib/ai-provider";
+import {
+  analyzeResume,
+  analyzeJobDescription,
+  analyzeMatch as analyzeMatchTiered,
+  generateInterviewQuestions,
+  analyzeBias,
+  getTierAwareServiceStatus,
+} from "./lib/tiered-ai-provider";
+import { createDefaultUserTier, UserTierInfo } from "@shared/user-tiers";
 import { generateSessionId, registerSession } from "./lib/session-utils";
+
+// Helper function to get user tier information
+async function getUserTierInfo(userId: string): Promise<UserTierInfo> {
+  try {
+    // Try to get existing user tier from storage
+    const existingTier = await storage.getUserTierInfo?.(userId);
+    if (existingTier) {
+      return existingTier;
+    }
+  } catch (error) {
+    logger.warn('Could not retrieve user tier info, using default:', error);
+  }
+  
+  // Create default freemium tier for new users
+  const defaultTier = createDefaultUserTier('freemium');
+  
+  try {
+    // Save default tier to storage
+    await storage.saveUserTierInfo?.(userId, defaultTier);
+  } catch (error) {
+    logger.warn('Could not save user tier info:', error);
+  }
+  
+  return defaultTier;
+}
+
+// Helper function to save user tier information
+async function saveUserTierInfo(userId: string, tierInfo: UserTierInfo): Promise<void> {
+  try {
+    await storage.saveUserTierInfo?.(userId, tierInfo);
+  } catch (error) {
+    logger.warn('Could not save updated user tier info:', error);
+  }
+}
 
 // Configure multer for disk storage to handle large files
 const upload = multer({
@@ -339,6 +382,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user tier status (authenticated)
+  app.get("/api/user-tier", authenticateUser, async (req: Request, res: Response) => {
+    try {
+      const userTier = await getUserTierInfo(req.user!.uid);
+      const tierStatus = getTierAwareServiceStatus(userTier);
+      
+      res.json({
+        ...tierStatus,
+        userId: req.user!.uid,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      logger.error('Error retrieving user tier status:', error);
+      res.status(500).json({
+        message: 'Failed to retrieve user tier information'
+      });
+    }
+  });
+
   // Upload and process resume (requires authentication)
   app.post(
     "/api/resumes",
@@ -385,10 +447,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId: req.user!.uid, // Firebase UID
         });
 
-        // Analyze resume immediately (not in the background)
+        // Analyze resume immediately with tier-aware provider
         try {
-          const analysis = await analyzeResume(content);
+          const userTier = await getUserTierInfo(req.user!.uid);
+          const analysis = await analyzeResume(content, userTier);
           await storage.updateResumeAnalysis(resume.id, analysis);
+          
+          // Save updated user tier info (usage count incremented)
+          await saveUserTierInfo(req.user!.uid, userTier);
           
           res.status(201).json({
             id: resume.id,
@@ -400,14 +466,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         } catch (err) {
           logger.error("Failed to analyze resume:", err);
-          res.status(201).json({
+          
+          // Check if error is due to tier limits
+          const errorMessage = err instanceof Error ? err.message : "Resume analysis failed";
+          const isUsageLimitError = errorMessage.includes('Daily limit') || errorMessage.includes('premium feature');
+          
+          res.status(isUsageLimitError ? 429 : 201).json({
             id: resume.id,
             filename: resume.filename,
             fileSize: resume.fileSize,
             fileType: resume.fileType,
             sessionId,
             isAnalyzed: false,
-            error: "Resume analysis failed",
+            error: errorMessage,
+            tierLimitReached: isUsageLimitError,
           });
         }
       } catch (error) {
@@ -488,10 +560,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user!.uid
       });
 
-      // Analyze job description immediately (not in the background)
+      // Analyze job description immediately with tier-aware provider
       try {
-        const analysis = await analyzeJobDescription(jobDescription.title, jobDescription.description);
+        const userTier = await getUserTierInfo(req.user!.uid);
+        const analysis = await analyzeJobDescription(jobDescription.title, jobDescription.description, userTier);
         await storage.updateJobDescriptionAnalysis(jobDescription.id, analysis);
+        
+        // Save updated user tier info (usage count incremented)
+        await saveUserTierInfo(req.user!.uid, userTier);
         
         res.status(201).json({
           id: jobDescription.id,
@@ -500,11 +576,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       } catch (err) {
         logger.error("Failed to analyze job description:", err);
-        res.status(201).json({
+        
+        // Check if error is due to tier limits
+        const errorMessage = err instanceof Error ? err.message : "Job description analysis failed";
+        const isUsageLimitError = errorMessage.includes('Daily limit') || errorMessage.includes('premium feature');
+        
+        res.status(isUsageLimitError ? 429 : 201).json({
           id: jobDescription.id,
           title: jobDescription.title,
           isAnalyzed: false,
-          error: "Job description analysis failed",
+          error: errorMessage,
+          tierLimitReached: isUsageLimitError,
         });
       }
     } catch (error) {
