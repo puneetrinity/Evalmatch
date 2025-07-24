@@ -48,7 +48,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
           });
         });
         
-        // No redirect handling needed for popup-only authentication
+        // Handle Google redirect result if present
+        if (mounted) {
+          try {
+            const redirectUser = await authService.handleGoogleRedirectResult();
+            if (redirectUser && mounted) {
+              console.log('Redirect authentication successful');
+            }
+          } catch (error) {
+            console.error('Error handling Google redirect result:', error);
+          }
+        }
       } catch (error) {
         console.error('Error initializing auth:', error);
       }

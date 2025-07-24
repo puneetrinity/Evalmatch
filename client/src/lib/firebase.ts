@@ -13,7 +13,8 @@ import {
   onAuthStateChanged,
   User,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   sendPasswordResetEmail,
   updateProfile
 } from 'firebase/auth';
@@ -97,10 +98,10 @@ export const authService = {
     }
   },
 
-  // Sign in with Google using popup only
+  // Sign in with Google using redirect
   async signInWithGoogle(): Promise<User> {
     try {
-      console.log('Attempting Google popup sign in...');
+      console.log('Attempting Google redirect sign in...');
       console.log('Firebase config check:', {
         apiKey: firebaseConfig.apiKey ? 'SET' : 'MISSING',
         authDomain: firebaseConfig.authDomain,
@@ -109,29 +110,31 @@ export const authService = {
       console.log('Current window origin:', window.location.origin);
       console.log('Google provider scopes:', googleProvider.scopes);
       
-      const result = await signInWithPopup(auth, googleProvider);
-      console.log('Google popup sign in successful:', result.user.email);
-      return result.user;
+      await signInWithRedirect(auth, googleProvider);
+      // This will redirect the page, so we never reach this point
+      throw new Error('Redirecting to Google sign-in...');
     } catch (error: any) {
-      console.error('Google popup sign in failed:', error.code, error.message);
-      console.error('Full error object:', error);
-      
-      // Additional debugging for popup-closed-by-user error
-      if (error.code === 'auth/popup-closed-by-user') {
-        console.error('DEBUGGING: Popup closed error occurred');
-        console.error('Current auth state:', auth.currentUser);
-        console.error('Firebase project:', firebaseConfig.projectId);
-        console.error('Auth domain:', firebaseConfig.authDomain);
-      }
-      
+      console.error('Google redirect sign in failed:', error.code, error.message);
       throw new Error(getAuthErrorMessage(error.code));
     }
   },
 
-  // No redirect handling needed - using popup only
+  // Handle Google redirect result (call this on app startup)
   async handleGoogleRedirectResult(): Promise<User | null> {
-    // Not using redirects, just return null
-    return null;
+    try {
+      console.log('Checking for Google redirect result...');
+      const result = await getRedirectResult(auth);
+      
+      if (result && result.user) {
+        console.log('Google redirect sign in successful:', result.user.email);
+        return result.user;
+      }
+      
+      return null;
+    } catch (error: any) {
+      console.error('Google redirect result error:', error);
+      throw new Error(getAuthErrorMessage(error.code));
+    }
   },
 
   // Sign out
