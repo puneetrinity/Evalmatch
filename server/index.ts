@@ -63,6 +63,17 @@ if (app.get("env") === "development") {
       logger.warn('Continuing with application startup, but database operations may fail');
     }
   }
+
+  // Initialize storage system
+  try {
+    logger.info('Initializing storage system...');
+    const { initializeAppStorage } = await import("./storage");
+    await initializeAppStorage();
+    logger.info('Storage system initialized successfully');
+  } catch (error) {
+    logger.error({ error }, 'Failed to initialize storage system');
+    process.exit(1); // Storage is critical, exit if it fails
+  }
   
   // Log which type of storage we're using
   if (config.isDatabaseEnabled) {

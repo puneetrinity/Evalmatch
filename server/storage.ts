@@ -312,5 +312,13 @@ import { initializeStorage } from './storage-switcher';
 // Initialize memory storage as fallback (for testing purposes)
 const memStorage = new MemStorage();
 
-// Initialize and export storage (will be either database or memory based on config)
-export const storage = await initializeStorage();
+// Export storage initialization function for async initialization
+export let storage: IStorage;
+
+// Initialize storage asynchronously (called from main app startup)
+export async function initializeAppStorage(): Promise<IStorage> {
+  if (!storage) {
+    storage = await initializeStorage();
+  }
+  return storage;
+}
