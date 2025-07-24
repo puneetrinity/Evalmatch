@@ -127,17 +127,28 @@ export const authService = {
   async handleGoogleRedirectResult(): Promise<User | null> {
     try {
       console.log('Checking for Google redirect result...');
-      const result = await getRedirectResult(auth);
+      
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise<null>((_, reject) => {
+        setTimeout(() => reject(new Error('Redirect result timeout')), 5000);
+      });
+      
+      const result = await Promise.race([
+        getRedirectResult(auth),
+        timeoutPromise
+      ]);
       
       if (result && result.user) {
         console.log('Google redirect sign in successful:', result.user.email);
         return result.user;
       }
       
+      console.log('No Google redirect result found');
       return null;
     } catch (error: any) {
       console.error('Google redirect result error:', error);
-      throw new Error(getAuthErrorMessage(error.code));
+      // Don't throw error, just return null to allow app to continue
+      return null;
     }
   },
 

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Auth Test</title>
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { 
+            getAuth, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword,
+            onAuthStateChanged 
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        // Firebase configuration from Railway environment
+        const firebaseConfig = {
+            apiKey: "AIzaSyDOINRfDYjB3Sk7UVPa8YWWYvWUq4pEJm0",
+            authDomain: "ealmatch-railway.firebaseapp.com",
+            projectId: "ealmatch-railway",
+            storageBucket: "ealmatch-railway.firebasestorage.app",
+            messagingSenderId: "521154811677",
+            appId: "1:521154811677:web:a7df8ee2c2d6adb39173f4"
+        };
+
+        // Initialize Firebase
+        console.log('Initializing Firebase with config:', firebaseConfig);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        // Test authentication
+        onAuthStateChanged(auth, (user) => {
+            const status = document.getElementById('status');
+            if (user) {
+                status.innerHTML = `✅ Signed in as: ${user.email} (UID: ${user.uid})`;
+                console.log('User signed in:', user);
+            } else {
+                status.innerHTML = '❌ No user signed in';
+                console.log('No user signed in');
+            }
+        });
+
+        // Test registration
+        window.testRegister = async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const result = document.getElementById('result');
+            
+            try {
+                result.innerHTML = '⏳ Registering...';
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                result.innerHTML = `✅ Registration successful! User: ${userCredential.user.email}`;
+                console.log('Registration successful:', userCredential.user);
+            } catch (error) {
+                result.innerHTML = `❌ Registration failed: ${error.message}`;
+                console.error('Registration error:', error);
+            }
+        };
+
+        // Test sign in
+        window.testSignIn = async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const result = document.getElementById('result');
+            
+            try {
+                result.innerHTML = '⏳ Signing in...';
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                result.innerHTML = `✅ Sign in successful! User: ${userCredential.user.email}`;
+                console.log('Sign in successful:', userCredential.user);
+            } catch (error) {
+                result.innerHTML = `❌ Sign in failed: ${error.message}`;
+                console.error('Sign in error:', error);
+            }
+        };
+
+        console.log('Firebase auth test loaded successfully');
+    </script>
+</head>
+<body>
+    <h1>Firebase Authentication Test</h1>
+    <div id="status">⏳ Loading...</div>
+    
+    <h2>Test Authentication</h2>
+    <input type="email" id="email" placeholder="Email" value="test@example.com">
+    <input type="password" id="password" placeholder="Password" value="testpass123">
+    <br><br>
+    <button onclick="testRegister()">Register</button>
+    <button onclick="testSignIn()">Sign In</button>
+    
+    <h3>Result:</h3>
+    <div id="result">Ready to test...</div>
+    
+    <h3>Instructions:</h3>
+    <ol>
+        <li>Open browser console to see detailed logs</li>
+        <li>Try registering a new user first</li>
+        <li>Then try signing in with the same credentials</li>
+        <li>Check for any error messages</li>
+    </ol>
+</body>
+</html>

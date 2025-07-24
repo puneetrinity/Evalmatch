@@ -40,15 +40,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     
     const initializeAuth = async () => {
       try {
-        // Wait for Firebase Auth to be ready
-        await new Promise<void>(resolve => {
+        // Wait for Firebase Auth to be ready with timeout
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Auth initialization timeout'));
+          }, 10000);
+          
           const unsubscribe = authService.onAuthStateChanged(() => {
+            clearTimeout(timeout);
             unsubscribe();
             resolve();
           });
         });
         
-        // Handle Google redirect result if present
+        // Handle Google redirect result if present (with timeout handled in firebase.ts)
         if (mounted) {
           try {
             const redirectUser = await authService.handleGoogleRedirectResult();
@@ -61,6 +66,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
+        // Set loading to false even if initialization fails
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
