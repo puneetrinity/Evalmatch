@@ -110,11 +110,15 @@ export const authService = {
       console.log('Current window origin:', window.location.origin);
       console.log('Google provider scopes:', googleProvider.scopes);
       
+      console.log('Starting redirect to Google...');
       await signInWithRedirect(auth, googleProvider);
+      console.log('Redirect initiated successfully');
+      
       // This will redirect the page, so we never reach this point
       throw new Error('Redirecting to Google sign-in...');
     } catch (error: any) {
       console.error('Google redirect sign in failed:', error.code, error.message);
+      console.error('Full redirect error:', error);
       throw new Error(getAuthErrorMessage(error.code));
     }
   },
