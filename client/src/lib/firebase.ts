@@ -95,7 +95,7 @@ export const authService = {
     }
   },
 
-  // Sign in with Google using popup
+  // Sign in with Google (popup with automatic redirect fallback)
   async signInWithGoogle(): Promise<User> {
     try {
       console.log('Attempting Google popup sign in...');
@@ -104,17 +104,22 @@ export const authService = {
       return result.user;
     } catch (error: any) {
       console.error('Google popup sign in failed:', error.code, error.message);
-      throw new Error(getAuthErrorMessage(error.code));
-    }
-  },
-
-  // Sign in with Google using redirect (fallback method)
-  async signInWithGoogleRedirect(): Promise<void> {
-    try {
-      console.log('Starting Google redirect sign in...');
-      await signInWithRedirect(auth, googleProvider);
-    } catch (error: any) {
-      console.error('Google redirect sign in error:', error);
+      
+      // If popup fails, automatically try redirect
+      if (error.code === 'auth/popup-blocked' || 
+          error.code === 'auth/popup-closed-by-user' ||
+          error.code === 'auth/cancelled-popup-request') {
+        console.log('Popup failed, automatically trying redirect...');
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          // This will redirect the page, so we return a promise that never resolves
+          return new Promise(() => {});
+        } catch (redirectError: any) {
+          console.error('Google redirect sign in error:', redirectError);
+          throw new Error(getAuthErrorMessage(redirectError.code));
+        }
+      }
+      
       throw new Error(getAuthErrorMessage(error.code));
     }
   },

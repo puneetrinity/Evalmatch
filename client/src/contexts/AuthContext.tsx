@@ -17,7 +17,6 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<User>;
   signUp: (email: string, password: string, displayName?: string) => Promise<User>;
   signInWithGoogle: () => Promise<User>;
-  signInWithGoogleRedirect: () => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   
@@ -88,17 +87,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const user = await authService.signInWithGoogle();
       return user;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signInWithGoogleRedirect = async (): Promise<void> => {
-    setLoading(true);
-    try {
-      await authService.signInWithGoogleRedirect();
-      // Don't set loading to false here because we'll redirect
     } catch (error) {
+      // Don't set loading to false if we're redirecting
+      if (error instanceof Error && error.message.includes('Redirecting')) {
+        return new Promise(() => {}); // Never resolves since we're redirecting
+      }
       setLoading(false);
       throw error;
     }
@@ -127,7 +120,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signIn,
     signUp,
     signInWithGoogle,
-    signInWithGoogleRedirect,
     signOut,
     resetPassword,
     getAuthToken,
