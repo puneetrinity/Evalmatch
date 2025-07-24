@@ -10,7 +10,7 @@ import {
   InterviewQuestionsResponse,
   BiasAnalysisResponse 
 } from '@shared/schema';
-import { UserTierInfo, TIER_LIMITS, checkUsageLimit, incrementUsage } from '@shared/user-tiers';
+import { UserTierInfo, TIER_LIMITS, checkUsageLimit, incrementUsage, getServiceUnavailableError, getApiLimitExceededError } from '@shared/user-tiers';
 
 // Verify if providers are configured
 const isAnthropicConfigured = !!config.anthropicApiKey;
@@ -25,6 +25,7 @@ interface TierAwareProviderSelection {
 /**
  * Select AI provider based on user tier and availability
  * BETA MODE: All users use Groq for cost optimization during beta testing
+ * @throws Error when no providers are available, with appropriate upgrade messaging
  */
 function selectProviderForTier(userTier: UserTierInfo): TierAwareProviderSelection {
   // BETA MODE: Force all users to Groq for cost optimization
@@ -52,6 +53,8 @@ function selectProviderForTier(userTier: UserTierInfo): TierAwareProviderSelecti
         reason: 'Beta mode - last resort fallback' 
       };
     }
+    // All providers unavailable - throw error instead of fallback
+    throw getServiceUnavailableError(userTier, 'AI analysis');
   }
   
   // FULL TIERED SYSTEM (disabled during beta)
@@ -92,7 +95,8 @@ function selectProviderForTier(userTier: UserTierInfo): TierAwareProviderSelecti
     return { provider: 'anthropic', reason: 'Emergency fallback - Anthropic available' };
   }
   
-  return { provider: 'openai', reason: 'Last resort fallback - using OpenAI built-in responses' };
+  // No providers available - throw error instead of returning fallback
+  throw getServiceUnavailableError(userTier, 'AI analysis');
 }
 
 /**
@@ -112,15 +116,21 @@ export async function analyzeResume(resumeText: string, userTier: UserTierInfo):
   // Increment usage count
   incrementUsage(userTier);
   
-  // Call appropriate provider
-  switch (selection.provider) {
-    case 'anthropic':
-      return await anthropic.analyzeResume(resumeText);
-    case 'openai':
-      return await openai.analyzeResume(resumeText);
-    case 'groq':
-    default:
-      return await groq.analyzeResume(resumeText);
+  // Call appropriate provider with error handling
+  try {
+    switch (selection.provider) {
+      case 'anthropic':
+        return await anthropic.analyzeResume(resumeText);
+      case 'openai':
+        return await openai.analyzeResume(resumeText);
+      case 'groq':
+      default:
+        return await groq.analyzeResume(resumeText);
+    }
+  } catch (error) {
+    logger.error('AI provider error in resume analysis', error);
+    // Throw appropriate error message based on user tier
+    throw getApiLimitExceededError(userTier, 'Resume analysis');
   }
 }
 
@@ -141,15 +151,21 @@ export async function analyzeJobDescription(title: string, description: string, 
   // Increment usage count
   incrementUsage(userTier);
   
-  // Call appropriate provider
-  switch (selection.provider) {
-    case 'anthropic':
-      return await anthropic.analyzeJobDescription(title, description);
-    case 'openai':
-      return await openai.analyzeJobDescription(title, description);
-    case 'groq':
-    default:
-      return await groq.analyzeJobDescription(title, description);
+  // Call appropriate provider with error handling
+  try {
+    switch (selection.provider) {
+      case 'anthropic':
+        return await anthropic.analyzeJobDescription(title, description);
+      case 'openai':
+        return await openai.analyzeJobDescription(title, description);
+      case 'groq':
+      default:
+        return await groq.analyzeJobDescription(title, description);
+    }
+  } catch (error) {
+    logger.error('AI provider error in job description analysis', error);
+    // Throw appropriate error message based on user tier
+    throw getApiLimitExceededError(userTier, 'Job description analysis');
   }
 }
 
@@ -176,19 +192,25 @@ export async function analyzeMatch(
   // Increment usage count
   incrementUsage(userTier);
   
-  // Call appropriate provider
+  // Call appropriate provider with error handling
   let matchResult: MatchAnalysisResponse;
-  switch (selection.provider) {
-    case 'anthropic':
-      matchResult = await anthropic.analyzeMatch(resumeAnalysis, jobAnalysis);
-      break;
-    case 'openai':
-      matchResult = await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
-      break;
-    case 'groq':
-    default:
-      matchResult = await groq.analyzeMatch(resumeAnalysis, jobAnalysis, resumeText, jobText);
-      break;
+  try {
+    switch (selection.provider) {
+      case 'anthropic':
+        matchResult = await anthropic.analyzeMatch(resumeAnalysis, jobAnalysis);
+        break;
+      case 'openai':
+        matchResult = await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
+        break;
+      case 'groq':
+      default:
+        matchResult = await groq.analyzeMatch(resumeAnalysis, jobAnalysis, resumeText, jobText);
+        break;
+    }
+  } catch (error) {
+    logger.error('AI provider error in match analysis', error);
+    // Throw appropriate error message based on user tier
+    throw getApiLimitExceededError(userTier, 'Match analysis');
   }
   
   // Add fairness metrics for premium users
@@ -230,15 +252,21 @@ export async function analyzeBias(title: string, description: string, userTier: 
   // Increment usage count
   incrementUsage(userTier);
   
-  // Call appropriate provider
-  switch (selection.provider) {
-    case 'anthropic':
-      return await anthropic.analyzeBias(title, description);
-    case 'openai':
-      return await openai.analyzeBias(title, description);
-    case 'groq':
-    default:
-      return await groq.analyzeBias(title, description);
+  // Call appropriate provider with error handling
+  try {
+    switch (selection.provider) {
+      case 'anthropic':
+        return await anthropic.analyzeBias(title, description);
+      case 'openai':
+        return await openai.analyzeBias(title, description);
+      case 'groq':
+      default:
+        return await groq.analyzeBias(title, description);
+    }
+  } catch (error) {
+    logger.error('AI provider error in bias analysis', error);
+    // Throw appropriate error message based on user tier
+    throw getApiLimitExceededError(userTier, 'Bias analysis');
   }
 }
 
@@ -272,15 +300,21 @@ export async function generateInterviewQuestions(
   // Increment usage count
   incrementUsage(userTier);
   
-  // Call appropriate provider
-  switch (selection.provider) {
-    case 'anthropic':
-      return await anthropic.generateInterviewQuestions(resumeAnalysis, jobAnalysis, matchAnalysis);
-    case 'openai':
-      return await openai.generateInterviewQuestions(resumeAnalysis, jobAnalysis, matchAnalysis);
-    case 'groq':
-    default:
-      return await groq.generateInterviewQuestions(resumeAnalysis, jobAnalysis, matchAnalysis);
+  // Call appropriate provider with error handling
+  try {
+    switch (selection.provider) {
+      case 'anthropic':
+        return await anthropic.generateInterviewQuestions(resumeAnalysis, jobAnalysis, matchAnalysis);
+      case 'openai':
+        return await openai.generateInterviewQuestions(resumeAnalysis, jobAnalysis, matchAnalysis);
+      case 'groq':
+      default:
+        return await groq.generateInterviewQuestions(resumeAnalysis, jobAnalysis, matchAnalysis);
+    }
+  } catch (error) {
+    logger.error('AI provider error in interview questions generation', error);
+    // Throw appropriate error message based on user tier
+    throw getApiLimitExceededError(userTier, 'Interview questions generation');
   }
 }
 

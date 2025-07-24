@@ -191,14 +191,9 @@ async function safeOpenAICall<T>(
         return responseCache[cacheKey].data;
       }
       
-      // Otherwise use the fallback
-      if (fallbackResponse) {
-        logApiServiceStatus("Using fallback response while service is unavailable");
-        return fallbackResponse;
-      }
-      
-      // If no fallback, we have to try the API
-      logApiServiceStatus("No fallback available, attempting API call despite service being marked as unavailable", true);
+      // Throw error instead of using fallback response
+      logApiServiceStatus("Service unavailable, throwing error for premium upgrade messaging", true);
+      throw new Error("AI analysis service is temporarily unavailable");
     } else {
       logApiServiceStatus("Retry timeout elapsed, attempting to restore service availability");
     }
@@ -265,14 +260,8 @@ async function safeOpenAICall<T>(
       return responseCache[cacheKey].data;
     }
     
-    // If we have a fallback, use it
-    if (fallbackResponse) {
-      logApiServiceStatus("Using fallback response due to API failure");
-      return fallbackResponse;
-    }
-    
-    // No fallback, re-throw the error
-    logApiServiceStatus("No fallback available, propagating error", true);
+    // Throw error instead of using fallback response
+    logApiServiceStatus("API failed, throwing error for premium upgrade messaging", true);
     throw error;
   }
 }

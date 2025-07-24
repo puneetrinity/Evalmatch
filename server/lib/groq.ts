@@ -213,15 +213,9 @@ Respond with only the JSON object, no additional text.`;
   } catch (error) {
     logger.error('Error analyzing resume with Groq', error);
     
-    // Fallback response
-    return {
-      skills: [],
-      experience: "0 years",
-      education: [],
-      summary: "Unable to analyze resume",
-      strengths: [],
-      jobTitles: []
-    };
+    // Re-throw the error instead of returning fallback response
+    // The tiered provider will handle appropriate error messaging
+    throw error;
   }
 }
 
@@ -258,15 +252,9 @@ Respond with only the JSON object, no additional text.`;
   } catch (error) {
     logger.error('Error analyzing job description with Groq', error);
     
-    // Fallback response
-    return {
-      requiredSkills: [],
-      preferredSkills: [],
-      experienceLevel: "mid",
-      responsibilities: [],
-      qualifications: [],
-      summary: "Unable to analyze job description"
-    };
+    // Re-throw the error instead of returning fallback response
+    // The tiered provider will handle appropriate error messaging
+    throw error;
   }
 }
 
@@ -371,15 +359,9 @@ Respond with only the JSON object, no additional text.`;
   } catch (error) {
     logger.error('Error analyzing match with Groq', error);
     
-    // Fallback response
-    return {
-      matchPercentage: 0,
-      matchedSkills: [],
-      missingSkills: [],
-      candidateStrengths: [],
-      candidateWeaknesses: [],
-      recommendations: []
-    };
+    // Re-throw the error instead of returning fallback response
+    // The tiered provider will handle appropriate error messaging
+    throw error;
   }
 }
 
@@ -429,12 +411,9 @@ Generate 8-12 relevant questions. Respond with only the JSON object, no addition
   } catch (error) {
     logger.error('Error generating interview questions with Groq', error);
     
-    // Fallback response
-    return {
-      questions: [],
-      focusAreas: [],
-      recommendations: []
-    };
+    // Re-throw the error instead of returning fallback response
+    // The tiered provider will handle appropriate error messaging
+    throw error;
   }
 }
 
@@ -477,13 +456,9 @@ Respond with only the JSON object, no additional text.`;
   } catch (error) {
     logger.error('Error analyzing bias with Groq', error);
     
-    // Fallback response
-    return {
-      overallScore: 100,
-      biasIndicators: [],
-      recommendations: [],
-      summary: "Unable to analyze bias"
-    };
+    // Re-throw the error instead of returning fallback response
+    // The tiered provider will handle appropriate error messaging
+    throw error;
   }
 }
 
@@ -511,7 +486,10 @@ Respond with only the JSON array, no additional text.`;
     return skills;
   } catch (error) {
     logger.error(`Error extracting skills from ${type} with Groq`, error);
-    return [];
+    
+    // Re-throw the error instead of returning fallback response
+    // The tiered provider will handle appropriate error messaging
+    throw error;
   }
 }
 
@@ -548,10 +526,10 @@ Respond with only the JSON object, no additional text.`;
     return result;
   } catch (error) {
     logger.error('Error analyzing skill gap with Groq', error);
-    return {
-      matchedSkills: [],
-      missingSkills: []
-    };
+    
+    // Re-throw the error instead of returning fallback response
+    // The tiered provider will handle appropriate error messaging
+    throw error;
   }
 }
 

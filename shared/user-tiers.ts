@@ -73,6 +73,28 @@ export function checkUsageLimit(userTier: UserTierInfo): { canUse: boolean; mess
   return { canUse: true };
 }
 
+/**
+ * Generate premium upgrade error messages for API exhaustion scenarios
+ */
+export function getApiLimitExceededError(userTier: UserTierInfo, context: string = 'API'): Error {
+  if (userTier.tier === 'premium') {
+    return new Error(`${context} service is temporarily unavailable. Please try again in a few minutes.`);
+  } else {
+    return new Error(`${context} limit reached for free tier users. Upgrade to Premium for unlimited access to advanced AI analysis and priority support.`);
+  }
+}
+
+/**
+ * Generate service unavailable error messages that encourage premium upgrades
+ */
+export function getServiceUnavailableError(userTier: UserTierInfo, serviceName: string = 'AI analysis'): Error {
+  if (userTier.tier === 'premium') {
+    return new Error(`${serviceName} service is temporarily experiencing high demand. Premium users get priority access - please try again in a moment.`);
+  } else {
+    return new Error(`${serviceName} service is currently at capacity for free tier users. Upgrade to Premium for guaranteed access and faster processing.`);
+  }
+}
+
 export function incrementUsage(userTier: UserTierInfo): void {
   userTier.usageCount++;
 }
