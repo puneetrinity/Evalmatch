@@ -37,10 +37,10 @@ interface NeonDbConfig {
   };
 }
 
-// Production configuration
+// Production configuration (optimized for batch processing)
 const productionConfig: NeonDbConfig = {
   pooling: {
-    max: 10, 
+    max: 15, // Increased for parallel batch processing
     idleTimeoutMillis: 60000,
     connectionTimeoutMillis: 60000,
     maxUses: 7500,
@@ -62,10 +62,10 @@ const productionConfig: NeonDbConfig = {
   }
 };
 
-// Development configuration
+// Development configuration (optimized for batch processing)
 const developmentConfig: NeonDbConfig = {
   pooling: {
-    max: 8,
+    max: 12, // Increased for parallel batch processing
     idleTimeoutMillis: 60000,
     connectionTimeoutMillis: 60000,
     maxUses: 7500,

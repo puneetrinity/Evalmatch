@@ -21,6 +21,8 @@ export const resumes = pgTable("resumes", {
   skills: json("skills").$type<string[]>(),
   experience: text("experience"),
   education: text("education"),
+  embedding: json("embedding").$type<number[]>(),
+  skillsEmbedding: json("skills_embedding").$type<number[]>(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -34,8 +36,32 @@ export const jobDescriptions = pgTable("job_descriptions", {
   requirements: json("requirements").$type<string[]>(),
   skills: json("skills").$type<string[]>(),
   experience: text("experience"),
+  embedding: json("embedding").$type<number[]>(),
+  requirementsEmbedding: json("requirements_embedding").$type<number[]>(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Skill categories table for hierarchy
+export const skillCategories = pgTable("skill_categories", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  parentId: integer("parent_id"),
+  level: integer("level").default(0),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Enhanced skills table with embeddings and relationships
+export const skillsTable = pgTable("skills", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull().unique(),
+  normalizedName: varchar("normalized_name", { length: 255 }).notNull(),
+  categoryId: integer("category_id"),
+  aliases: json("aliases").$type<string[]>(),
+  embedding: json("embedding").$type<number[]>(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Analysis results table
@@ -50,11 +76,29 @@ export const analysisResults = pgTable("analysis_results", {
   candidateStrengths: json("candidate_strengths").$type<string[]>(),
   candidateWeaknesses: json("candidate_weaknesses").$type<string[]>(),
   confidenceLevel: varchar("confidence_level", { length: 10 }),
+  
+  // Enhanced scoring dimensions
+  semanticSimilarity: real("semantic_similarity"),
+  skillsSimilarity: real("skills_similarity"),
+  experienceSimilarity: real("experience_similarity"),
+  educationSimilarity: real("education_similarity"),
+  
+  // ML-based scoring
+  mlConfidenceScore: real("ml_confidence_score"),
+  scoringDimensions: json("scoring_dimensions").$type<{
+    skills: number;
+    experience: number;
+    education: number;
+    semantic: number;
+    cultural: number;
+  }>(),
+  
   fairnessMetrics: json("fairness_metrics").$type<{
     biasConfidenceScore: number;
     potentialBiasAreas: string[];
     fairnessAssessment: string;
   }>(),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -90,6 +134,12 @@ export type InsertAnalysisResult = typeof analysisResults.$inferInsert;
 
 export type InterviewQuestions = typeof interviewQuestions.$inferSelect;
 export type InsertInterviewQuestions = typeof interviewQuestions.$inferInsert;
+
+export type SkillCategory = typeof skillCategories.$inferSelect;
+export type InsertSkillCategory = typeof skillCategories.$inferInsert;
+
+export type Skill = typeof skillsTable.$inferSelect;
+export type InsertSkill = typeof skillsTable.$inferInsert;
 
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users);

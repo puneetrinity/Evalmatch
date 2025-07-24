@@ -1712,6 +1712,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // Batch processing endpoints for parallelization
+  const { processBatchResumes, processBatchMatches } = await import("./lib/batch-processor");
+
+  // Batch resume processing - upload and analyze multiple resumes at once
+  app.post(
+    "/api/resumes/batch",
+    authenticateUser,
+    uploadRateLimiter,
+    secureUpload.array("files", 10), // Allow up to 10 files
+    async (req: Request, res: Response) => {
+      try {
+        const files = req.files as Express.Multer.File[];
+        if (!files || files.length === 0) {
+          return res.status(400).json({ message: "No files uploaded" });
+        }
+
+        if (files.length > 10) {
+          return res.status(400).json({ message: "Maximum 10 files allowed per batch" });
+        }
+
+        // Get user tier for analysis
+        const userTier = await getUserTierInfo(req.user!.uid);
+        
+        // Check if user has enough quota for batch processing
+        if (userTier.usageCount + files.length > userTier.maxAnalyses) {
+          return res.status(429).json({
+            message: `Batch would exceed daily limit. ${userTier.maxAnalyses - userTier.usageCount} analyses remaining.`
+          });
+        }
+
+        // Parse all documents first
+        const resumeInputs = [];
+        for (const file of files) {
+          try {
+            const fileBuffer = fs.readFileSync(file.path);
+            const content = await parseDocument(fileBuffer, file.mimetype);
+            
+            // Create resume entry
+            const resume = await storage.createResume({
+              filename: file.originalname,
+              fileSize: file.size,
+              fileType: file.mimetype,
+              content,
+              sessionId: req.body.sessionId || generateSessionId(),
+              userId: req.user!.uid,
+            });
+
+            resumeInputs.push({
+              id: resume.id,
+              content,
+              filename: file.originalname
+            });
+          } catch (error) {
+            logger.error(`Error processing file ${file.originalname}:`, error);
+          }
+        }
+
+        // Process all resumes in parallel
+        const batchResult = await processBatchResumes(resumeInputs, userTier);
+        
+        // Update user tier usage
+        userTier.usageCount += batchResult.processed;
+        await saveUserTierInfo(req.user!.uid, userTier);
+
+        res.status(201).json({
+          message: `Batch processing completed`,
+          totalFiles: files.length,
+          processed: batchResult.processed,
+          errors: batchResult.errors,
+          timeTaken: batchResult.timeTaken,
+          success: batchResult.success
+        });
+
+      } catch (error) {
+        logger.error("Error in batch processing:", error);
+        res.status(500).json({
+          message: error instanceof Error ? error.message : "Batch processing failed",
+        });
+      }
+    }
+  );
+
+  // Batch matching - match multiple resumes against multiple jobs
+  app.post(
+    "/api/match/batch",
+    authenticateUser,
+    async (req: Request, res: Response) => {
+      try {
+        const { resumeIds, jobIds } = req.body;
+        
+        if (!resumeIds || !jobIds || !Array.isArray(resumeIds) || !Array.isArray(jobIds)) {
+          return res.status(400).json({ 
+            message: "resumeIds and jobIds arrays are required" 
+          });
+        }
+
+        if (resumeIds.length === 0 || jobIds.length === 0) {
+          return res.status(400).json({ 
+            message: "At least one resume and one job required" 
+          });
+        }
+
+        if (resumeIds.length * jobIds.length > 100) {
+          return res.status(400).json({ 
+            message: "Maximum 100 matches per batch (resumes × jobs)" 
+          });
+        }
+
+        // Get user tier
+        const userTier = await getUserTierInfo(req.user!.uid);
+
+        // Fetch resumes and jobs
+        const resumes = [];
+        for (const resumeId of resumeIds) {
+          const resume = await storage.getResume(resumeId);
+          if (resume && resume.userId === req.user!.uid) {
+            resumes.push({
+              id: resume.id,
+              content: resume.content || '',
+              filename: resume.filename
+            });
+          }
+        }
+
+        const jobs = [];
+        for (const jobId of jobIds) {
+          const job = await storage.getJobDescription(jobId);
+          if (job && job.userId === req.user!.uid) {
+            jobs.push({
+              id: job.id,
+              title: job.title,
+              description: job.description
+            });
+          }
+        }
+
+        if (resumes.length === 0 || jobs.length === 0) {
+          return res.status(404).json({ 
+            message: "No valid resumes or jobs found" 
+          });
+        }
+
+        // Process all matches in parallel
+        const batchResult = await processBatchMatches(resumes, jobs, userTier);
+
+        res.status(200).json({
+          message: `Batch matching completed`,
+          resumeCount: resumes.length,
+          jobCount: jobs.length,
+          totalMatches: resumes.length * jobs.length,
+          processed: batchResult.processed,
+          errors: batchResult.errors,
+          timeTaken: batchResult.timeTaken,
+          success: batchResult.success
+        });
+
+      } catch (error) {
+        logger.error("Error in batch matching:", error);
+        res.status(500).json({
+          message: error instanceof Error ? error.message : "Batch matching failed",
+        });
+      }
+    }
+  );
+
   const httpServer = createServer(app);
   return httpServer;
 }

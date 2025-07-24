@@ -1219,6 +1219,32 @@ export async function generateInterviewQuestions(
 }
 
 /**
+ * Generate embeddings using OpenAI's text-embedding-3-small model
+ */
+export async function generateEmbedding(text: string): Promise<number[]> {
+  if (!openai) {
+    throw new Error("OpenAI API key not configured");
+  }
+
+  try {
+    const response = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: text,
+      encoding_format: "float",
+    });
+
+    if (!response.data || response.data.length === 0) {
+      throw new Error("No embedding data received from OpenAI");
+    }
+
+    return response.data[0].embedding;
+  } catch (error) {
+    console.error("Error generating OpenAI embedding:", error);
+    throw error;
+  }
+}
+
+/**
  * Returns the current OpenAI service status information
  * This can be exposed via an API endpoint for monitoring
  */

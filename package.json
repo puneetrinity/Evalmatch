@@ -9,10 +9,12 @@
     "build:client": "vite build",
     "build:server": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "build": "npm run build:client && npm run build:server",
-    "start": "NODE_ENV=production node dist/index.js",
+    "start": "NODE_ENV=production node --max-old-space-size=7168 dist/index.js",
     "railway:start": "./railway-start.sh",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "test": "jest",
+    "db:push": "drizzle-kit push",
+    "railway:deploy": "railway up"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
@@ -111,7 +113,9 @@
     "wouter": "^3.3.5",
     "ws": "^8.18.0",
     "zod": "^3.24.2",
-    "zod-validation-error": "^3.4.0"
+    "zod-validation-error": "^3.4.0",
+    "@tensorflow/tfjs-node": "^4.15.0",
+    "@xenova/transformers": "^2.15.0"
   },
   "devDependencies": {
     "@replit/vite-plugin-cartographer": "^0.1.2",

@@ -1,0 +1,23 @@
+[build]
+builder = "nixpacks"
+
+[build.nixpacksConfigOverride]
+mounts = ["/tmp"]
+
+[deploy]
+startCommand = "npm start"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+# Environment variables
+[deploy.variables]
+NODE_ENV = "production"
+ENABLE_TELEMETRY = "true"
+ENABLE_LOCAL_EMBEDDINGS = "true"
+EMBEDDING_MODEL = "Xenova/all-MiniLM-L12-v2"
+MAX_CONCURRENT_EMBEDDINGS = "5"
+
+# Memory and CPU limits for Railway
+[deploy.resources]
+memory = 8192  # 8GB RAM - plenty for advanced embeddings and ML models
+cpu = 2000     # 2 vCPU for better performance

@@ -89,13 +89,21 @@ if (app.get("env") === "development") {
   if (config.isDatabaseEnabled) {
     try {
       logger.info('Setting up database schema...');
-      const { initializeDatabase } = await import("./db-setup");
-      const result = await initializeDatabase();
+      
+      // First run the original database setup
+      const { initializeDatabase: originalInit } = await import("./db-setup");
+      const result = await originalInit();
       if (result.success) {
         logger.info('Database setup complete: ' + result.message);
       } else {
         logger.warn('Database setup issue: ' + result.message);
       }
+      
+      // Then run enhanced features initialization
+      logger.info('Initializing enhanced features...');
+      const { initializeDatabase: enhancedInit } = await import("./lib/db-migrations");
+      await enhancedInit();
+      
     } catch (error) {
       logger.error({ error }, 'Failed to initialize database schema');
       logger.warn('Continuing with application startup, but database operations may fail');

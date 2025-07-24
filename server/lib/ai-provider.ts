@@ -10,11 +10,28 @@ import {
   InterviewQuestionsResponse,
   BiasAnalysisResponse 
 } from '@shared/schema';
+import { calculateEnhancedMatch, DEFAULT_SCORING_WEIGHTS } from './enhanced-scoring';
+import { generateEmbedding, calculateSemanticSimilarity } from './embeddings';
+import { initializeSkillHierarchy } from './skill-hierarchy';
 import { analyzeResumeFairness } from './fairness-analyzer';
 
 // Verify if providers are configured
 const isAnthropicConfigured = !!config.anthropicApiKey;
 const isGroqConfigured = !!process.env.GROQ_API_KEY;
+
+// Initialize skill hierarchy on first load
+let skillHierarchyInitialized = false;
+async function initializeEnhancements() {
+  if (!skillHierarchyInitialized) {
+    try {
+      await initializeSkillHierarchy();
+      skillHierarchyInitialized = true;
+      logger.info('Enhanced AI features initialized successfully');
+    } catch (error) {
+      logger.warn('Failed to initialize enhanced AI features:', error);
+    }
+  }
+}
 
 /**
  * Provider selection strategy
@@ -69,6 +86,9 @@ export function getAIServiceStatus() {
  * Smart provider selection for resume analysis
  */
 export async function analyzeResume(resumeText: string): Promise<AnalyzeResumeResponse> {
+  // Initialize enhancements on first use
+  await initializeEnhancements();
+  
   // Check Groq availability first (primary provider)
   if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
     return await groq.analyzeResume(resumeText);
@@ -118,7 +138,7 @@ export async function analyzeJobDescription(title: string, description: string):
 }
 
 /**
- * Smart provider selection for match analysis
+ * Enhanced match analysis with vector embeddings and ML scoring
  */
 export async function analyzeMatch(
   resumeAnalysis: AnalyzeResumeResponse,
@@ -126,51 +146,97 @@ export async function analyzeMatch(
   resumeText?: string,
   jobText?: string
 ): Promise<MatchAnalysisResponse> {
-  // Check Groq availability first (primary provider)
-  let matchResult: MatchAnalysisResponse;
-  
-  if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
-    // Pass original texts for consistent scoring
-    matchResult = await groq.analyzeMatch(resumeAnalysis, jobAnalysis, resumeText, jobText);
-  } else if (openai.getOpenAIServiceStatus().isAvailable) {
-    logger.info('Groq unavailable, falling back to OpenAI for match analysis');
-    matchResult = await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
-  } else if (isAnthropicConfigured && anthropic.getAnthropicServiceStatus().isAvailable) {
-    logger.info('Groq and OpenAI unavailable, falling back to Anthropic for match analysis');
-    // Use our newly implemented Anthropic match analysis
-    matchResult = await anthropic.analyzeMatch(resumeAnalysis, jobAnalysis);
-  } else {
-    // If all providers are unavailable, use OpenAI's fallback response
-    logger.warn('All AI providers unavailable, using built-in fallback for match analysis');
-    matchResult = await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
-  }
-  
-  // Check if we have all needed data to perform fairness analysis
-  if (resumeText) {
-    try {
-      // Import fairness analyzer dynamically to prevent circular dependencies
-      const { analyzeResumeFairness } = await import('./fairness-analyzer');
+  try {
+    // Use enhanced scoring if we have full text data
+    if (resumeText && jobText) {
+      logger.info('Using enhanced ML-based scoring with embeddings');
       
-      // Generate fairness metrics
-      const fairnessMetrics = await analyzeResumeFairness(
-        resumeText,
-        resumeAnalysis,
-        matchResult
+      const enhancedResult = await calculateEnhancedMatch(
+        {
+          skills: resumeAnalysis.skills,
+          experience: resumeAnalysis.experience,
+          education: resumeAnalysis.education,
+          content: resumeText
+        },
+        {
+          skills: jobAnalysis.skills,
+          experience: jobAnalysis.experience,
+          description: jobText
+        },
+        DEFAULT_SCORING_WEIGHTS
       );
-      
-      // Add fairness metrics to match result
-      return {
-        ...matchResult,
-        fairnessMetrics
+
+      // Convert enhanced result to MatchAnalysisResponse format
+      const matchResult: MatchAnalysisResponse = {
+        matchPercentage: enhancedResult.totalScore,
+        matchedSkills: enhancedResult.skillBreakdown
+          .filter(s => s.matched)
+          .map(s => ({ skill: s.skill, matchPercentage: s.score })),
+        missingSkills: enhancedResult.skillBreakdown
+          .filter(s => !s.matched && s.required)
+          .map(s => s.skill),
+        candidateStrengths: enhancedResult.explanation.strengths,
+        candidateWeaknesses: enhancedResult.explanation.weaknesses,
+        recommendations: enhancedResult.explanation.recommendations,
+        confidenceLevel: enhancedResult.confidence > 0.8 ? 'high' : 
+                        enhancedResult.confidence > 0.5 ? 'medium' : 'low'
       };
-    } catch (error) {
-      logger.error('Error generating fairness metrics', error);
-      // Return the match result without fairness metrics if analysis fails
+
+      // Add fairness analysis if available
+      if (resumeText) {
+        try {
+          const fairnessMetrics = await analyzeResumeFairness(
+            resumeText,
+            resumeAnalysis,
+            matchResult
+          );
+          matchResult.fairnessMetrics = fairnessMetrics;
+        } catch (error) {
+          logger.error('Error generating fairness metrics', error);
+        }
+      }
+
+      return matchResult;
     }
-  }
+
+    // Fallback to traditional AI provider analysis
+    let matchResult: MatchAnalysisResponse;
+    
+    if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
+      matchResult = await groq.analyzeMatch(resumeAnalysis, jobAnalysis, resumeText, jobText);
+    } else if (openai.getOpenAIServiceStatus().isAvailable) {
+      logger.info('Groq unavailable, falling back to OpenAI for match analysis');
+      matchResult = await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
+    } else if (isAnthropicConfigured && anthropic.getAnthropicServiceStatus().isAvailable) {
+      logger.info('Groq and OpenAI unavailable, falling back to Anthropic for match analysis');
+      matchResult = await anthropic.analyzeMatch(resumeAnalysis, jobAnalysis);
+    } else {
+      logger.warn('All AI providers unavailable, using built-in fallback for match analysis');
+      matchResult = await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
+    }
+    
+    // Add fairness analysis if available
+    if (resumeText) {
+      try {
+        const fairnessMetrics = await analyzeResumeFairness(
+          resumeText,
+          resumeAnalysis,
+          matchResult
+        );
+        matchResult.fairnessMetrics = fairnessMetrics;
+      } catch (error) {
+        logger.error('Error generating fairness metrics', error);
+      }
+    }
   
-  // Return the match result (without fairness metrics if analysis wasn't performed)
-  return matchResult;
+    return matchResult;
+    
+  } catch (error) {
+    logger.error('Error in enhanced match analysis:', error);
+    
+    // Ultimate fallback
+    return await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
+  }
 }
 
 /**
