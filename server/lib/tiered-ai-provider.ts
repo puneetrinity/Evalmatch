@@ -24,8 +24,37 @@ interface TierAwareProviderSelection {
 
 /**
  * Select AI provider based on user tier and availability
+ * BETA MODE: All users use Groq for cost optimization during beta testing
  */
 function selectProviderForTier(userTier: UserTierInfo): TierAwareProviderSelection {
+  // BETA MODE: Force all users to Groq for cost optimization
+  // This will be removed after beta testing period (~1 month)
+  const BETA_MODE = true; // Set to false to enable full tiered system
+  
+  if (BETA_MODE) {
+    if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
+      return { 
+        provider: 'groq', 
+        reason: `Beta mode - all users use cost-effective Groq (tier: ${userTier.tier})` 
+      };
+    }
+    // Emergency fallback during beta if Groq is down
+    if (isOpenAIConfigured && openai.getOpenAIServiceStatus().isAvailable) {
+      return { 
+        provider: 'openai', 
+        reason: 'Beta mode - emergency fallback (Groq unavailable)' 
+      };
+    }
+    // Last resort fallback
+    if (isAnthropicConfigured && anthropic.getAnthropicServiceStatus().isAvailable) {
+      return { 
+        provider: 'anthropic', 
+        reason: 'Beta mode - last resort fallback' 
+      };
+    }
+  }
+  
+  // FULL TIERED SYSTEM (disabled during beta)
   const allowedProviders = TIER_LIMITS[userTier.tier].allowedProviders;
   
   // For premium users, prioritize quality: Anthropic > OpenAI > Groq
@@ -180,8 +209,11 @@ export async function analyzeMatch(
  * Tier-aware bias analysis
  */
 export async function analyzeBias(title: string, description: string, userTier: UserTierInfo): Promise<BiasAnalysisResponse> {
-  // Premium feature check
-  if (userTier.tier === 'freemium') {
+  // BETA MODE: Allow all users to test bias analysis
+  const BETA_MODE = true; // Set to false to enable premium-only restrictions
+  
+  // Premium feature check (disabled during beta)
+  if (!BETA_MODE && userTier.tier === 'freemium') {
     throw new Error('Bias analysis is a premium feature. Upgrade to access advanced analysis tools.');
   }
   
@@ -219,8 +251,11 @@ export async function generateInterviewQuestions(
   matchAnalysis: MatchAnalysisResponse,
   userTier: UserTierInfo
 ): Promise<InterviewQuestionsResponse> {
-  // Premium feature check
-  if (userTier.tier === 'freemium') {
+  // BETA MODE: Allow all users to test interview questions generation
+  const BETA_MODE = true; // Set to false to enable premium-only restrictions
+  
+  // Premium feature check (disabled during beta)
+  if (!BETA_MODE && userTier.tier === 'freemium') {
     throw new Error('Interview questions generation is a premium feature. Upgrade to access advanced analysis tools.');
   }
   

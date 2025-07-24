@@ -16,14 +16,14 @@ export interface UserTierInfo {
 
 export const TIER_LIMITS = {
   freemium: {
-    dailyAnalysisLimit: 10,
+    dailyAnalysisLimit: 50, // Increased for beta testing (was 10)
     allowedProviders: ['groq'],
     features: {
       basicAnalysis: true,
-      advancedAnalysis: false,
+      advancedAnalysis: true, // Enabled for beta testing
       prioritySupport: false,
       unlimitedUsage: false,
-      premiumModels: false,
+      premiumModels: false, // Still false, but BETA_MODE overrides this
     }
   },
   premium: {
