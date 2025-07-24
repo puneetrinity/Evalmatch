@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useLocation } from "wouter";
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
@@ -7,15 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function HomePage() {
   const [_, setLocation] = useLocation();
-
-  // Redirect to upload page after a brief delay
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLocation("/upload");
-    }, 3000);
-
-    return () => clearTimeout(timer);
-  }, [setLocation]);
 
   return (
     <div className="flex flex-col min-h-screen">
