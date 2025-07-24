@@ -8,7 +8,8 @@
       "**/*.tsx", 
       "**/*.js",
       "**/*.jsx",
-      "**/package.json"
+      "**/package.json",
+      "test/**/*.pdf"
     ]
   },
   "deploy": {
