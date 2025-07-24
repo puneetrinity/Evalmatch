@@ -13,6 +13,7 @@ import {
   type AnalyzeJobDescriptionResponse,
   type MatchAnalysisResponse,
   type InterviewQuestionsResponse,
+  type InterviewScriptResponse,
   type BiasAnalysisResponse,
 } from "@shared/schema";
 
@@ -358,6 +359,120 @@ Respond with only the JSON object, no additional text.`;
     return parsedResponse;
   } catch (error) {
     logger.error('Error analyzing match with Groq', error);
+    
+    // Re-throw the error instead of returning fallback response
+    // The tiered provider will handle appropriate error messaging
+    throw error;
+  }
+}
+
+// Generate comprehensive interview script using Groq
+export async function generateInterviewScript(
+  resumeAnalysis: AnalyzeResumeResponse,
+  jobAnalysis: AnalyzeJobDescriptionResponse,
+  matchAnalysis: MatchAnalysisResponse,
+  jobTitle: string,
+  candidateName?: string
+): Promise<InterviewScriptResponse> {
+  const cacheKey = calculateHash(`groq_script_${JSON.stringify({resumeAnalysis, jobAnalysis, matchAnalysis, jobTitle, candidateName})}`);
+  const cached = getCachedResponse<InterviewScriptResponse>(cacheKey);
+  if (cached) return cached;
+
+  const prompt = `Generate a comprehensive interview script for a ${jobTitle} position. Create a structured conversation flow from opening to closing. Return a JSON object with the following structure:
+
+{
+  "jobTitle": "${jobTitle}",
+  "candidateName": "${candidateName || 'the candidate'}",
+  "interviewDuration": "45-60 minutes",
+  
+  "opening": {
+    "salutation": "Good morning/afternoon [candidate name]. Thank you for taking the time to speak with us today.",
+    "iceBreaker": "How has your day been going so far?",
+    "interviewOverview": "Today we'll discuss your background, explore how your skills align with our needs, and share more about this exciting opportunity."
+  },
+  
+  "currentRoleDiscussion": {
+    "roleAcknowledgment": "I see you're currently working as [current role] at [company]. That sounds like interesting work.",
+    "currentWorkQuestions": [
+      {
+        "question": "Can you tell me about your current responsibilities?",
+        "purpose": "Understand current role scope",
+        "expectedAnswer": "Should cover key daily tasks and achievements"
+      }
+    ]
+  },
+  
+  "skillMatchDiscussion": {
+    "introduction": "Looking at your background, I can see some great alignment with what we're looking for.",
+    "matchedSkillsQuestions": [
+      {
+        "skill": "JavaScript",
+        "question": "I noticed you have JavaScript experience. Can you walk me through a recent project?",
+        "expectedAnswer": "Specific project details with technical depth"
+      }
+    ]
+  },
+  
+  "skillGapAssessment": {
+    "introduction": "Now I'd like to explore some areas where there might be learning opportunities.",
+    "gapQuestions": [
+      {
+        "missingSkill": "React",
+        "question": "How comfortable would you be learning React on the job?",
+        "expectedAnswer": "Shows learning attitude and adaptability",
+        "assessmentCriteria": "Look for growth mindset and examples of learning new technologies"
+      }
+    ]
+  },
+  
+  "roleSell": {
+    "transitionStatement": "Now let me tell you why this role is exciting.",
+    "roleHighlights": ["Growth opportunities", "Cutting-edge technology"],
+    "opportunityDescription": "You'd be joining a dynamic team working on innovative projects.",
+    "closingQuestions": [
+      {
+        "question": "What aspects of this role excite you most?",
+        "purpose": "Gauge genuine interest"
+      }
+    ]
+  },
+  
+  "closing": {
+    "nextSteps": "We'll review your background with the team and get back to you within 2-3 business days.",
+    "candidateQuestions": "Do you have any questions about the role or our company?",
+    "finalStatement": "Thank you for your time today. We'll be in touch soon."
+  }
+}
+
+Based on the following analysis data:
+
+Resume Analysis:
+${JSON.stringify(resumeAnalysis, null, 2)}
+
+Job Analysis:
+${JSON.stringify(jobAnalysis, null, 2)}
+
+Match Analysis:
+${JSON.stringify(matchAnalysis, null, 2)}
+
+Create a personalized script that:
+1. Acknowledges the candidate's current role and experience
+2. Focuses on matched skills with specific examples
+3. Addresses skill gaps constructively
+4. Sells the role based on job highlights
+5. Maintains a professional, conversational tone throughout
+
+Generate 2-3 questions per section. Respond with only the JSON object, no additional text.`;
+
+  try {
+    const response = await callGroqAPI(prompt, MODELS.PREMIUM, 0.1); // Slightly higher temperature for more natural conversation
+    const parsedResponse = JSON.parse(response) as InterviewScriptResponse;
+    
+    setCachedResponse(cacheKey, parsedResponse);
+    logger.info('Interview script generated successfully with Groq');
+    return parsedResponse;
+  } catch (error) {
+    logger.error('Error generating interview script with Groq', error);
     
     // Re-throw the error instead of returning fallback response
     // The tiered provider will handle appropriate error messaging

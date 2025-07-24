@@ -4,6 +4,7 @@ import {
   AnalyzeJobDescriptionResponse, 
   MatchAnalysisResponse, 
   InterviewQuestionsResponse,
+  InterviewScriptResponse,
   BiasAnalysisResponse 
 } from '@shared/schema';
 import { config } from '../config';
@@ -690,6 +691,94 @@ Format your response as valid JSON with this structure:
       ],
       improvedDescription: "This is a fallback improved description that would be generated from the actual job description. The actual analysis would detect and fix biased language."
     };
+  }
+}
+
+/**
+ * Generate comprehensive interview script with full conversation flow
+ */
+export async function generateInterviewScript(
+  resumeAnalysis: AnalyzeResumeResponse,
+  jobAnalysis: AnalyzeJobDescriptionResponse,
+  matchAnalysis: MatchAnalysisResponse,
+  jobTitle: string,
+  candidateName?: string
+): Promise<InterviewScriptResponse> {
+  // First, check if service is available
+  if (!config.anthropicApiKey) {
+    throw new Error("Anthropic API key not configured");
+  }
+
+  const prompt = `Create a comprehensive interview script for a ${jobTitle} position. Generate a structured conversation flow that guides the interviewer from opening to closing.
+
+The candidate is ${candidateName || '[Candidate Name]'} and here's their analysis data:
+
+Resume Analysis:
+${JSON.stringify(resumeAnalysis, null, 2)}
+
+Job Analysis:
+${JSON.stringify(jobAnalysis, null, 2)}
+
+Match Analysis:
+${JSON.stringify(matchAnalysis, null, 2)}
+
+Create a professional interview script with:
+1. Warm opening and introductions
+2. Acknowledgment of current role and experience
+3. Skill match discussion with specific questions
+4. Constructive skill gap assessment
+5. Role selling and opportunity highlights
+6. Professional closing with clear next steps
+
+Return a JSON object with the complete interview flow including natural transitions, specific questions, and expected response guidance.`;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 4000,
+      temperature: 0.1,
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ]
+    });
+
+    const content = response.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Unexpected response type from Anthropic');
+    }
+
+    const result = JSON.parse(content.text) as InterviewScriptResponse;
+    
+    // Ensure required fields are present
+    if (!result.jobTitle) result.jobTitle = jobTitle;
+    if (!result.candidateName) result.candidateName = candidateName || 'the candidate';
+
+    logApiServiceStatus('Interview script generated successfully');
+    return result;
+  } catch (error: any) {
+    logApiServiceStatus(`Error generating interview script: ${error?.message || 'Unknown error'}`, true);
+    
+    // Update service status
+    serviceStatus.lastErrorTime = Date.now();
+    serviceStatus.consecutiveFailures++;
+    
+    // After 3 consecutive failures, consider the service unavailable
+    if (serviceStatus.consecutiveFailures >= 3) {
+      serviceStatus.isAnthropicAvailable = false;
+      // Exponential backoff with max limit
+      serviceStatus.retry.currentBackoff = Math.min(
+        serviceStatus.retry.currentBackoff * 2,
+        serviceStatus.retry.maxBackoff
+      );
+      logApiServiceStatus(`Service marked as unavailable after ${serviceStatus.consecutiveFailures} interview script generation failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`, true);
+    }
+    
+    // Re-throw the error instead of returning fallback response
+    // The tiered provider will handle appropriate error messaging
+    throw error;
   }
 }
 

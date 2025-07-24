@@ -52,6 +52,7 @@ import {
   analyzeJobDescription,
   analyzeMatch as analyzeMatchTiered,
   generateInterviewQuestions,
+  generateInterviewScript,
   analyzeBias,
   getTierAwareServiceStatus,
 } from "./lib/tiered-ai-provider";
@@ -1106,6 +1107,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         logger.error("Error generating interview questions:", error);
         res.status(500).json({
+          message: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    }
+  );
+
+  // Generate comprehensive interview script
+  app.post(
+    "/api/interview-script/:resumeId/:jobDescriptionId",
+    authenticateUser,
+    async (req: Request, res: Response) => {
+      try {
+        const resumeId = parseInt(req.params.resumeId);
+        const jobDescriptionId = parseInt(req.params.jobDescriptionId);
+        
+        if (isNaN(resumeId) || isNaN(jobDescriptionId)) {
+          return res.status(400).json({ 
+            message: "Invalid resume ID or job description ID" 
+          });
+        }
+
+        // Get user tier info
+        const userTier = createDefaultUserTier(req.user?.tier || 'freemium');
+        
+        // Get the resume and job description
+        const resume = await storage.getResume(resumeId);
+        const jobDescription = await storage.getJobDescription(jobDescriptionId);
+        
+        if (!resume || !resume.analyzedData) {
+          return res.status(404).json({ 
+            message: "Resume not found or analysis not completed yet" 
+          });
+        }
+        
+        // Verify resume ownership
+        if (resume.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+        
+        if (!jobDescription || !jobDescription.analyzedData) {
+          return res.status(404).json({ 
+            message: "Job description not found or analysis not completed yet" 
+          });
+        }
+        
+        // Verify job description ownership
+        if (jobDescription.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+        
+        // Get the analysis result
+        const analysisResults = await storage.getAnalysisResultsByResumeId(resumeId);
+        const analysisResult = analysisResults.find(
+          (result) => result.jobDescriptionId === jobDescriptionId
+        );
+        
+        if (!analysisResult) {
+          return res.status(404).json({ 
+            message: "Analysis result not found. Please run analysis first." 
+          });
+        }
+
+        // Generate comprehensive interview script
+        const candidateName = resume.analyzedData.name || 'the candidate';
+        const interviewScript = await generateInterviewScript(
+          resume.analyzedData,
+          jobDescription.analyzedData,
+          analysisResult.analysis,
+          userTier,
+          jobDescription.title,
+          candidateName
+        );
+
+        res.json({
+          success: true,
+          data: interviewScript,
+          meta: {
+            resumeId,
+            jobDescriptionId,
+            generatedAt: new Date().toISOString(),
+            candidateName,
+            jobTitle: jobDescription.title
+          }
+        });
+      } catch (error) {
+        logger.error("Error generating interview script:", error);
+        res.status(500).json({
+          success: false,
           message: error instanceof Error ? error.message : "Unknown error",
         });
       }

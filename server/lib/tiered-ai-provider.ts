@@ -8,6 +8,7 @@ import {
   AnalyzeJobDescriptionResponse, 
   MatchAnalysisResponse, 
   InterviewQuestionsResponse,
+  InterviewScriptResponse,
   BiasAnalysisResponse 
 } from '@shared/schema';
 import { UserTierInfo, TIER_LIMITS, checkUsageLimit, incrementUsage, getServiceUnavailableError, getApiLimitExceededError } from '@shared/user-tiers';
@@ -315,6 +316,56 @@ export async function generateInterviewQuestions(
     logger.error('AI provider error in interview questions generation', error);
     // Throw appropriate error message based on user tier
     throw getApiLimitExceededError(userTier, 'Interview questions generation');
+  }
+}
+
+/**
+ * Generate comprehensive interview script with full conversation flow
+ */
+export async function generateInterviewScript(
+  resumeAnalysis: AnalyzeResumeResponse,
+  jobAnalysis: AnalyzeJobDescriptionResponse,
+  matchAnalysis: MatchAnalysisResponse,
+  userTier: UserTierInfo,
+  jobTitle: string,
+  candidateName?: string
+): Promise<InterviewScriptResponse> {
+  // BETA MODE: Allow all users to test interview script generation
+  const BETA_MODE = true; // Set to false to enable premium-only restrictions
+  
+  // Premium feature check (disabled during beta)
+  if (!BETA_MODE && userTier.tier === 'freemium') {
+    throw new Error('Complete interview script generation is a premium feature. Upgrade to access advanced interview tools.');
+  }
+  
+  // Check usage limits
+  const usageCheck = checkUsageLimit(userTier);
+  if (!usageCheck.canUse) {
+    throw new Error(usageCheck.message);
+  }
+  
+  // Select provider based on tier
+  const selection = selectProviderForTier(userTier);
+  logger.info(`Selected provider: ${selection.provider} - ${selection.reason}`);
+  
+  // Increment usage count
+  incrementUsage(userTier);
+  
+  // Call appropriate provider with error handling
+  try {
+    switch (selection.provider) {
+      case 'anthropic':
+        return await anthropic.generateInterviewScript(resumeAnalysis, jobAnalysis, matchAnalysis, jobTitle, candidateName);
+      case 'openai':
+        return await openai.generateInterviewScript(resumeAnalysis, jobAnalysis, matchAnalysis, jobTitle, candidateName);
+      case 'groq':
+      default:
+        return await groq.generateInterviewScript(resumeAnalysis, jobAnalysis, matchAnalysis, jobTitle, candidateName);
+    }
+  } catch (error) {
+    logger.error('AI provider error in interview script generation', error);
+    // Throw appropriate error message based on user tier
+    throw getApiLimitExceededError(userTier, 'Interview script generation');
   }
 }
 

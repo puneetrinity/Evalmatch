@@ -5,6 +5,7 @@ import {
   type AnalyzeJobDescriptionResponse,
   type MatchAnalysisResponse,
   type InterviewQuestionsResponse,
+  type InterviewScriptResponse,
   type BiasAnalysisResponse,
 } from "@shared/schema";
 
@@ -1019,6 +1020,77 @@ export async function analyzeSkillGap(resumeText: string, jobDescText: string): 
     
     // Return the fallback response
     return fallbackResponse;
+  }
+}
+
+/**
+ * Generate comprehensive interview script with full conversation flow
+ */
+export async function generateInterviewScript(
+  resumeAnalysis: AnalyzeResumeResponse,
+  jobAnalysis: AnalyzeJobDescriptionResponse,
+  matchAnalysis: MatchAnalysisResponse,
+  jobTitle: string,
+  candidateName?: string
+): Promise<InterviewScriptResponse> {
+  // Check if we should attempt service recovery
+  checkServiceRecovery();
+  
+  if (!openai) {
+    throw new Error("OpenAI API key not configured");
+  }
+
+  const prompt = `Generate a comprehensive interview script for a ${jobTitle} position candidate named ${candidateName || '[Candidate Name]'}. 
+
+Create a structured conversation flow that includes:
+1. Professional opening and introductions
+2. Discussion of current role and responsibilities
+3. Skill match exploration with specific questions
+4. Skill gap assessment with constructive questions
+5. Role selling points and opportunity highlights
+6. Professional closing with next steps
+
+Based on this analysis data:
+
+Resume Analysis: ${JSON.stringify(resumeAnalysis, null, 2)}
+Job Analysis: ${JSON.stringify(jobAnalysis, null, 2)}
+Match Analysis: ${JSON.stringify(matchAnalysis, null, 2)}
+
+Return a JSON object that creates a natural, professional interview conversation flow with personalized questions and expected responses.`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: MODEL,
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert HR interviewer creating structured interview scripts. Generate comprehensive interview flows that include natural conversation transitions, specific questions based on candidate analysis, and guidance for interviewers.`
+        },
+        {
+          role: "user", 
+          content: prompt
+        }
+      ],
+      temperature: 0.1, // Low temperature for consistency
+      max_tokens: 4000,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("No content received from OpenAI");
+    }
+
+    const result = JSON.parse(content) as InterviewScriptResponse;
+    
+    // Ensure required fields are present
+    if (!result.jobTitle) result.jobTitle = jobTitle;
+    if (!result.candidateName) result.candidateName = candidateName || 'the candidate';
+
+    logger.info('Interview script generated successfully with OpenAI');
+    return result;
+  } catch (error) {
+    logger.error('Error generating interview script with OpenAI', error);
+    throw error;
   }
 }
 

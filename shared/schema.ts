@@ -160,6 +160,66 @@ export interface InterviewQuestionsResponse {
   }>;
 }
 
+export interface InterviewScriptResponse {
+  // Script metadata
+  jobTitle: string;
+  candidateName: string;
+  interviewDuration: string;
+  
+  // Script sections
+  opening: {
+    salutation: string;
+    iceBreaker: string;
+    interviewOverview: string;
+  };
+  
+  currentRoleDiscussion: {
+    roleAcknowledgment: string;
+    currentWorkQuestions: Array<{
+      question: string;
+      purpose: string;
+      expectedAnswer: string;
+    }>;
+  };
+  
+  skillMatchDiscussion: {
+    introduction: string;
+    matchedSkillsQuestions: Array<{
+      skill: string;
+      question: string;
+      followUpQuestion?: string;
+      expectedAnswer: string;
+    }>;
+  };
+  
+  skillGapAssessment: {
+    introduction: string;
+    gapQuestions: Array<{
+      missingSkill: string;
+      question: string;
+      followUpQuestion?: string;
+      expectedAnswer: string;
+      assessmentCriteria: string;
+    }>;
+  };
+  
+  roleSell: {
+    transitionStatement: string;
+    roleHighlights: string[];
+    opportunityDescription: string;
+    closingQuestions: Array<{
+      question: string;
+      purpose: string;
+    }>;
+  };
+  
+  closing: {
+    nextSteps: string;
+    candidateQuestions: string;
+    finalStatement: string;
+  };
+}
+
 export interface BiasAnalysisResponse {
   biasConfidenceScore: number;
   potentialBiasAreas: string[];
