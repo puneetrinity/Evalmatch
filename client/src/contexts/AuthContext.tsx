@@ -36,6 +36,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Handle Google redirect result on app startup
+    const handleRedirectResult = async () => {
+      try {
+        await authService.handleGoogleRedirectResult();
+      } catch (error) {
+        console.error('Error handling Google redirect result:', error);
+      }
+    };
+    
+    handleRedirectResult();
+
     const unsubscribe = authService.onAuthStateChanged((user) => {
       setUser(user);
       setLoading(false);

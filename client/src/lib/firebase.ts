@@ -14,6 +14,8 @@ import {
   User,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   sendPasswordResetEmail,
   updateProfile
 } from 'firebase/auth';
@@ -56,6 +58,12 @@ export const auth = getAuth(app);
 
 // Google Auth Provider
 const googleProvider = new GoogleAuthProvider();
+// Add scopes and custom parameters
+googleProvider.addScope('email');
+googleProvider.addScope('profile');
+googleProvider.setCustomParameters({
+  prompt: 'select_account'
+});
 
 // Authentication functions
 export const authService = {
@@ -87,13 +95,45 @@ export const authService = {
     }
   },
 
-  // Sign in with Google
+  // Sign in with Google (with popup and redirect fallback)
   async signInWithGoogle(): Promise<User> {
     try {
+      // First try popup method
       const result = await signInWithPopup(auth, googleProvider);
       return result.user;
     } catch (error: any) {
-      console.error('Google sign in error:', error);
+      console.error('Google popup sign in error:', error);
+      
+      // If popup fails due to popup blockers or other issues, try redirect
+      if (error.code === 'auth/popup-blocked' || 
+          error.code === 'auth/popup-closed-by-user' ||
+          error.code === 'auth/cancelled-popup-request') {
+        console.log('Popup blocked or closed, trying redirect method...');
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          // The redirect will handle the rest, we won't reach this point
+          throw new Error('Redirecting to Google...');
+        } catch (redirectError: any) {
+          console.error('Google redirect sign in error:', redirectError);
+          throw new Error(getAuthErrorMessage(redirectError.code));
+        }
+      }
+      
+      throw new Error(getAuthErrorMessage(error.code));
+    }
+  },
+
+  // Handle Google redirect result (call this on app startup)
+  async handleGoogleRedirectResult(): Promise<User | null> {
+    try {
+      const result = await getRedirectResult(auth);
+      if (result && result.user) {
+        console.log('Google redirect sign in successful:', result.user.email);
+        return result.user;
+      }
+      return null;
+    } catch (error: any) {
+      console.error('Google redirect result error:', error);
       throw new Error(getAuthErrorMessage(error.code));
     }
   },
@@ -161,9 +201,15 @@ function getAuthErrorMessage(errorCode: string): string {
     case 'auth/network-request-failed':
       return 'Network error. Please check your connection.';
     case 'auth/popup-closed-by-user':
-      return 'Sign-in popup was closed. Please try again.';
+      return 'Google sign-in was cancelled. Please try again.';
     case 'auth/cancelled-popup-request':
-      return 'Sign-in was cancelled.';
+      return 'Google sign-in was cancelled. Please try again.';
+    case 'auth/popup-blocked':
+      return 'Pop-up was blocked by your browser. Please allow pop-ups and try again.';
+    case 'auth/account-exists-with-different-credential':
+      return 'An account already exists with the same email but different sign-in credentials.';
+    case 'auth/credential-already-in-use':
+      return 'This credential is already associated with a different user account.';
     default:
       return 'An authentication error occurred. Please try again.';
   }
