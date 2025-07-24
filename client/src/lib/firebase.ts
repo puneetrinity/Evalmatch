@@ -101,11 +101,27 @@ export const authService = {
   async signInWithGoogle(): Promise<User> {
     try {
       console.log('Attempting Google popup sign in...');
+      console.log('Firebase config check:', {
+        apiKey: firebaseConfig.apiKey ? 'SET' : 'MISSING',
+        authDomain: firebaseConfig.authDomain,
+        projectId: firebaseConfig.projectId
+      });
+      
       const result = await signInWithPopup(auth, googleProvider);
       console.log('Google popup sign in successful:', result.user.email);
       return result.user;
     } catch (error: any) {
       console.error('Google popup sign in failed:', error.code, error.message);
+      console.error('Full error object:', error);
+      
+      // Additional debugging for popup-closed-by-user error
+      if (error.code === 'auth/popup-closed-by-user') {
+        console.error('DEBUGGING: Popup closed error occurred');
+        console.error('Current auth state:', auth.currentUser);
+        console.error('Firebase project:', firebaseConfig.projectId);
+        console.error('Auth domain:', firebaseConfig.authDomain);
+      }
+      
       throw new Error(getAuthErrorMessage(error.code));
     }
   },
