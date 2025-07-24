@@ -4,6 +4,7 @@ import ws from "ws";
 import * as schema from "@shared/schema";
 import { dbConfig, poolOptions, getNeonDatabaseUrl } from './config/db-config';
 import { createNeonCompatiblePool, verifyNeonConnection } from './neon-optimizations';
+import { logger } from './lib/logger';
 
 /**
  * Enhanced Neon Database Connection with Intelligent Pooling
@@ -65,10 +66,12 @@ if (!process.env.DATABASE_URL) {
 }
 
 // Log connection details (without sensitive info)
-console.log(`Initializing Neon PostgreSQL connection (${process.env.NODE_ENV || 'development'} mode)`);
-console.log(`Connection pool size: ${dbConfig.pooling.max}`);
-console.log(`Connection timeout: ${dbConfig.pooling.connectionTimeoutMillis}ms`);
-console.log(`Statement timeout: ${dbConfig.query.statementTimeout}ms`);
+logger.info('Initializing Neon PostgreSQL connection', {
+  mode: process.env.NODE_ENV || 'development',
+  poolSize: dbConfig.pooling.max,
+  connectionTimeout: `${dbConfig.pooling.connectionTimeoutMillis}ms`,
+  statementTimeout: `${dbConfig.query.statementTimeout}ms`
+});
 
 // Create enhanced connection pool with Neon-specific optimizations
 export const pool = createNeonCompatiblePool(poolOptions);
@@ -78,9 +81,9 @@ setTimeout(async () => {
   const isVerified = await verifyNeonConnection(pool);
   connectionStats.optimizationsApplied = isVerified;
   if (isVerified) {
-    console.log('Neon PostgreSQL connection verified and optimized successfully');
+    logger.info('Neon PostgreSQL connection verified and optimized successfully');
   } else {
-    console.warn('Unable to fully optimize Neon PostgreSQL connection');
+    logger.warn('Unable to fully optimize Neon PostgreSQL connection');
   }
 }, 5000);
 
@@ -91,11 +94,11 @@ export const db = drizzle({ client: pool, schema });
 pool.on('connect', () => {
   connectionStats.totalConnections++;
   connectionStats.activeConnections++;
-  console.log(`Database connection established (active: ${connectionStats.activeConnections})`);
+  logger.debug(`Database connection established (active: ${connectionStats.activeConnections})`);
 });
 
 pool.on('error', (err) => {
-  console.error('PostgreSQL pool error:', err);
+  logger.error('PostgreSQL pool error:', err);
   connectionStats.failedConnections++;
 });
 
@@ -119,13 +122,13 @@ const performHeartbeat = async () => {
       heartbeatInterval = Math.min(dbConfig.query.heartbeatInterval, heartbeatInterval * 0.8);
     } else {
       consecutiveFailures++;
-      console.warn(`Database heartbeat failed (consecutive failures: ${consecutiveFailures})`);
+      logger.warn(`Database heartbeat failed (consecutive failures: ${consecutiveFailures})`);
       
       // Exponential backoff for heartbeat attempts during connection issues
       heartbeatInterval = Math.min(300000, heartbeatInterval * 1.5); // Cap at 5 minutes
     }
   } catch (err) {
-    console.error('Error in database heartbeat:', err);
+    logger.error('Error in database heartbeat:', err);
     consecutiveFailures++;
   }
   

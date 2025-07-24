@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import multer from "multer";
 import { z } from "zod";
 import fs from 'fs';
+import { logger } from './lib/logger';
+import { authenticateUser } from './middleware/auth';
 import {
   insertResumeSchema,
   insertJobDescriptionSchema,
@@ -106,7 +108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await healthCheck(req, res);
     } catch (error) {
       // Fallback to simple response if the advanced check fails
-      console.error('Health check error:', error);
+      logger.error('Health check error:', error);
       res.json({ status: "ok", message: "Basic health check passed" });
     }
   });
@@ -172,7 +174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error) {
-      console.error('Database status check error:', error);
+      logger.error('Database status check error:', error);
       res.json({ 
         status: "ok", 
         database: { 
@@ -182,6 +184,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
           mode: "error",
           message: "Error retrieving database status" 
         } 
+      });
+    }
+  });
+  
+  // Railway Debug endpoint - Comprehensive deployment debugging
+  app.get("/api/debug", async (req: Request, res: Response) => {
+    try {
+      const debugInfo = {
+        timestamp: new Date().toISOString(),
+        environment: {
+          NODE_ENV: process.env.NODE_ENV,
+          PORT: process.env.PORT,
+          RAILWAY_ENVIRONMENT: process.env.RAILWAY_ENVIRONMENT,
+          RAILWAY_SERVICE_NAME: process.env.RAILWAY_SERVICE_NAME,
+          RAILWAY_PROJECT_NAME: process.env.RAILWAY_PROJECT_NAME,
+          RAILWAY_DEPLOYMENT_ID: process.env.RAILWAY_DEPLOYMENT_ID,
+        },
+        system: {
+          nodeVersion: process.version,
+          platform: process.platform,
+          arch: process.arch,
+          uptime: process.uptime(),
+          memoryUsage: process.memoryUsage(),
+          cpuUsage: process.cpuUsage(),
+        },
+        configuration: {
+          databaseConfigured: !!process.env.DATABASE_URL,
+          firebaseConfigured: !!(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_SERVICE_ACCOUNT_KEY),
+          groqConfigured: !!process.env.GROQ_API_KEY,
+          openaiConfigured: !!process.env.PR_OPEN_API_KEY,
+          anthropicConfigured: !!process.env.PR_ANTHROPIC_API_KEY,
+        },
+        health: {
+          status: "ok",
+          storage: storage ? "available" : "unavailable",
+          timestamp: new Date().toISOString()
+        },
+        firebase: {
+          projectId: process.env.FIREBASE_PROJECT_ID || "not_configured",
+          hasServiceAccount: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+          clientConfigured: !!(process.env.VITE_FIREBASE_API_KEY && process.env.VITE_FIREBASE_AUTH_DOMAIN),
+        },
+        routes: {
+          authenticationEnabled: true,
+          protectedRoutes: [
+            "/api/resumes",
+            "/api/job-descriptions", 
+            "/api/analyze",
+            "/api/interview-questions",
+            "/api/analyze-match",
+            "/api/analyze-bias",
+            "/api/fairness-analysis"
+          ],
+          publicRoutes: [
+            "/api/health",
+            "/api/debug", 
+            "/api/db-status",
+            "/api/service-status"
+          ]
+        }
+      };
+
+      // Test basic storage functionality
+      try {
+        if (storage) {
+          // Test storage read operations (safe)
+          const testResumes = await storage.getResumes();
+          debugInfo.storage = {
+            type: storage.constructor.name,
+            available: true,
+            resumeCount: testResumes.length,
+            testSuccessful: true
+          };
+        }
+      } catch (storageError) {
+        debugInfo.storage = {
+          available: false,
+          error: storageError instanceof Error ? storageError.message : "Unknown storage error",
+          testSuccessful: false
+        };
+      }
+
+      // Test Firebase connection
+      try {
+        if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+          const { verifyFirebaseConfig } = await import('./lib/firebase-admin.js');
+          const firebaseStatus = await verifyFirebaseConfig();
+          debugInfo.firebaseConnection = {
+            configured: true,
+            connectionTest: firebaseStatus,
+            testSuccessful: true
+          };
+        } else {
+          debugInfo.firebaseConnection = {
+            configured: false,
+            reason: "Missing FIREBASE_PROJECT_ID or FIREBASE_SERVICE_ACCOUNT_KEY",
+            testSuccessful: false
+          };
+        }
+      } catch (firebaseError) {
+        debugInfo.firebaseConnection = {
+          configured: true,
+          error: firebaseError instanceof Error ? firebaseError.message : "Unknown Firebase error",
+          testSuccessful: false
+        };
+      }
+
+      res.json(debugInfo);
+    } catch (error) {
+      logger.error('Debug endpoint error:', error);
+      res.status(500).json({
+        error: "Debug endpoint failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString()
       });
     }
   });
@@ -212,7 +328,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       // Log the error
-      console.error('Service status check error:', error);
+      logger.error('Service status check error:', error);
       
       // Return a user-friendly error
       res.status(500).json({ 
@@ -223,9 +339,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Upload and process resume
+  // Upload and process resume (requires authentication)
   app.post(
     "/api/resumes",
+    authenticateUser,
     upload.single("file"),
     async (req: Request, res: Response) => {
       try {
@@ -240,7 +357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!sessionId) {
           sessionId = generateSessionId();
           registerSession(sessionId);
-          console.log(`Created new upload session: ${sessionId}`);
+          logger.info(`Created new upload session: ${sessionId}`);
         }
 
         // Validate file
@@ -258,13 +375,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Extract text from the document
         const content = await parseDocument(fileBuffer, file.mimetype);
 
-        // Create resume entry in storage with session ID
+        // Create resume entry in storage with user ID and session ID
         const resume = await storage.createResume({
           filename: file.originalname,
           fileSize: file.size,
           fileType: file.mimetype,
           content,
           sessionId,
+          userId: req.user!.uid, // Firebase UID
         });
 
         // Analyze resume immediately (not in the background)
@@ -281,7 +399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isAnalyzed: true,
           });
         } catch (err) {
-          console.error("Failed to analyze resume:", err);
+          logger.error("Failed to analyze resume:", err);
           res.status(201).json({
             id: resume.id,
             filename: resume.filename,
@@ -293,7 +411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       } catch (error) {
-        console.error("Error processing resume:", error);
+        logger.error("Error processing resume:", error);
         res.status(500).json({
           message: error instanceof Error ? error.message : "Unknown error",
         });
@@ -301,13 +419,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  // Get all resumes (with optional sessionId filter)
-  app.get("/api/resumes", async (req: Request, res: Response) => {
+  // Get all resumes for authenticated user (with optional sessionId filter)
+  app.get("/api/resumes", authenticateUser, async (req: Request, res: Response) => {
     try {
       const sessionId = req.query.sessionId as string | undefined;
       
-      // Get all resumes, filtered by sessionId if provided
-      const resumes = await storage.getResumes(sessionId);
+      // Get resumes for authenticated user only
+      const resumes = await storage.getResumesByUserId(req.user!.uid, sessionId);
       
       res.json(
         resumes.map((resume) => ({
@@ -326,7 +444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get a specific resume with its analysis
-  app.get("/api/resumes/:id", async (req: Request, res: Response) => {
+  app.get("/api/resumes/:id", authenticateUser, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
@@ -338,6 +456,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Resume not found" });
       }
 
+      // Verify ownership
+      if (resume.userId !== req.user!.uid) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
       res.json({
         id: resume.id,
         filename: resume.filename,
@@ -347,7 +470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         analysis: resume.analyzedData,
       });
     } catch (error) {
-      console.error("Error fetching resume:", error);
+      logger.error("Error fetching resume:", error);
       res.status(500).json({
         message: error instanceof Error ? error.message : "Unknown error",
       });
@@ -355,12 +478,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a job description
-  app.post("/api/job-descriptions", async (req: Request, res: Response) => {
+  app.post("/api/job-descriptions", authenticateUser, async (req: Request, res: Response) => {
     try {
       const jobDescData = validateRequest(insertJobDescriptionSchema, req.body);
 
-      // Create job description in storage
-      const jobDescription = await storage.createJobDescription(jobDescData);
+      // Create job description in storage with user ID
+      const jobDescription = await storage.createJobDescription({
+        ...jobDescData,
+        userId: req.user!.uid
+      });
 
       // Analyze job description immediately (not in the background)
       try {
@@ -373,7 +499,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isAnalyzed: true,
         });
       } catch (err) {
-        console.error("Failed to analyze job description:", err);
+        logger.error("Failed to analyze job description:", err);
         res.status(201).json({
           id: jobDescription.id,
           title: jobDescription.title,
@@ -382,17 +508,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
     } catch (error) {
-      console.error("Error creating job description:", error);
+      logger.error("Error creating job description:", error);
       res.status(500).json({
         message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
 
-  // Get all job descriptions
-  app.get("/api/job-descriptions", async (req: Request, res: Response) => {
+  // Get all job descriptions for authenticated user
+  app.get("/api/job-descriptions", authenticateUser, async (req: Request, res: Response) => {
     try {
-      const jobDescriptions = await storage.getJobDescriptions();
+      const jobDescriptions = await storage.getJobDescriptionsByUserId(req.user!.uid);
       
       // Set cache control headers to prevent browser caching
       // This ensures clients always get fresh data without relying on cached responses
@@ -409,7 +535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }))
       );
     } catch (error) {
-      console.error("Error fetching job descriptions:", error);
+      logger.error("Error fetching job descriptions:", error);
       res.status(500).json({
         message: error instanceof Error ? error.message : "Unknown error",
       });
@@ -419,6 +545,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get a specific job description with its analysis
   app.get(
     "/api/job-descriptions/:id",
+    authenticateUser,
     async (req: Request, res: Response) => {
       try {
         const id = parseInt(req.params.id);
@@ -429,6 +556,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const jobDescription = await storage.getJobDescription(id);
         if (!jobDescription) {
           return res.status(404).json({ message: "Job description not found" });
+        }
+
+        // Verify ownership
+        if (jobDescription.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
         }
 
         // Set cache control headers to prevent browser caching
@@ -445,7 +577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           analysis: jobDescription.analyzedData,
         });
       } catch (error) {
-        console.error("Error fetching job description:", error);
+        logger.error("Error fetching job description:", error);
         res.status(500).json({
           message: error instanceof Error ? error.message : "Unknown error",
         });
@@ -456,6 +588,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Analyze and compare resumes with a job description
   app.post(
     "/api/analyze/:jobDescriptionId",
+    authenticateUser,
     async (req: Request, res: Response) => {
       try {
         const jobDescriptionId = parseInt(req.params.jobDescriptionId);
@@ -474,8 +607,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        // Get resumes, filtered by sessionId if provided
-        const resumes = await storage.getResumes(sessionId);
+        // Verify ownership
+        if (jobDescription.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
+        // Get resumes for authenticated user, filtered by sessionId if provided
+        const resumes = await storage.getResumesByUserId(req.user!.uid, sessionId);
         if (resumes.length === 0) {
           return res.status(404).json({ 
             message: sessionId 
@@ -515,7 +653,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               analysisId: analysisResult.id,
             });
           } catch (error) {
-            console.error(`Error analyzing resume ${resume.id}:`, error);
+            logger.error(`Error analyzing resume ${resume.id}:`, error);
           }
         }
 
@@ -530,7 +668,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           results: analysisResults,
         });
       } catch (error) {
-        console.error("Error analyzing resumes:", error);
+        logger.error("Error analyzing resumes:", error);
         res.status(500).json({
           message: error instanceof Error ? error.message : "Unknown error",
         });
@@ -541,21 +679,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get analysis results for a specific job description
   app.get(
     "/api/analyze/:jobDescriptionId", 
+    authenticateUser,
     async (req: Request, res: Response) => {
       try {
         const jobDescriptionId = parseInt(req.params.jobDescriptionId);
         // Get the session ID from the query parameter if provided
         const sessionId = req.query.sessionId as string | undefined;
         
-        console.log(`Processing analysis for job description ID: ${jobDescriptionId}, sessionId: ${sessionId || 'not provided'}`);
+        logger.debug(`Processing analysis for job description ID: ${jobDescriptionId}, sessionId: ${sessionId || 'not provided'}`);
         if (isNaN(jobDescriptionId)) {
-          console.log(`Invalid job description ID: ${req.params.jobDescriptionId}`);
+          logger.warn(`Invalid job description ID: ${req.params.jobDescriptionId}`);
           return res.status(400).json({ message: "Invalid job description ID" });
         }
 
         // Get the job description
         const jobDescription = await storage.getJobDescription(jobDescriptionId);
-        console.log(`Job description lookup result: ${jobDescription ? `Found job '${jobDescription.title}'` : 'Not found'}`);
+        logger.debug(`Job description lookup result: ${jobDescription ? `Found job '${jobDescription.title}'` : 'Not found'}`);
         if (!jobDescription) {
           // Return a more precise error message for debugging
           return res.status(404).json({ 
@@ -563,9 +702,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        // Get resumes with analysis, filtered by sessionId if provided
-        const resumes = (await storage.getResumes(sessionId)).filter(r => r.analyzedData);
-        console.log(`Found ${resumes.length} analyzed resumes for session ${sessionId || 'all sessions'}`);
+        // Verify ownership
+        if (jobDescription.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
+        // Get resumes with analysis for authenticated user, filtered by sessionId if provided
+        const resumes = (await storage.getResumesByUserId(req.user!.uid, sessionId)).filter(r => r.analyzedData);
+        logger.debug(`Found ${resumes.length} analyzed resumes for session ${sessionId || 'all sessions'}`);
         
         // Collect resume IDs for this session (or all if not provided)
         const resumeIds = resumes.map(resume => resume.id);
@@ -583,7 +727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Filter analysis results to only include the resumes from this session
         analysisResults = analysisResults.filter(result => resumeIds.includes(result.resumeId));
-        console.log(`Found ${analysisResults.length} existing analysis results for the selected resumes`);
+        logger.debug(`Found ${analysisResults.length} existing analysis results for the selected resumes`);
         
         // Get list of resumes that need analysis
         const resumesNeedingAnalysis = resumes.filter(resume => 
@@ -592,7 +736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // If we have resumes that need analysis, analyze them now
         if (resumesNeedingAnalysis.length > 0 && jobDescription.analyzedData) {
-          console.log(`Analyzing ${resumesNeedingAnalysis.length} new resumes`);
+          logger.info(`Analyzing ${resumesNeedingAnalysis.length} new resumes`);
           
           // Run analysis for each resume that needs it
           for (const resume of resumesNeedingAnalysis) {
@@ -615,7 +759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Add this new result to our collection
               analysisResults.push(newResult);
             } catch (err) {
-              console.error(`Error analyzing resume ${resume.id}:`, err);
+              logger.error(`Error analyzing resume ${resume.id}:`, err);
             }
           }
         }
@@ -679,7 +823,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           results: transformedResults,
         });
       } catch (error) {
-        console.error("Error fetching analysis results:", error);
+        logger.error("Error fetching analysis results:", error);
         res.status(500).json({
           message: error instanceof Error ? error.message : "Unknown error",
         });
@@ -690,34 +834,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get specific analysis for a resume and job description
   app.get(
     "/api/analyze/:jobId/:resumeId",
+    authenticateUser,
     async (req: Request, res: Response) => {
       try {
         const jobId = parseInt(req.params.jobId);
         const resumeId = parseInt(req.params.resumeId);
         
-        console.log(`Processing specific analysis for job ID: ${jobId}, resume ID: ${resumeId}`);
+        logger.debug(`Processing specific analysis for job ID: ${jobId}, resume ID: ${resumeId}`);
 
         if (isNaN(jobId) || isNaN(resumeId)) {
-          console.log(`Invalid job ID or resume ID: jobId=${req.params.jobId}, resumeId=${req.params.resumeId}`);
+          logger.warn(`Invalid job ID or resume ID: jobId=${req.params.jobId}, resumeId=${req.params.resumeId}`);
           return res.status(400).json({ message: "Invalid job ID or resume ID" });
         }
 
         // Get the job description
         const jobDescription = await storage.getJobDescription(jobId);
-        console.log(`Job lookup result: ${jobDescription ? `Found job '${jobDescription.title}'` : 'Job not found'}`);
+        logger.debug(`Job lookup result: ${jobDescription ? `Found job '${jobDescription.title}'` : 'Job not found'}`);
         if (!jobDescription) {
           return res.status(404).json({ 
             message: `Job description with ID ${jobId} not found. Please verify the correct ID was used.` 
           });
         }
 
+        // Verify job ownership
+        if (jobDescription.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
         // Get the resume
         const resume = await storage.getResume(resumeId);
-        console.log(`Resume lookup result: ${resume ? `Found resume '${resume.filename}'` : 'Resume not found'}`);
+        logger.debug(`Resume lookup result: ${resume ? `Found resume '${resume.filename}'` : 'Resume not found'}`);
         if (!resume) {
           return res.status(404).json({ 
             message: `Resume with ID ${resumeId} not found. Please verify the correct ID was used.` 
           });
+        }
+
+        // Verify resume ownership
+        if (resume.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
         }
 
         // Get the analysis result
@@ -763,7 +918,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           match: analysis
         });
       } catch (error) {
-        console.error("Error fetching specific analysis:", error);
+        logger.error("Error fetching specific analysis:", error);
         res.status(500).json({
           message: error instanceof Error ? error.message : "Unknown error",
         });
@@ -774,6 +929,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate interview questions for a specific resume and job description
   app.post(
     "/api/interview-questions/:resumeId/:jobDescriptionId",
+    authenticateUser,
     async (req: Request, res: Response) => {
       try {
         const resumeId = parseInt(req.params.resumeId);
@@ -795,10 +951,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
+        // Verify resume ownership
+        if (resume.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
         if (!jobDescription || !jobDescription.analyzedData) {
           return res.status(404).json({ 
             message: "Job description not found or analysis not completed yet" 
           });
+        }
+
+        // Verify job description ownership
+        if (jobDescription.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
         }
 
         // Get the analysis result
@@ -849,7 +1015,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           skillGapQuestions: questions.skillGapQuestions,
         });
       } catch (error) {
-        console.error("Error generating interview questions:", error);
+        logger.error("Error generating interview questions:", error);
         res.status(500).json({
           message: error instanceof Error ? error.message : "Unknown error",
         });
@@ -860,6 +1026,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Alternative endpoint for /api/generate-interview-questions with JSON body
   app.post(
     "/api/generate-interview-questions",
+    authenticateUser,
     async (req: Request, res: Response) => {
       try {
         const { resumeId, jobDescriptionId } = req.body;
@@ -883,10 +1050,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
+        // Verify resume ownership
+        if (resume.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
         if (!jobDescription || !jobDescription.analyzedData) {
           return res.status(404).json({ 
             message: "Job description not found or analysis not completed yet" 
           });
+        }
+
+        // Verify job description ownership
+        if (jobDescription.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
         }
 
         // Get the analysis result
@@ -937,7 +1114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           skillGapQuestions: questions.skillGapQuestions,
         });
       } catch (error) {
-        console.error("Error generating interview questions:", error);
+        logger.error("Error generating interview questions:", error);
         res.status(500).json({
           message: error instanceof Error ? error.message : "Unknown error",
         });
@@ -948,6 +1125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // New endpoint for analyzing match between resume and job with JSON body
   app.post(
     "/api/analyze-match",
+    authenticateUser,
     async (req: Request, res: Response) => {
       try {
         const { resumeId, jobDescriptionId } = req.body;
@@ -968,6 +1146,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: "Job description not found or analysis not completed yet" 
           });
         }
+
+        // Verify job description ownership
+        if (jobDescription.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
+        }
         
         // Get the resume
         const resume = await storage.getResume(resumeIdNum);
@@ -975,6 +1158,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ 
             message: "Resume not found or analysis not completed yet" 
           });
+        }
+
+        // Verify resume ownership
+        if (resume.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
         }
         
         // Check if we already have analysis results
@@ -1044,7 +1232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           analysisId: analysisResult.id
         });
       } catch (error) {
-        console.error("Error analyzing match:", error);
+        logger.error("Error analyzing match:", error);
         res.status(500).json({
           message: error instanceof Error ? error.message : "Unknown error",
         });
@@ -1055,6 +1243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Analyze bias in job description
   app.post(
     "/api/analyze-bias/:jobId",
+    authenticateUser,
     async (req: Request, res: Response) => {
       try {
         // Validate job ID
@@ -1068,6 +1257,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!jobDescription) {
           return res.status(404).json({ message: "Job description not found" });
         }
+
+        // Verify ownership
+        if (jobDescription.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
+        }
         
         // Check if description exists
         if (!jobDescription.description || jobDescription.description.trim() === '') {
@@ -1077,7 +1271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Log the analysis request
-        console.log(`Starting bias analysis for job ID ${jobId}: "${jobDescription.title}"`);
+        logger.info(`Starting bias analysis for job ID ${jobId}: "${jobDescription.title}"`);
         
         // Analyze bias in the job description
         const biasAnalysis = await analyzeBias(
@@ -1086,7 +1280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         
         // Log successful completion
-        console.log(`Completed bias analysis for job ID ${jobId}`);
+        logger.info(`Completed bias analysis for job ID ${jobId}`);
 
         // Return the result
         return res.json({
@@ -1095,7 +1289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       } catch (error) {
         // Log the detailed error
-        console.error("Error analyzing bias:", error);
+        logger.error("Error analyzing bias:", error);
         
         // Determine if this is an OpenAI API issue
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -1117,6 +1311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update job description with improved version from bias analysis
   app.patch(
     "/api/job-descriptions/:id",
+    authenticateUser,
     async (req: Request, res: Response) => {
       try {
         const jobId = parseInt(req.params.id);
@@ -1128,6 +1323,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const jobDescription = await storage.getJobDescription(jobId);
         if (!jobDescription) {
           return res.status(404).json({ message: "Job description not found" });
+        }
+
+        // Verify ownership
+        if (jobDescription.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
         }
 
         // Update the job description
@@ -1149,7 +1349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           description: jobDescription.description
         });
       } catch (error) {
-        console.error("Error updating job description:", error);
+        logger.error("Error updating job description:", error);
         res.status(500).json({
           message: error instanceof Error ? error.message : "Unknown error",
         });
@@ -1160,6 +1360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create analysis result
   app.post(
     "/api/analysis-results",
+    authenticateUser,
     async (req: Request, res: Response) => {
       try {
         const { resumeId, jobDescriptionId, matchAnalysis } = req.body;
@@ -1180,10 +1381,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
+        // Verify resume ownership
+        if (resume.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
         if (!jobDescription) {
           return res.status(404).json({ 
             message: "Job description not found" 
           });
+        }
+
+        // Verify job description ownership
+        if (jobDescription.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
         }
 
         // Check if analysis already exists
@@ -1193,7 +1404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
 
         if (existingAnalysis) {
-          console.log(`Analysis already exists for resume ${resumeId} and job ${jobDescriptionId}, updating it`);
+          logger.info(`Analysis already exists for resume ${resumeId} and job ${jobDescriptionId}, updating it`);
           // Update the existing analysis
           // (This functionality would need to be added to the storage interface)
           // For now, we'll return the existing analysis
@@ -1220,7 +1431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         return res.status(201).json(analysisResult);
       } catch (error) {
-        console.error("Error creating analysis result:", error);
+        logger.error("Error creating analysis result:", error);
         res.status(500).json({
           message: error instanceof Error ? error.message : "Unknown error",
         });
@@ -1231,6 +1442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST endpoint to analyze fairness of resume analysis
   app.post(
     "/api/fairness-analysis",
+    authenticateUser,
     async (req: Request, res: Response) => {
       try {
         const { resumeId, jobDescriptionId } = req.body;
@@ -1251,10 +1463,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
+        // Verify resume ownership
+        if (resume.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
         if (!jobDescription || !jobDescription.analyzedData) {
           return res.status(404).json({ 
             message: "Job description not found or analysis not completed yet" 
           });
+        }
+
+        // Verify job description ownership
+        if (jobDescription.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
         }
 
         // Get the analysis result
@@ -1304,7 +1526,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           fairnessAnalysis
         });
       } catch (error) {
-        console.error("Error analyzing fairness:", error);
+        logger.error("Error analyzing fairness:", error);
         res.status(500).json({
           message: error instanceof Error ? error.message : "Unknown error",
         });

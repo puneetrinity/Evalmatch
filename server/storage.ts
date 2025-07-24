@@ -17,12 +17,14 @@ export interface IStorage {
   // Resume methods
   getResume(id: number): Promise<Resume | undefined>;
   getResumes(sessionId?: string): Promise<Resume[]>;
+  getResumesByUserId(userId: string, sessionId?: string): Promise<Resume[]>;
   createResume(resume: InsertResume): Promise<Resume>;
   updateResumeAnalysis(id: number, analysis: AnalyzeResumeResponse): Promise<Resume>;
   
   // Job description methods
   getJobDescription(id: number): Promise<JobDescription | undefined>;
   getJobDescriptions(): Promise<JobDescription[]>;
+  getJobDescriptionsByUserId(userId: string): Promise<JobDescription[]>;
   createJobDescription(jobDescription: InsertJobDescription): Promise<JobDescription>;
   updateJobDescriptionAnalysis(id: number, analysis: AnalyzeJobDescriptionResponse): Promise<JobDescription>;
   
@@ -110,6 +112,20 @@ export class MemStorage implements IStorage {
     return allResumes.filter(resume => resume.sessionId === sessionId);
   }
 
+  async getResumesByUserId(userId: string, sessionId?: string): Promise<Resume[]> {
+    const allResumes = Array.from(this.resumesData.values());
+    
+    // Filter by userId first
+    let userResumes = allResumes.filter(resume => resume.userId === userId);
+    
+    // Then filter by sessionId if provided
+    if (sessionId) {
+      userResumes = userResumes.filter(resume => resume.sessionId === sessionId);
+    }
+    
+    return userResumes;
+  }
+
   async createResume(insertResume: InsertResume): Promise<Resume> {
     const id = this.resumeCurrentId++;
     const now = new Date();
@@ -149,6 +165,11 @@ export class MemStorage implements IStorage {
 
   async getJobDescriptions(): Promise<JobDescription[]> {
     return Array.from(this.jobDescriptionsData.values());
+  }
+
+  async getJobDescriptionsByUserId(userId: string): Promise<JobDescription[]> {
+    const allJobDescriptions = Array.from(this.jobDescriptionsData.values());
+    return allJobDescriptions.filter(jd => jd.userId === userId);
   }
 
   async createJobDescription(insertJobDescription: InsertJobDescription): Promise<JobDescription> {

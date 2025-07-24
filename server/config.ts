@@ -5,6 +5,8 @@
  * providing sensible defaults where possible.
  */
 
+import { logger } from './lib/logger';
+
 // Environment type
 export enum Environment {
   Development = 'development',
@@ -47,25 +49,27 @@ export function loadConfig(): Config {
 
   // Log API key status
   if (openaiApiKey) {
-    console.log('OpenAI API key configuration: Key is set');
+    logger.info('OpenAI API key configuration: Key is set');
   } else {
-    console.log('OpenAI API key configuration: Key is NOT set');
+    logger.warn('OpenAI API key configuration: Key is NOT set');
   }
   
   if (anthropicApiKey) {
-    console.log('Anthropic API key configuration: Key is set');
+    logger.info('Anthropic API key configuration: Key is set');
   } else {
-    console.log('Anthropic API key configuration: Key is NOT set');
+    logger.info('Anthropic API key configuration: Key is NOT set');
   }
   
   // Feature flags
   const isDatabaseEnabled = !!databaseUrl || env === Environment.Production;
   
   // Log configuration (sanitized)
-  console.log('Environment:', env);
-  console.log('Database:', isDatabaseEnabled ? 'Enabled' : 'Disabled');
-  console.log('OpenAI API:', openaiApiKey ? 'Configured' : 'Missing');
-  console.log('Anthropic API:', anthropicApiKey ? 'Configured' : 'Missing');
+  logger.info('Configuration loaded', {
+    environment: env,
+    database: isDatabaseEnabled ? 'Enabled' : 'Disabled',
+    openAI: openaiApiKey ? 'Configured' : 'Missing',
+    anthropic: anthropicApiKey ? 'Configured' : 'Missing'
+  });
   
   // Return config object
   return {

@@ -40,6 +40,7 @@ type AnalysisResult = {
     missingSkills: string[];
     candidateStrengths?: string[];
     candidateWeaknesses?: string[];
+    confidenceLevel?: 'low' | 'medium' | 'high';
     fairnessMetrics?: FairnessMetrics;
   };
   analysisId: number;
@@ -310,8 +311,23 @@ export default function AnalysisPage() {
                   </div>
                   <div className="flex items-center">
                     <div className="mr-6">
-                      <span className="text-3xl font-bold text-primary">{result.match.matchPercentage}%</span>
-                      <span className="text-sm text-gray-500 ml-1">match</span>
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <span className="text-3xl font-bold text-primary">{result.match.matchPercentage}%</span>
+                          <span className="text-sm text-gray-500 ml-1">match</span>
+                        </div>
+                        {result.match.confidenceLevel && (
+                          <div className="flex flex-col items-center">
+                            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              result.match.confidenceLevel === 'high' ? 'bg-green-100 text-green-800' :
+                              result.match.confidenceLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {result.match.confidenceLevel} confidence
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <Button
                       onClick={() => handleViewDetails(result.resumeId)}
@@ -446,6 +462,30 @@ export default function AnalysisPage() {
                                     {skill}
                                   </Badge>
                                 ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Confidence Level Section */}
+                          {result.match.confidenceLevel && (
+                            <div className="pt-4 mt-4 border-t border-gray-200">
+                              <h5 className="text-sm font-semibold text-gray-600 mb-3">Analysis Confidence</h5>
+                              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium text-gray-800">Confidence Level</span>
+                                  <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                                    result.match.confidenceLevel === 'high' ? 'bg-green-100 text-green-800' :
+                                    result.match.confidenceLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-red-100 text-red-800'
+                                  }`}>
+                                    {result.match.confidenceLevel.toUpperCase()}
+                                  </div>
+                                </div>
+                                <p className="text-xs text-gray-600 mt-2">
+                                  {result.match.confidenceLevel === 'high' && 'High confidence: Analysis based on comprehensive data with clear skill matches.'}
+                                  {result.match.confidenceLevel === 'medium' && 'Medium confidence: Analysis based on adequate data but some areas may need more information.'}
+                                  {result.match.confidenceLevel === 'low' && 'Low confidence: Analysis based on limited data. Consider providing more detailed information.'}
+                                </p>
                               </div>
                             </div>
                           )}

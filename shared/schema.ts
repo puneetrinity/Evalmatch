@@ -49,6 +49,7 @@ export const analysisResults = pgTable("analysis_results", {
   missingSkills: json("missing_skills").$type<string[]>(),
   candidateStrengths: json("candidate_strengths").$type<string[]>(),
   candidateWeaknesses: json("candidate_weaknesses").$type<string[]>(),
+  confidenceLevel: varchar("confidence_level", { length: 10 }),
   fairnessMetrics: json("fairness_metrics").$type<{
     biasConfidenceScore: number;
     potentialBiasAreas: string[];
@@ -142,7 +143,8 @@ export interface MatchAnalysisResponse {
   candidateStrengths: string[];
   candidateWeaknesses: string[];
   recommendations: string[];
-  fairnessMetrics: {
+  confidenceLevel?: 'low' | 'medium' | 'high';
+  fairnessMetrics?: {
     biasConfidenceScore: number;
     potentialBiasAreas: string[];
     fairnessAssessment: string;

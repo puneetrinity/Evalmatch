@@ -4,9 +4,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider, RequireAuth } from "@/contexts/AuthContext";
 import NotFound from "@/pages/not-found";
 
 import HomePage from "./pages/home";
+import AuthPage from "./pages/auth";
 import UploadPage from "./pages/upload";
 import JobDescriptionPage from "./pages/job-description";
 import BiasDetectionPage from "./pages/bias-detection";
@@ -23,14 +25,38 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={HomePage} />
-      <Route path="/upload" component={UploadPage} />
-      <Route path="/job-description" component={JobDescriptionPage} />
-      <Route path="/bias-detection/:jobId" component={BiasDetectionPage} />
-      <Route path="/analysis/:jobId" component={AnalysisPage} />
-      <Route path="/interview/:resumeId/:jobId" component={InterviewPage} />
+      <Route path="/auth" component={AuthPage} />
       <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/terms-of-service" component={TermsOfService} />
       <Route path="/feedback" component={Feedback} />
+      
+      {/* Protected Routes */}
+      <Route path="/upload">
+        <RequireAuth>
+          <UploadPage />
+        </RequireAuth>
+      </Route>
+      <Route path="/job-description">
+        <RequireAuth>
+          <JobDescriptionPage />
+        </RequireAuth>
+      </Route>
+      <Route path="/bias-detection/:jobId">
+        <RequireAuth>
+          <BiasDetectionPage />
+        </RequireAuth>
+      </Route>
+      <Route path="/analysis/:jobId">
+        <RequireAuth>
+          <AnalysisPage />
+        </RequireAuth>
+      </Route>
+      <Route path="/interview/:resumeId/:jobId">
+        <RequireAuth>
+          <InterviewPage />
+        </RequireAuth>
+      </Route>
+      
       <Route component={NotFound} />
     </Switch>
   );
@@ -54,17 +80,19 @@ function App() {
   
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        {/* Main application */}
-        <Router />
-        
-        {/* Onboarding components */}
-        {showWelcome && <Welcome onComplete={handleWelcomeComplete} />}
-        <HelpCenter />
-        
-        {/* Toast notifications */}
-        <Toaster />
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          {/* Main application */}
+          <Router />
+          
+          {/* Onboarding components */}
+          {showWelcome && <Welcome onComplete={handleWelcomeComplete} />}
+          <HelpCenter />
+          
+          {/* Toast notifications */}
+          <Toaster />
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
