@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
 
@@ -28,9 +28,15 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden" aria-describedby="auth-description">
         <DialogHeader className="sr-only">
-          <h2>{mode === 'login' ? 'Sign In' : 'Create Account'}</h2>
+          <DialogTitle>{mode === 'login' ? 'Sign In' : 'Create Account'}</DialogTitle>
+          <DialogDescription id="auth-description">
+            {mode === 'login' 
+              ? 'Sign in to your account to access EvalMatchAI features' 
+              : 'Create a new account to get started with EvalMatchAI'
+            }
+          </DialogDescription>
         </DialogHeader>
         {mode === 'login' ? (
           <LoginForm onToggleMode={toggleMode} onSuccess={handleSuccess} />
