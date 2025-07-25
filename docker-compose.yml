@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Firebase client configuration
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
+    ports:
+      - "3000:8080"
+    environment:
+      # Server configuration
+      NODE_ENV: production
+      PORT: 8080
+      
+      # Database (optional - will use memory storage if not set)
+      DATABASE_URL: ${DATABASE_URL:-}
+      
+      # Firebase Admin
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_SERVICE_ACCOUNT_KEY: ${FIREBASE_SERVICE_ACCOUNT_KEY}
+      
+      # AI Services
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      
+      # Session
+      SESSION_SECRET: ${SESSION_SECRET:-docker-local-secret-change-in-production}
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - evalmatch-network
+
+  # Optional: PostgreSQL database for local testing
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: evalmatch
+      POSTGRES_PASSWORD: localpassword
+      POSTGRES_DB: evalmatch
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - evalmatch-network
+
+networks:
+  evalmatch-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
