@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { authService } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
@@ -96,8 +97,14 @@ export default function UploadPage() {
         formData.append("sessionId", sessionId);
       }
       
+      // Get auth token and add it to headers manually for FormData requests
+      const token = await authService.getAuthToken();
+      
       const response = await fetch("/api/resumes", {
         method: "POST",
+        headers: {
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        },
         body: formData,
       });
       
