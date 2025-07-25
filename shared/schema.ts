@@ -8,7 +8,7 @@ export const users = pgTable("users", {
   username: varchar("username", { length: 100 }).notNull().unique(),
   password: text("password"),
   email: varchar("email", { length: 255 }),
-  created: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
@@ -27,7 +27,7 @@ export const resumes = pgTable("resumes", {
   embedding: json("embedding").$type<number[]>(),
   skillsEmbedding: json("skills_embedding").$type<number[]>(),
   analyzedData: json("analyzed_data").$type<any>(),
-  created: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
@@ -43,7 +43,7 @@ export const jobDescriptions = pgTable("job_descriptions", {
   embedding: json("embedding").$type<number[]>(),
   requirementsEmbedding: json("requirements_embedding").$type<number[]>(),
   analyzedData: json("analyzed_data").$type<any>(),
-  created: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
@@ -54,7 +54,7 @@ export const skillCategories = pgTable("skill_categories", {
   parentId: integer("parent_id"),
   level: integer("level").default(0),
   description: text("description"),
-  created: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Enhanced skills table with embeddings and relationships
@@ -66,7 +66,7 @@ export const skillsTable = pgTable("skills", {
   aliases: json("aliases").$type<string[]>(),
   embedding: json("embedding").$type<number[]>(),
   description: text("description"),
-  created: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Analysis results table
@@ -104,7 +104,7 @@ export const analysisResults = pgTable("analysis_results", {
     fairnessAssessment: string;
   }>(),
   
-  created: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
@@ -120,7 +120,7 @@ export const interviewQuestions = pgTable("interview_questions", {
     difficulty: string;
     expectedAnswer: string;
   }>>(),
-  created: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 

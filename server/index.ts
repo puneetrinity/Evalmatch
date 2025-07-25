@@ -43,6 +43,8 @@ async function runEmergencyMigration() {
       // Resumes table missing columns  
       'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS user_id TEXT',
       'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS session_id TEXT',
+      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS file_size INTEGER',
+      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS file_type TEXT',
       'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS analyzed_data JSON',
       'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS skills JSON',
       'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS embedding JSON',
