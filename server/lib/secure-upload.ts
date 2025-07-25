@@ -106,7 +106,7 @@ export const secureUpload = multer({
     files: 1, // Only allow one file at a time
     fieldSize: 1024 * 1024, // 1MB for field data
   },
-  fileFilter: async (req, file, cb) => {
+  fileFilter: (req, file, cb) => {
     // Check MIME type whitelist
     const allowedMimeTypes = [
       'application/pdf',
