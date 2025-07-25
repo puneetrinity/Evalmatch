@@ -588,7 +588,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isAnalyzed: true,
         });
       } catch (err) {
-        logger.error("Failed to analyze job description:", err);
+        logger.error("Failed to analyze job description:", {
+          error: err,
+          message: err instanceof Error ? err.message : "Unknown error",
+          stack: err instanceof Error ? err.stack : undefined,
+          jobId: jobDescription.id,
+          userId: req.user!.uid
+        });
         
         // Check if error is due to tier limits
         const errorMessage = err instanceof Error ? err.message : "Job description analysis failed";
