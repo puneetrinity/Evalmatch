@@ -20,12 +20,14 @@ async function runEmergencyMigration() {
     const { Pool } = await import('pg');
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      connectionTimeoutMillis: 5000, // 5 second timeout
+      idleTimeoutMillis: 10000, // 10 second idle timeout
     });
 
     logger.info('🔧 Running emergency database schema migration...');
 
-    // Add missing columns if they don't exist
+    // Add missing columns if they don't exist - with timeout protection
     const migrations = [
       // Job descriptions table missing columns
       'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS user_id INTEGER',
@@ -49,9 +51,22 @@ async function runEmergencyMigration() {
       'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()'
     ];
 
-    for (const query of migrations) {
-      await pool.query(query);
-    }
+    // Run migrations with timeout protection
+    const migrationPromise = (async () => {
+      for (const query of migrations) {
+        try {
+          await pool.query(query);
+        } catch (queryError) {
+          logger.warn(`Migration query failed (continuing): ${query}`, queryError);
+        }
+      }
+    })();
+
+    // Add 10 second timeout to prevent hanging
+    await Promise.race([
+      migrationPromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Migration timeout')), 10000))
+    ]);
 
     await pool.end();
     logger.info('✅ Database migration completed successfully!');
