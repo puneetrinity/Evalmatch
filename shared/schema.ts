@@ -15,7 +15,8 @@ export const users = pgTable("users", {
 // Resumes table
 export const resumes = pgTable("resumes", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id"),
+  userId: text("user_id"),
+  sessionId: text("session_id"),
   filename: text("filename").notNull(),
   content: text("content"),
   skills: json("skills").$type<string[]>(),
@@ -23,6 +24,7 @@ export const resumes = pgTable("resumes", {
   education: text("education"),
   embedding: json("embedding").$type<number[]>(),
   skillsEmbedding: json("skills_embedding").$type<number[]>(),
+  analyzedData: json("analyzed_data").$type<any>(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -38,6 +40,7 @@ export const jobDescriptions = pgTable("job_descriptions", {
   experience: text("experience"),
   embedding: json("embedding").$type<number[]>(),
   requirementsEmbedding: json("requirements_embedding").$type<number[]>(),
+  analyzedData: json("analyzed_data").$type<any>(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
