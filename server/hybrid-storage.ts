@@ -261,6 +261,14 @@ export class HybridStorage implements IStorage {
     );
   }
   
+  async getJobDescriptionsByUserId(userId: string): Promise<any[]> {
+    return this.executeWithFallback(
+      `getJobDescriptionsByUserId(${userId})`,
+      () => this.dbStorage.getJobDescriptionsByUserId(userId),
+      () => this.memStorage.getJobDescriptionsByUserId(userId)
+    );
+  }
+  
   async createJobDescription(jobDescription: any): Promise<any> {
     return this.executeWithFallback(
       `createJobDescription(${jobDescription.title})`,

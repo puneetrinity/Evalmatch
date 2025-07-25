@@ -126,6 +126,15 @@ export class DatabaseStorage implements IStorage {
     }, 'getJobDescriptions()');
   }
   
+  async getJobDescriptionsByUserId(userId: string): Promise<JobDescription[]> {
+    return withRetry(async () => {
+      return db.select()
+        .from(jobDescriptions)
+        .where(eq(jobDescriptions.userId, userId))
+        .orderBy(desc(jobDescriptions.created));
+    }, `getJobDescriptionsByUserId(${userId})`);
+  }
+  
   async createJobDescription(insertJobDescription: InsertJobDescription): Promise<JobDescription> {
     return withRetry(async () => {
       const [jobDescription] = await db.insert(jobDescriptions)
