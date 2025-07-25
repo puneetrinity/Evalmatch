@@ -22,24 +22,24 @@ const groq = process.env.GROQ_API_KEY ? new Groq({
   apiKey: process.env.GROQ_API_KEY,
 }) : null;
 
-// Model configuration with correct Groq model names
+// Model configuration with current supported Groq models
 const MODELS = {
   // Best for complex reasoning and analysis (recommended for resume/job analysis)
-  ANALYSIS: "llama-3.1-70b-versatile", // Llama 3.1 70B
+  ANALYSIS: "llama-3.3-70b-versatile", // Llama 3.3 70B (latest)
   
   // Fast and efficient for simpler tasks
   FAST: "llama-3.1-8b-instant", // Llama 3.1 8B
   
   // Most capable for complex matching and bias detection
-  PREMIUM: "llama-3.1-70b-versatile", // Llama 3.1 70B
+  PREMIUM: "llama-3.3-70b-versatile", // Llama 3.3 70B (latest)
   
   // Default fallback
-  DEFAULT: "llama-3.1-70b-versatile"
+  DEFAULT: "llama-3.3-70b-versatile"
 };
 
 // Pricing per 1M tokens (approximate) - Groq models
 const PRICING = {
-  "llama-3.1-70b-versatile": { input: 0.59, output: 0.79 },
+  "llama-3.3-70b-versatile": { input: 0.59, output: 0.79 },
   "llama-3.1-8b-instant": { input: 0.05, output: 0.08 },
 };
 
@@ -93,7 +93,7 @@ function setCachedResponse<T>(key: string, data: T): void {
 
 // Calculate estimated cost
 function calculateCost(model: string, promptTokens: number, completionTokens: number): number {
-  const pricing = PRICING[model as keyof typeof PRICING] || PRICING["moonshot-v1-auto"];
+  const pricing = PRICING[model as keyof typeof PRICING] || PRICING["llama-3.3-70b-versatile"];
   return (promptTokens * pricing.input + completionTokens * pricing.output) / 1000000;
 }
 

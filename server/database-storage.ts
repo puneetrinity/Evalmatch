@@ -80,7 +80,7 @@ export class DatabaseStorage implements IStorage {
       const [resume] = await db.insert(resumes)
         .values({
           ...insertResume,
-          created: new Date(),
+          createdAt: new Date(),
         })
         .returning();
       return resume;
@@ -137,12 +137,25 @@ export class DatabaseStorage implements IStorage {
   
   async createJobDescription(insertJobDescription: InsertJobDescription): Promise<JobDescription> {
     return withRetry(async () => {
+      logger.info('Creating job description in database', {
+        title: insertJobDescription.title,
+        userId: insertJobDescription.userId,
+        hasDescription: !!insertJobDescription.description
+      });
+      
       const [jobDescription] = await db.insert(jobDescriptions)
         .values({
           ...insertJobDescription,
-          created: new Date(),
+          createdAt: new Date(),
         })
         .returning();
+        
+      logger.info('Job description created successfully', {
+        id: jobDescription.id,
+        title: jobDescription.title,
+        userId: jobDescription.userId
+      });
+      
       return jobDescription;
     }, `createJobDescription(${insertJobDescription.title})`);
   }
@@ -193,7 +206,7 @@ export class DatabaseStorage implements IStorage {
       const [analysisResult] = await db.insert(analysisResults)
         .values({
           ...insertAnalysisResult,
-          created: new Date(),
+          createdAt: new Date(),
         })
         .returning();
       return analysisResult;
@@ -248,7 +261,7 @@ export class DatabaseStorage implements IStorage {
       const [interviewQuestion] = await db.insert(interviewQuestions)
         .values({
           ...insertInterviewQuestions,
-          created: new Date(),
+          createdAt: new Date(),
         })
         .returning();
       return interviewQuestion;
