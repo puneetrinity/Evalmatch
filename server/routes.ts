@@ -504,6 +504,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const sessionId = req.query.sessionId as string | undefined;
       
+      logger.info('GET /api/resumes - User authenticated:', {
+        uid: req.user?.uid,
+        email: req.user?.email,
+        sessionId
+      });
+      
       // Get resumes for authenticated user only
       const resumes = await storage.getResumesByUserId(req.user!.uid, sessionId);
       
@@ -1711,6 +1717,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
+
+  // Debug authentication endpoint
+  app.post("/api/debug/test-auth", async (req: Request, res: Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      logger.info('Debug auth test - Headers:', {
+        hasAuthHeader: !!authHeader,
+        authHeaderValue: authHeader ? authHeader.substring(0, 50) + '...' : 'none'
+      });
+
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({
+          error: 'Missing auth header',
+          headers: Object.keys(req.headers)
+        });
+      }
+
+      const token = authHeader.split('Bearer ')[1];
+      
+      // Try to verify the token
+      const { verifyFirebaseToken } = await import('./lib/firebase-admin.js');
+      const decodedToken = await verifyFirebaseToken(token);
+      
+      if (!decodedToken) {
+        return res.status(401).json({
+          error: 'Token verification failed',
+          tokenLength: token.length
+        });
+      }
+
+      res.json({
+        success: true,
+        user: decodedToken,
+        tokenValid: true
+      });
+    } catch (error) {
+      logger.error('Debug auth test error:', error);
+      res.status(500).json({
+        error: 'Auth test failed',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
 
   // Batch processing endpoints for parallelization
   const { processBatchResumes, processBatchMatches } = await import("./lib/batch-processor");
