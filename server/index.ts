@@ -27,11 +27,26 @@ async function runEmergencyMigration() {
 
     // Add missing columns if they don't exist
     const migrations = [
+      // Job descriptions table missing columns
       'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS user_id INTEGER',
+      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS requirements JSON',
+      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS skills JSON',
+      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS experience TEXT',
+      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS embedding JSON',
+      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS requirements_embedding JSON',
+      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()',
+      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()',
       'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS analyzed_data JSON',
+      
+      // Resumes table missing columns  
       'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS user_id TEXT',
       'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS session_id TEXT',
-      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS analyzed_data JSON'
+      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS analyzed_data JSON',
+      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS skills JSON',
+      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS embedding JSON',
+      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS skills_embedding JSON',
+      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()',
+      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()'
     ];
 
     for (const query of migrations) {
