@@ -1,103 +1,189 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Firebase Auth Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button { margin: 5px; padding: 10px; }
+        pre { background: #f4f4f4; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Firebase Authentication Test for EvalMatch</h1>
+    
+    <div class="test-section">
+        <h2>1. Firebase Configuration</h2>
+        <div id="config-status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. Authentication Test</h2>
+        <button onclick="testEmailAuth()">Test Email Auth</button>
+        <button onclick="testGoogleAuth()">Test Google Auth</button>
+        <button onclick="getAuthToken()">Get Auth Token</button>
+        <div id="auth-status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. API Test with Auth Token</h2>
+        <button onclick="testApiWithToken()">Test API Calls</button>
+        <div id="api-status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. Current User Info</h2>
+        <div id="user-info"></div>
+    </div>
+
     <script type="module">
-        // Import Firebase modules
+        // Import Firebase from CDN
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { 
             getAuth, 
-            createUserWithEmailAndPassword, 
-            signInWithEmailAndPassword,
-            onAuthStateChanged 
+            signInWithEmailAndPassword, 
+            signInWithPopup,
+            GoogleAuthProvider,
+            onAuthStateChanged
         } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-
-        // Firebase configuration from Railway environment
+        
+        // Firebase configuration for ealmatch-railway
         const firebaseConfig = {
-            apiKey: "AIzaSyDOINRfDYjB3Sk7UVPa8YWWYvWUq4pEJm0",
+            apiKey: "AIzaSyBZvP0M_6QfMqaOp3yhVgSYnTQ9e_UKvLY",
             authDomain: "ealmatch-railway.firebaseapp.com",
             projectId: "ealmatch-railway",
-            storageBucket: "ealmatch-railway.firebasestorage.app",
+            storageBucket: "ealmatch-railway.appspot.com",
             messagingSenderId: "521154811677",
-            appId: "1:521154811677:web:a7df8ee2c2d6adb39173f4"
+            appId: "1:521154811677:web:YOUR_APP_ID_HERE" // You need to get this from Firebase console
         };
-
+        
         // Initialize Firebase
-        console.log('Initializing Firebase with config:', firebaseConfig);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-
-        // Test authentication
-        onAuthStateChanged(auth, (user) => {
-            const status = document.getElementById('status');
-            if (user) {
-                status.innerHTML = `✅ Signed in as: ${user.email} (UID: ${user.uid})`;
-                console.log('User signed in:', user);
-            } else {
-                status.innerHTML = '❌ No user signed in';
-                console.log('No user signed in');
-            }
-        });
-
-        // Test registration
-        window.testRegister = async () => {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const result = document.getElementById('result');
+        let app, auth;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            document.getElementById('config-status').innerHTML = '<p class="success">✓ Firebase initialized successfully</p>';
             
+            // Monitor auth state
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    document.getElementById('user-info').innerHTML = `
+                        <p class="success">Logged in as: ${user.email}</p>
+                        <p>User ID: ${user.uid}</p>
+                        <button onclick="window.signOut()">Sign Out</button>
+                    `;
+                } else {
+                    document.getElementById('user-info').innerHTML = '<p class="info">Not logged in</p>';
+                }
+            });
+        } catch (error) {
+            document.getElementById('config-status').innerHTML = `<p class="error">✗ Firebase initialization failed: ${error.message}</p>`;
+        }
+        
+        // Make functions available globally
+        window.testEmailAuth = async function() {
+            const status = document.getElementById('auth-status');
             try {
-                result.innerHTML = '⏳ Registering...';
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                result.innerHTML = `✅ Registration successful! User: ${userCredential.user.email}`;
-                console.log('Registration successful:', userCredential.user);
-            } catch (error) {
-                result.innerHTML = `❌ Registration failed: ${error.message}`;
-                console.error('Registration error:', error);
-            }
-        };
-
-        // Test sign in
-        window.testSignIn = async () => {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const result = document.getElementById('result');
-            
-            try {
-                result.innerHTML = '⏳ Signing in...';
+                status.innerHTML = '<p class="info">Testing email authentication...</p>';
+                const email = prompt('Enter email:');
+                const password = prompt('Enter password:');
+                
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                result.innerHTML = `✅ Sign in successful! User: ${userCredential.user.email}`;
-                console.log('Sign in successful:', userCredential.user);
+                status.innerHTML = `<p class="success">✓ Email auth successful! User: ${userCredential.user.email}</p>`;
             } catch (error) {
-                result.innerHTML = `❌ Sign in failed: ${error.message}`;
-                console.error('Sign in error:', error);
+                status.innerHTML = `<p class="error">✗ Email auth failed: ${error.message}</p>`;
+                console.error('Email auth error:', error);
             }
         };
-
-        console.log('Firebase auth test loaded successfully');
+        
+        window.testGoogleAuth = async function() {
+            const status = document.getElementById('auth-status');
+            try {
+                status.innerHTML = '<p class="info">Testing Google authentication...</p>';
+                const provider = new GoogleAuthProvider();
+                
+                const userCredential = await signInWithPopup(auth, provider);
+                status.innerHTML = `<p class="success">✓ Google auth successful! User: ${userCredential.user.email}</p>`;
+            } catch (error) {
+                status.innerHTML = `<p class="error">✗ Google auth failed: ${error.message}</p>`;
+                console.error('Google auth error:', error);
+            }
+        };
+        
+        window.getAuthToken = async function() {
+            const status = document.getElementById('auth-status');
+            try {
+                const user = auth.currentUser;
+                if (!user) {
+                    status.innerHTML = '<p class="error">No user logged in</p>';
+                    return;
+                }
+                
+                const token = await user.getIdToken();
+                status.innerHTML = `
+                    <p class="success">✓ Got auth token!</p>
+                    <pre>${token.substring(0, 50)}...</pre>
+                    <p class="info">Token copied to console (use for API testing)</p>
+                `;
+                console.log('AUTH TOKEN:', token);
+            } catch (error) {
+                status.innerHTML = `<p class="error">✗ Failed to get token: ${error.message}</p>`;
+            }
+        };
+        
+        window.testApiWithToken = async function() {
+            const status = document.getElementById('api-status');
+            try {
+                const user = auth.currentUser;
+                if (!user) {
+                    status.innerHTML = '<p class="error">Please login first</p>';
+                    return;
+                }
+                
+                const token = await user.getIdToken();
+                status.innerHTML = '<p class="info">Testing API calls...</p>';
+                
+                // Test different endpoints
+                const endpoints = [
+                    '/api/resumes',
+                    '/api/job-descriptions',
+                    '/api/health'
+                ];
+                
+                let results = '<h3>API Test Results:</h3>';
+                
+                for (const endpoint of endpoints) {
+                    try {
+                        const response = await fetch(`https://web-production-392cc.up.railway.app${endpoint}`, {
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+                        results += `<p class="${response.ok ? 'success' : 'error'}">
+                            ${endpoint}: ${response.status} ${response.statusText}
+                        </p>`;
+                    } catch (error) {
+                        results += `<p class="error">${endpoint}: ${error.message}</p>`;
+                    }
+                }
+                
+                status.innerHTML = results;
+            } catch (error) {
+                status.innerHTML = `<p class="error">✗ API test failed: ${error.message}</p>`;
+            }
+        };
+        
+        window.signOut = async function() {
+            try {
+                await auth.signOut();
+                document.getElementById('auth-status').innerHTML = '<p class="success">Signed out successfully</p>';
+            } catch (error) {
+                console.error('Sign out error:', error);
+            }
+        };
     </script>
-</head>
-<body>
-    <h1>Firebase Authentication Test</h1>
-    <div id="status">⏳ Loading...</div>
-    
-    <h2>Test Authentication</h2>
-    <input type="email" id="email" placeholder="Email" value="test@example.com">
-    <input type="password" id="password" placeholder="Password" value="testpass123">
-    <br><br>
-    <button onclick="testRegister()">Register</button>
-    <button onclick="testSignIn()">Sign In</button>
-    
-    <h3>Result:</h3>
-    <div id="result">Ready to test...</div>
-    
-    <h3>Instructions:</h3>
-    <ol>
-        <li>Open browser console to see detailed logs</li>
-        <li>Try registering a new user first</li>
-        <li>Then try signing in with the same credentials</li>
-        <li>Check for any error messages</li>
-    </ol>
 </body>
 </html>
