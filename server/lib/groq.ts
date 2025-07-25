@@ -22,26 +22,25 @@ const groq = process.env.GROQ_API_KEY ? new Groq({
   apiKey: process.env.GROQ_API_KEY,
 }) : null;
 
-// Model configuration with different models for different use cases
+// Model configuration with correct Groq model names
 const MODELS = {
   // Best for complex reasoning and analysis (recommended for resume/job analysis)
-  ANALYSIS: "moonshot-v1-auto", // Kimi K2 Instruct
+  ANALYSIS: "llama-3.1-70b-versatile", // Llama 3.1 70B
   
   // Fast and efficient for simpler tasks
-  FAST: "qwen2.5-32b-instruct", // Qwen 3 32B
+  FAST: "llama-3.1-8b-instant", // Llama 3.1 8B
   
   // Most capable for complex matching and bias detection
-  PREMIUM: "llama-3.3-70b-versatile", // Llama 3.3 70B
+  PREMIUM: "llama-3.1-70b-versatile", // Llama 3.1 70B
   
   // Default fallback
-  DEFAULT: "moonshot-v1-auto"
+  DEFAULT: "llama-3.1-70b-versatile"
 };
 
-// Pricing per 1M tokens (approximate)
+// Pricing per 1M tokens (approximate) - Groq models
 const PRICING = {
-  "moonshot-v1-auto": { input: 0.30, output: 0.30 },
-  "qwen2.5-32b-instruct": { input: 0.20, output: 0.20 },
-  "llama-3.3-70b-versatile": { input: 0.59, output: 0.79 },
+  "llama-3.1-70b-versatile": { input: 0.59, output: 0.79 },
+  "llama-3.1-8b-instant": { input: 0.05, output: 0.08 },
 };
 
 // Cache for API responses to reduce duplicate calls
