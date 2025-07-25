@@ -67,10 +67,7 @@ export default function BiasDetectionPage() {
     // Add cache-busting timestamp to ensure fresh data
     queryFn: async () => {
       const timestamp = new Date().getTime();
-      const response = await fetch(`/api/job-descriptions/${jobId}?_=${timestamp}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch job description');
-      }
+      const response = await apiRequest("GET", `/api/job-descriptions/${jobId}?_=${timestamp}`);
       return response.json();
     }
   });
