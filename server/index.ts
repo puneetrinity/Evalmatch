@@ -8,6 +8,44 @@ import { config } from "./config";
 // import { initializeDatabase } from "./db-setup"; // imported conditionally below
 import { initializeMonitoring, logger } from "./monitoring";
 
+// Emergency database migration
+async function runEmergencyMigration() {
+  if (!process.env.DATABASE_URL) {
+    logger.info('No DATABASE_URL found, skipping migration (using memory storage)');
+    return;
+  }
+
+  try {
+    // Import pg dynamically
+    const { Pool } = await import('pg');
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    });
+
+    logger.info('🔧 Running emergency database schema migration...');
+
+    // Add missing columns if they don't exist
+    const migrations = [
+      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS user_id INTEGER',
+      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS analyzed_data JSON',
+      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS user_id TEXT',
+      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS session_id TEXT',
+      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS analyzed_data JSON'
+    ];
+
+    for (const query of migrations) {
+      await pool.query(query);
+    }
+
+    await pool.end();
+    logger.info('✅ Database migration completed successfully!');
+  } catch (error) {
+    logger.error('❌ Database migration failed:', error);
+    logger.info('⚠️  Continuing with memory storage fallback...');
+  }
+}
+
 const app = express();
 
 // Security middleware
@@ -90,7 +128,10 @@ if (app.get("env") === "development") {
     try {
       logger.info('Setting up database schema...');
       
-      // First run the original database setup
+      // First run emergency migration to fix missing columns
+      await runEmergencyMigration();
+      
+      // Then run the original database setup
       const { initializeDatabase: originalInit } = await import("./db-setup");
       const result = await originalInit();
       if (result.success) {
