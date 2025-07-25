@@ -23,7 +23,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
   const [error, setError] = useState('');
   const [resetEmailSent, setResetEmailSent] = useState(false);
 
-  const { signIn, signInWithGoogle, resetPassword } = useAuth();
+  const { signIn, signInWithGoogle, resetPassword, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -55,7 +55,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
   };
 
   const handleGoogleLogin = async () => {
-    setLoading(true);
+    // Don't set local loading state for Google auth to avoid popup interference
     setError('');
 
     try {
@@ -71,8 +71,6 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
     } catch (error: any) {
       console.error('[LOGIN] Google login error:', error);
       setError(error.message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -166,7 +164,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
           variant="outline"
           className="w-full"
           onClick={handleGoogleLogin}
-          disabled={loading}
+          disabled={authLoading}
         >
           <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
             <path
