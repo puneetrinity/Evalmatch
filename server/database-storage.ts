@@ -11,6 +11,7 @@ import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
 import { IStorage } from "./storage";
 import { withRetry } from "./lib/db-retry";
+import { logger } from "./lib/logger";
 
 /**
  * PostgreSQL implementation of the storage interface
@@ -77,12 +78,28 @@ export class DatabaseStorage implements IStorage {
   
   async createResume(insertResume: InsertResume): Promise<Resume> {
     return withRetry(async () => {
+      logger.info('Creating resume in database', {
+        filename: insertResume.filename,
+        userId: insertResume.userId,
+        sessionId: insertResume.sessionId,
+        hasContent: !!insertResume.content,
+        contentLength: insertResume.content?.length || 0
+      });
+      
       const [resume] = await db.insert(resumes)
         .values({
           ...insertResume,
-          createdAt: new Date(),
+          created: new Date(),
         })
         .returning();
+        
+      logger.info('Resume created successfully in database', {
+        id: resume.id,
+        filename: resume.filename,
+        userId: resume.userId,
+        sessionId: resume.sessionId
+      });
+      
       return resume;
     }, `createResume(${insertResume.filename})`);
   }
@@ -146,7 +163,7 @@ export class DatabaseStorage implements IStorage {
       const [jobDescription] = await db.insert(jobDescriptions)
         .values({
           ...insertJobDescription,
-          createdAt: new Date(),
+          created: new Date(),
         })
         .returning();
         
@@ -206,7 +223,7 @@ export class DatabaseStorage implements IStorage {
       const [analysisResult] = await db.insert(analysisResults)
         .values({
           ...insertAnalysisResult,
-          createdAt: new Date(),
+          created: new Date(),
         })
         .returning();
       return analysisResult;
@@ -261,7 +278,7 @@ export class DatabaseStorage implements IStorage {
       const [interviewQuestion] = await db.insert(interviewQuestions)
         .values({
           ...insertInterviewQuestions,
-          createdAt: new Date(),
+          created: new Date(),
         })
         .returning();
       return interviewQuestion;

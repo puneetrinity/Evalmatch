@@ -1,8 +1,19 @@
 -- Migration for enhanced features: vector embeddings, skill hierarchy, and ML scoring
 
+-- Add missing columns to resumes table
+ALTER TABLE resumes ADD COLUMN IF NOT EXISTS file_size INTEGER;
+ALTER TABLE resumes ADD COLUMN IF NOT EXISTS file_type TEXT;
+ALTER TABLE resumes ADD COLUMN IF NOT EXISTS user_id TEXT;
+ALTER TABLE resumes ADD COLUMN IF NOT EXISTS session_id TEXT;
+ALTER TABLE resumes ADD COLUMN IF NOT EXISTS analyzed_data JSONB;
+
 -- Add embedding columns to resumes table
 ALTER TABLE resumes ADD COLUMN IF NOT EXISTS embedding JSONB;
 ALTER TABLE resumes ADD COLUMN IF NOT EXISTS skills_embedding JSONB;
+
+-- Add missing columns to job_descriptions table
+ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS user_id TEXT;
+ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS analyzed_data JSONB;
 
 -- Add embedding columns to job_descriptions table  
 ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS embedding JSONB;
