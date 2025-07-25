@@ -78,6 +78,9 @@ async function runEmergencyMigration() {
 
 const app = express();
 
+// Trust proxy for Railway deployment (needed for rate limiting and real IP detection)
+app.set('trust proxy', true);
+
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: false, // Disabled for development, configure for production
