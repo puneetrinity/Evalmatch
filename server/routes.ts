@@ -430,17 +430,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           logger.info(`Created new upload session: ${sessionId}`);
         }
 
-        // Validate file
+        // Validate file object
         const file = validateRequest(resumeFileSchema, {
           originalname: req.file.originalname,
           mimetype: req.file.mimetype,
           size: req.file.size,
-          // For disk storage, we use path instead of buffer
           path: req.file.path,
         });
 
         // Read file from disk
-        const fileBuffer = fs.readFileSync(req.file.path);
+        const fileBuffer = fs.readFileSync(file.path!);
         
         // Extract text from the document
         const content = await parseDocument(fileBuffer, file.mimetype);

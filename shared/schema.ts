@@ -157,8 +157,17 @@ export const selectAnalysisResultSchema = createSelectSchema(analysisResults);
 export const insertInterviewQuestionsSchema = createInsertSchema(interviewQuestions);
 export const selectInterviewQuestionsSchema = createSelectSchema(interviewQuestions);
 
-// Resume file schema for uploads
+// Resume file schema for uploads (multer file object)
 export const resumeFileSchema = z.object({
+  originalname: z.string(),
+  mimetype: z.string(),
+  size: z.number(),
+  path: z.string().optional(), // For disk storage
+  buffer: z.instanceof(Buffer).optional(), // For memory storage
+});
+
+// Resume content schema (after parsing)
+export const resumeContentSchema = z.object({
   filename: z.string(),
   content: z.string(),
   skills: z.array(z.string()).optional(),
