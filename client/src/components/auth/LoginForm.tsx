@@ -61,7 +61,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
     try {
       console.log('[LOGIN] Starting Google login...');
       await signInWithGoogle();
-      console.log('[LOGIN] Google login redirect initiated');
+      console.log('[LOGIN] Google login successful');
       
       toast({
         title: "Welcome!",
@@ -70,18 +70,8 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
       onSuccess?.();
     } catch (error: any) {
       console.error('[LOGIN] Google login error:', error);
-      if (error.message === 'Redirecting to Google sign-in...') {
-        setError('Redirecting to Google...');
-        // Don't set loading to false - keep loading during redirect
-        
-        // Add timeout in case redirect fails
-        setTimeout(() => {
-          setError('Redirect taking longer than expected. Please try again.');
-          setLoading(false);
-        }, 5000);
-        return;
-      }
       setError(error.message);
+    } finally {
       setLoading(false);
     }
   };

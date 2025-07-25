@@ -13,6 +13,7 @@ import {
   onAuthStateChanged,
   User,
   GoogleAuthProvider,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   sendPasswordResetEmail,
@@ -98,10 +99,10 @@ export const authService = {
     }
   },
 
-  // Sign in with Google using redirect
+  // Sign in with Google using popup
   async signInWithGoogle(): Promise<User> {
     try {
-      console.log('Attempting Google redirect sign in...');
+      console.log('Attempting Google popup sign in...');
       console.log('Firebase config check:', {
         apiKey: firebaseConfig.apiKey ? 'SET' : 'MISSING',
         authDomain: firebaseConfig.authDomain,
@@ -110,19 +111,27 @@ export const authService = {
       console.log('Current window origin:', window.location.origin);
       console.log('Google provider scopes:', googleProvider.scopes);
       
-      console.log('Starting redirect to Google...');
-      await signInWithRedirect(auth, googleProvider);
-      console.log('Redirect initiated successfully');
+      console.log('Starting Google popup sign-in...');
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log('Google popup sign in successful:', result.user.email);
       
-      // This will redirect the page, so we never reach this point
-      throw new Error('Redirecting to Google sign-in...');
+      return result.user;
     } catch (error: any) {
-      console.error('Google redirect sign in failed:', error.code, error.message);
-      console.error('Full redirect error:', error);
+      console.error('Google popup sign in failed:', error.code, error.message);
+      console.error('Full popup error:', error);
       
       // Check if Google OAuth is not enabled
       if (error.code === 'auth/operation-not-allowed') {
         throw new Error('Google sign-in is not enabled. Please contact support or use email/password login.');
+      }
+      
+      // Handle popup-specific errors
+      if (error.code === 'auth/popup-closed-by-user') {
+        throw new Error('Google sign-in was cancelled. Please try again.');
+      }
+      
+      if (error.code === 'auth/popup-blocked') {
+        throw new Error('Pop-up was blocked by your browser. Please allow pop-ups and try again.');
       }
       
       throw new Error(getAuthErrorMessage(error.code));

@@ -53,17 +53,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           });
         });
         
-        // Handle Google redirect result if present (with timeout handled in firebase.ts)
-        if (mounted) {
-          try {
-            const redirectUser = await authService.handleGoogleRedirectResult();
-            if (redirectUser && mounted) {
-              console.log('Redirect authentication successful');
-            }
-          } catch (error) {
-            console.error('Error handling Google redirect result:', error);
-          }
-        }
+        // Google OAuth now uses popup, no need to handle redirect result
       } catch (error) {
         console.error('Error initializing auth:', error);
         // Set loading to false even if initialization fails
