@@ -70,7 +70,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const unsubscribe = authService.onAuthStateChanged((user) => {
       if (mounted) {
         setUser(user);
-        setLoading(false);
+        // Only set loading to false after initial load, not on every auth change
+        if (loading) {
+          setLoading(false);
+        }
         
         // Log authentication state changes for debugging
         if (user) {
@@ -108,12 +111,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const signInWithGoogle = async (): Promise<User> => {
-    setLoading(true);
+    // Don't set loading here - it interferes with popup
     try {
       const user = await authService.signInWithGoogle();
       return user;
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      // Only handle errors, don't touch loading state
+      throw error;
     }
   };
 

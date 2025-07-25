@@ -61,10 +61,9 @@ const googleProvider = new GoogleAuthProvider();
 // Add required scopes
 googleProvider.addScope('email');
 googleProvider.addScope('profile');
-// Set custom parameters for better popup UX
+// Simpler custom parameters to avoid popup issues
 googleProvider.setCustomParameters({
-  prompt: 'select_account',
-  include_granted_scopes: 'true'
+  prompt: 'select_account'
 });
 
 // Authentication functions
@@ -118,6 +117,10 @@ export const authService = {
       }
       
       console.log('Starting Google popup sign-in...');
+      
+      // Small delay to ensure DOM is stable before opening popup
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const result = await signInWithPopup(auth, googleProvider);
       console.log('Google popup sign in successful:', result.user.email);
       
