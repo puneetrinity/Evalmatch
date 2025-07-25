@@ -73,6 +73,27 @@ function calculateHash(text: string): string {
   return crypto.createHash('sha256').update(text).digest('hex');
 }
 
+// Strip markdown formatting from JSON responses
+function stripMarkdownFromJSON(response: string): string {
+  // Remove markdown code blocks (```json, ```JSON, or just ```)
+  let cleanedResponse = response
+    .replace(/^```(?:json|JSON)?\s*/gm, '') // Remove opening code blocks
+    .replace(/```\s*$/gm, '') // Remove closing code blocks
+    .trim();
+  
+  // If response still contains markdown artifacts, try to extract JSON
+  if (cleanedResponse.includes('```')) {
+    // Extract content between first { and last }
+    const firstBrace = cleanedResponse.indexOf('{');
+    const lastBrace = cleanedResponse.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      cleanedResponse = cleanedResponse.substring(firstBrace, lastBrace + 1);
+    }
+  }
+  
+  return cleanedResponse;
+}
+
 // Get cached response if available and not expired
 function getCachedResponse<T>(key: string): T | null {
   const cached = responseCache[key];
@@ -205,7 +226,8 @@ Respond with only the JSON object, no additional text.`;
 
   try {
     const response = await callGroqAPI(prompt, MODELS.ANALYSIS);
-    const parsedResponse = JSON.parse(response) as AnalyzeResumeResponse;
+    const cleanedResponse = stripMarkdownFromJSON(response);
+    const parsedResponse = JSON.parse(cleanedResponse) as AnalyzeResumeResponse;
     
     setCachedResponse(cacheKey, parsedResponse);
     logger.info('Resume analyzed successfully with Groq');
@@ -244,7 +266,8 @@ Respond with only the JSON object, no additional text.`;
 
   try {
     const response = await callGroqAPI(prompt, MODELS.ANALYSIS);
-    const parsedResponse = JSON.parse(response) as AnalyzeJobDescriptionResponse;
+    const cleanedResponse = stripMarkdownFromJSON(response);
+    const parsedResponse = JSON.parse(cleanedResponse) as AnalyzeJobDescriptionResponse;
     
     setCachedResponse(cacheKey, parsedResponse);
     logger.info('Job description analyzed successfully with Groq');
@@ -317,7 +340,8 @@ Respond with only the JSON object, no additional text.`;
       : undefined;
     
     const response = await callGroqAPI(prompt, MODELS.PREMIUM, 0.0, seed);
-    let parsedResponse = JSON.parse(response) as MatchAnalysisResponse;
+    const cleanedResponse = stripMarkdownFromJSON(response);
+    let parsedResponse = JSON.parse(cleanedResponse) as MatchAnalysisResponse;
     
     // Normalize scores for consistency
     if (parsedResponse.matchPercentage) {
@@ -465,7 +489,8 @@ Generate 2-3 questions per section. Respond with only the JSON object, no additi
 
   try {
     const response = await callGroqAPI(prompt, MODELS.PREMIUM, 0.1); // Slightly higher temperature for more natural conversation
-    const parsedResponse = JSON.parse(response) as InterviewScriptResponse;
+    const cleanedResponse = stripMarkdownFromJSON(response);
+    const parsedResponse = JSON.parse(cleanedResponse) as InterviewScriptResponse;
     
     setCachedResponse(cacheKey, parsedResponse);
     logger.info('Interview script generated successfully with Groq');
@@ -517,7 +542,8 @@ Generate 8-12 relevant questions. Respond with only the JSON object, no addition
 
   try {
     const response = await callGroqAPI(prompt, MODELS.ANALYSIS);
-    const parsedResponse = JSON.parse(response) as InterviewQuestionsResponse;
+    const cleanedResponse = stripMarkdownFromJSON(response);
+    const parsedResponse = JSON.parse(cleanedResponse) as InterviewQuestionsResponse;
     
     setCachedResponse(cacheKey, parsedResponse);
     logger.info('Interview questions generated successfully with Groq');
@@ -562,7 +588,8 @@ Respond with only the JSON object, no additional text.`;
 
   try {
     const response = await callGroqAPI(prompt, MODELS.PREMIUM);
-    const parsedResponse = JSON.parse(response) as BiasAnalysisResponse;
+    const cleanedResponse = stripMarkdownFromJSON(response);
+    const parsedResponse = JSON.parse(cleanedResponse) as BiasAnalysisResponse;
     
     setCachedResponse(cacheKey, parsedResponse);
     logger.info('Bias analysis completed successfully with Groq');
@@ -593,7 +620,8 @@ Respond with only the JSON array, no additional text.`;
 
   try {
     const response = await callGroqAPI(prompt, MODELS.FAST);
-    const skills = JSON.parse(response) as string[];
+    const cleanedResponse = stripMarkdownFromJSON(response);
+    const skills = JSON.parse(cleanedResponse) as string[];
     
     setCachedResponse(cacheKey, skills);
     logger.info(`Skills extracted successfully from ${type} with Groq`);
@@ -633,7 +661,8 @@ Respond with only the JSON object, no additional text.`;
 
   try {
     const response = await callGroqAPI(prompt, MODELS.ANALYSIS);
-    const result = JSON.parse(response);
+    const cleanedResponse = stripMarkdownFromJSON(response);
+    const result = JSON.parse(cleanedResponse);
     
     setCachedResponse(cacheKey, result);
     logger.info('Skill gap analysis completed successfully with Groq');
