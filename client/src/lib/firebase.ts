@@ -59,13 +59,11 @@ export const auth = getAuth(app);
 // Google Auth Provider
 const googleProvider = new GoogleAuthProvider();
 // Add required scopes
-googleProvider.addScope('openid');
 googleProvider.addScope('email');
 googleProvider.addScope('profile');
-// Set custom parameters for better UX
+// Set custom parameters for better popup UX
 googleProvider.setCustomParameters({
   prompt: 'select_account',
-  access_type: 'online',
   include_granted_scopes: 'true'
 });
 
@@ -120,21 +118,25 @@ export const authService = {
       console.error('Google popup sign in failed:', error.code, error.message);
       console.error('Full popup error:', error);
       
-      // Check if Google OAuth is not enabled
+      // Provide clear error messages and ask user to retry
       if (error.code === 'auth/operation-not-allowed') {
-        throw new Error('Google sign-in is not enabled. Please contact support or use email/password login.');
+        throw new Error('Google sign-in is not enabled. Please use email/password login or contact support.');
       }
       
-      // Handle popup-specific errors
       if (error.code === 'auth/popup-closed-by-user') {
-        throw new Error('Google sign-in was cancelled. Please try again.');
+        throw new Error('Google sign-in was cancelled. Please click "Continue with Google" again and complete the sign-in process.');
       }
       
       if (error.code === 'auth/popup-blocked') {
-        throw new Error('Pop-up was blocked by your browser. Please allow pop-ups and try again.');
+        throw new Error('Pop-up was blocked by your browser. Please allow pop-ups for this site and try again.');
       }
       
-      throw new Error(getAuthErrorMessage(error.code));
+      if (error.code === 'auth/cancelled-popup-request') {
+        throw new Error('Google sign-in was cancelled. Please try again.');
+      }
+      
+      // Generic error with retry instruction
+      throw new Error(`Google sign-in failed: ${getAuthErrorMessage(error.code)}. Please try again.`);
     }
   },
 
