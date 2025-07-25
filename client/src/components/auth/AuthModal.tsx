@@ -24,6 +24,8 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
 
   const handleSuccess = () => {
     onClose();
+    // Redirect to upload page after successful authentication
+    window.location.href = '/upload';
   };
 
   return (

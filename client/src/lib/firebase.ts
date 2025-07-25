@@ -119,6 +119,12 @@ export const authService = {
     } catch (error: any) {
       console.error('Google redirect sign in failed:', error.code, error.message);
       console.error('Full redirect error:', error);
+      
+      // Check if Google OAuth is not enabled
+      if (error.code === 'auth/operation-not-allowed') {
+        throw new Error('Google sign-in is not enabled. Please contact support or use email/password login.');
+      }
+      
       throw new Error(getAuthErrorMessage(error.code));
     }
   },
@@ -224,6 +230,8 @@ function getAuthErrorMessage(errorCode: string): string {
       return 'An account already exists with the same email but different sign-in credentials.';
     case 'auth/credential-already-in-use':
       return 'This credential is already associated with a different user account.';
+    case 'auth/operation-not-allowed':
+      return 'This sign-in method is not enabled. Please contact support.';
     default:
       return 'An authentication error occurred. Please try again.';
   }

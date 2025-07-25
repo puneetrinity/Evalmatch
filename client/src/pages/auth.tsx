@@ -18,7 +18,7 @@ export default function AuthPage() {
   // Redirect if already authenticated
   React.useEffect(() => {
     if (user) {
-      setLocation('/');
+      setLocation('/upload');
     }
   }, [user, setLocation]);
 
@@ -27,7 +27,7 @@ export default function AuthPage() {
   };
 
   const handleSuccess = () => {
-    setLocation('/');
+    setLocation('/upload');
   };
 
   if (user) {

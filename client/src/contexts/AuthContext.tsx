@@ -190,7 +190,13 @@ export function RequireAuth({ children, fallback }: RequireAuthProps) {
   }
 
   if (!user) {
-    return fallback || <div>Please sign in to access this page.</div>;
+    // Redirect to auth page instead of showing fallback
+    window.location.href = '/auth';
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div>Redirecting to login...</div>
+      </div>
+    );
   }
 
   return <>{children}</>;
