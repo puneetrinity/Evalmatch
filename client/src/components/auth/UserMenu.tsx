@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -29,6 +30,7 @@ import {
 export function UserMenu() {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const handleSignOut = async () => {
     try {
@@ -37,6 +39,8 @@ export function UserMenu() {
         title: "Signed out successfully",
         description: "You have been signed out of your account.",
       });
+      // Redirect to home page after successful logout
+      setLocation('/');
     } catch (error) {
       toast({
         title: "Error signing out",
