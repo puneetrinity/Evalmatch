@@ -218,6 +218,14 @@ export class HybridStorage implements IStorage {
     );
   }
   
+  async getResumesByUserId(userId: string, sessionId?: string): Promise<any[]> {
+    return this.executeWithFallback(
+      `getResumesByUserId(${userId}, ${sessionId})`,
+      () => this.dbStorage.getResumesByUserId(userId, sessionId),
+      () => this.memStorage.getResumesByUserId(userId, sessionId)
+    );
+  }
+  
   async createResume(resume: any): Promise<any> {
     return this.executeWithFallback(
       `createResume(${resume.name})`,

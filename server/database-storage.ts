@@ -56,6 +56,25 @@ export class DatabaseStorage implements IStorage {
     }, `getResumes(${sessionId || 'all'})`);
   }
   
+  async getResumesByUserId(userId: string, sessionId?: string): Promise<Resume[]> {
+    return withRetry(async () => {
+      if (sessionId) {
+        return db.select()
+          .from(resumes)
+          .where(and(
+            eq(resumes.userId, userId),
+            eq(resumes.sessionId, sessionId)
+          ))
+          .orderBy(desc(resumes.created));
+      }
+      
+      return db.select()
+        .from(resumes)
+        .where(eq(resumes.userId, userId))
+        .orderBy(desc(resumes.created));
+    }, `getResumesByUserId(${userId}, ${sessionId || 'all'})`);
+  }
+  
   async createResume(insertResume: InsertResume): Promise<Resume> {
     return withRetry(async () => {
       const [resume] = await db.insert(resumes)
