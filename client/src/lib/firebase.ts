@@ -109,6 +109,14 @@ export const authService = {
       console.log('Current window origin:', window.location.origin);
       console.log('Google provider scopes:', googleProvider.scopes);
       
+      // Check if we're on Railway deployment
+      const isRailway = window.location.hostname === 'web-production-392cc.up.railway.app';
+      if (isRailway) {
+        console.log('Running on Railway deployment');
+        console.log('Auth domain should be: ealmatch-railway.firebaseapp.com');
+        console.log('Actual auth domain:', firebaseConfig.authDomain);
+      }
+      
       console.log('Starting Google popup sign-in...');
       const result = await signInWithPopup(auth, googleProvider);
       console.log('Google popup sign in successful:', result.user.email);
@@ -117,6 +125,15 @@ export const authService = {
     } catch (error: any) {
       console.error('Google popup sign in failed:', error.code, error.message);
       console.error('Full popup error:', error);
+      
+      // Log additional debugging info
+      console.error('Debug info:', {
+        origin: window.location.origin,
+        authDomain: firebaseConfig.authDomain,
+        errorCode: error.code,
+        errorMessage: error.message,
+        customData: error.customData
+      });
       
       // Provide clear error messages and ask user to retry
       if (error.code === 'auth/operation-not-allowed') {
@@ -133,6 +150,10 @@ export const authService = {
       
       if (error.code === 'auth/cancelled-popup-request') {
         throw new Error('Google sign-in was cancelled. Please try again.');
+      }
+      
+      if (error.code === 'auth/unauthorized-domain') {
+        throw new Error('This domain is not authorized for Google sign-in. Please contact support.');
       }
       
       // Generic error with retry instruction
