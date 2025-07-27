@@ -53,6 +53,7 @@ COPY start-express.sh ./start-express.sh
 
 # Install production dependencies and rebuild native modules for Ubuntu
 RUN npm ci --only=production && \
+    npm install vite && \
     npm rebuild sharp && \
     npm cache clean --force
 
