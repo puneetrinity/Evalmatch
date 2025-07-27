@@ -85,7 +85,23 @@ app.set('trust proxy', true);
 
 // Security middleware
 app.use(helmet({
-  contentSecurityPolicy: false, // Disabled for development, configure for production
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https:"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https:", "wss:"],
+      fontSrc: ["'self'", "https:", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'self'", "https://accounts.google.com", "https://*.firebaseapp.com", "https://*.googleapis.com"], // Allow Firebase OAuth popups
+      childSrc: ["'self'", "https://accounts.google.com", "https://*.firebaseapp.com", "https://*.googleapis.com"], // Allow Firebase OAuth popups
+      frameAncestors: ["'self'"],
+      formAction: ["'self'"],
+      upgradeInsecureRequests: []
+    }
+  },
   crossOriginEmbedderPolicy: false // Allow embedding for certain features
 }));
 
@@ -97,7 +113,8 @@ const corsOptions = {
       'https://web-production-392cc.up.railway.app',
       'http://localhost:5173',
       'http://localhost:5000',
-      'http://localhost:3000'
+      'http://localhost:3000',
+      'http://localhost:8080'
     ];
     
     // Allow requests with no origin (like mobile apps or curl)
@@ -111,12 +128,19 @@ const corsOptions = {
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Length', 'X-Request-ID'],
+  optionsSuccessStatus: 200, // Some legacy browsers choke on 204
+  preflightContinue: false,
   maxAge: 86400 // Cache preflight requests for 24 hours
 };
 
-app.use(cors(corsOptions));
+// Apply CORS to all API routes
+app.use('/api', cors(corsOptions));
+
+// Handle OPTIONS requests specifically for all API endpoints
+app.options('/api/*', cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -234,8 +258,11 @@ if (app.get("env") === "development") {
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
-  } else {
+  } else if (process.env.SERVE_STATIC !== 'false') {
+    // Only serve static files if not disabled (nginx will handle in production)
     serveStatic(app);
+  } else {
+    logger.info('Static file serving disabled - using reverse proxy');
   }
 
   // Use Railway's PORT environment variable or fallback to 5000
