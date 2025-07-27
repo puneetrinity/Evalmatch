@@ -1,29 +1,21 @@
-#!/bin/bash
+#!/bin/sh
 
-# Railway deployment start script
-echo "🚄 Starting Railway deployment..."
+# Railway startup script - runs both nginx and Express like localhost
+echo "🚄 Starting Railway deployment with nginx + Express..."
 
-# Set NODE_ENV to production
+# Environment setup
 export NODE_ENV=production
+export PORT=8080
+export SERVE_STATIC=false  # nginx handles static files
 
-# Check if we're running in Railway
-if [ "$RAILWAY_ENVIRONMENT" ]; then
-    echo "✅ Running in Railway environment: $RAILWAY_ENVIRONMENT"
-    echo "🔗 Railway service: $RAILWAY_SERVICE_NAME"
-    
-    # Use Railway provided PORT or default to 3000
-    export PORT=${PORT:-3000}
-    echo "🌐 Server will start on port: $PORT"
-    
-    # Run database migration if needed
-    if [ "$DATABASE_URL" ]; then
-        echo "📊 Database URL configured, running migration..."
-        npm run db:push 2>/dev/null || echo "⚠️ Database migration skipped (likely memory storage)"
-    fi
-else
-    echo "⚠️ Not running in Railway environment"
-fi
+# Log configuration
+echo "Configuration check:"
+echo "- NODE_ENV: $NODE_ENV"
+echo "- PORT: $PORT (Express backend)"
+echo "- nginx: Port 80 (frontend proxy)"
+echo "- DATABASE_URL: $(echo $DATABASE_URL | sed 's/:.*/:*****/')"
+echo "- GROQ_API_KEY: $(echo $GROQ_API_KEY | cut -c1-10)..."
 
-# Start the application
-echo "🚀 Starting application..."
-npm start
+# Start supervisor to run both nginx and Express
+echo "🚀 Starting nginx + Express with supervisor..."
+exec supervisord -c /etc/supervisor/conf.d/supervisord.conf

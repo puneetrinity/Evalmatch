@@ -218,12 +218,37 @@ export const authService = {
     return auth.currentUser;
   },
 
-  // Get auth token
-  async getAuthToken(): Promise<string | null> {
+  // Get auth token with retry mechanism
+  async getAuthToken(forceRefresh = false): Promise<string | null> {
+    // Wait for auth to be ready if currentUser is null
+    if (!auth.currentUser) {
+      console.log('Waiting for auth state to be ready...');
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Auth token timeout'));
+          }, 5000);
+          
+          const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+              clearTimeout(timeout);
+              unsubscribe();
+              resolve();
+            }
+          });
+        });
+      } catch (error) {
+        console.error('Auth state timeout:', error);
+        return null;
+      }
+    }
+
     const user = auth.currentUser;
     if (user) {
       try {
-        return await user.getIdToken();
+        const token = await user.getIdToken(forceRefresh);
+        console.log('Successfully retrieved auth token, length:', token?.length);
+        return token;
       } catch (error) {
         console.error('Error getting auth token:', error);
         return null;

@@ -1,11 +1,9 @@
 [build]
-builder = "nixpacks"
-
-[build.nixpacksConfigOverride]
-mounts = ["/tmp"]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile.railway"
 
 [deploy]
-startCommand = "npm start"
+startCommand = "./railway-start.sh"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 
