@@ -36,23 +36,21 @@ COPY --from=builder /app/dist/public /usr/share/nginx/html
 # Set up app directory
 WORKDIR /app
 
-# Copy built server, package files, and node_modules
+# Copy built server, package files, node_modules, and startup script
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/railway-start.sh ./railway-start.sh
 
 # Create supervisor directories and copy config
 RUN mkdir -p /etc/supervisor/conf.d /var/log
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Create startup script
-RUN echo '#!/bin/sh' > /start.sh && \
-    echo 'echo "Starting Railway deployment with nginx + Express..."' >> /start.sh && \
-    echo 'supervisord -c /etc/supervisor/conf.d/supervisord.conf' >> /start.sh && \
-    chmod +x /start.sh
+# Make startup script executable
+RUN chmod +x ./railway-start.sh
 
 # Expose port 80 (nginx)
 EXPOSE 80
 
 # Start both nginx and Express with supervisor
-CMD ["/start.sh"]
+CMD ["./railway-start.sh"]
