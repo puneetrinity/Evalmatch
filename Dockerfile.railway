@@ -21,11 +21,15 @@ RUN npm run build:client
 # Build the server
 RUN npm run build:server
 
-# Production stage with nginx
-FROM nginx:alpine
+# Production stage with nginx (Ubuntu-based for onnxruntime compatibility)
+FROM nginx:latest
 
-# Install Node.js, supervisor, and glibc for onnxruntime-node
-RUN apk add --no-cache nodejs npm supervisor gcompat
+# Install Node.js, supervisor, and required dependencies
+RUN apt-get update && apt-get install -y \
+    nodejs \
+    npm \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy nginx configuration
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
