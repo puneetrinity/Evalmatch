@@ -36,19 +36,20 @@ COPY --from=builder /app/dist/public /usr/share/nginx/html
 # Set up app directory
 WORKDIR /app
 
-# Copy built server, package files, node_modules, configs, and startup script
+# Copy built server, package files, node_modules, configs, and startup scripts
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/railway-start.sh ./railway-start.sh
 COPY nginx.conf.template ./nginx.conf.template
+COPY start-express.sh ./start-express.sh
 
 # Create supervisor directories and copy config
 RUN mkdir -p /etc/supervisor/conf.d /var/log
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Make startup script executable
-RUN chmod +x ./railway-start.sh
+# Make startup scripts executable
+RUN chmod +x ./railway-start.sh ./start-express.sh
 
 # Expose Railway's dynamic port
 EXPOSE $PORT
