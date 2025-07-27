@@ -1,6 +1,28 @@
 version: '3.8'
 
 services:
+  # Nginx reverse proxy
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+      args:
+        # Firebase client configuration
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
+    ports:
+      - "3000:80"
+    depends_on:
+      - app
+    networks:
+      - evalmatch-network
+    restart: unless-stopped
+
+  # Backend API service
   app:
     build:
       context: .
@@ -13,15 +35,16 @@ services:
         VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
         VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
         VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
-    ports:
-      - "3000:8080"
+    # No external ports - nginx will proxy
+    expose:
+      - "8080"
     environment:
       # Server configuration
       NODE_ENV: production
       PORT: 8080
       
       # Database (optional - will use memory storage if not set)
-      DATABASE_URL: ${DATABASE_URL:-}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://evalmatch:localpassword@postgres:5432/evalmatch}
       
       # Firebase Admin
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
@@ -34,6 +57,16 @@ services:
       
       # Session
       SESSION_SECRET: ${SESSION_SECRET:-docker-local-secret-change-in-production}
+      
+      # Phase 2 Optimization Settings
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-Xenova/all-MiniLM-L12-v2}
+      MAX_CONCURRENT_EMBEDDINGS: ${MAX_CONCURRENT_EMBEDDINGS:-3}
+      MAX_TEXT_LENGTH: ${MAX_TEXT_LENGTH:-50000}
+      MIN_ASCII_RATIO: ${MIN_ASCII_RATIO:-0.8}
+      
+      # Performance optimization
+      TRANSFORMERS_CACHE: /tmp/transformers_cache
+      NODE_OPTIONS: "--max-old-space-size=2048"
     volumes:
       - ./uploads:/app/uploads
     networks:

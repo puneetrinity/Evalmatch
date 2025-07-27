@@ -1,0 +1,102 @@
+# Development and build artifacts
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist
+build
+.vite
+.rollup.cache
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Environment and config
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.docker
+
+# Logs
+logs
+*.log
+
+# Runtime data
+uploads/*
+!uploads/.gitkeep
+data/*
+!data/.gitkeep
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Testing
+coverage
+.nyc_output
+playwright-report
+test-results
+
+# Documentation and README files (keep essential ones)
+*.md
+!README.md
+docs/
+
+# Docker files (exclude from image)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Backup and temporary files
+*.backup
+*.tmp
+*.temp
+*~
+.cache
+
+# AI model cache (will be recreated)
+transformers_cache/
+
+# Database files (should be external)
+*.db
+*.sqlite
+*.sqlite3
+
+# Certificates and keys (should be env vars)
+*.pem
+*.key
+*.cert
+
+# Package-lock for different package managers
+yarn.lock
+pnpm-lock.yaml
+
+# Cloud and deployment configs
+.railway
+.vercel
+.netlify
+
+# Monitoring and debugging
+.debugger
+.profile
+
+# Local development scripts
+docker-test.sh
+setup-*.sh
+deploy-*.sh

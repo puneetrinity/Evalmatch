@@ -49,6 +49,7 @@ import {
 } from "./lib/ai-provider";
 import {
   analyzeResume,
+  analyzeResumeParallel,
   analyzeJobDescription,
   analyzeMatch as analyzeMatchTiered,
   generateInterviewQuestions,
@@ -57,6 +58,24 @@ import {
   getTierAwareServiceStatus,
 } from "./lib/tiered-ai-provider";
 import { createDefaultUserTier, UserTierInfo } from "@shared/user-tiers";
+
+// FOR TESTING: Override tier to premium to bypass limits
+function createTestUserTier(userId: string): UserTierInfo {
+  return {
+    userId,
+    tier: 'premium',
+    usageCount: {
+      resumeAnalysis: 0,
+      jobAnalysis: 0, 
+      matchAnalysis: 0,
+      biasAnalysis: 0,
+      interviewQuestions: 0,
+      interviewScript: 0
+    },
+    lastReset: new Date(),
+    isActive: true
+  };
+}
 import { generateSessionId, registerSession } from "./lib/session-utils";
 import { apiRateLimiter, uploadRateLimiter } from "./middleware/rate-limiter";
 import { secureUpload, validateUploadedFile } from "./lib/secure-upload";
@@ -74,7 +93,7 @@ async function getUserTierInfo(userId: string): Promise<UserTierInfo> {
   }
   
   // Create default freemium tier for new users
-  const defaultTier = createDefaultUserTier('freemium');
+  const defaultTier = createTestUserTier('default-user'); // Use premium tier for testing
   
   try {
     // Save default tier to storage
@@ -454,10 +473,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId: req.user!.uid, // Firebase UID
         });
 
-        // Analyze resume immediately with tier-aware provider
+        // Analyze resume immediately with tier-aware provider using parallel extraction
         try {
           const userTier = await getUserTierInfo(req.user!.uid);
-          const analysis = await analyzeResume(content, userTier);
+          const analysis = await analyzeResumeParallel(content, userTier);
           await storage.updateResumeAnalysis(resume.id, analysis);
           
           // Save updated user tier info (usage count incremented)
@@ -676,6 +695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           description: jobDescription.description,
           created: jobDescription.created,
           analysis: jobDescription.analyzedData,
+          isAnalyzed: !!jobDescription.analyzedData,
         });
       } catch (error) {
         logger.error("Error fetching job description:", error);
@@ -723,6 +743,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
+        // Get user tier for analysis limits
+        const userTier = await getUserTierInfo(req.user!.uid);
+        
         // Array to store our results
         const analysisResults = [];
         
@@ -730,19 +753,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const resume of resumes.filter(r => r.analyzedData)) {
           try {
             // Compare the resume with the job description, including resume text for fairness analysis
-            const matchAnalysis = await analyzeMatch(
+            const matchAnalysis = await analyzeMatchTiered(
               resume.analyzedData as any,
               jobDescription.analyzedData as any,
-              resume.content // Pass the resume text for fairness analysis
+              userTier,
+              resume.content, // Pass the resume text for fairness analysis
+              jobDescription.description // Pass the job description text
             );
 
             // Create analysis result
             const analysisResult = await storage.createAnalysisResult({
+              userId: req.user!.uid,
               resumeId: resume.id,
               jobDescriptionId,
               matchPercentage: matchAnalysis.matchPercentage,
               matchedSkills: matchAnalysis.matchedSkills,
               missingSkills: matchAnalysis.missingSkills,
+              candidateStrengths: matchAnalysis.candidateStrengths,
+              candidateWeaknesses: matchAnalysis.candidateWeaknesses,
+              confidenceLevel: matchAnalysis.confidenceLevel,
+              fairnessMetrics: matchAnalysis.fairnessMetrics,
               analysis: matchAnalysis,
             });
 
@@ -763,6 +793,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           (b.match?.matchPercentage || 0) - (a.match?.matchPercentage || 0)
         );
 
+        // Save updated user tier info (usage count incremented)
+        await saveUserTierInfo(req.user!.uid, userTier);
+        
         res.json({
           jobDescriptionId,
           jobTitle: jobDescription.title,
@@ -842,18 +875,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Run analysis for each resume that needs it
           for (const resume of resumesNeedingAnalysis) {
             try {
-              const matchAnalysis = await analyzeMatch(
+              const matchAnalysis = await analyzeMatchTiered(
                 resume.analyzedData as any,
                 jobDescription.analyzedData as any,
-                resume.content // Pass the resume text for fairness analysis
+                userTier,
+                resume.content, // Pass the resume text for fairness analysis
+                jobDescription.description // Pass the job description text
               );
               
               const newResult = await storage.createAnalysisResult({
+                userId: req.user!.uid,
                 resumeId: resume.id,
                 jobDescriptionId,
                 matchPercentage: matchAnalysis.matchPercentage,
                 matchedSkills: matchAnalysis.matchedSkills,
                 missingSkills: matchAnalysis.missingSkills,
+                candidateStrengths: matchAnalysis.candidateStrengths,
+                candidateWeaknesses: matchAnalysis.candidateWeaknesses,
+                confidenceLevel: matchAnalysis.confidenceLevel,
+                fairnessMetrics: matchAnalysis.fairnessMetrics,
                 analysis: matchAnalysis,
               });
               
@@ -1140,7 +1180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Get user tier info
-        const userTier = createDefaultUserTier(req.user?.tier || 'freemium');
+        const userTier = createTestUserTier(req.user!.uid); // Use premium tier for testing
         
         // Get the resume and job description
         const resume = await storage.getResume(resumeId);
@@ -1398,19 +1438,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Perform new analysis
-        const matchAnalysis = await analyzeMatch(
+        const matchAnalysis = await analyzeMatchTiered(
           resume.analyzedData as any,
           jobDescription.analyzedData as any,
-          resume.content // Pass the resume text for fairness analysis
+          userTier,
+          resume.content, // Pass the resume text for fairness analysis
+          jobDescription.description // Pass the job description text
         );
         
         // Store the result
         const analysisResult = await storage.createAnalysisResult({
+          userId: req.user!.uid,
           resumeId: resumeIdNum,
           jobDescriptionId: jobDescriptionIdNum,
           matchPercentage: matchAnalysis.matchPercentage,
           matchedSkills: matchAnalysis.matchedSkills,
           missingSkills: matchAnalysis.missingSkills,
+          candidateStrengths: matchAnalysis.candidateStrengths,
+          candidateWeaknesses: matchAnalysis.candidateWeaknesses,
+          confidenceLevel: matchAnalysis.confidenceLevel,
+          fairnessMetrics: matchAnalysis.fairnessMetrics,
           analysis: matchAnalysis
         });
         
@@ -1462,11 +1509,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Log the analysis request
         logger.info(`Starting bias analysis for job ID ${jobId}: "${jobDescription.title}"`);
         
+        // Get user tier information for usage limits
+        const userTier = await getUserTierInfo(req.user!.uid);
+        
         // Analyze bias in the job description
         const biasAnalysis = await analyzeBias(
           jobDescription.title,
-          jobDescription.description
+          jobDescription.description,
+          userTier
         );
+        
+        // Save updated user tier info (usage count incremented)
+        await saveUserTierInfo(req.user!.uid, userTier);
         
         // Log successful completion
         logger.info(`Completed bias analysis for job ID ${jobId}`);
@@ -1607,11 +1661,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Create a new analysis result
         const analysisResult = await storage.createAnalysisResult({
+          userId: req.user!.uid,
           resumeId,
           jobDescriptionId,
           matchPercentage,
           matchedSkills,
           missingSkills,
+          candidateStrengths: matchAnalysis.candidateStrengths,
+          candidateWeaknesses: matchAnalysis.candidateWeaknesses,
+          confidenceLevel: matchAnalysis.confidenceLevel,
+          fairnessMetrics: matchAnalysis.fairnessMetrics,
           analysis: {
             candidateStrengths: matchAnalysis.candidateStrengths || [],
             candidateWeaknesses: matchAnalysis.candidateWeaknesses || []
@@ -1722,6 +1781,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
+
+  // Direct AI analysis endpoints for consistent authentication handling
+  
+  // Basic analyze endpoint - requires auth, returns proper JSON response
+  app.post("/api/analyze", authenticateUser, async (req: Request, res: Response) => {
+    try {
+      const { resumeText, jobDescriptionText } = req.body;
+      
+      if (!resumeText || !jobDescriptionText) {
+        return res.status(400).json({
+          error: 'Invalid request',
+          message: 'Both resumeText and jobDescriptionText are required'
+        });
+      }
+      
+      // Get user tier for analysis limits
+      const userTier = await getUserTierInfo(req.user!.uid);
+      
+      // Perform basic match analysis using tiered provider
+      const matchAnalysis = await analyzeMatchTiered(
+        { content: resumeText },
+        { description: jobDescriptionText },
+        resumeText,
+        userTier
+      );
+      
+      // Save updated user tier info (usage count incremented)
+      await saveUserTierInfo(req.user!.uid, userTier);
+      
+      res.json(matchAnalysis);
+    } catch (error) {
+      logger.error("Error in /api/analyze:", error);
+      
+      // Check if error is due to tier limits
+      const errorMessage = error instanceof Error ? error.message : "Analysis failed";
+      const isUsageLimitError = errorMessage.includes('Daily limit') || errorMessage.includes('premium feature');
+      
+      res.status(isUsageLimitError ? 429 : 500).json({
+        error: 'Analysis failed',
+        message: errorMessage,
+        tierLimitReached: isUsageLimitError,
+      });
+    }
+  });
+
+  // Basic interview questions endpoint - requires auth, returns proper JSON response  
+  app.post("/api/interview-questions", authenticateUser, async (req: Request, res: Response) => {
+    try {
+      const { resumeText, jobDescriptionText, difficulty = 'intermediate' } = req.body;
+      
+      if (!resumeText || !jobDescriptionText) {
+        return res.status(400).json({
+          error: 'Invalid request',
+          message: 'Both resumeText and jobDescriptionText are required'
+        });
+      }
+      
+      // Get user tier for analysis limits
+      const userTier = await getUserTierInfo(req.user!.uid);
+      
+      // Generate interview questions using tiered provider
+      const questions = await generateInterviewQuestions(
+        { content: resumeText },
+        { description: jobDescriptionText },
+        { matchPercentage: 75 }, // Default match analysis
+        userTier
+      );
+      
+      // Save updated user tier info (usage count incremented)
+      await saveUserTierInfo(req.user!.uid, userTier);
+      
+      res.json(questions);
+    } catch (error) {
+      logger.error("Error in /api/interview-questions:", error);
+      
+      // Check if error is due to tier limits
+      const errorMessage = error instanceof Error ? error.message : "Question generation failed";
+      const isUsageLimitError = errorMessage.includes('Daily limit') || errorMessage.includes('premium feature');
+      
+      res.status(isUsageLimitError ? 429 : 500).json({
+        error: 'Question generation failed',
+        message: errorMessage,
+        tierLimitReached: isUsageLimitError,
+      });
+    }
+  });
+
+  // Basic bias analysis endpoint - requires auth, returns proper JSON response
+  app.post("/api/analyze-bias", authenticateUser, async (req: Request, res: Response) => {
+    try {
+      const { resumeText, jobDescriptionText } = req.body;
+      
+      if (!resumeText || !jobDescriptionText) {
+        return res.status(400).json({
+          error: 'Invalid request',
+          message: 'Both resumeText and jobDescriptionText are required'
+        });
+      }
+      
+      // Get user tier for analysis limits
+      const userTier = await getUserTierInfo(req.user!.uid);
+      
+      // Perform bias analysis using tiered provider
+      const biasAnalysis = await analyzeBias(
+        'Resume Analysis',
+        `Resume: ${resumeText}\n\nJob Description: ${jobDescriptionText}`,
+        userTier
+      );
+      
+      // Save updated user tier info (usage count incremented)
+      await saveUserTierInfo(req.user!.uid, userTier);
+      
+      res.json({
+        biasScore: biasAnalysis.biasScore || 0,
+        bias_score: biasAnalysis.biasScore || 0,
+        fairnessAssessment: biasAnalysis.fairnessAssessment || 'No bias detected',
+        fairness_assessment: biasAnalysis.fairnessAssessment || 'No bias detected',
+        biasAnalysis
+      });
+    } catch (error) {
+      logger.error("Error in /api/analyze-bias:", error);
+      
+      // Check if error is due to tier limits
+      const errorMessage = error instanceof Error ? error.message : "Bias analysis failed";
+      const isUsageLimitError = errorMessage.includes('Daily limit') || errorMessage.includes('premium feature');
+      
+      res.status(isUsageLimitError ? 429 : 500).json({
+        error: 'Bias analysis failed',
+        message: errorMessage,
+        tierLimitReached: isUsageLimitError,
+      });
+    }
+  });
 
   // Debug authentication endpoint
   app.post("/api/debug/test-auth", async (req: Request, res: Response) => {

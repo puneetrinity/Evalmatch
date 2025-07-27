@@ -49,11 +49,11 @@ export class DatabaseStorage implements IStorage {
         return db.select()
           .from(resumes)
           .where(eq(resumes.sessionId, sessionId))
-          .orderBy(desc(resumes.created));
+          .orderBy(desc(resumes.createdAt));
       }
       
       // Otherwise return all resumes
-      return db.select().from(resumes).orderBy(desc(resumes.created));
+      return db.select().from(resumes).orderBy(desc(resumes.createdAt));
     }, `getResumes(${sessionId || 'all'})`);
   }
   
@@ -66,13 +66,13 @@ export class DatabaseStorage implements IStorage {
             eq(resumes.userId, userId),
             eq(resumes.sessionId, sessionId)
           ))
-          .orderBy(desc(resumes.created));
+          .orderBy(desc(resumes.createdAt));
       }
       
       return db.select()
         .from(resumes)
         .where(eq(resumes.userId, userId))
-        .orderBy(desc(resumes.created));
+        .orderBy(desc(resumes.createdAt));
     }, `getResumesByUserId(${userId}, ${sessionId || 'all'})`);
   }
   
@@ -89,7 +89,6 @@ export class DatabaseStorage implements IStorage {
       const [resume] = await db.insert(resumes)
         .values({
           ...insertResume,
-          created: new Date(),
         })
         .returning();
         
@@ -139,7 +138,7 @@ export class DatabaseStorage implements IStorage {
     return withRetry(async () => {
       return db.select()
         .from(jobDescriptions)
-        .orderBy(desc(jobDescriptions.created));
+        .orderBy(desc(jobDescriptions.createdAt));
     }, 'getJobDescriptions()');
   }
   
@@ -148,7 +147,7 @@ export class DatabaseStorage implements IStorage {
       return db.select()
         .from(jobDescriptions)
         .where(eq(jobDescriptions.userId, userId))
-        .orderBy(desc(jobDescriptions.created));
+        .orderBy(desc(jobDescriptions.createdAt));
     }, `getJobDescriptionsByUserId(${userId})`);
   }
   
@@ -163,7 +162,6 @@ export class DatabaseStorage implements IStorage {
       const [jobDescription] = await db.insert(jobDescriptions)
         .values({
           ...insertJobDescription,
-          created: new Date(),
         })
         .returning();
         
@@ -205,7 +203,7 @@ export class DatabaseStorage implements IStorage {
       return db.select()
         .from(analysisResults)
         .where(eq(analysisResults.resumeId, resumeId))
-        .orderBy(desc(analysisResults.created));
+        .orderBy(desc(analysisResults.createdAt));
     }, `getAnalysisResultsByResumeId(${resumeId})`);
   }
   
@@ -214,7 +212,7 @@ export class DatabaseStorage implements IStorage {
       return db.select()
         .from(analysisResults)
         .where(eq(analysisResults.jobDescriptionId, jobDescriptionId))
-        .orderBy(desc(analysisResults.created));
+        .orderBy(desc(analysisResults.createdAt));
     }, `getAnalysisResultsByJobDescriptionId(${jobDescriptionId})`);
   }
   
@@ -223,7 +221,6 @@ export class DatabaseStorage implements IStorage {
       const [analysisResult] = await db.insert(analysisResults)
         .values({
           ...insertAnalysisResult,
-          created: new Date(),
         })
         .returning();
       return analysisResult;
@@ -245,7 +242,7 @@ export class DatabaseStorage implements IStorage {
       return db.select()
         .from(interviewQuestions)
         .where(eq(interviewQuestions.resumeId, resumeId))
-        .orderBy(desc(interviewQuestions.created));
+        .orderBy(desc(interviewQuestions.createdAt));
     }, `getInterviewQuestionsByResumeId(${resumeId})`);
   }
   
@@ -254,7 +251,7 @@ export class DatabaseStorage implements IStorage {
       return db.select()
         .from(interviewQuestions)
         .where(eq(interviewQuestions.jobDescriptionId, jobDescriptionId))
-        .orderBy(desc(interviewQuestions.created));
+        .orderBy(desc(interviewQuestions.createdAt));
     }, `getInterviewQuestionsByJobDescriptionId(${jobDescriptionId})`);
   }
   
@@ -268,7 +265,7 @@ export class DatabaseStorage implements IStorage {
             eq(interviewQuestions.jobDescriptionId, jobDescriptionId)
           )
         )
-        .orderBy(desc(interviewQuestions.created));
+        .orderBy(desc(interviewQuestions.createdAt));
       return interviewQuestion;
     }, `getInterviewQuestionByResumeAndJob(${resumeId}, ${jobDescriptionId})`);
   }
@@ -278,7 +275,6 @@ export class DatabaseStorage implements IStorage {
       const [interviewQuestion] = await db.insert(interviewQuestions)
         .values({
           ...insertInterviewQuestions,
-          created: new Date(),
         })
         .returning();
       return interviewQuestion;
@@ -304,7 +300,7 @@ export class DatabaseStorage implements IStorage {
           eq(analysisResults.jobDescriptionId, jobDescriptionId)
         )
       )
-      .orderBy(desc(analysisResults.created))
+      .orderBy(desc(analysisResults.createdAt))
       .limit(1);
     
     const [questions] = await db.select()
@@ -315,7 +311,7 @@ export class DatabaseStorage implements IStorage {
           eq(interviewQuestions.jobDescriptionId, jobDescriptionId)
         )
       )
-      .orderBy(desc(interviewQuestions.created))
+      .orderBy(desc(interviewQuestions.createdAt))
       .limit(1);
     
     return {

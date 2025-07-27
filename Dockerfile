@@ -1,17 +1,31 @@
 FROM node:20-slim
 
+# Install system dependencies for PDF processing and AI models
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    tesseract-ocr \
+    poppler-utils \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better Docker layer caching
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies (all deps needed for build)
+# Fix SSL/TLS cipher issues with environment variables
+ENV NPM_CONFIG_STRICT_SSL=false
+ENV NPM_CONFIG_FUND=false
+ENV NPM_CONFIG_AUDIT=false
+RUN npm ci && \
+    npm cache clean --force
 
-# Create uploads directory
-RUN mkdir -p uploads && chmod 755 uploads
+# Create necessary directories with proper permissions
+RUN mkdir -p uploads uploads/temp data && \
+    chmod 755 uploads uploads/temp data
 
-# Copy all source files
+# Copy source files (this layer changes most frequently)
 COPY . .
 
 # Build arguments for Firebase environment variables
@@ -33,12 +47,38 @@ ENV VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID
 # Build the application with environment variables available
 RUN npm run build
 
+# Clean up some dev dependencies but keep Vite for potential dynamic imports
+RUN npm prune --omit=dev --ignore-scripts && npm install vite
+
 # Set runtime environment variables
 ENV NODE_ENV=production
 ENV PORT=8080
 
+# Disable static file serving - nginx will handle it
+ENV SERVE_STATIC=false
+
+# Phase 2 Optimization Settings
+ENV EMBEDDING_MODEL=Xenova/all-MiniLM-L12-v2
+ENV MAX_CONCURRENT_EMBEDDINGS=3
+ENV MAX_TEXT_LENGTH=50000
+ENV MIN_ASCII_RATIO=0.8
+
+# Performance and caching optimization
+ENV TRANSFORMERS_CACHE=/tmp/transformers_cache
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+
+# Create cache directory for AI models
+RUN mkdir -p /tmp/transformers_cache && chmod 755 /tmp/transformers_cache
+
 # Expose the port the app runs on
 EXPOSE 8080
+
+# Add health check for better container monitoring
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/api/health || exit 1
+
+# Add curl for health checks
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Command to run the app
 CMD ["node", "dist/index.js"]

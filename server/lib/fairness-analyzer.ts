@@ -1,6 +1,7 @@
 import { AnalyzeResumeResponse, MatchAnalysisResponse } from '@shared/schema';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
+import Groq from 'groq-sdk';
 import { config } from '../config';
 
 /**
@@ -13,10 +14,12 @@ export interface FairnessAnalysisResult {
 }
 
 // Configure API clients if keys are available
+const groqClient = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 const openaiClient = config.openaiApiKey ? new OpenAI({ apiKey: config.openaiApiKey }) : null;
 const anthropicClient = config.anthropicApiKey ? new Anthropic({ apiKey: config.anthropicApiKey }) : null;
 
 // Constants for model names
+const GROQ_MODEL = "llama-3.3-70b-versatile"; // Fast and cost-effective for fairness analysis
 const OPENAI_MODEL = "gpt-4o"; // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
 const ANTHROPIC_MODEL = "claude-3-7-sonnet-20250219"; // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
 
@@ -29,7 +32,20 @@ export async function analyzeResumeFairness(
   resumeAnalysis: AnalyzeResumeResponse,
   matchAnalysis: MatchAnalysisResponse
 ): Promise<FairnessAnalysisResult> {
-  // Try OpenAI first (primary provider)
+  // Try Groq first (primary provider - fast and cost-effective)
+  if (groqClient) {
+    try {
+      console.log("[FAIRNESS_ANALYZER] Attempting to analyze fairness with Groq");
+      return await analyzeWithGroq(resumeText, resumeAnalysis, matchAnalysis);
+    } catch (error) {
+      console.error("[FAIRNESS_ANALYZER] Error analyzing fairness with Groq:", error);
+      // Fall through to OpenAI
+    }
+  } else {
+    console.log("[FAIRNESS_ANALYZER] Groq API not configured");
+  }
+  
+  // If Groq fails or is not available, try OpenAI
   if (openaiClient) {
     try {
       console.log("[FAIRNESS_ANALYZER] Attempting to analyze fairness with OpenAI");
@@ -55,9 +71,98 @@ export async function analyzeResumeFairness(
     console.log("[FAIRNESS_ANALYZER] Anthropic API not configured");
   }
   
-  // If both providers fail or are not available, return a default response
+  // If all providers fail or are not available, return a default response
   console.log("[FAIRNESS_ANALYZER] All AI providers unavailable, using built-in fallback");
   return getDefaultFairnessAnalysis();
+}
+
+/**
+ * Analyze resume fairness using Groq
+ */
+async function analyzeWithGroq(
+  resumeText: string,
+  resumeAnalysis: AnalyzeResumeResponse,
+  matchAnalysis: MatchAnalysisResponse
+): Promise<FairnessAnalysisResult> {
+  if (!groqClient) {
+    throw new Error("Groq API not configured");
+  }
+
+  const prompt = `You are an AI fairness auditor. Analyze the resume and its AI analysis provided below, and assess the likelihood of algorithmic bias in the analysis.
+
+RESUME TEXT:
+${resumeText}
+
+AI ANALYSIS RESULTS:
+- Skills identified: ${resumeAnalysis.skills?.join(', ') || 'None'}
+- Experience identified: ${resumeAnalysis.experience || 'Not specified'}
+- Match percentage: ${matchAnalysis.matchPercentage}%
+- Matched skills: ${matchAnalysis.matchedSkills?.map(s => s.skill).join(', ') || 'None'}
+- Missing skills: ${matchAnalysis.missingSkills?.join(', ') || 'None'}
+- Candidate strengths: ${matchAnalysis.candidateStrengths?.join(', ') || 'None identified'}
+- Candidate weaknesses: ${matchAnalysis.candidateWeaknesses?.join(', ') || 'None identified'}
+
+Provide a fairness assessment with the following:
+1. A confidence score (0-100) indicating how confident you are that the analysis is FREE FROM BIAS (100 = completely unbiased, 0 = extremely biased)
+2. Any potential areas of bias in the analysis (e.g., gender bias, age bias, name bias, etc.)
+3. A brief fairness assessment explaining your reasoning
+
+Respond ONLY with valid JSON in this exact format:
+{
+  "biasConfidenceScore": 85,
+  "potentialBiasAreas": ["area1", "area2"],
+  "fairnessAssessment": "Explanation of your assessment"
+}`;
+
+  const response = await groqClient.chat.completions.create({
+    model: GROQ_MODEL,
+    messages: [{
+      role: "user",
+      content: prompt
+    }],
+    temperature: 0.1, // Low temperature for consistent results
+    max_tokens: 1000
+  });
+
+  // Extract and parse the JSON response
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error("Empty response from Groq");
+  }
+  
+  // Clean the response (remove any markdown formatting)
+  const cleanedContent = content
+    .replace(/```json\s*/g, '')
+    .replace(/```\s*/g, '')
+    .trim();
+  
+  let parsedResponse;
+  try {
+    parsedResponse = JSON.parse(cleanedContent);
+  } catch (parseError) {
+    // Try to extract JSON from the response if direct parsing fails
+    const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      parsedResponse = JSON.parse(jsonMatch[0]);
+    } else {
+      throw new Error(`Failed to parse Groq response: ${parseError}`);
+    }
+  }
+  
+  // Track token usage if available
+  if (response.usage) {
+    console.log(`Groq Fairness Analysis: ${response.usage.prompt_tokens} prompt tokens, ${response.usage.completion_tokens} completion tokens, ${response.usage.total_tokens} total tokens`);
+  }
+  
+  // Normalize and validate the response
+  return {
+    biasConfidenceScore: typeof parsedResponse.biasConfidenceScore === 'number' ? 
+      Math.max(0, Math.min(100, parsedResponse.biasConfidenceScore)) : 50, // Ensure 0-100 range
+    potentialBiasAreas: Array.isArray(parsedResponse.potentialBiasAreas) ? 
+      parsedResponse.potentialBiasAreas.slice(0, 5) : [], // Limit to 5 areas
+    fairnessAssessment: typeof parsedResponse.fairnessAssessment === 'string' ? 
+      parsedResponse.fairnessAssessment.substring(0, 500) : "Unable to provide a detailed fairness assessment."
+  };
 }
 
 /**

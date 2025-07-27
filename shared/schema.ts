@@ -34,7 +34,7 @@ export const resumes = pgTable("resumes", {
 // Job descriptions table
 export const jobDescriptions = pgTable("job_descriptions", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id"),
+  userId: text("user_id"),
   title: text("title").notNull(),
   description: text("description").notNull(),
   requirements: json("requirements").$type<string[]>(),
@@ -72,7 +72,7 @@ export const skillsTable = pgTable("skills", {
 // Analysis results table
 export const analysisResults = pgTable("analysis_results", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id"),
+  userId: text("user_id"),
   resumeId: integer("resume_id"),
   jobDescriptionId: integer("job_description_id"),
   matchPercentage: real("match_percentage"),
@@ -111,7 +111,7 @@ export const analysisResults = pgTable("analysis_results", {
 // Interview questions table
 export const interviewQuestions = pgTable("interview_questions", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id"),
+  userId: text("user_id"),
   resumeId: integer("resume_id"),
   jobDescriptionId: integer("job_description_id"),
   questions: json("questions").$type<Array<{
