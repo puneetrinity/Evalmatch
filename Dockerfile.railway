@@ -36,12 +36,10 @@ COPY --from=builder /app/dist/public /usr/share/nginx/html
 # Set up app directory
 WORKDIR /app
 
-# Copy built server and package.json
+# Copy built server, package files, and node_modules
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package.json ./package.json
-
-# Install only production dependencies in final stage
-RUN npm ci --only=production && npm cache clean --force
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
 
 # Create supervisor configuration
 RUN echo '[supervisord]' > /etc/supervisor/conf.d/supervisord.conf && \
