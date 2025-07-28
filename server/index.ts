@@ -95,8 +95,8 @@ app.use(helmet({
       fontSrc: ["'self'", "https:", "data:"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
-      frameSrc: ["'self'", "https://accounts.google.com", "https://*.firebaseapp.com", "https://*.googleapis.com"], // Allow Firebase OAuth popups
-      childSrc: ["'self'", "https://accounts.google.com", "https://*.firebaseapp.com", "https://*.googleapis.com"], // Allow Firebase OAuth popups
+      frameSrc: ["'self'", "https://accounts.google.com", "https://*.firebaseapp.com", "https://*.googleapis.com", "https://ealmatch-railway.firebaseapp.com", "https://securetoken.googleapis.com", "https://www.googleapis.com"], // Allow Firebase OAuth popups
+      childSrc: ["'self'", "https://accounts.google.com", "https://*.firebaseapp.com", "https://*.googleapis.com", "https://ealmatch-railway.firebaseapp.com", "https://securetoken.googleapis.com", "https://www.googleapis.com"], // Allow Firebase OAuth popups
       frameAncestors: ["'self'"],
       formAction: ["'self'"],
       upgradeInsecureRequests: []
@@ -149,7 +149,7 @@ app.use(express.urlencoded({ extended: false }));
 initializeMonitoring(app);
 
 // Keep the legacy logging in development for backward compatibility
-if (app.get("env") === "development") {
+if (process.env.NODE_ENV === "development") {
   app.use((req, res, next) => {
     const start = Date.now();
     const path = req.path;
@@ -256,7 +256,7 @@ if (app.get("env") === "development") {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   } else if (process.env.SERVE_STATIC !== 'false') {
     // Only serve static files if not disabled (nginx will handle in production)
