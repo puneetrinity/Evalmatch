@@ -1,12 +1,14 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
-import { createServer as createViteServer, createLogger } from "vite";
+import { fileURLToPath } from "url";
 import { type Server } from "http";
-import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
 
-const viteLogger = createLogger();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Vite imports are dynamic to avoid runtime errors in production
+let viteLogger: any;
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -20,6 +22,14 @@ export function log(message: string, source = "express") {
 }
 
 export async function setupVite(app: Express, server: Server) {
+  // Dynamic imports for Vite to avoid production runtime errors
+  const { createServer: createViteServer, createLogger } = await import("vite");
+  const viteConfig = await import("../vite.config");
+  
+  if (!viteLogger) {
+    viteLogger = createLogger();
+  }
+
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
@@ -27,7 +37,7 @@ export async function setupVite(app: Express, server: Server) {
   };
 
   const vite = await createViteServer({
-    ...viteConfig,
+    ...viteConfig.default,
     configFile: false,
     customLogger: {
       ...viteLogger,
@@ -46,7 +56,7 @@ export async function setupVite(app: Express, server: Server) {
 
     try {
       const clientTemplate = path.resolve(
-        import.meta.dirname,
+        __dirname,
         "..",
         "client",
         "index.html",
@@ -68,7 +78,7 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
+  const distPath = path.resolve(__dirname, "..", "dist", "public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
@@ -78,8 +88,15 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
+  // fall through to index.html for frontend routes only
+  // Explicitly exclude API routes to prevent routing conflicts
+  app.get('*', (req, res, next) => {
+    // Skip serving index.html for API routes
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    
+    // Serve index.html for all frontend routes
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
