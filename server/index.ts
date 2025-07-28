@@ -105,6 +105,12 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false // Allow embedding for certain features
 }));
 
+// Critical fix for Firebase OAuth popup - set Cross-Origin-Opener-Policy
+app.use((req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  next();
+});
+
 // CORS configuration
 const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
