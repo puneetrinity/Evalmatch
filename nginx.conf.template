@@ -60,6 +60,13 @@ http {
             add_header Content-Type text/plain;
         }
         
+        # Handle favicon.ico requests
+        location = /favicon.ico {
+            access_log off;
+            log_not_found off;
+            return 204;
+        }
+        
         # Static files and frontend routes
         location / {
             root /usr/share/nginx/html;
