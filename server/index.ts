@@ -108,9 +108,13 @@ app.use(helmet({
 // CORS configuration
 const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    // Allow Railway domains and localhost for development
+    // Allow Railway domains, Firebase domains, and localhost for development
     const allowedOrigins = [
       'https://web-production-392cc.up.railway.app',
+      'https://ealmatch-railway.firebaseapp.com',
+      'https://accounts.google.com',
+      'https://securetoken.googleapis.com',
+      'https://www.googleapis.com',
       'http://localhost:5173',
       'http://localhost:5000',
       'http://localhost:3000',
@@ -129,7 +133,16 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With', 
+    'Accept', 
+    'Origin',
+    'X-Firebase-Auth',
+    'X-Client-Version',
+    'X-Firebase-gmpid'
+  ],
   exposedHeaders: ['Content-Length', 'X-Request-ID'],
   optionsSuccessStatus: 200, // Some legacy browsers choke on 204
   preflightContinue: false,
