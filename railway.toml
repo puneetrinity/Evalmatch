@@ -3,7 +3,7 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile.railway"
 
 [deploy]
-startCommand = "./railway-start.sh"
+# startCommand removed - using Dockerfile CMD instead
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 
