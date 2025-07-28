@@ -46,7 +46,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
             reject(new Error('Auth initialization timeout'));
           }, 10000);
           
-          const unsubscribe = authService.onAuthStateChanged(() => {
+          const unsubscribe = authService.onAuthStateChanged((user) => {
+            // Resolve when we get ANY auth state (user or null)
             clearTimeout(timeout);
             unsubscribe();
             resolve();
