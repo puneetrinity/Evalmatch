@@ -15,8 +15,11 @@ RUN npm ci && npm cache clean --force
 # Copy source code
 COPY . .
 
-# Build the client
-RUN npm run build:client
+# Build the client with environment variables
+RUN echo "Build-time environment check:" && \
+    echo "VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY:0:10}..." && \
+    echo "VITE_FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID}" && \
+    npm run build:client
 
 # Build the server
 RUN npm run build:server
