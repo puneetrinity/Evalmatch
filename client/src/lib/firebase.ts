@@ -61,9 +61,10 @@ const googleProvider = new GoogleAuthProvider();
 // Add required scopes
 googleProvider.addScope('email');
 googleProvider.addScope('profile');
-// Simpler custom parameters to avoid popup issues
+// Custom parameters to fix popup issues (from StackOverflow solutions)
 googleProvider.setCustomParameters({
-  prompt: 'select_account'
+  prompt: 'select_account',
+  display: 'popup'  // Explicitly set display mode for popup
 });
 
 // Authentication functions
