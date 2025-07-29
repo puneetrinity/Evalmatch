@@ -2332,6 +2332,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug auth headers endpoint
+  app.get("/api/admin/debug-auth", async (req: Request, res: Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const allHeaders = req.headers;
+      
+      res.json({
+        hasAuthHeader: !!authHeader,
+        authHeaderValue: authHeader ? `${authHeader.substring(0, 20)}...` : null,
+        authHeaderLength: authHeader ? authHeader.length : 0,
+        startsWithBearer: authHeader ? authHeader.startsWith('Bearer ') : false,
+        allHeaders: Object.keys(allHeaders),
+        userAgent: req.headers['user-agent'],
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
