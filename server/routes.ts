@@ -1503,10 +1503,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Get all resumes for this user
+        logger.info(`Looking for resumes for user: ${req.user!.uid}`);
         const resumes = await storage.getResumesByUserId(req.user!.uid);
         
+        logger.info(`Database returned ${resumes ? resumes.length : 0} resumes`);
+        if (resumes && resumes.length > 0) {
+          logger.info(`First resume: ID ${resumes[0].id}, filename: ${resumes[0].filename}, user_id: ${resumes[0].userId}`);
+        }
+        
         if (!resumes || resumes.length === 0) {
-          return res.status(400).json({ message: "No resumes found for analysis" });
+          return res.status(400).json({ 
+            message: "No resumes found for analysis",
+            debug: {
+              searchingForUserId: req.user!.uid,
+              totalResumesInDb: "Check database"
+            }
+          });
         }
 
         logger.info(`Found ${resumes.length} resumes to analyze against job "${jobDescription.title}"`);
