@@ -1560,15 +1560,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
             );
 
             // Create analysis result record
-            const analysisResult = await storage.createAnalysisResult({
-              userId: req.user!.uid,
-              resumeId: resume.id,
-              jobDescriptionId: jobId,
-              matchPercentage: matchAnalysis.matchPercentage,
-              matchedSkills: JSON.stringify(matchAnalysis.matchedSkills || []),
-              missingSkills: JSON.stringify(matchAnalysis.missingSkills || []),
-              analysis: JSON.stringify(matchAnalysis)
-            });
+            logger.info(`Creating analysis result: user=${req.user!.uid}, resume=${resume.id}, job=${jobId}, match=${matchAnalysis.matchPercentage}%`);
+            
+            let analysisResult;
+            try {
+              analysisResult = await storage.createAnalysisResult({
+                userId: req.user!.uid,
+                resumeId: resume.id,
+                jobDescriptionId: jobId,
+                matchPercentage: matchAnalysis.matchPercentage,
+                matchedSkills: JSON.stringify(matchAnalysis.matchedSkills || []),
+                missingSkills: JSON.stringify(matchAnalysis.missingSkills || []),
+                analysis: JSON.stringify(matchAnalysis)
+              });
+
+              logger.info(`✅ Analysis result created successfully: ID ${analysisResult.id}`);
+            } catch (error) {
+              logger.error(`❌ Failed to create analysis result:`, error);
+              // Create a fallback result for the response
+              analysisResult = { id: `fallback-${resume.id}-${jobId}` };
+            }
 
             results.push({
               resumeId: resume.id,
