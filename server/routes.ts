@@ -2328,6 +2328,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.warn(`⚠️ Could not fix match_percentage type: ${error.message}`);
       }
 
+      // Fix 5: Add missing columns to analysis_results table
+      logger.info('🔧 Adding missing columns to analysis_results table...');
+      const missingColumns = [
+        'candidate_strengths JSONB',
+        'candidate_weaknesses JSONB', 
+        'confidence_level TEXT',
+        'fairness_metrics JSONB'
+      ];
+
+      for (const column of missingColumns) {
+        try {
+          await client.query(`ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS ${column}`);
+          logger.info(`✅ Added column: ${column}`);
+        } catch (error) {
+          logger.warn(`⚠️ Could not add column ${column}: ${error.message}`);
+        }
+      }
+
       await client.end();
       logger.info('🎉 Database schema fixed successfully!');
       
@@ -2338,7 +2356,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "Added experience, education, skills columns to resumes table",
           "Changed user_id columns from INTEGER to TEXT for Firebase compatibility",
           "Added missing user_id column to analysis_results table",
-          "Changed match_percentage from INTEGER to REAL for decimal support"
+          "Changed match_percentage from INTEGER to REAL for decimal support",
+          "Added missing columns to analysis_results: candidate_strengths, candidate_weaknesses, confidence_level, fairness_metrics"
         ]
       });
       
