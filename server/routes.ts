@@ -2260,6 +2260,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Comprehensive table checker endpoint
+  app.get("/api/admin/check-all-tables", async (req: Request, res: Response) => {
+    try {
+      const { Client } = await import('pg');
+      const client = new Client({
+        connectionString: process.env.DATABASE_URL
+      });
+      
+      await client.connect();
+      
+      // Get all tables with column info and row counts
+      const query = `
+        WITH table_info AS (
+          SELECT 
+            t.table_name,
+            COUNT(c.column_name) as column_count,
+            STRING_AGG(c.column_name || ':' || c.data_type, ', ' ORDER BY c.ordinal_position) as columns
+          FROM information_schema.tables t
+          LEFT JOIN information_schema.columns c ON t.table_name = c.table_name
+          WHERE t.table_schema = 'public' 
+            AND t.table_type = 'BASE TABLE'
+          GROUP BY t.table_name
+        )
+        SELECT 
+          table_name,
+          column_count,
+          columns
+        FROM table_info
+        ORDER BY table_name;
+      `;
+      
+      const result = await client.query(query);
+      
+      // Get row counts for each table
+      const tableRowCounts = {};
+      for (const table of result.rows) {
+        try {
+          const countResult = await client.query(`SELECT COUNT(*) FROM ${table.table_name}`);
+          tableRowCounts[table.table_name] = parseInt(countResult.rows[0].count);
+        } catch (e) {
+          tableRowCounts[table.table_name] = `ERROR: ${e.message}`;
+        }
+      }
+      
+      await client.end();
+      
+      res.json({
+        tables: result.rows.map(table => ({
+          ...table,
+          row_count: tableRowCounts[table.table_name]
+        })),
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      logger.error('Error checking all tables:', error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
