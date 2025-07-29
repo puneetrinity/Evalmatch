@@ -146,7 +146,13 @@ export class HybridStorage implements IStorage {
       dbHealth.failedOperations = 0;
       return result;
     } catch (error) {
-      console.error(`Database operation ${operation} failed, falling back to memory:`, error);
+      console.error(`🚨 Database operation ${operation} failed, falling back to memory:`, error);
+      if (operation === 'createAnalysisResult') {
+        console.error('🔍 Analysis result creation failed - detailed error:', {
+          error: error instanceof Error ? error.message : error,
+          stack: error instanceof Error ? error.stack : 'No stack'
+        });
+      }
       
       // Update health tracking
       dbHealth.failedOperations++;
@@ -313,6 +319,11 @@ export class HybridStorage implements IStorage {
   }
   
   async createAnalysisResult(analysisResult: any): Promise<any> {
+    console.log('🔍 HybridStorage.createAnalysisResult called with:', {
+      userId: analysisResult.userId,
+      resumeId: analysisResult.resumeId,
+      jobDescriptionId: analysisResult.jobDescriptionId
+    });
     return this.executeWithFallback(
       'createAnalysisResult',
       () => this.dbStorage.createAnalysisResult(analysisResult),
