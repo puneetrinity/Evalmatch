@@ -2177,6 +2177,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.warn(`⚠️ Could not add user_id to analysis_results: ${error.message}`);
       }
 
+      // Fix 4: Change match_percentage from INTEGER to REAL for decimal support
+      logger.info('🔧 Fixing match_percentage data type...');
+      try {
+        await client.query(`ALTER TABLE analysis_results ALTER COLUMN match_percentage TYPE REAL USING match_percentage::real`);
+        logger.info('✅ Changed match_percentage to REAL type');
+      } catch (error) {
+        logger.warn(`⚠️ Could not fix match_percentage type: ${error.message}`);
+      }
+
       await client.end();
       logger.info('🎉 Database schema fixed successfully!');
       
@@ -2186,7 +2195,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fixes: [
           "Added experience, education, skills columns to resumes table",
           "Changed user_id columns from INTEGER to TEXT for Firebase compatibility",
-          "Added missing user_id column to analysis_results table"
+          "Added missing user_id column to analysis_results table",
+          "Changed match_percentage from INTEGER to REAL for decimal support"
         ]
       });
       
