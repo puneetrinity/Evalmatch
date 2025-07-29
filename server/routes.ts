@@ -2190,6 +2190,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Diagnostic endpoint to check analysis_results table
+  app.get("/api/admin/check-analysis-table", async (req: Request, res: Response) => {
+    try {
+      const { Client } = await import('pg');
+      const client = new Client({
+        connectionString: process.env.DATABASE_URL
+      });
+      
+      await client.connect();
+      
+      // Check if table exists
+      const tableExists = await client.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'analysis_results'
+        );
+      `);
+      
+      // Get table schema
+      const columns = await client.query(`
+        SELECT column_name, data_type, is_nullable
+        FROM information_schema.columns
+        WHERE table_name = 'analysis_results'
+        ORDER BY ordinal_position;
+      `);
+      
+      // Count rows
+      let rowCount = 0;
+      let sampleRows = [];
+      try {
+        const countResult = await client.query('SELECT COUNT(*) FROM analysis_results');
+        rowCount = parseInt(countResult.rows[0].count);
+        
+        // Get a few sample rows if any exist
+        if (rowCount > 0) {
+          const sampleResult = await client.query('SELECT id, user_id, resume_id, job_description_id, created_at FROM analysis_results LIMIT 3');
+          sampleRows = sampleResult.rows;
+        }
+      } catch (e) {
+        logger.warn('Could not query analysis_results:', e.message);
+      }
+      
+      await client.end();
+      
+      res.json({
+        tableExists: tableExists.rows[0].exists,
+        columns: columns.rows,
+        rowCount,
+        sampleRows,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      logger.error('Error checking analysis_results table:', error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
