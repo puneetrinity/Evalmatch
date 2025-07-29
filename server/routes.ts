@@ -2152,17 +2152,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fix 2: Change user_id from INTEGER to TEXT for Firebase UIDs
       logger.info('🔄 Fixing user_id column types...');
       
-      await client.query(`ALTER TABLE job_descriptions ALTER COLUMN user_id TYPE TEXT USING user_id::text`);
-      logger.info('✅ Fixed job_descriptions.user_id type');
+      const userIdFixes = [
+        { table: 'job_descriptions', column: 'user_id' },
+        { table: 'resumes', column: 'user_id' },
+        { table: 'analysis_results', column: 'user_id' },
+        { table: 'interview_questions', column: 'user_id' }
+      ];
 
-      await client.query(`ALTER TABLE resumes ALTER COLUMN user_id TYPE TEXT USING user_id::text`);
-      logger.info('✅ Fixed resumes.user_id type');
-
-      await client.query(`ALTER TABLE analysis_results ALTER COLUMN user_id TYPE TEXT USING user_id::text`);
-      logger.info('✅ Fixed analysis_results.user_id type');
-
-      await client.query(`ALTER TABLE interview_questions ALTER COLUMN user_id TYPE TEXT USING user_id::text`);
-      logger.info('✅ Fixed interview_questions.user_id type');
+      for (const fix of userIdFixes) {
+        try {
+          await client.query(`ALTER TABLE ${fix.table} ALTER COLUMN ${fix.column} TYPE TEXT USING ${fix.column}::text`);
+          logger.info(`✅ Fixed ${fix.table}.${fix.column} type`);
+        } catch (error) {
+          logger.warn(`⚠️ Skipped ${fix.table}.${fix.column}: ${error.message}`);
+        }
+      }
 
       await client.end();
       logger.info('🎉 Database schema fixed successfully!');
