@@ -2168,6 +2168,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Fix 3: Add missing user_id column to analysis_results table  
+      logger.info('🔧 Adding missing user_id column to analysis_results...');
+      try {
+        await client.query(`ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS user_id TEXT`);
+        logger.info('✅ Added user_id column to analysis_results');
+      } catch (error) {
+        logger.warn(`⚠️ Could not add user_id to analysis_results: ${error.message}`);
+      }
+
       await client.end();
       logger.info('🎉 Database schema fixed successfully!');
       
@@ -2176,7 +2185,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Database schema fixed successfully!",
         fixes: [
           "Added experience, education, skills columns to resumes table",
-          "Changed user_id columns from INTEGER to TEXT for Firebase compatibility"
+          "Changed user_id columns from INTEGER to TEXT for Firebase compatibility",
+          "Added missing user_id column to analysis_results table"
         ]
       });
       
