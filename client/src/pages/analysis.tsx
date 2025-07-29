@@ -75,7 +75,7 @@ export default function AnalysisPage() {
     analyzedData: any;
   }
 
-  // Fetch job details
+  // Fetch job details with authentication
   const { 
     data: jobData, 
     isLoading: isJobLoading, 
@@ -83,6 +83,10 @@ export default function AnalysisPage() {
     isError: isJobError 
   } = useQuery<JobData>({
     queryKey: [`/api/job-descriptions/${jobId}`],
+    queryFn: async ({ queryKey }) => {
+      const response = await apiRequest("GET", String(queryKey[0]));
+      return response.json();
+    },
     enabled: !!jobId,
     retry: 1
   });
@@ -133,7 +137,7 @@ export default function AnalysisPage() {
     results: AnalysisResult[];
   }
   
-  // Fetch analysis data
+  // Fetch analysis data using proper auth
   const { 
     data: analysisData, 
     isLoading, 
@@ -149,10 +153,7 @@ export default function AnalysisPage() {
       
       console.log(`Fetching analysis data from: ${url} with session: ${sessionId || 'none'}`);
       
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error('Failed to fetch analysis data');
-      }
+      const response = await apiRequest("GET", url);
       const data = await response.json();
       console.log(`Analysis data received, count: ${data.results?.length || 0} results`);
       return data as AnalysisResponse;
