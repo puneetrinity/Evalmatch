@@ -2,6 +2,7 @@ import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
 import StepProgress from "@/components/step-progress";
@@ -89,10 +90,7 @@ export default function InterviewPage() {
       
       console.log(`Fetching interview questions from: ${url}`);
       
-      const response = await fetch(url, {
-        method: "POST",
-        credentials: "include",
-      });
+      const response = await apiRequest("POST", url);
       
       if (!response.ok) {
         throw new Error("Failed to generate interview questions");
@@ -103,12 +101,16 @@ export default function InterviewPage() {
     enabled: !!resumeId && !!jobId,
   });
 
-  // Fetch analysis data to get missing skills details
+  // Fetch analysis data to get missing skills details with authentication
   const {
     data: analysisData,
     isLoading: isAnalysisLoading,
   } = useQuery<AnalysisData>({
     queryKey: [`/api/analyze/${jobId}/${resumeId}`],
+    queryFn: async ({ queryKey }) => {
+      const response = await apiRequest("GET", String(queryKey[0]));
+      return response.json();
+    },
     enabled: !!resumeId && !!jobId,
     retry: 1,
   });
