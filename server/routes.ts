@@ -1521,12 +1521,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             logger.debug(`Analyzing resume ${resume.id}: ${resume.filename}`);
 
-            // Perform the analysis
+            // Check if resume and job are already analyzed
+            if (!resume.analyzedData) {
+              logger.debug(`Resume ${resume.id} not analyzed yet, analyzing...`);
+              const resumeAnalysis = await analyzeResume(resume.content, userTier);
+              // Update resume with analyzed data
+              await storage.updateResume(resume.id, { analyzedData: resumeAnalysis });
+              resume.analyzedData = resumeAnalysis;
+            }
+
+            if (!jobDescription.analyzedData) {
+              logger.debug(`Job ${jobId} not analyzed yet, analyzing...`);
+              const jobAnalysis = await analyzeJobDescription(jobDescription.description, userTier);
+              // Update job with analyzed data
+              await storage.updateJobDescription(jobId, { analyzedData: jobAnalysis });
+              jobDescription.analyzedData = jobAnalysis;
+            }
+
+            // Perform the match analysis
             const matchAnalysis = await analyzeMatchTiered(
-              resume,
-              jobDescription,
+              resume.analyzedData as any,
+              jobDescription.analyzedData as any,
+              userTier,
               resume.content,
-              userTier
+              jobDescription.description
             );
 
             // Create analysis result record
