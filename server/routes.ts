@@ -2128,38 +2128,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       logger.info('🔧 Starting database schema fix...');
       
-      // Get database connection from storage
-      const db = (storage as any).db || (storage as any).getDb?.();
+      // Import the database pool directly
+      const { pool } = await import('./db.js');
       
-      if (!db) {
-        throw new Error('Database connection not available');
+      if (!pool) {
+        throw new Error('Database pool not available');
       }
 
       // Fix 1: Add missing columns to resumes table
       logger.info('📝 Adding missing columns to resumes table...');
       
-      await db.query(`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS experience JSONB DEFAULT '[]'::jsonb`);
+      await pool.query(`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS experience JSONB DEFAULT '[]'::jsonb`);
       logger.info('✅ Added experience column');
 
-      await db.query(`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS education JSONB DEFAULT '[]'::jsonb`);
+      await pool.query(`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS education JSONB DEFAULT '[]'::jsonb`);
       logger.info('✅ Added education column');
 
-      await db.query(`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS skills JSONB DEFAULT '[]'::jsonb`);
+      await pool.query(`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS skills JSONB DEFAULT '[]'::jsonb`);
       logger.info('✅ Added skills column');
 
       // Fix 2: Change user_id from INTEGER to TEXT for Firebase UIDs
       logger.info('🔄 Fixing user_id column types...');
       
-      await db.query(`ALTER TABLE job_descriptions ALTER COLUMN user_id TYPE TEXT USING user_id::text`);
+      await pool.query(`ALTER TABLE job_descriptions ALTER COLUMN user_id TYPE TEXT USING user_id::text`);
       logger.info('✅ Fixed job_descriptions.user_id type');
 
-      await db.query(`ALTER TABLE resumes ALTER COLUMN user_id TYPE TEXT USING user_id::text`);
+      await pool.query(`ALTER TABLE resumes ALTER COLUMN user_id TYPE TEXT USING user_id::text`);
       logger.info('✅ Fixed resumes.user_id type');
 
-      await db.query(`ALTER TABLE analysis_results ALTER COLUMN user_id TYPE TEXT USING user_id::text`);
+      await pool.query(`ALTER TABLE analysis_results ALTER COLUMN user_id TYPE TEXT USING user_id::text`);
       logger.info('✅ Fixed analysis_results.user_id type');
 
-      await db.query(`ALTER TABLE interview_questions ALTER COLUMN user_id TYPE TEXT USING user_id::text`);
+      await pool.query(`ALTER TABLE interview_questions ALTER COLUMN user_id TYPE TEXT USING user_id::text`);
       logger.info('✅ Fixed interview_questions.user_id type');
 
       logger.info('🎉 Database schema fixed successfully!');
