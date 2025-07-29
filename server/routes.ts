@@ -1476,6 +1476,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // Analyze all resumes for a specific job description
+  app.post(
+    "/api/analyze/:jobId",
+    authenticateUser,
+    async (req: Request, res: Response) => {
+      try {
+        const jobId = parseInt(req.params.jobId);
+        const { sessionId } = req.body;
+        
+        if (isNaN(jobId)) {
+          return res.status(400).json({ message: "Invalid job ID" });
+        }
+
+        logger.info(`Starting analysis for job ID: ${jobId}`);
+
+        // Get the job description
+        const jobDescription = await storage.getJobDescription(jobId);
+        if (!jobDescription) {
+          return res.status(404).json({ message: "Job description not found" });
+        }
+
+        // Verify ownership
+        if (jobDescription.userId !== req.user!.uid) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
+        // Get all resumes for this user
+        const resumes = await storage.getResumesByUserId(req.user!.uid);
+        
+        if (!resumes || resumes.length === 0) {
+          return res.status(400).json({ message: "No resumes found for analysis" });
+        }
+
+        logger.info(`Found ${resumes.length} resumes to analyze against job "${jobDescription.title}"`);
+
+        // Get user tier for analysis limits
+        const userTier = await getUserTierInfo(req.user!.uid);
+
+        const results = [];
+
+        // Analyze each resume against the job description
+        for (const resume of resumes) {
+          try {
+            logger.debug(`Analyzing resume ${resume.id}: ${resume.filename}`);
+
+            // Perform the analysis
+            const matchAnalysis = await analyzeMatchTiered(
+              resume,
+              jobDescription,
+              resume.content,
+              userTier
+            );
+
+            // Create analysis result record
+            const analysisResult = await storage.createAnalysisResult({
+              userId: req.user!.uid,
+              resumeId: resume.id,
+              jobDescriptionId: jobId,
+              matchPercentage: matchAnalysis.matchPercentage,
+              matchedSkills: JSON.stringify(matchAnalysis.matchedSkills || []),
+              missingSkills: JSON.stringify(matchAnalysis.missingSkills || []),
+              analysis: JSON.stringify(matchAnalysis)
+            });
+
+            results.push({
+              resumeId: resume.id,
+              filename: resume.filename,
+              candidateName: resume.filename.replace(/\.[^/.]+$/, ""), // Remove file extension
+              match: matchAnalysis,
+              analysisId: analysisResult.id
+            });
+
+            logger.debug(`Successfully analyzed resume ${resume.id}, match: ${matchAnalysis.matchPercentage}%`);
+
+          } catch (error) {
+            logger.error(`Error analyzing resume ${resume.id}:`, error);
+            // Continue with other resumes even if one fails
+          }
+        }
+
+        // Save updated user tier info (usage count incremented)
+        await saveUserTierInfo(req.user!.uid, userTier);
+
+        logger.info(`Completed analysis for job ID ${jobId}, analyzed ${results.length} resumes`);
+
+        res.json({
+          jobDescriptionId: jobId,
+          jobTitle: jobDescription.title,
+          results
+        });
+
+      } catch (error) {
+        logger.error("Error in /api/analyze/:jobId:", error);
+        res.status(500).json({
+          error: 'Analysis failed',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+  );
+
   // Analyze bias in job description
   app.post(
     "/api/analyze-bias/:jobId",
