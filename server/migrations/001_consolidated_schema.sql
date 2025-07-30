@@ -236,38 +236,3 @@ UPDATE job_descriptions SET created_at = CURRENT_TIMESTAMP WHERE created_at IS N
 UPDATE job_descriptions SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL;
 UPDATE analysis_results SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL;
 UPDATE analysis_results SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL;
-
--- ============================================================================
--- VALIDATION QUERIES
--- ============================================================================
-
--- Verify schema is correct
-SELECT 
-    table_name,
-    column_name,
-    data_type,
-    is_nullable
-FROM information_schema.columns 
-WHERE table_schema = 'public' 
-    AND table_name IN ('resumes', 'job_descriptions', 'analysis_results', 'interview_questions', 'skills', 'skill_categories')
-ORDER BY table_name, ordinal_position;
-
--- Show table sizes
-SELECT 
-    schemaname,
-    tablename,
-    attname,
-    n_distinct,
-    correlation
-FROM pg_stats 
-WHERE schemaname = 'public' 
-    AND tablename IN ('resumes', 'job_descriptions', 'analysis_results', 'interview_questions')
-ORDER BY tablename, attname;
-
--- ============================================================================
--- MIGRATION COMPLETE
--- ============================================================================
-
-SELECT 'Consolidated schema migration completed successfully!' AS status,
-       COUNT(*) AS skill_categories_count
-FROM skill_categories;
