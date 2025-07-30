@@ -8,6 +8,7 @@ import {
   calculateConfidenceLevel,
   validateScoreConsistency
 } from './consistent-scoring';
+import { normalizeSkillWithHierarchy } from './skill-hierarchy';
 import {
   type AnalyzeResumeResponse,
   type AnalyzeJobDescriptionResponse,
@@ -867,6 +868,45 @@ export async function extractContact(text: string): Promise<string> {
   return parts.length > 0 ? parts.join(', ') : 'Contact information available';
 }
 
+// Normalize extracted skills using the dynamic skills database
+async function normalizeExtractedSkills(extractedSkills: string[]): Promise<string[]> {
+  const normalizedSkills: string[] = [];
+  const seenSkills = new Set<string>();
+  
+  for (const skill of extractedSkills) {
+    try {
+      const normalized = await normalizeSkillWithHierarchy(skill);
+      
+      // Only include high-confidence matches and avoid duplicates
+      if (normalized.confidence >= 0.7 && !seenSkills.has(normalized.normalized.toLowerCase())) {
+        normalizedSkills.push(normalized.normalized);
+        seenSkills.add(normalized.normalized.toLowerCase());
+        
+        logger.debug(`Normalized skill: "${skill}" -> "${normalized.normalized}" (${normalized.method}, confidence: ${normalized.confidence})`);
+      } else if (normalized.confidence < 0.7) {
+        // For low-confidence matches, keep the original if it looks like a valid skill
+        const originalTrimmed = skill.trim();
+        if (originalTrimmed.length > 2 && !seenSkills.has(originalTrimmed.toLowerCase())) {
+          normalizedSkills.push(originalTrimmed);
+          seenSkills.add(originalTrimmed.toLowerCase());
+          logger.debug(`Kept original skill: "${skill}" (low confidence: ${normalized.confidence})`);
+        }
+      }
+    } catch (error) {
+      logger.warn(`Error normalizing skill "${skill}":`, error);
+      // Keep original skill if normalization fails
+      const originalTrimmed = skill.trim();
+      if (originalTrimmed.length > 2 && !seenSkills.has(originalTrimmed.toLowerCase())) {
+        normalizedSkills.push(originalTrimmed);
+        seenSkills.add(originalTrimmed.toLowerCase());
+      }
+    }
+  }
+  
+  logger.info(`Skill normalization completed: ${extractedSkills.length} extracted -> ${normalizedSkills.length} normalized`);
+  return normalizedSkills;
+}
+
 export async function extractSkills(text: string, type: "resume" | "job"): Promise<string[]> {
   const cacheKey = calculateHash(`groq_skills_${type}_${text}`);
   const cached = getCachedResponse<string[]>(cacheKey);
@@ -896,23 +936,26 @@ Respond with only the JSON array, no additional text.`;
       throw new Error('Empty response after cleaning markdown');
     }
     
-    const skills = safeJsonParse<string[]>(cleanedResponse, 'extractSkills');
+    const extractedSkills = safeJsonParse<string[]>(cleanedResponse, 'extractSkills');
     
     // Validate the parsed result
-    if (!Array.isArray(skills)) {
+    if (!Array.isArray(extractedSkills)) {
       throw new Error('Response is not a valid JSON array');
     }
     
-    setCachedResponse(cacheKey, skills);
-    logger.info(`Skills extracted successfully from ${type} with Groq`);
-    return skills;
+    // NEW: Use dynamic skills database to normalize and enhance extracted skills
+    const normalizedSkills = await normalizeExtractedSkills(extractedSkills);
+    
+    setCachedResponse(cacheKey, normalizedSkills);
+    logger.info(`Skills extracted and normalized successfully from ${type} with Groq - found ${normalizedSkills.length} skills`);
+    return normalizedSkills;
   } catch (error) {
     logger.error(`Error extracting skills from ${type} with Groq`, error);
     
     // Return fallback response instead of throwing error to prevent analysis pipeline failure
     logger.warn(`Returning fallback skills for ${type} due to Groq parsing error`);
     const fallbackSkills = type === "resume" 
-      ? ["JavaScript", "Communication", "Problem Solving", "Teamwork"]
+      ? ["Communication", "Problem Solving", "Teamwork", "Technical Skills"]
       : ["Programming", "Technical Skills", "Experience", "Education"];
     
     return fallbackSkills;
