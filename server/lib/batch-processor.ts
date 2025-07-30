@@ -1,5 +1,5 @@
 import { logger } from './logger';
-import { analyzeResume, analyzeJobDescription, analyzeMatch } from './ai-provider';
+import { analyzeResumeParallel, analyzeJobDescription, analyzeMatch as analyzeMatchTiered } from './tiered-ai-provider';
 import { storage } from '../storage';
 import { UserTierInfo } from '@shared/user-tiers';
 
@@ -43,8 +43,8 @@ export async function processBatchResumes(
     // Process all resumes in parallel using Promise.all()
     const analysisPromises = resumes.map(async (resume) => {
       try {
-        // Analyze resume using AI provider (same quality as single processing)
-        const analysis = await analyzeResume(resume.content, userTier);
+        // Analyze resume using optimized parallel extraction (22% token reduction)
+        const analysis = await analyzeResumeParallel(resume.content, userTier);
         
         // Start database update asynchronously (don't wait for completion)
         const dbUpdatePromise = storage.updateResumeAnalysis(resume.id, analysis);
@@ -125,7 +125,7 @@ export async function processBatchMatches(
     // First, analyze all jobs in parallel (if not already analyzed)
     const jobAnalysisPromises = jobs.map(async (job) => {
       try {
-        return await analyzeJobDescription(job.title, job.description);
+        return await analyzeJobDescription(job.title, job.description, userTier);
       } catch (error) {
         logger.error(`Error analyzing job ${job.id}:`, error);
         throw error;
@@ -137,7 +137,7 @@ export async function processBatchMatches(
     // Then analyze all resumes in parallel (if not already analyzed)  
     const resumeAnalysisPromises = resumes.map(async (resume) => {
       try {
-        return await analyzeResume(resume.content, userTier);
+        return await analyzeResumeParallel(resume.content, userTier);
       } catch (error) {
         logger.error(`Error analyzing resume ${resume.id}:`, error);
         throw error;
@@ -153,9 +153,10 @@ export async function processBatchMatches(
       for (let j = 0; j < jobs.length; j++) {
         const matchPromise = (async () => {
           try {
-            const matchAnalysis = await analyzeMatch(
+            const matchAnalysis = await analyzeMatchTiered(
               resumeAnalyses[i],
               jobAnalyses[j],
+              userTier,
               resumes[i].content,
               jobs[j].description
             );

@@ -13,8 +13,14 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  // Get auth token
-  const token = await authService.getAuthToken();
+  // Get auth token with retry
+  let token = await authService.getAuthToken();
+  
+  // If no token, try one more time with force refresh
+  if (!token) {
+    console.log('No token found, retrying with force refresh...');
+    token = await authService.getAuthToken(true);
+  }
   
   // Prepare headers
   const headers: Record<string, string> = {
@@ -22,12 +28,19 @@ export async function apiRequest(
     ...(token ? { "Authorization": `Bearer ${token}` } : {}),
   };
 
+  console.log('Making API request to:', url, 'with auth token:', token ? 'YES' : 'NO');
+
   const res = await fetch(url, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
+
+  // If 401 and we have no token, throw a more specific error
+  if (res.status === 401 && !token) {
+    throw new Error('Authentication required. Please log in again.');
+  }
 
   await throwIfResNotOk(res);
   return res;
@@ -39,13 +52,21 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    // Get auth token
-    const token = await authService.getAuthToken();
+    // Get auth token with retry
+    let token = await authService.getAuthToken();
+    
+    // If no token, try one more time with force refresh
+    if (!token) {
+      console.log('Query: No token found, retrying with force refresh...');
+      token = await authService.getAuthToken(true);
+    }
     
     // Prepare headers
     const headers: Record<string, string> = {
       ...(token ? { "Authorization": `Bearer ${token}` } : {}),
     };
+
+    console.log('Making query request to:', queryKey[0], 'with auth token:', token ? 'YES' : 'NO');
 
     const res = await fetch(queryKey[0] as string, {
       headers,
@@ -53,6 +74,7 @@ export const getQueryFn: <T>(options: {
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+      console.log('Query returned 401, returning null');
       return null;
     }
 

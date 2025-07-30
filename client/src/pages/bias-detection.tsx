@@ -53,22 +53,32 @@ export default function BiasDetectionPage() {
   const [isBiasAnalyzing, setIsBiasAnalyzing] = useState(false);
   const [biasAnalysis, setBiasAnalysis] = useState<BiasAnalysisUI | null>(null);
 
-  // Get job description with enhanced caching strategy
+  // Get job description with proper caching strategy
   const { data: jobData, isLoading } = useQuery<JobData>({
     queryKey: [`/api/job-descriptions/${jobId}`],
     enabled: !!jobId,
-    // More aggressive refetching to ensure we're getting the latest data
-    refetchInterval: 3000,
-    // Consider data stale more quickly to trigger refetches
-    staleTime: 1000,
-    // Always refetch on mount and window focus to catch updates
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    // Add cache-busting timestamp to ensure fresh data
+    // Reasonable refetch settings to prevent infinite loops
+    refetchInterval: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
-      const timestamp = new Date().getTime();
-      const response = await apiRequest("GET", `/api/job-descriptions/${jobId}?_=${timestamp}`);
-      return response.json();
+      try {
+        const response = await apiRequest("GET", `/api/job-descriptions/${jobId}`);
+        return response.json();
+      } catch (error) {
+        // Handle 404 errors gracefully
+        if (error.message.includes('404')) {
+          toast({
+            title: "Job not found",
+            description: "This job description doesn't exist. Let's create a new one.",
+            variant: "destructive",
+          });
+          setTimeout(() => setLocation("/job-description"), 2000);
+          return null;
+        }
+        throw error;
+      }
     }
   });
 
@@ -127,13 +137,13 @@ export default function BiasDetectionPage() {
       console.log(`Analysis exists: ${!!jobData.analysis}, Bias Analysis exists: ${!!jobData.analysis?.biasAnalysis}`);
       
       // If the job is analyzed but we don't have bias analysis yet, start the bias analysis
-      if (jobData.isAnalyzed && !biasAnalysis && !isBiasAnalyzing && !jobData.analysis?.biasAnalysis) {
+      if (jobData.isAnalyzed && !biasAnalysis && !isBiasAnalyzing) {
         console.log("Job analysis complete, automatically starting new bias analysis via API");
         setIsBiasAnalyzing(true);
         biasAnalyzeMutation.mutate();
       }
     }
-  }, [jobId, jobData, biasAnalysis, isBiasAnalyzing, biasAnalyzeMutation]);
+  }, [jobId, jobData, biasAnalysis, isBiasAnalyzing]);
 
   // Handle analyze bias button click
   const handleAnalyzeBias = () => {

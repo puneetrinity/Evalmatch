@@ -18,10 +18,11 @@ const execAsync = promisify(exec);
  * Interface for sections identified in a resume
  */
 interface ResumeSection {
-  type: 'skills' | 'experience' | 'education' | 'contact' | 'summary' | 'other';
+  type: 'skills' | 'experience' | 'education' | 'contact' | 'summary' | 'certifications' | 'projects' | 'other';
   content: string;
   startLine: number;
   endLine: number;
+  priority: number; // Higher = more important for analysis
 }
 
 /**
@@ -30,6 +31,254 @@ interface ResumeSection {
 interface ParsedResume {
   text: string;
   sections: ResumeSection[];
+}
+
+/**
+ * Section patterns for resume parsing
+ */
+const SECTION_PATTERNS = [
+  {
+    type: 'contact' as const,
+    patterns: [
+      /^(contact|contact\s+information|personal\s+information|personal\s+details)/i,
+      /^(email|phone|address|location|linkedin)/i
+    ],
+    priority: 8
+  },
+  {
+    type: 'summary' as const,
+    patterns: [
+      /^(summary|professional\s+summary|career\s+summary|profile|objective|career\s+objective)/i,
+      /^(about|about\s+me|professional\s+profile|executive\s+summary)/i
+    ],
+    priority: 9
+  },
+  {
+    type: 'experience' as const,
+    patterns: [
+      /^(experience|work\s+experience|professional\s+experience|employment|employment\s+history)/i,
+      /^(career\s+history|work\s+history|job\s+experience|positions\s+held)/i
+    ],
+    priority: 10
+  },
+  {
+    type: 'skills' as const,
+    patterns: [
+      /^(skills|technical\s+skills|core\s+competencies|competencies|expertise)/i,
+      /^(technologies|tools|programming\s+languages|software|proficiencies)/i
+    ],
+    priority: 9
+  },
+  {
+    type: 'education' as const,
+    patterns: [
+      /^(education|educational\s+background|academic\s+background|qualifications)/i,
+      /^(degrees|academic\s+qualifications|schooling|training)/i
+    ],
+    priority: 8
+  },
+  {
+    type: 'certifications' as const,
+    patterns: [
+      /^(certifications|certificates|professional\s+certifications|licenses)/i,
+      /^(credentials|accreditations|professional\s+development)/i
+    ],
+    priority: 7
+  },
+  {
+    type: 'projects' as const,
+    patterns: [
+      /^(projects|notable\s+projects|key\s+projects|portfolio)/i,
+      /^(achievements|accomplishments|selected\s+projects)/i
+    ],
+    priority: 6
+  }
+];
+
+/**
+ * Extract sections from resume text
+ * @param text Resume text
+ * @returns Array of identified sections
+ */
+function extractResumeSections(text: string): ResumeSection[] {
+  const lines = text.split('\n');
+  const sections: ResumeSection[] = [];
+  let currentSection: ResumeSection | null = null;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    // Skip empty lines
+    if (!line) continue;
+    
+    // Check if this line is a section header
+    let matchedSection = null;
+    for (const sectionDef of SECTION_PATTERNS) {
+      for (const pattern of sectionDef.patterns) {
+        if (pattern.test(line)) {
+          matchedSection = {
+            type: sectionDef.type,
+            priority: sectionDef.priority
+          };
+          break;
+        }
+      }
+      if (matchedSection) break;
+    }
+    
+    if (matchedSection) {
+      // End current section and start new one
+      if (currentSection) {
+        currentSection.endLine = i - 1;
+        sections.push(currentSection);
+      }
+      
+      currentSection = {
+        type: matchedSection.type,
+        content: '',
+        startLine: i,
+        endLine: i,
+        priority: matchedSection.priority
+      };
+    } else if (currentSection) {
+      // Add line to current section
+      currentSection.content += line + '\n';
+      currentSection.endLine = i;
+    } else {
+      // No section identified yet, treat as summary/other
+      if (!sections.find(s => s.type === 'summary')) {
+        currentSection = {
+          type: 'summary',
+          content: line + '\n',
+          startLine: i,
+          endLine: i,
+          priority: 5
+        };
+      }
+    }
+  }
+  
+  // Close final section
+  if (currentSection) {
+    sections.push(currentSection);
+  }
+  
+  // Clean up section content
+  sections.forEach(section => {
+    section.content = section.content.trim();
+  });
+  
+  // Sort by priority (highest first)
+  return sections.sort((a, b) => b.priority - a.priority);
+}
+
+/**
+ * Create hierarchical summary from sections
+ * @param sections Resume sections
+ * @returns Condensed summary
+ */
+function createHierarchicalSummary(sections: ResumeSection[]): string {
+  let summary = '';
+  
+  // Process sections by priority
+  for (const section of sections) {
+    if (!section.content) continue;
+    
+    const sectionSummary = section.content.length > 500 
+      ? section.content.substring(0, 500) + '...'
+      : section.content;
+    
+    summary += `=== ${section.type.toUpperCase()} ===\n${sectionSummary}\n\n`;
+  }
+  
+  return summary.trim();
+}
+
+/**
+ * Maximum allowed text length (50K chars ~ 12.5K tokens)
+ */
+const MAX_TEXT_LENGTH = 50000;
+
+/**
+ * Minimum ASCII ratio for valid text
+ */
+const MIN_ASCII_RATIO = 0.8;
+
+/**
+ * Validate extracted text quality
+ * @param text Extracted text to validate
+ * @returns Validation result with details
+ */
+function validateExtractedText(text: string): { isValid: boolean; reason?: string } {
+  if (!text || text.trim().length === 0) {
+    return { isValid: false, reason: 'No text extracted' };
+  }
+
+  // Check minimum length
+  if (text.length < 100) {
+    return { isValid: false, reason: 'Extracted text too short (less than 100 characters)' };
+  }
+
+  // Check ASCII ratio
+  const asciiChars = text.split('').filter(c => {
+    const code = c.charCodeAt(0);
+    return (code >= 32 && code <= 126) || code === 9 || code === 10 || code === 13; // Printable ASCII + tabs/newlines
+  }).length;
+  
+  const asciiRatio = asciiChars / text.length;
+  if (asciiRatio < MIN_ASCII_RATIO) {
+    return { 
+      isValid: false, 
+      reason: `Low ASCII content ratio (${(asciiRatio * 100).toFixed(1)}%). File may be corrupted or contain non-text data.` 
+    };
+  }
+
+  // Check for binary garbage patterns
+  const binaryPatterns = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g;
+  const binaryMatches = (text.match(binaryPatterns) || []).length;
+  if (binaryMatches > text.length * 0.05) {
+    return { isValid: false, reason: 'Text contains too many binary/control characters' };
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Truncate text to maximum allowed length at a word boundary
+ * @param text Text to truncate
+ * @param maxLength Maximum length (default: 50000)
+ * @returns Truncated text
+ */
+function truncateText(text: string, maxLength: number = MAX_TEXT_LENGTH): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  // Try to truncate at a sentence or paragraph boundary
+  let truncated = text.substring(0, maxLength);
+  
+  // Look for last sentence ending
+  const sentenceEndings = ['. ', '.\n', '! ', '!\n', '? ', '?\n'];
+  let lastSentenceEnd = -1;
+  
+  for (const ending of sentenceEndings) {
+    const pos = truncated.lastIndexOf(ending);
+    if (pos > lastSentenceEnd && pos > maxLength * 0.8) {
+      lastSentenceEnd = pos + ending.length;
+    }
+  }
+  
+  if (lastSentenceEnd > 0) {
+    return truncated.substring(0, lastSentenceEnd).trim() + '\n\n[Resume truncated for processing]';
+  }
+  
+  // Fall back to word boundary
+  const lastSpace = truncated.lastIndexOf(' ');
+  if (lastSpace > maxLength * 0.9) {
+    return truncated.substring(0, lastSpace).trim() + '\n\n[Resume truncated for processing]';
+  }
+  
+  return truncated.trim() + '\n\n[Resume truncated for processing]';
 }
 
 /**
@@ -279,28 +528,10 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
         }
       }
       
-      // If both methods failed or returned little text, try basic buffer extraction
+      // If both methods failed or returned little text, DO NOT try buffer extraction
+      // Buffer.toString() on binary PDF data produces garbage text
       if (!extractionSuccess) {
-        console.log('[ResumeParser] Fallback: basic buffer extraction');
-        const bufferText = buffer.toString()
-          .replace(/[^\x20-\x7E\n\r\t]/g, '') // Keep only printable ASCII characters
-          .trim();
-          
-        const sampleText = bufferText.substring(0, 100).replace(/\n/g, ' ') + '...';
-        extractionResults.push({
-          method: 'buffer',
-          textLength: bufferText.length,
-          sampleText,
-          success: bufferText.length > 50
-        });
-        
-        console.log(`[ResumeParser] Fallback: buffer (text length: ${bufferText.length})`);
-        
-        // Only use buffer text if it's better than what we have
-        if (bufferText.length > extractedText.length && bufferText.length > 50) {
-          extractedText = bufferText;
-          extractionSuccess = true;
-        }
+        console.log('[ResumeParser] All text extraction methods failed, PDF may be image-based or corrupted');
       }
       
       // If all text-based methods failed, try OCR as last resort
@@ -351,6 +582,19 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
       // Post-process the extracted text to improve quality
       extractedText = postProcessResumeText(extractedText);
       
+      // Validate the extracted text
+      const validation = validateExtractedText(extractedText);
+      if (!validation.isValid) {
+        console.error(`[ResumeParser][Error] Text validation failed: ${validation.reason}`);
+        return `Text extraction failed: ${validation.reason}. Please ensure your resume is a standard text-based PDF or Word document.`;
+      }
+      
+      // Truncate if necessary
+      if (extractedText.length > MAX_TEXT_LENGTH) {
+        console.warn(`[ResumeParser][Warning] Text truncated from ${extractedText.length} to ${MAX_TEXT_LENGTH} characters`);
+        extractedText = truncateText(extractedText);
+      }
+      
       return extractedText;
     } finally {
       // Clean up temporary files
@@ -377,7 +621,24 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
 export async function extractTextFromDocx(buffer: Buffer): Promise<string> {
   try {
     const result = await mammoth.extractRawText({ buffer });
-    return result.value;
+    let extractedText = result.value;
+    
+    // Post-process the extracted text
+    extractedText = postProcessResumeText(extractedText);
+    
+    // Validate the extracted text
+    const validation = validateExtractedText(extractedText);
+    if (!validation.isValid) {
+      throw new Error(`Text extraction failed: ${validation.reason}. Please ensure your document contains readable text.`);
+    }
+    
+    // Truncate if necessary
+    if (extractedText.length > MAX_TEXT_LENGTH) {
+      console.warn(`[DocxParser][Warning] Text truncated from ${extractedText.length} to ${MAX_TEXT_LENGTH} characters`);
+      extractedText = truncateText(extractedText);
+    }
+    
+    return extractedText;
   } catch (error) {
     console.error('Error extracting text from DOCX:', error);
     throw new Error('Failed to extract text from DOCX');
@@ -416,3 +677,36 @@ export async function parseDocument(buffer: Buffer, mimeType: string): Promise<s
       throw new Error(`Unsupported file type: ${mimeType}`);
   }
 }
+
+/**
+ * Parse a document file and extract structured sections
+ * @param buffer Document file (Buffer)
+ * @param mimeType File MIME type
+ * @returns Parsed resume with sections
+ */
+export async function parseDocumentWithSections(buffer: Buffer, mimeType: string): Promise<ParsedResume> {
+  const text = await parseDocument(buffer, mimeType);
+  const sections = extractResumeSections(text);
+  
+  return {
+    text,
+    sections
+  };
+}
+
+/**
+ * Create optimized summary for LLM processing
+ * @param parsedResume Parsed resume with sections
+ * @returns Hierarchical summary optimized for token usage
+ */
+export function createOptimizedSummary(parsedResume: ParsedResume): string {
+  if (parsedResume.sections.length === 0) {
+    // No sections detected, use truncated original text
+    return truncateText(parsedResume.text, 8000); // Smaller limit for summaries
+  }
+  
+  return createHierarchicalSummary(parsedResume.sections);
+}
+
+// Export the section extraction functions for direct use
+export { extractResumeSections, createHierarchicalSummary };

@@ -16,7 +16,7 @@ export interface UserTierInfo {
 
 export const TIER_LIMITS = {
   freemium: {
-    dailyAnalysisLimit: 50, // Increased for beta testing (was 10)
+    dailyAnalysisLimit: 300, // Increased for testing (was 50)
     allowedProviders: ['groq'],
     features: {
       basicAnalysis: true,
