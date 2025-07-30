@@ -10,7 +10,7 @@ import path from 'path';
 import { Pool } from '@neondatabase/serverless';
 
 // Try to load deployment configuration
-let deployConfig: any = {
+let deployConfig: Record<string, unknown> = {
   database: {
     useSimplifiedConnection: true,
     maxConnections: 5,

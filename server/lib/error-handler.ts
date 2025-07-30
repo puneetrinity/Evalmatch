@@ -63,7 +63,7 @@ export function handleApiError(res: Response, error: any, options: ApiErrorOptio
   }
   
   // Default error response
-  const response: any = {
+  const response: Record<string, unknown> = {
     message,
     errorCode
   };
@@ -72,10 +72,10 @@ export function handleApiError(res: Response, error: any, options: ApiErrorOptio
   if (addDetails && error && process.env.NODE_ENV !== 'production') {
     response.details = typeof error === 'object' ? Object.getOwnPropertyNames(error).reduce((acc, key) => {
       if (key !== 'stack') { // Exclude stack trace
-        acc[key] = (error as any)[key];
+        acc[key] = (error as Record<string, unknown>)[key];
       }
       return acc;
-    }, {} as Record<string, any>) : String(error);
+    }, {} as Record<string, unknown>) : String(error);
   }
   
   // Log server errors

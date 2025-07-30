@@ -165,7 +165,7 @@ Job Description: ${jobDescription}`;
 }
 
 // Validation function for score consistency
-export function validateScoreConsistency(scores: any[]): {
+export function validateScoreConsistency(scores: number[]): {
   isConsistent: boolean;
   variance: number;
   recommendation: string;
@@ -197,7 +197,7 @@ export function validateScoreConsistency(scores: any[]): {
 
 // Enhanced caching with deterministic keys
 export class DeterministicCache {
-  private cache: Map<string, { data: any; timestamp: number; seed: string }> = new Map();
+  private cache: Map<string, { data: unknown; timestamp: number; seed: string }> = new Map();
   private readonly TTL = 24 * 60 * 60 * 1000; // 24 hours
   
   generateKey(resumeText: string, jobDescription: string, analysisType: string): string {
@@ -205,7 +205,7 @@ export class DeterministicCache {
     return `${analysisType}_${seed}`;
   }
   
-  get(key: string): any | null {
+  get(key: string): unknown | null {
     const cached = this.cache.get(key);
     if (!cached) return null;
     
@@ -218,7 +218,7 @@ export class DeterministicCache {
     return cached.data;
   }
   
-  set(key: string, data: any, seed: string): void {
+  set(key: string, data: unknown, seed: string): void {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),

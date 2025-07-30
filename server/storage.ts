@@ -4,16 +4,17 @@ import {
   type AnalysisResult, type InsertAnalysisResult,
   type InterviewQuestions, type InsertInterviewQuestions,
   type AnalyzeResumeResponse, type AnalyzeJobDescriptionResponse, 
-  type MatchAnalysisResponse, type InterviewQuestionsResponse
+  type MatchAnalysisResponse, type InterviewQuestionsResponse,
+  type User, type InsertUser
 } from "@shared/schema";
 import { UserTierInfo } from "@shared/user-tiers";
 
 // Extended storage interface with all methods needed for the resume analyzer
 export interface IStorage {
   // User methods (kept for reference but not actively used)
-  getUser(id: number): Promise<any | undefined>;
-  getUserByUsername(username: string): Promise<any | undefined>;
-  createUser(user: any): Promise<any>;
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
   
   // Resume methods
   getResume(id: number): Promise<Resume | undefined>;
@@ -95,7 +96,7 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async createUser(insertUser: any): Promise<any> {
+  async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userCurrentId++;
     const user = { ...insertUser, id };
     this.users.set(id, user);

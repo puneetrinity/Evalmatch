@@ -9,7 +9,7 @@ type CacheItem<T> = {
 };
 
 class AnalysisCache {
-  private cache: Map<string, CacheItem<any>> = new Map();
+  private cache: Map<string, CacheItem<unknown>> = new Map();
   private readonly defaultTTL: number = 15 * 60 * 1000; // 15 minutes
 
   /**

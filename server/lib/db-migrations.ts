@@ -155,7 +155,7 @@ export async function getMigrationStatus(): Promise<{
       ORDER BY applied_at DESC
     `);
     
-    const appliedMigrations = appliedResult.map((row: any) => row.version);
+    const appliedMigrations = appliedResult.map((row: Record<string, unknown>) => row.version as string);
     const pendingMigrations = MIGRATIONS
       .filter(m => !appliedMigrations.includes(m.version))
       .map(m => m.version);

@@ -2,6 +2,24 @@ import { pgTable, serial, text, timestamp, json, integer, boolean, varchar, real
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Analyzed data interfaces
+export interface AnalyzedResumeData {
+  name?: string;
+  skills?: string[];
+  experience?: string;
+  education?: string;
+  summary?: string;
+  keyStrengths?: string[];
+}
+
+export interface AnalyzedJobData {
+  requiredSkills?: string[];
+  preferredSkills?: string[];
+  experienceLevel?: string;
+  responsibilities?: string[];
+  summary?: string;
+}
+
 // Users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -26,7 +44,7 @@ export const resumes = pgTable("resumes", {
   education: text("education"),
   embedding: json("embedding").$type<number[]>(),
   skillsEmbedding: json("skills_embedding").$type<number[]>(),
-  analyzedData: json("analyzed_data").$type<any>(),
+  analyzedData: json("analyzed_data").$type<AnalyzedResumeData>(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -42,7 +60,7 @@ export const jobDescriptions = pgTable("job_descriptions", {
   experience: text("experience"),
   embedding: json("embedding").$type<number[]>(),
   requirementsEmbedding: json("requirements_embedding").$type<number[]>(),
-  analyzedData: json("analyzed_data").$type<any>(),
+  analyzedData: json("analyzed_data").$type<AnalyzedJobData>(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

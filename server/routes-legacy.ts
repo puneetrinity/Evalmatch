@@ -142,7 +142,7 @@ const upload = multer({
 });
 
 // Helper to validate request body with improved error handling
-function validateRequest<T>(schema: z.ZodType<T>, body: any): T {
+function validateRequest<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
   if (!result.success) {
     // Format Zod errors for better client-side understanding

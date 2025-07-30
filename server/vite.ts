@@ -8,7 +8,7 @@ import { nanoid } from "nanoid";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Vite imports are dynamic to avoid runtime errors in production
-let viteLogger: any;
+let viteLogger: { info: (msg: string) => void; error: (msg: string) => void; warn: (msg: string) => void } | undefined;
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {

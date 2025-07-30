@@ -576,7 +576,7 @@ export async function analyzeMatch(
     let processedMatchedSkills = [];
     
     // Import the skill normalizer with dynamic ES import to avoid circular dependencies
-    let normalizeSkills: (skills: any[]) => any[];
+    let normalizeSkills: (skills: SkillMatch[]) => SkillMatch[];
     try {
       // Use ES dynamic import without .js extension
       const skillNormalizerModule = await import('./skill-normalizer');

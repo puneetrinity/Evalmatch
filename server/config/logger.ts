@@ -1,4 +1,5 @@
 import pino from 'pino';
+import { Request, Response } from 'express';
 import { Environment } from '../config';
 
 /**
@@ -77,7 +78,7 @@ export const httpLoggerConfig = {
   logger,
   
   // Auto-generate request IDs for tracing requests through logs
-  genReqId: (req: any) => req.id || req.headers['x-request-id'] || pino.stdSerializers.req(req).id,
+  genReqId: (req: Request) => req.id || req.headers['x-request-id'] || pino.stdSerializers.req(req).id,
   
   // Custom serializers for request/response objects
   serializers: {
@@ -87,7 +88,7 @@ export const httpLoggerConfig = {
   },
   
   // Customize log level based on response status
-  customLogLevel: (req: any, res: any, err: Error) => {
+  customLogLevel: (req: Request, res: Response, err: Error) => {
     if (res.statusCode >= 500 || err) {
       return 'error';
     } else if (res.statusCode >= 400) {
@@ -98,14 +99,14 @@ export const httpLoggerConfig = {
   
   // Skip noisy endpoints in production
   autoLogging: {
-    ignore: (req: any) => {
+    ignore: (req: Request) => {
       return process.env.NODE_ENV === Environment.Production && 
              (req.url === '/api/health' || req.url.includes('/static/'));
     }
   },
   
   // Add custom request properties
-  customProps: (req: any, res: any) => {
+  customProps: (req: Request, res: Response) => {
     return {
       environment: process.env.NODE_ENV,
       responseTime: res.responseTime

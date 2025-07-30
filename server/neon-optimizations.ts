@@ -4,13 +4,13 @@
  * This module provides specialized connection and query optimizations
  * for Neon PostgreSQL, improving performance and reliability.
  */
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import { dbConfig } from './config/db-config';
 
 /**
  * Apply Neon-specific optimizations to a connection
  */
-export async function applyNeonOptimizations(client: any) {
+export async function applyNeonOptimizations(client: PoolClient) {
   try {
     // Set statement timeout to prevent long-running queries
     await client.query(`SET statement_timeout = ${dbConfig.query.statementTimeout}`);
@@ -41,7 +41,7 @@ export async function applyNeonOptimizations(client: any) {
 /**
  * Configure a standard PostgreSQL pool with Neon-optimized settings
  */
-export function createNeonCompatiblePool(options: any): Pool {
+export function createNeonCompatiblePool(options: Record<string, unknown>): Pool {
   const pool = new Pool({
     ...options,
     // Default client_encoding ensures proper character handling

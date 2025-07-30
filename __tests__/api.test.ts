@@ -63,19 +63,19 @@ class MockStorage implements IStorage {
 
   private interviewQuestions: any[] = [];
 
-  async getUser(id: number): Promise<any> {
+  async getUser(id: number): Promise<User | undefined> {
     return undefined;
   }
   
-  async getUserByUsername(username: string): Promise<any> {
+  async getUserByUsername(username: string): Promise<User | undefined> {
     return undefined;
   }
   
-  async createUser(user: any): Promise<any> {
+  async createUser(user: InsertUser): Promise<User> {
     return { id: 1, ...user };
   }
   
-  async getResume(id: number): Promise<any> {
+  async getResume(id: number): Promise<Resume | undefined> {
     return this.resumes.find(r => r.id === id);
   }
   
@@ -86,7 +86,7 @@ class MockStorage implements IStorage {
     return this.resumes;
   }
   
-  async createResume(resume: any): Promise<any> {
+  async createResume(resume: InsertResume): Promise<Resume> {
     const newResume = {
       id: this.resumes.length + 1,
       created: new Date(),
@@ -96,7 +96,7 @@ class MockStorage implements IStorage {
     return newResume;
   }
   
-  async updateResumeAnalysis(id: number, analysis: any): Promise<any> {
+  async updateResumeAnalysis(id: number, analysis: AnalyzeResumeResponse): Promise<Resume> {
     const resume = await this.getResume(id);
     if (!resume) return undefined;
     
@@ -104,7 +104,7 @@ class MockStorage implements IStorage {
     return resume;
   }
   
-  async getJobDescription(id: number): Promise<any> {
+  async getJobDescription(id: number): Promise<JobDescription | undefined> {
     return this.jobDescriptions.find(jd => jd.id === id);
   }
   

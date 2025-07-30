@@ -65,7 +65,7 @@ class Logger {
     }
   }
 
-  error(message: string, error?: any): void {
+  error(message: string, error?: Error | unknown): void {
     if (this.logLevel <= LogLevel.ERROR) {
       console.error(this.formatMessage('ERROR', message));
       if (error) {

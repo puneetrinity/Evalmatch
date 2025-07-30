@@ -102,7 +102,7 @@ if (process.env.NODE_ENV === "development") {
   app.use((req, res, next) => {
     const start = Date.now();
     const path = req.path;
-    let capturedJsonResponse: Record<string, any> | undefined = undefined;
+    let capturedJsonResponse: Record<string, unknown> | undefined = undefined;
 
     const originalResJson = res.json;
     res.json = function (bodyJson, ...args) {
@@ -167,7 +167,7 @@ if (process.env.NODE_ENV === "development") {
 
   // Error handling - now handled by monitoring middleware
   // But keep this as a safety net for errors that might slip through
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: Error | unknown, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 

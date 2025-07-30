@@ -35,7 +35,7 @@ registerRoutes(app).then(() => {
 });
 
 // Global error handler - production safe
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err: Error | unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Server error:', err.message);
   res.status(500).json({ message: 'Internal server error' });
 });

@@ -87,7 +87,7 @@ export function requestTracking(req: Request, res: Response, next: NextFunction)
  * - Logs errors with appropriate context
  * - Standardizes error responses
  */
-export function errorHandling(err: any, req: Request, res: Response, next: NextFunction) {
+export function errorHandling(err: Error | unknown, req: Request, res: Response, next: NextFunction) {
   // Extract most important error details
   const error = {
     message: err.message || 'Internal Server Error',

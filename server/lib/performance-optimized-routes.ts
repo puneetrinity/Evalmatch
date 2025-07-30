@@ -68,7 +68,7 @@ export async function handleBatchAnalyze(
             return {
               resumeId: resume.id,
               filename: resume.filename,
-              candidateName: (resume.analyzedData as any)?.name || "Unknown",
+              candidateName: (resume.analyzedData as AnalyzedResumeData)?.name || "Unknown",
               match: existingAnalysis.analysis,
               analysisId: existingAnalysis.id,
             };
@@ -76,8 +76,8 @@ export async function handleBatchAnalyze(
           
           // Compare the resume with the job description
           const matchAnalysis = await analyzeMatch(
-            resume.analyzedData as any,
-            jobDesc.analyzedData as any,
+            resume.analyzedData as AnalyzedResumeData | null,
+            jobDesc.analyzedData as AnalyzedJobData | null,
             resume.content // Pass the resume text for fairness analysis
           );
 
@@ -94,7 +94,7 @@ export async function handleBatchAnalyze(
           return {
             resumeId: resume.id,
             filename: resume.filename,
-            candidateName: (resume.analyzedData as any)?.name || "Unknown",
+            candidateName: (resume.analyzedData as AnalyzedResumeData)?.name || "Unknown",
             match: matchAnalysis,
             analysisId: analysisResult.id,
           };
@@ -193,8 +193,8 @@ export async function handleSpecificAnalyze(
       
       // Compare the resume with the job description
       const matchAnalysis = await analyzeMatch(
-        resume.analyzedData as any,
-        jobDescription.analyzedData as any,
+        resume.analyzedData as AnalyzedResumeData | null,
+        jobDescription.analyzedData as AnalyzedJobData | null,
         resume.content // Pass the resume text for fairness analysis
       );
 

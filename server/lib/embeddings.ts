@@ -20,7 +20,7 @@ async function initializeEmbeddingPipeline(): Promise<Pipeline> {
         'feature-extraction',
         modelName,
         { 
-          progress_callback: (progress: any) => {
+          progress_callback: (progress: { status: string; progress: number }) => {
             if (progress.status === 'downloading') {
               logger.info(`Downloading embedding model (${modelName}): ${Math.round(progress.progress)}%`);
             }

@@ -358,7 +358,7 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
       textLength: number;
       sampleText: string;
       success: boolean;
-      error?: any;
+      error?: Error | string;
     }[] = [];
     
     try {

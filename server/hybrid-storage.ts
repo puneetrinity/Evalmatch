@@ -14,6 +14,14 @@
 import { IStorage, MemStorage } from './storage';
 import { config } from './config';
 import { pool, getConnectionStats } from './db';
+import {
+  type Resume, type InsertResume,
+  type JobDescription, type InsertJobDescription,
+  type AnalysisResult, type InsertAnalysisResult,
+  type InterviewQuestions, type InsertInterviewQuestions,
+  type AnalyzeResumeResponse, type AnalyzeJobDescriptionResponse,
+  type User, type InsertUser
+} from "@shared/schema";
 
 // Keep track of database health
 const dbHealth = {
@@ -182,7 +190,7 @@ export class HybridStorage implements IStorage {
   
   // Storage interface implementation with fallback mechanisms
   // User methods
-  async getUser(id: number): Promise<any | undefined> {
+  async getUser(id: number): Promise<User | undefined> {
     return this.executeWithFallback(
       'getUser',
       () => this.dbStorage.getUser(id),
@@ -190,7 +198,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async getUserByUsername(username: string): Promise<any | undefined> {
+  async getUserByUsername(username: string): Promise<User | undefined> {
     return this.executeWithFallback(
       'getUserByUsername',
       () => this.dbStorage.getUserByUsername(username),
@@ -198,7 +206,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async createUser(user: any): Promise<any> {
+  async createUser(user: InsertUser): Promise<User> {
     return this.executeWithFallback(
       'createUser',
       () => this.dbStorage.createUser(user),
@@ -208,7 +216,7 @@ export class HybridStorage implements IStorage {
   }
   
   // Resume methods
-  async getResume(id: number): Promise<any | undefined> {
+  async getResume(id: number): Promise<Resume | undefined> {
     return this.executeWithFallback(
       'getResume',
       () => this.dbStorage.getResume(id),
@@ -216,7 +224,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async getResumes(sessionId?: string): Promise<any[]> {
+  async getResumes(sessionId?: string): Promise<Resume[]> {
     return this.executeWithFallback(
       `getResumes(${sessionId})`,
       () => this.dbStorage.getResumes(sessionId),
@@ -224,7 +232,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async getResumesByUserId(userId: string, sessionId?: string): Promise<any[]> {
+  async getResumesByUserId(userId: string, sessionId?: string): Promise<Resume[]> {
     return this.executeWithFallback(
       `getResumesByUserId(${userId}, ${sessionId})`,
       () => this.dbStorage.getResumesByUserId(userId, sessionId),
@@ -232,7 +240,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async createResume(resume: any): Promise<any> {
+  async createResume(resume: InsertResume): Promise<Resume> {
     return this.executeWithFallback(
       `createResume(${resume.name})`,
       () => this.dbStorage.createResume(resume),
@@ -241,7 +249,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async updateResumeAnalysis(id: number, analysis: any): Promise<any> {
+  async updateResumeAnalysis(id: number, analysis: AnalyzeResumeResponse): Promise<Resume> {
     return this.executeWithFallback(
       `updateResumeAnalysis(${id})`,
       () => this.dbStorage.updateResumeAnalysis(id, analysis),
@@ -251,7 +259,7 @@ export class HybridStorage implements IStorage {
   }
   
   // Job description methods
-  async getJobDescription(id: number): Promise<any | undefined> {
+  async getJobDescription(id: number): Promise<JobDescription | undefined> {
     return this.executeWithFallback(
       'getJobDescription',
       () => this.dbStorage.getJobDescription(id),
@@ -259,7 +267,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async getJobDescriptions(): Promise<any[]> {
+  async getJobDescriptions(): Promise<JobDescription[]> {
     return this.executeWithFallback(
       'getJobDescriptions',
       () => this.dbStorage.getJobDescriptions(),
@@ -267,7 +275,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async getJobDescriptionsByUserId(userId: string): Promise<any[]> {
+  async getJobDescriptionsByUserId(userId: string): Promise<JobDescription[]> {
     return this.executeWithFallback(
       `getJobDescriptionsByUserId(${userId})`,
       () => this.dbStorage.getJobDescriptionsByUserId(userId),
@@ -275,7 +283,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async createJobDescription(jobDescription: any): Promise<any> {
+  async createJobDescription(jobDescription: InsertJobDescription): Promise<JobDescription> {
     return this.executeWithFallback(
       `createJobDescription(${jobDescription.title})`,
       () => this.dbStorage.createJobDescription(jobDescription),
@@ -284,7 +292,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async updateJobDescriptionAnalysis(id: number, analysis: any): Promise<any> {
+  async updateJobDescriptionAnalysis(id: number, analysis: AnalyzeJobDescriptionResponse): Promise<JobDescription> {
     return this.executeWithFallback(
       `updateJobDescriptionAnalysis(${id})`,
       () => this.dbStorage.updateJobDescriptionAnalysis(id, analysis),
@@ -294,7 +302,7 @@ export class HybridStorage implements IStorage {
   }
   
   // Analysis results methods
-  async getAnalysisResult(id: number): Promise<any | undefined> {
+  async getAnalysisResult(id: number): Promise<AnalysisResult | undefined> {
     return this.executeWithFallback(
       'getAnalysisResult',
       () => this.dbStorage.getAnalysisResult(id),
@@ -302,7 +310,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async getAnalysisResultsByResumeId(resumeId: number): Promise<any[]> {
+  async getAnalysisResultsByResumeId(resumeId: number): Promise<AnalysisResult[]> {
     return this.executeWithFallback(
       `getAnalysisResultsByResumeId(${resumeId})`,
       () => this.dbStorage.getAnalysisResultsByResumeId(resumeId),
@@ -310,7 +318,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async getAnalysisResultsByJobDescriptionId(jobDescriptionId: number): Promise<any[]> {
+  async getAnalysisResultsByJobDescriptionId(jobDescriptionId: number): Promise<AnalysisResult[]> {
     return this.executeWithFallback(
       `getAnalysisResultsByJobDescriptionId(${jobDescriptionId})`,
       () => this.dbStorage.getAnalysisResultsByJobDescriptionId(jobDescriptionId),
@@ -318,7 +326,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async createAnalysisResult(analysisResult: any): Promise<any> {
+  async createAnalysisResult(analysisResult: InsertAnalysisResult): Promise<AnalysisResult> {
     console.log('🔍 HybridStorage.createAnalysisResult called with:', {
       userId: analysisResult.userId,
       resumeId: analysisResult.resumeId,
@@ -333,7 +341,7 @@ export class HybridStorage implements IStorage {
   }
   
   // Interview questions methods
-  async getInterviewQuestions(id: number): Promise<any | undefined> {
+  async getInterviewQuestions(id: number): Promise<InterviewQuestions | undefined> {
     return this.executeWithFallback(
       'getInterviewQuestions',
       () => this.dbStorage.getInterviewQuestions(id),
@@ -365,7 +373,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async createInterviewQuestions(interviewQuestions: any): Promise<any> {
+  async createInterviewQuestions(interviewQuestions: InsertInterviewQuestions): Promise<InterviewQuestions> {
     return this.executeWithFallback(
       'createInterviewQuestions',
       () => this.dbStorage.createInterviewQuestions(interviewQuestions),
@@ -375,7 +383,7 @@ export class HybridStorage implements IStorage {
   }
   
   // Combination methods
-  async getResumeWithLatestAnalysisAndQuestions(resumeId: number, jobDescriptionId: number): Promise<any> {
+  async getResumeWithLatestAnalysisAndQuestions(resumeId: number, jobDescriptionId: number): Promise<{ resume: Resume; analysis: AnalysisResult | undefined; interviewQuestions: InterviewQuestions | undefined; }> {
     return this.executeWithFallback(
       `getResumeWithLatestAnalysisAndQuestions(${resumeId}, ${jobDescriptionId})`,
       () => this.dbStorage.getResumeWithLatestAnalysisAndQuestions(resumeId, jobDescriptionId),

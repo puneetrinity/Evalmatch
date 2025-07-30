@@ -1,6 +1,6 @@
 import { eq, like, or, sql } from "drizzle-orm";
 import { db } from "../db";
-import { skillCategories, skillsTable } from "@shared/schema";
+import { skillCategories, skillsTable, type Skill } from "@shared/schema";
 import { generateEmbedding, cosineSimilarity } from "./embeddings";
 import { logger } from "./logger";
 import stringSimilarity from "string-similarity";
@@ -307,7 +307,7 @@ export async function normalizeSkillWithHierarchy(skill: string): Promise<{
 /**
  * Get skills by category
  */
-export async function getSkillsByCategory(categoryName: string): Promise<any[]> {
+export async function getSkillsByCategory(categoryName: string): Promise<Skill[]> {
   try {
     const category = await db.select()
       .from(skillCategories)
