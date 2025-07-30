@@ -2334,7 +2334,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'candidate_strengths JSONB',
         'candidate_weaknesses JSONB', 
         'confidence_level TEXT',
-        'fairness_metrics JSONB'
+        'fairness_metrics JSONB',
+        'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+        'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
       ];
 
       for (const column of missingColumns) {
@@ -2357,7 +2359,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "Changed user_id columns from INTEGER to TEXT for Firebase compatibility",
           "Added missing user_id column to analysis_results table",
           "Changed match_percentage from INTEGER to REAL for decimal support",
-          "Added missing columns to analysis_results: candidate_strengths, candidate_weaknesses, confidence_level, fairness_metrics"
+          "Added missing columns to analysis_results: candidate_strengths, candidate_weaknesses, confidence_level, fairness_metrics, created_at, updated_at"
         ]
       });
       
