@@ -43,7 +43,11 @@ async function isMigrationApplied(version: string): Promise<boolean> {
  * Execute a single migration file
  */
 async function executeMigration(migration: Migration): Promise<void> {
-  const migrationPath = path.join(process.cwd(), 'server', 'migrations', migration.filename);
+  // In production Docker, migrations are copied to dist/migrations/
+  // In development, they're in server/migrations/
+  const migrationPath = process.env.NODE_ENV === 'production' 
+    ? path.join(process.cwd(), 'dist', 'migrations', migration.filename)
+    : path.join(process.cwd(), 'server', 'migrations', migration.filename);
   
   if (!fs.existsSync(migrationPath)) {
     throw new Error(`Migration file not found: ${migrationPath}`);

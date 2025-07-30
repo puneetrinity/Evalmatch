@@ -1,4 +1,4 @@
-FROM node:20-slim
+FROM node:20.16.0-slim
 
 # Install system dependencies for PDF processing and AI models
 RUN apt-get update && apt-get install -y \
@@ -49,6 +49,9 @@ RUN npm run build
 
 # Clean up some dev dependencies but keep Vite for potential dynamic imports
 RUN npm prune --omit=dev --ignore-scripts && npm install vite
+
+# Copy SQL migration files (not bundled by esbuild)
+COPY server/migrations/ /app/dist/migrations/
 
 # Set runtime environment variables
 ENV NODE_ENV=production
