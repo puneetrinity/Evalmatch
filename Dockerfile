@@ -13,12 +13,14 @@ WORKDIR /app
 # Copy package files first for better Docker layer caching
 COPY package*.json ./
 
-# Install dependencies (all deps needed for build)
+# Update npm to latest version and install dependencies
 # Fix SSL/TLS cipher issues with environment variables
 ENV NPM_CONFIG_STRICT_SSL=false
 ENV NPM_CONFIG_FUND=false
 ENV NPM_CONFIG_AUDIT=false
-RUN npm ci && \
+ENV NPM_CONFIG_MAXSOCKETS=1
+RUN npm install -g npm@latest && \
+    npm ci --no-audit --no-fund && \
     npm cache clean --force
 
 # Create necessary directories with proper permissions
@@ -52,6 +54,7 @@ RUN npm prune --omit=dev --ignore-scripts && npm install vite
 
 # Copy SQL migration files (not bundled by esbuild)
 COPY server/migrations/ /app/dist/migrations/
+RUN ls -la /app/dist/migrations/ && echo "Migration files copied successfully"
 
 # Set runtime environment variables
 ENV NODE_ENV=production
