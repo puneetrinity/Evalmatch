@@ -3,6 +3,11 @@ import { sql } from "drizzle-orm";
 import { logger } from "./logger";
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// ES modules equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Consolidated Database Migration System
