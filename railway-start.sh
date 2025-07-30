@@ -3,6 +3,11 @@
 # Railway startup script - runs both nginx and Express like localhost
 echo "🚄 Starting Railway deployment with nginx + Express..."
 
+# Verify Node.js version
+echo "Node.js version check:"
+node --version
+npm --version
+
 # Environment setup
 export NODE_ENV=production
 export PORT=8080

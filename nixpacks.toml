@@ -1,11 +1,17 @@
 [phases.setup]
-aptPkgs = ["..."]
+aptPkgs = ["curl"]
 nixPkgs = ["nodejs-20_x", "npm-10_x"]
+
+[phases.install]
+cmds = [
+    "npm ci"
+]
 
 [phases.build]
 cmds = [
-    "npm ci",
-    "npm run build"
+    "npm run build",
+    "mkdir -p dist/migrations",
+    "cp -r server/migrations/* dist/migrations/"
 ]
 
 [phases.start]
@@ -13,3 +19,4 @@ cmd = "npm start"
 
 [variables]
 NODE_ENV = "production"
+NODE_VERSION = "20.16.0"
