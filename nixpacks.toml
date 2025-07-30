@@ -11,7 +11,8 @@ cmds = [
 cmds = [
     "npm run build",
     "mkdir -p dist/migrations",
-    "cp -r server/migrations/* dist/migrations/"
+    "cp -v server/migrations/*.sql dist/migrations/",
+    "ls -la dist/migrations/"
 ]
 
 [phases.start]

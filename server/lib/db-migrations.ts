@@ -45,12 +45,40 @@ async function isMigrationApplied(version: string): Promise<boolean> {
 async function executeMigration(migration: Migration): Promise<void> {
   // In production Docker, migrations are copied to dist/migrations/
   // In development, they're in server/migrations/
-  const migrationPath = process.env.NODE_ENV === 'production' 
-    ? path.join(process.cwd(), 'dist', 'migrations', migration.filename)
-    : path.join(process.cwd(), 'server', 'migrations', migration.filename);
-  
-  if (!fs.existsSync(migrationPath)) {
-    throw new Error(`Migration file not found: ${migrationPath}`);
+  // Try multiple possible paths for migration files
+  const possiblePaths = [
+    // Nixpacks copied path
+    path.join(process.cwd(), 'dist', 'migrations', migration.filename),
+    // Original development path
+    path.join(process.cwd(), 'server', 'migrations', migration.filename),
+    // Alternative locations
+    path.join(process.cwd(), 'migrations', migration.filename),
+    path.join(__dirname, '..', 'migrations', migration.filename),
+  ];
+
+  let migrationPath: string | null = null;
+  for (const testPath of possiblePaths) {
+    if (fs.existsSync(testPath)) {
+      migrationPath = testPath;
+      break;
+    }
+  }
+
+  if (!migrationPath) {
+    // Debug: List what files actually exist
+    const debugInfo = {
+      cwd: process.cwd(),
+      __dirname,
+      possiblePaths,
+      distContents: fs.existsSync(path.join(process.cwd(), 'dist')) 
+        ? fs.readdirSync(path.join(process.cwd(), 'dist'))
+        : 'dist directory not found',
+      serverContents: fs.existsSync(path.join(process.cwd(), 'server'))
+        ? fs.readdirSync(path.join(process.cwd(), 'server'))
+        : 'server directory not found'
+    };
+    
+    throw new Error(`Migration file not found. Searched paths: ${possiblePaths.join(', ')}. Debug info: ${JSON.stringify(debugInfo, null, 2)}`);
   }
   
   logger.info(`Executing migration: ${migration.version} - ${migration.description}`);
