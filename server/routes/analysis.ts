@@ -1,0 +1,507 @@
+/**
+ * Analysis and Matching Routes
+ * Handles resume-job matching, interview generation, and bias detection
+ */
+
+import { Router, Request, Response } from 'express';
+import { authenticateUser } from '../middleware/auth';
+import { logger } from '../lib/logger';
+import { storage } from '../storage';
+
+const router = Router();
+
+// Analyze resumes against a job description
+router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Response) => {
+  try {
+    const jobId = parseInt(req.params.jobId);
+    const userId = req.user!.uid;
+    const sessionId = req.body.sessionId;
+
+    if (isNaN(jobId)) {
+      return res.status(400).json({
+        error: "Invalid job ID",
+        message: "Job ID must be a number"
+      });
+    }
+
+    logger.info(`Starting analysis for job ${jobId}, user ${userId}${sessionId ? `, session ${sessionId}` : ''}`);
+
+    // Get job description
+    const jobDescription = await storage.getJobDescriptionById(jobId, userId);
+    if (!jobDescription) {
+      return res.status(404).json({
+        error: "Job description not found",
+        message: "Job description not found or you don't have permission to access it"
+      });
+    }
+
+    // Get user's resumes
+    const resumes = await storage.getResumesByUserId(userId, sessionId);
+    if (!resumes || resumes.length === 0) {
+      return res.status(404).json({
+        error: "No resumes found",
+        message: "Please upload at least one resume before running analysis"
+      });
+    }
+
+    logger.info(`Found ${resumes.length} resumes to analyze against job ${jobId}`);
+
+    // Get user tier info
+    const { getUserTierInfo } = await import('../lib/user-tiers');
+    const userTierInfo = getUserTierInfo(userId);
+
+    // Analyze each resume against the job
+    const { analyzeMatch } = await import('../lib/tiered-ai-provider');
+    const results = [];
+
+    for (const resume of resumes) {
+      try {
+        logger.info(`Analyzing resume ${resume.id} (${resume.filename}) against job ${jobId}`);
+
+        // Get or create resume analysis
+        let resumeAnalysis = resume.analyzedData;
+        if (!resumeAnalysis && resume.content) {
+          const { analyzeResumeParallel } = await import('../lib/tiered-ai-provider');
+          resumeAnalysis = await analyzeResumeParallel(resume.content, userTierInfo);
+          
+          // Update resume with analysis
+          await storage.updateResumeAnalysis(resume.id, resumeAnalysis);
+        }
+
+        // Get or create job analysis
+        let jobAnalysis = jobDescription.analyzedData;
+        if (!jobAnalysis) {
+          const { analyzeJobDescription } = await import('../lib/tiered-ai-provider');
+          jobAnalysis = await analyzeJobDescription(
+            jobDescription.title,
+            jobDescription.description,
+            userTierInfo
+          );
+          
+          // Update job with analysis
+          await storage.updateJobDescriptionAnalysis(jobId, jobAnalysis);
+        }
+
+        // Perform matching analysis
+        const matchAnalysis = await analyzeMatch(
+          resumeAnalysis,
+          jobAnalysis,
+          resume.content,
+          jobDescription.description
+        );
+
+        // Store analysis result
+        const analysisResult = await storage.createAnalysisResult({
+          userId,
+          resumeId: resume.id,
+          jobDescriptionId: jobId,
+          matchPercentage: matchAnalysis.matchPercentage,
+          matchedSkills: matchAnalysis.matchedSkills,
+          missingSkills: matchAnalysis.missingSkills,
+          candidateStrengths: matchAnalysis.candidateStrengths,
+          candidateWeaknesses: matchAnalysis.candidateWeaknesses,
+          confidenceLevel: matchAnalysis.confidenceLevel,
+          fairnessMetrics: matchAnalysis.fairnessMetrics
+        });
+
+        results.push({
+          resumeId: resume.id,
+          filename: resume.filename,
+          candidateName: resume.filename.replace(/\.[^/.]+$/, ""), // Remove extension
+          match: {
+            matchPercentage: matchAnalysis.matchPercentage,
+            matchedSkills: matchAnalysis.matchedSkills || [],
+            missingSkills: matchAnalysis.missingSkills || [],
+            candidateStrengths: matchAnalysis.candidateStrengths || [],
+            candidateWeaknesses: matchAnalysis.candidateWeaknesses || [],
+            confidenceLevel: matchAnalysis.confidenceLevel,
+            fairnessMetrics: matchAnalysis.fairnessMetrics
+          },
+          analysisId: analysisResult.id
+        });
+
+        logger.info(`Analysis completed for resume ${resume.id}: ${matchAnalysis.matchPercentage}% match`);
+
+      } catch (resumeError) {
+        logger.error(`Analysis failed for resume ${resume.id}:`, resumeError);
+        
+        // Continue with other resumes, but log the failure
+        results.push({
+          resumeId: resume.id,
+          filename: resume.filename,
+          candidateName: resume.filename.replace(/\.[^/.]+$/, ""),
+          match: {
+            matchPercentage: 0,
+            matchedSkills: [],
+            missingSkills: [],
+            candidateStrengths: [],
+            candidateWeaknesses: [`Analysis failed: ${resumeError instanceof Error ? resumeError.message : 'Unknown error'}`],
+            confidenceLevel: 'low' as const
+          },
+          analysisId: null,
+          error: resumeError instanceof Error ? resumeError.message : 'Analysis failed'
+        });
+      }
+    }
+
+    // Sort results by match percentage (highest first)
+    results.sort((a, b) => (b.match?.matchPercentage || 0) - (a.match?.matchPercentage || 0));
+
+    const successfulAnalyses = results.filter(r => !r.error);
+    const failedAnalyses = results.filter(r => r.error);
+
+    logger.info(`Analysis completed for job ${jobId}`, {
+      totalResumes: resumes.length,
+      successful: successfulAnalyses.length,
+      failed: failedAnalyses.length,
+      averageMatch: successfulAnalyses.length > 0 
+        ? Math.round(successfulAnalyses.reduce((sum, r) => sum + (r.match?.matchPercentage || 0), 0) / successfulAnalyses.length)
+        : 0
+    });
+
+    res.json({
+      status: "success",
+      message: `Analysis completed for ${resumes.length} resumes`,
+      jobDescriptionId: jobId,
+      jobTitle: jobDescription.title,
+      results,
+      summary: {
+        totalResumes: resumes.length,
+        successfulAnalyses: successfulAnalyses.length,
+        failedAnalyses: failedAnalyses.length,
+        averageMatchPercentage: successfulAnalyses.length > 0 
+          ? Math.round(successfulAnalyses.reduce((sum, r) => sum + (r.match?.matchPercentage || 0), 0) / successfulAnalyses.length)
+          : 0,
+        topMatch: successfulAnalyses.length > 0 ? successfulAnalyses[0] : null
+      }
+    });
+
+  } catch (error) {
+    logger.error('Analysis failed:', error);
+    res.status(500).json({
+      error: "Analysis failed",
+      message: error instanceof Error ? error.message : 'Unknown error occurred during analysis'
+    });
+  }
+});
+
+// Get analysis results for a job
+router.get("/analyze/:jobId", authenticateUser, async (req: Request, res: Response) => {
+  try {
+    const jobId = parseInt(req.params.jobId);
+    const userId = req.user!.uid;
+    const sessionId = req.query.sessionId as string;
+
+    if (isNaN(jobId)) {
+      return res.status(400).json({
+        error: "Invalid job ID",
+        message: "Job ID must be a number"
+      });
+    }
+
+    logger.info(`Getting analysis results for job ${jobId}, user ${userId}`);
+
+    // Get job description
+    const jobDescription = await storage.getJobDescriptionById(jobId, userId);
+    if (!jobDescription) {
+      return res.status(404).json({
+        error: "Job description not found",
+        message: "Job description not found or you don't have permission to access it"
+      });
+    }
+
+    // Get analysis results
+    const analysisResults = await storage.getAnalysisResultsByJob(jobId, userId, sessionId);
+
+    if (!analysisResults || analysisResults.length === 0) {
+      return res.json({
+        status: "ok",
+        message: "No analysis results found",
+        jobDescriptionId: jobId,
+        jobTitle: jobDescription.title,
+        results: []
+      });
+    }
+
+    // Format results for frontend
+    const formattedResults = analysisResults.map(result => ({
+      resumeId: result.resumeId,
+      filename: result.resume?.filename || `Resume ${result.resumeId}`,
+      candidateName: result.resume?.filename?.replace(/\.[^/.]+$/, "") || `Candidate ${result.resumeId}`,
+      match: {
+        matchPercentage: result.matchPercentage,
+        matchedSkills: result.matchedSkills || [],
+        missingSkills: result.missingSkills || [],
+        candidateStrengths: result.candidateStrengths || [],
+        candidateWeaknesses: result.candidateWeaknesses || [],
+        confidenceLevel: result.confidenceLevel,
+        fairnessMetrics: result.fairnessMetrics
+      },
+      analysisId: result.id
+    }));
+
+    // Sort by match percentage
+    formattedResults.sort((a, b) => (b.match?.matchPercentage || 0) - (a.match?.matchPercentage || 0));
+
+    res.json({
+      status: "ok",
+      jobDescriptionId: jobId,
+      jobTitle: jobDescription.title,
+      results: formattedResults
+    });
+
+  } catch (error) {
+    logger.error('Failed to get analysis results:', error);
+    res.status(500).json({
+      error: "Failed to retrieve analysis results",
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get specific analysis result
+router.get("/analyze/:jobId/:resumeId", authenticateUser, async (req: Request, res: Response) => {
+  try {
+    const jobId = parseInt(req.params.jobId);
+    const resumeId = parseInt(req.params.resumeId);
+    const userId = req.user!.uid;
+
+    if (isNaN(jobId) || isNaN(resumeId)) {
+      return res.status(400).json({
+        error: "Invalid parameters",
+        message: "Job ID and Resume ID must be numbers"
+      });
+    }
+
+    const analysisResult = await storage.getAnalysisResult(jobId, resumeId, userId);
+    
+    if (!analysisResult) {
+      return res.status(404).json({
+        error: "Analysis result not found",
+        message: "Analysis result not found or you don't have permission to access it"
+      });
+    }
+
+    res.json({
+      status: "ok",
+      match: {
+        matchPercentage: analysisResult.matchPercentage,
+        matchedSkills: analysisResult.matchedSkills || [],
+        missingSkills: analysisResult.missingSkills || [],
+        candidateStrengths: analysisResult.candidateStrengths || [],
+        candidateWeaknesses: analysisResult.candidateWeaknesses || [],
+        confidenceLevel: analysisResult.confidenceLevel,
+        fairnessMetrics: analysisResult.fairnessMetrics
+      }
+    });
+
+  } catch (error) {
+    logger.error('Failed to get analysis result:', error);
+    res.status(500).json({
+      error: "Failed to retrieve analysis result",
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Generate interview questions
+router.post("/interview-questions/:resumeId/:jobId", authenticateUser, async (req: Request, res: Response) => {
+  try {
+    const resumeId = parseInt(req.params.resumeId);
+    const jobId = parseInt(req.params.jobId);
+    const userId = req.user!.uid;
+    const sessionId = req.body.sessionId || req.query.sessionId as string;
+
+    if (isNaN(resumeId) || isNaN(jobId)) {
+      return res.status(400).json({
+        error: "Invalid parameters",
+        message: "Resume ID and Job ID must be numbers"
+      });
+    }
+
+    logger.info(`Generating interview questions for resume ${resumeId}, job ${jobId}, user ${userId}`);
+
+    // Get resume and job description
+    const [resume, jobDescription] = await Promise.all([
+      storage.getResumeById(resumeId, userId),
+      storage.getJobDescriptionById(jobId, userId)
+    ]);
+
+    if (!resume) {
+      return res.status(404).json({
+        error: "Resume not found",
+        message: "Resume not found or you don't have permission to access it"
+      });
+    }
+
+    if (!jobDescription) {
+      return res.status(404).json({
+        error: "Job description not found",
+        message: "Job description not found or you don't have permission to access it"
+      });
+    }
+
+    // Get user tier info
+    const { getUserTierInfo } = await import('../lib/user-tiers');
+    const userTierInfo = getUserTierInfo(userId);
+
+    // Get or generate analysis if needed
+    let resumeAnalysis = resume.analyzedData;
+    let jobAnalysis = jobDescription.analyzedData;
+    let matchAnalysis;
+
+    // Get existing analysis result if available
+    const existingAnalysis = await storage.getAnalysisResult(jobId, resumeId, userId);
+    if (existingAnalysis) {
+      matchAnalysis = {
+        matchPercentage: existingAnalysis.matchPercentage,
+        matchedSkills: existingAnalysis.matchedSkills || [],
+        missingSkills: existingAnalysis.missingSkills || [],
+        candidateStrengths: existingAnalysis.candidateStrengths || [],
+        candidateWeaknesses: existingAnalysis.candidateWeaknesses || []
+      };
+    }
+
+    // Generate missing analyses if needed
+    if (!resumeAnalysis && resume.content) {
+      const { analyzeResumeParallel } = await import('../lib/tiered-ai-provider');
+      resumeAnalysis = await analyzeResumeParallel(resume.content, userTierInfo);
+    }
+
+    if (!jobAnalysis) {
+      const { analyzeJobDescription } = await import('../lib/tiered-ai-provider');
+      jobAnalysis = await analyzeJobDescription(
+        jobDescription.title,
+        jobDescription.description,
+        userTierInfo
+      );
+    }
+
+    if (!matchAnalysis) {
+      const { analyzeMatch } = await import('../lib/tiered-ai-provider');
+      matchAnalysis = await analyzeMatch(
+        resumeAnalysis,
+        jobAnalysis,
+        resume.content,
+        jobDescription.description
+      );
+    }
+
+    // Generate interview questions
+    const { generateInterviewQuestions } = await import('../lib/tiered-ai-provider');
+    const interviewQuestions = await generateInterviewQuestions(
+      resumeAnalysis,
+      jobAnalysis,
+      matchAnalysis,
+      userTierInfo
+    );
+
+    // Store interview questions
+    await storage.createInterviewQuestions({
+      userId,
+      resumeId,
+      jobDescriptionId: jobId,
+      questions: interviewQuestions.questions || []
+    });
+
+    logger.info(`Interview questions generated successfully`, {
+      resumeId,
+      jobId,
+      questionsCount: interviewQuestions.questions?.length || 0
+    });
+
+    res.json({
+      status: "success",
+      message: "Interview questions generated successfully",
+      id: Date.now(), // Simple ID for frontend compatibility
+      resumeId,
+      resumeName: resume.filename,
+      jobDescriptionId: jobId,
+      jobTitle: jobDescription.title,
+      matchPercentage: matchAnalysis.matchPercentage,
+      technicalQuestions: interviewQuestions.questions?.filter(q => q.category === 'technical') || [],
+      experienceQuestions: interviewQuestions.questions?.filter(q => q.category === 'experience') || [],
+      skillGapQuestions: interviewQuestions.questions?.filter(q => q.category === 'skill-gap') || [],
+      inclusionQuestions: interviewQuestions.questions?.filter(q => q.category === 'inclusion') || []
+    });
+
+  } catch (error) {
+    logger.error('Interview question generation failed:', error);
+    res.status(500).json({
+      error: "Failed to generate interview questions",
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
+    });
+  }
+});
+
+// Analyze bias in job description
+router.post("/analyze-bias/:jobId", authenticateUser, async (req: Request, res: Response) => {
+  try {
+    const jobId = parseInt(req.params.jobId);
+    const userId = req.user!.uid;
+
+    if (isNaN(jobId)) {
+      return res.status(400).json({
+        error: "Invalid job ID",
+        message: "Job ID must be a number"
+      });
+    }
+
+    logger.info(`Analyzing bias for job ${jobId}, user ${userId}`);
+
+    // Get job description
+    const jobDescription = await storage.getJobDescriptionById(jobId, userId);
+    if (!jobDescription) {
+      return res.status(404).json({
+        error: "Job description not found",
+        message: "Job description not found or you don't have permission to access it"
+      });
+    }
+
+    // Get user tier info
+    const { getUserTierInfo } = await import('../lib/user-tiers');
+    const userTierInfo = getUserTierInfo(userId);
+
+    // Perform bias analysis
+    const { analyzeJobDescriptionBias } = await import('../lib/tiered-ai-provider');
+    const biasAnalysis = await analyzeJobDescriptionBias(
+      jobDescription.title,
+      jobDescription.description,
+      userTierInfo
+    );
+
+    logger.info(`Bias analysis completed for job ${jobId}`, {
+      hasBias: biasAnalysis.overallScore < 80, // Assuming lower score means more bias
+      score: biasAnalysis.overallScore
+    });
+
+    // Format response to match frontend expectations
+    const response = {
+      status: "success",
+      message: "Bias analysis completed",
+      biasAnalysis: {
+        hasBias: (biasAnalysis.overallScore || 100) < 80,
+        biasTypes: biasAnalysis.biasIndicators?.map(b => b.type) || [],
+        biasedPhrases: biasAnalysis.biasIndicators?.map(b => ({
+          phrase: b.text || '',
+          reason: b.suggestion || ''
+        })) || [],
+        suggestions: biasAnalysis.recommendations || [],
+        improvedDescription: jobDescription.description, // TODO: Generate improved version
+        biasConfidenceScore: biasAnalysis.overallScore || 100,
+        fairnessAssessment: biasAnalysis.summary || 'Analysis completed'
+      }
+    };
+
+    res.json(response);
+
+  } catch (error) {
+    logger.error('Bias analysis failed:', error);
+    res.status(500).json({
+      error: "Bias analysis failed",
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
+    });
+  }
+});
+
+export default router;

@@ -5,78 +5,8 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
 import { config } from "./config";
-// import { initializeDatabase } from "./db-setup"; // imported conditionally below
+import { initializeDatabase } from "./lib/db-migrations";
 import { initializeMonitoring, logger } from "./monitoring";
-
-// Emergency database migration
-async function runEmergencyMigration() {
-  if (!process.env.DATABASE_URL) {
-    logger.info('No DATABASE_URL found, skipping migration (using memory storage)');
-    return;
-  }
-
-  try {
-    // Import pg dynamically
-    const { Pool } = await import('pg');
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-      connectionTimeoutMillis: 5000, // 5 second timeout
-      idleTimeoutMillis: 10000, // 10 second idle timeout
-    });
-
-    logger.info('🔧 Running emergency database schema migration...');
-
-    // Add missing columns if they don't exist - with timeout protection
-    const migrations = [
-      // Job descriptions table missing columns
-      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS user_id INTEGER',
-      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS requirements JSON',
-      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS skills JSON',
-      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS experience TEXT',
-      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS embedding JSON',
-      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS requirements_embedding JSON',
-      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()',
-      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()',
-      'ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS analyzed_data JSON',
-      
-      // Resumes table missing columns  
-      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS user_id TEXT',
-      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS session_id TEXT',
-      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS file_size INTEGER',
-      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS file_type TEXT',
-      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS analyzed_data JSON',
-      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS skills JSON',
-      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS embedding JSON',
-      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS skills_embedding JSON',
-      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()',
-      'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()'
-    ];
-
-    // Run migrations with timeout protection
-    const migrationPromise = (async () => {
-      for (const query of migrations) {
-        try {
-          await pool.query(query);
-        } catch (queryError) {
-          logger.warn(`Migration query failed (continuing): ${query}`, queryError);
-        }
-      }
-    })();
-
-    // Add 10 second timeout to prevent hanging
-    await Promise.race([
-      migrationPromise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Migration timeout')), 10000))
-    ]);
-
-    await pool.end();
-    logger.info('✅ Database migration completed successfully!');
-  } catch (error) {
-    logger.error('❌ Database migration failed:', error);
-    logger.info('⚠️  Continuing with memory storage fallback...');
-  }
-}
 
 const app = express();
 
@@ -201,32 +131,18 @@ if (process.env.NODE_ENV === "development") {
 }
 
 (async () => {
-  // Initialize database schema if using PostgreSQL
+  // Initialize database with consolidated migration system
   if (config.isDatabaseEnabled) {
     try {
-      logger.info('Setting up database schema...');
-      
-      // First run emergency migration to fix missing columns
-      await runEmergencyMigration();
-      
-      // Then run the original database setup
-      const { initializeDatabase: originalInit } = await import("./db-setup");
-      const result = await originalInit();
-      if (result.success) {
-        logger.info('Database setup complete: ' + result.message);
-      } else {
-        logger.warn('Database setup issue: ' + result.message);
-      }
-      
-      // Then run enhanced features initialization
-      logger.info('Initializing enhanced features...');
-      const { initializeDatabase: enhancedInit } = await import("./lib/db-migrations");
-      await enhancedInit();
-      
+      logger.info('🚀 Initializing database with consolidated migration system...');
+      await initializeDatabase(); // Uses the new consolidated system
+      logger.info('✅ Database initialization completed successfully');
     } catch (error) {
       logger.error({ error }, 'Failed to initialize database schema');
       logger.warn('Continuing with application startup, but database operations may fail');
     }
+  } else {
+    logger.info('Database disabled - using memory storage fallback');
   }
 
   // Initialize storage system
