@@ -163,7 +163,8 @@ if (process.env.NODE_ENV === "development") {
     logger.info('Using in-memory storage (fallback mode)');
   }
 
-  const server = await registerRoutes(app);
+  // Register all routes
+  registerRoutes(app);
 
   // Error handling - now handled by monitoring middleware
   // But keep this as a safety net for errors that might slip through
@@ -188,27 +189,24 @@ if (process.env.NODE_ENV === "development") {
     }
   });
 
+  // Use Railway's PORT environment variable or fallback to 5000
+  // Railway expects apps to use the PORT env var for proper routing
+  const port = parseInt(process.env.PORT || '5000', 10);
+  
+  // Start the server
+  const server = app.listen(port, "0.0.0.0", () => {
+    logger.info(`Server started successfully, listening on port ${port}`);
+    log(`serving on port ${port}`); // Keep the original log for vite
+  });
+
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
-  } else if (process.env.SERVE_STATIC !== 'false') {
-    // Only serve static files if not disabled (nginx will handle in production)
-    serveStatic(app);
   } else {
-    logger.info('Static file serving disabled - using reverse proxy');
+    // In production, serve static files directly from Express
+    serveStatic(app);
+    logger.info('Static files served directly from Express');
   }
-
-  // Use Railway's PORT environment variable or fallback to 5000
-  // Railway expects apps to use the PORT env var for proper routing
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    logger.info(`Server started successfully, listening on port ${port}`);
-    log(`serving on port ${port}`); // Keep the original log for vite
-  });
 })();
