@@ -1,4 +1,4 @@
-FROM node:20.16.0-slim
+FROM node:20.17.0-slim
 
 # Install system dependencies for PDF processing and AI models
 RUN apt-get update && apt-get install -y \
