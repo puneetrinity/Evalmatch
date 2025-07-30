@@ -19,8 +19,9 @@ ENV NPM_CONFIG_STRICT_SSL=false
 ENV NPM_CONFIG_FUND=false
 ENV NPM_CONFIG_AUDIT=false
 ENV NPM_CONFIG_MAXSOCKETS=1
-RUN npm install -g npm@latest && \
-    npm ci --no-audit --no-fund && \
+ENV NPM_CONFIG_LEGACY_PEER_DEPS=true
+RUN npm install -g npm@10 && \
+    npm ci --legacy-peer-deps --no-audit --no-fund && \
     npm cache clean --force
 
 # Create necessary directories with proper permissions
