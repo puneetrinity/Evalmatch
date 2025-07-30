@@ -244,7 +244,7 @@ async function safeOpenAICall<T>(
     }
     
     return result;
-  } catch (error: any) {
+  } catch (error: unknown) {
     logApiServiceStatus(`API call failed: ${error?.message || 'Unknown error'}`, true);
     
     // Update service status

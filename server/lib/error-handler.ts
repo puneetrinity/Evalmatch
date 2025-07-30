@@ -15,7 +15,7 @@ interface ApiErrorOptions {
 /**
  * Handle API errors with appropriate status codes and formatting
  */
-export function handleApiError(res: Response, error: any, options: ApiErrorOptions = {}) {
+export function handleApiError(res: Response, error: unknown, options: ApiErrorOptions = {}) {
   const { 
     statusCode = 500, 
     errorCode = 'INTERNAL_ERROR',

@@ -13,7 +13,8 @@ import * as schema from "@shared/schema";
 neonConfig.webSocketConstructor = ws;
 
 // We need to disable the type check as the types are outdated
-neonConfig.pipelineConnect = true as any;
+// @ts-ignore - Neon configuration property may not be in type definitions
+neonConfig.pipelineConnect = true;
 
 // Function to initialize database connection
 export function initializeDatabase() {

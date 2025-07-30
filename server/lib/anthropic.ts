@@ -758,7 +758,7 @@ Return a JSON object with the complete interview flow including natural transiti
 
     logApiServiceStatus('Interview script generated successfully');
     return result;
-  } catch (error: any) {
+  } catch (error: unknown) {
     logApiServiceStatus(`Error generating interview script: ${error?.message || 'Unknown error'}`, true);
     
     // Update service status

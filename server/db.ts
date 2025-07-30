@@ -20,7 +20,8 @@ import { logger } from './lib/logger';
 neonConfig.webSocketConstructor = ws;
 
 // We need to disable the type check as the types are outdated
-neonConfig.pipelineConnect = true as any;
+// @ts-ignore - Neon configuration property may not be in type definitions
+neonConfig.pipelineConnect = true;
 
 // Track query and connection analytics
 const connectionStats = {

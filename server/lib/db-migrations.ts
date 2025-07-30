@@ -57,7 +57,7 @@ async function executeMigration(migration: Migration): Promise<void> {
   try {
     await db.execute(sql.raw(migrationSQL));
     logger.info(`Migration ${migration.version} completed successfully`);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error(`Migration ${migration.version} failed:`, error);
     throw error;
   }
@@ -86,7 +86,7 @@ export async function runMigrations(): Promise<void> {
         } else {
           logger.debug(`Migration ${migration.version} already applied, skipping`);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         logger.error(`Failed to apply migration ${migration.version}:`, error);
         
         // For production stability, continue with other migrations

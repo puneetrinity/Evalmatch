@@ -349,7 +349,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async getInterviewQuestionsByResumeId(resumeId: number): Promise<any[]> {
+  async getInterviewQuestionsByResumeId(resumeId: number): Promise<InterviewQuestions[]> {
     return this.executeWithFallback(
       `getInterviewQuestionsByResumeId(${resumeId})`,
       () => this.dbStorage.getInterviewQuestionsByResumeId(resumeId),
@@ -357,7 +357,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async getInterviewQuestionsByJobDescriptionId(jobDescriptionId: number): Promise<any[]> {
+  async getInterviewQuestionsByJobDescriptionId(jobDescriptionId: number): Promise<InterviewQuestions[]> {
     return this.executeWithFallback(
       `getInterviewQuestionsByJobDescriptionId(${jobDescriptionId})`,
       () => this.dbStorage.getInterviewQuestionsByJobDescriptionId(jobDescriptionId),
@@ -365,7 +365,7 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async getInterviewQuestionByResumeAndJob(resumeId: number, jobDescriptionId: number): Promise<any | undefined> {
+  async getInterviewQuestionByResumeAndJob(resumeId: number, jobDescriptionId: number): Promise<InterviewQuestions | undefined> {
     return this.executeWithFallback(
       `getInterviewQuestionByResumeAndJob(${resumeId}, ${jobDescriptionId})`,
       () => this.dbStorage.getInterviewQuestionByResumeAndJob(resumeId, jobDescriptionId),

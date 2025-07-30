@@ -1,0 +1,157 @@
+version: '3.8'
+
+# Unified Docker Compose Configuration
+# Supports development, testing, and production modes via profiles
+
+services:
+  # =============================================================================
+  # DEVELOPMENT SERVICES
+  # =============================================================================
+  dev:
+    profiles: ["dev", "development"]
+    image: node:20-slim
+    working_dir: /app
+    command: npm run dev
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      # Firebase Configuration
+      VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+      VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+      VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+      VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
+      VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_SERVICE_ACCOUNT_KEY: ${FIREBASE_SERVICE_ACCOUNT_KEY}
+      # AI Providers
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Database
+      DATABASE_URL: ${DATABASE_URL:-}
+      # Security
+      SESSION_SECRET: ${SESSION_SECRET:-dev-secret}
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./uploads:/app/uploads
+    networks:
+      - evalmatch-network
+    depends_on:
+      - postgres
+
+  # =============================================================================
+  # PRODUCTION SERVICES
+  # =============================================================================
+  nginx:
+    profiles: ["prod", "production"]
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+      args:
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
+    ports:
+      - "3000:80"
+    depends_on:
+      - app
+    networks:
+      - evalmatch-network
+    restart: unless-stopped
+
+  app:
+    profiles: ["prod", "production"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
+    expose:
+      - "8080"
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      # Database
+      DATABASE_URL: ${DATABASE_URL:-postgresql://evalmatch:localpassword@postgres:5432/evalmatch}
+      # Firebase
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_SERVICE_ACCOUNT_KEY: ${FIREBASE_SERVICE_ACCOUNT_KEY}
+      # AI Providers
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Security
+      SESSION_SECRET: ${SESSION_SECRET:-docker-local-secret-change-in-production}
+      # Performance
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-Xenova/all-MiniLM-L12-v2}
+      MAX_CONCURRENT_EMBEDDINGS: ${MAX_CONCURRENT_EMBEDDINGS:-3}
+      MAX_TEXT_LENGTH: ${MAX_TEXT_LENGTH:-50000}
+      MIN_ASCII_RATIO: ${MIN_ASCII_RATIO:-0.8}
+      TRANSFORMERS_CACHE: /tmp/transformers_cache
+      NODE_OPTIONS: "--max-old-space-size=2048"
+      SERVE_STATIC: "false"
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - evalmatch-network
+    depends_on:
+      - postgres
+
+  # =============================================================================
+  # SHARED SERVICES
+  # =============================================================================
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: evalmatch
+      POSTGRES_PASSWORD: localpassword
+      POSTGRES_DB: evalmatch
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - evalmatch-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evalmatch"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =============================================================================
+  # TESTING SERVICES
+  # =============================================================================
+  test:
+    profiles: ["test"]
+    build:
+      context: .
+      dockerfile: Dockerfile.playwright
+    environment:
+      NODE_ENV: test
+      CI: "true"
+    volumes:
+      - .:/app
+      - ./test-results:/app/test-results
+      - ./playwright-report:/app/playwright-report
+    networks:
+      - evalmatch-network
+    depends_on:
+      - app
+
+networks:
+  evalmatch-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

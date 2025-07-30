@@ -48,7 +48,7 @@ router.post("/fix-database", requireAdmin, async (req: Request, res: Response) =
         try {
           await db.execute(sql.raw(fixQuery));
           fixes.push(`✅ ${fixQuery}`);
-        } catch (error: any) {
+        } catch (error: unknown) {
           if (error.message?.includes('already exists') || error.message?.includes('duplicate column')) {
             fixes.push(`ℹ️ Column already exists: ${fixQuery.split(' ADD COLUMN IF NOT EXISTS ')[1]}`);
           } else {
@@ -69,7 +69,7 @@ router.post("/fix-database", requireAdmin, async (req: Request, res: Response) =
         try {
           await db.execute(sql.raw(fixQuery));
           fixes.push(`✅ ${fixQuery}`);
-        } catch (error: any) {
+        } catch (error: unknown) {
           fixes.push(`ℹ️ Type fix not needed or failed: ${fixQuery} - ${error.message}`);
         }
       }
@@ -87,7 +87,7 @@ router.post("/fix-database", requireAdmin, async (req: Request, res: Response) =
         try {
           await db.execute(sql.raw(indexQuery));
           fixes.push(`✅ ${indexQuery}`);
-        } catch (error: any) {
+        } catch (error: unknown) {
           fixes.push(`ℹ️ Index already exists or failed: ${indexQuery.split(' ON ')[0]} - ${error.message}`);
         }
       }
@@ -131,7 +131,7 @@ router.get("/check-analysis-table", requireAdmin, async (req: Request, res: Resp
     
     // Get row count
     const countResult = await db.execute(sql`SELECT COUNT(*) as count FROM analysis_results`);
-    const rowCount = Array.isArray(countResult) && countResult[0] ? (countResult[0] as any).count : 0;
+    const rowCount = Array.isArray(countResult) && countResult[0] ? (countResult[0] as Record<string, unknown>).count : 0;
     
     // Sample data
     const sampleData = await db.execute(sql`
@@ -180,7 +180,7 @@ router.get("/check-all-tables", requireAdmin, async (req: Request, res: Response
         
         // Get row count
         const countResult = await db.execute(sql.raw(`SELECT COUNT(*) as count FROM ${tableName}`));
-        const rowCount = Array.isArray(countResult) && countResult[0] ? (countResult[0] as any).count : 0;
+        const rowCount = Array.isArray(countResult) && countResult[0] ? (countResult[0] as Record<string, unknown>).count : 0;
         
         tableStats.push({
           tableName,

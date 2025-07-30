@@ -56,9 +56,9 @@ router.get("/db-status", async (req: Request, res: Response) => {
     // Check if hybrid storage is available
     const { storage } = await import('../storage');
     
-    if (storage && typeof (storage as any).getHealthStatus === 'function') {
+    if (storage && 'getHealthStatus' in storage && typeof storage.getHealthStatus === 'function') {
       try {
-        dbHealthStatus = await (storage as any).getHealthStatus();
+        dbHealthStatus = await storage.getHealthStatus();
       } catch (healthError) {
         logger.error('Health status check failed:', healthError);
         dbHealthStatus = {

@@ -2,10 +2,18 @@ import request from 'supertest';
 import express, { Express } from 'express';
 import { IStorage } from '../server/storage';
 import { registerRoutes } from '../server/routes';
+import {
+  type Resume, type InsertResume,
+  type JobDescription, type InsertJobDescription,
+  type AnalysisResult, type InsertAnalysisResult,
+  type InterviewQuestions, type InsertInterviewQuestions,
+  type AnalyzeResumeResponse, type AnalyzeJobDescriptionResponse,
+  type User, type InsertUser
+} from '@shared/schema';
 
 // Mock storage implementation for testing
 class MockStorage implements IStorage {
-  private jobDescriptions: any[] = [
+  private jobDescriptions: JobDescription[] = [
     {
       id: 1,
       title: 'Test Job',
@@ -23,7 +31,7 @@ class MockStorage implements IStorage {
     }
   ];
 
-  private resumes: any[] = [
+  private resumes: Resume[] = [
     {
       id: 1,
       filename: 'test-resume.pdf',
@@ -44,7 +52,7 @@ class MockStorage implements IStorage {
     }
   ];
 
-  private analysisResults: any[] = [
+  private analysisResults: AnalysisResult[] = [
     {
       id: 1,
       resumeId: 1,
@@ -61,7 +69,7 @@ class MockStorage implements IStorage {
     }
   ];
 
-  private interviewQuestions: any[] = [];
+  private interviewQuestions: InterviewQuestions[] = [];
 
   async getUser(id: number): Promise<User | undefined> {
     return undefined;
@@ -79,7 +87,7 @@ class MockStorage implements IStorage {
     return this.resumes.find(r => r.id === id);
   }
   
-  async getResumes(sessionId?: string): Promise<any[]> {
+  async getResumes(sessionId?: string): Promise<Resume[]> {
     if (sessionId) {
       return this.resumes.filter(r => r.sessionId === sessionId);
     }
@@ -108,11 +116,11 @@ class MockStorage implements IStorage {
     return this.jobDescriptions.find(jd => jd.id === id);
   }
   
-  async getJobDescriptions(): Promise<any[]> {
+  async getJobDescriptions(): Promise<JobDescription[]> {
     return this.jobDescriptions;
   }
   
-  async createJobDescription(jobDescription: any): Promise<any> {
+  async createJobDescription(jobDescription: InsertJobDescription): Promise<JobDescription> {
     const newJobDescription = {
       id: this.jobDescriptions.length + 1,
       created: new Date(),
@@ -122,7 +130,7 @@ class MockStorage implements IStorage {
     return newJobDescription;
   }
   
-  async updateJobDescriptionAnalysis(id: number, analysis: any): Promise<any> {
+  async updateJobDescriptionAnalysis(id: number, analysis: AnalyzeJobDescriptionResponse): Promise<JobDescription> {
     const jobDescription = await this.getJobDescription(id);
     if (!jobDescription) return undefined;
     
@@ -130,19 +138,19 @@ class MockStorage implements IStorage {
     return jobDescription;
   }
   
-  async getAnalysisResult(id: number): Promise<any> {
+  async getAnalysisResult(id: number): Promise<AnalysisResult | undefined> {
     return this.analysisResults.find(ar => ar.id === id);
   }
   
-  async getAnalysisResultsByResumeId(resumeId: number): Promise<any[]> {
+  async getAnalysisResultsByResumeId(resumeId: number): Promise<AnalysisResult[]> {
     return this.analysisResults.filter(ar => ar.resumeId === resumeId);
   }
   
-  async getAnalysisResultsByJobDescriptionId(jobDescriptionId: number): Promise<any[]> {
+  async getAnalysisResultsByJobDescriptionId(jobDescriptionId: number): Promise<AnalysisResult[]> {
     return this.analysisResults.filter(ar => ar.jobDescriptionId === jobDescriptionId);
   }
   
-  async createAnalysisResult(analysisResult: any): Promise<any> {
+  async createAnalysisResult(analysisResult: InsertAnalysisResult): Promise<AnalysisResult> {
     const newAnalysisResult = {
       id: this.analysisResults.length + 1,
       created: new Date(),
@@ -152,23 +160,23 @@ class MockStorage implements IStorage {
     return newAnalysisResult;
   }
   
-  async getInterviewQuestions(id: number): Promise<any> {
+  async getInterviewQuestions(id: number): Promise<InterviewQuestions | undefined> {
     return this.interviewQuestions.find(iq => iq.id === id);
   }
   
-  async getInterviewQuestionsByResumeId(resumeId: number): Promise<any[]> {
+  async getInterviewQuestionsByResumeId(resumeId: number): Promise<InterviewQuestions[]> {
     return this.interviewQuestions.filter(iq => iq.resumeId === resumeId);
   }
   
-  async getInterviewQuestionsByJobDescriptionId(jobDescriptionId: number): Promise<any[]> {
+  async getInterviewQuestionsByJobDescriptionId(jobDescriptionId: number): Promise<InterviewQuestions[]> {
     return this.interviewQuestions.filter(iq => iq.jobDescriptionId === jobDescriptionId);
   }
   
-  async getInterviewQuestionByResumeAndJob(resumeId: number, jobDescriptionId: number): Promise<any> {
+  async getInterviewQuestionByResumeAndJob(resumeId: number, jobDescriptionId: number): Promise<InterviewQuestions | undefined> {
     return this.interviewQuestions.find(iq => iq.resumeId === resumeId && iq.jobDescriptionId === jobDescriptionId);
   }
   
-  async createInterviewQuestions(interviewQuestions: any): Promise<any> {
+  async createInterviewQuestions(interviewQuestions: InsertInterviewQuestions): Promise<InterviewQuestions> {
     const newInterviewQuestions = {
       id: this.interviewQuestions.length + 1,
       created: new Date(),
@@ -178,15 +186,15 @@ class MockStorage implements IStorage {
     return newInterviewQuestions;
   }
   
-  async getResumeWithLatestAnalysisAndQuestions(resumeId: number, jobDescriptionId: number): Promise<any> {
+  async getResumeWithLatestAnalysisAndQuestions(resumeId: number, jobDescriptionId: number): Promise<{ resume: Resume; analysis: AnalysisResult | undefined; interviewQuestions: InterviewQuestions | undefined; }> {
     const resume = await this.getResume(resumeId);
     const analysis = this.analysisResults.find(ar => ar.resumeId === resumeId && ar.jobDescriptionId === jobDescriptionId);
     const questions = this.interviewQuestions.find(iq => iq.resumeId === resumeId && iq.jobDescriptionId === jobDescriptionId);
     
     return {
-      resume,
+      resume: resume!,
       analysis,
-      questions
+      interviewQuestions: questions
     };
   }
 }
@@ -194,7 +202,7 @@ class MockStorage implements IStorage {
 describe('API Routes', () => {
   let app: Express;
   let mockStorage: MockStorage;
-  let server: any;
+  let server: import('http').Server;
 
   beforeAll(async () => {
     app = express();

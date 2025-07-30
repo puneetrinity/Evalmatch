@@ -52,7 +52,7 @@ export function startOperation(id: string, operationType: string): void {
 /**
  * Track the end of an operation and record metrics
  */
-export function endOperation(id: string, success: boolean = true, details: Record<string, any> = {}): void {
+export function endOperation(id: string, success: boolean = true, details: Record<string, unknown> = {}): void {
   const operation = activeOperations.get(id);
   if (!operation) return;
   

@@ -34,7 +34,7 @@ export async function withRetry<T>(operation: () => Promise<T>, context: string)
     for (let attempt = 1; attempt <= RETRY_OPTIONS.maxRetries; attempt++) {
       try {
         return await operation();
-      } catch (error: any) {
+      } catch (error: unknown) {
         lastError = error;
         const errorMessage = error?.message || 'Unknown error';
         

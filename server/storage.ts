@@ -56,7 +56,7 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<number, any>;
+  private users: Map<number, User>;
   private resumesData: Map<number, Resume>;
   private jobDescriptionsData: Map<number, JobDescription>;
   private analysisResultsData: Map<number, AnalysisResult>;
@@ -86,11 +86,11 @@ export class MemStorage implements IStorage {
   }
 
   // User methods (from the original implementation)
-  async getUser(id: number): Promise<any | undefined> {
+  async getUser(id: number): Promise<User | undefined> {
     return this.users.get(id);
   }
 
-  async getUserByUsername(username: string): Promise<any | undefined> {
+  async getUserByUsername(username: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
       (user) => user.username === username,
     );

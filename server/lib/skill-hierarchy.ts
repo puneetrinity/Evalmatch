@@ -166,7 +166,7 @@ export async function initializeSkillHierarchy(): Promise<void> {
               description: `${skillData.normalized} - ${skillData.category}`
             })
             .onConflictDoNothing();
-        } catch (error: any) {
+        } catch (error: unknown) {
           if (!error.message?.includes('duplicate') && !error.message?.includes('unique')) {
             throw error;
           }

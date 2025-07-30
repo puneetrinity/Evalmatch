@@ -80,7 +80,7 @@ export const authService = {
       }
       
       return userCredential.user;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Registration error:', error);
       throw new Error(getAuthErrorMessage(error.code));
     }
@@ -91,7 +91,7 @@ export const authService = {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       return userCredential.user;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Sign in error:', error);
       throw new Error(getAuthErrorMessage(error.code));
     }
@@ -126,7 +126,7 @@ export const authService = {
       console.log('Google popup sign in successful:', result.user.email);
       
       return result.user;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Google popup sign in failed:', error.code, error.message);
       console.error('Full popup error:', error);
       
@@ -187,7 +187,7 @@ export const authService = {
       
       console.log('No Google redirect result found');
       return null;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Google redirect result error:', error);
       // Don't throw error, just return null to allow app to continue
       return null;
@@ -198,7 +198,7 @@ export const authService = {
   async signOut(): Promise<void> {
     try {
       await signOut(auth);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Sign out error:', error);
       throw new Error('Failed to sign out');
     }
@@ -208,7 +208,7 @@ export const authService = {
   async resetPassword(email: string): Promise<void> {
     try {
       await sendPasswordResetEmail(auth, email);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Password reset error:', error);
       throw new Error(getAuthErrorMessage(error.code));
     }

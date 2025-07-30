@@ -223,8 +223,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const connectionStats = getConnectionStats();
       
       // Try to access the hybrid storage health status
-      if ((storage as any).getDbHealthStatus) {
-        const rawStatus = (storage as any).getDbHealthStatus();
+      if ('getDbHealthStatus' in storage && typeof storage.getDbHealthStatus === 'function') {
+        const rawStatus = storage.getDbHealthStatus();
         
         // Map from internal status format to API response format
         dbHealthStatus = {
@@ -415,7 +415,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aiStatus: enhancedStatus,
         timestamp: new Date().toISOString()
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Log the error
       logger.error('Service status check error:', error);
       
@@ -775,8 +775,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             // Compare the resume with the job description, including resume text for fairness analysis
             const matchAnalysis = await analyzeMatchTiered(
-              resume.analyzedData as any,
-              jobDescription.analyzedData as any,
+              resume.analyzedData as AnalyzedResumeData,
+              jobDescription.analyzedData as AnalyzedJobData,
               userTier,
               resume.content, // Pass the resume text for fairness analysis
               jobDescription.description // Pass the job description text
@@ -800,7 +800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             analysisResults.push({
               resumeId: resume.id,
               filename: resume.filename,
-              candidateName: (resume.analyzedData as any)?.name || "Unknown",
+              candidateName: (resume.analyzedData as AnalyzedResumeData)?.name || "Unknown",
               match: matchAnalysis,
               analysisId: analysisResult.id,
             });
@@ -897,8 +897,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           for (const resume of resumesNeedingAnalysis) {
             try {
               const matchAnalysis = await analyzeMatchTiered(
-                resume.analyzedData as any,
-                jobDescription.analyzedData as any,
+                resume.analyzedData as AnalyzedResumeData,
+                jobDescription.analyzedData as AnalyzedJobData,
                 userTier,
                 resume.content, // Pass the resume text for fairness analysis
                 jobDescription.description // Pass the job description text
@@ -935,7 +935,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return {
               resumeId: resume.id,
               filename: resume.filename,
-              candidateName: (resume.analyzedData as any)?.name || "Unknown",
+              candidateName: (resume.analyzedData as AnalyzedResumeData)?.name || "Unknown",
               match: result.analysis,
               analysisId: result.id,
             };
@@ -1460,8 +1460,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Perform new analysis
         const matchAnalysis = await analyzeMatchTiered(
-          resume.analyzedData as any,
-          jobDescription.analyzedData as any,
+          resume.analyzedData as AnalyzedResumeData,
+          jobDescription.analyzedData as AnalyzedJobData,
           userTier,
           resume.content, // Pass the resume text for fairness analysis
           jobDescription.description // Pass the job description text
@@ -1573,8 +1573,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             // Perform the match analysis
             const matchAnalysis = await analyzeMatchTiered(
-              resume.analyzedData as any,
-              jobDescription.analyzedData as any,
+              resume.analyzedData as AnalyzedResumeData,
+              jobDescription.analyzedData as AnalyzedJobData,
               userTier,
               resume.content,
               jobDescription.description

@@ -77,7 +77,7 @@ router.post("/debug/test-auth", async (req: Request, res: Response) => {
           audience: decodedToken.aud
         }
       });
-    } catch (tokenError: any) {
+    } catch (tokenError: unknown) {
       logger.error('Token verification failed:', tokenError);
       
       res.status(401).json({
