@@ -2,6 +2,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
 import crypto from 'crypto';
+import { Request, Response, NextFunction } from 'express';
 import { logger } from './logger';
 
 // Secure upload directory configuration
@@ -129,7 +130,7 @@ export const secureUpload = multer({
 });
 
 // Post-upload validation middleware
-export async function validateUploadedFile(req: any, res: any, next: any) {
+export async function validateUploadedFile(req: Request, res: Response, next: NextFunction) {
   if (!req.file) {
     return next();
   }

@@ -147,7 +147,7 @@ export async function processBatchMatches(
     const resumeAnalyses = await Promise.all(resumeAnalysisPromises);
 
     // Finally, process all resume-job combinations in parallel
-    const matchPromises: Promise<any>[] = [];
+    const matchPromises: Promise<unknown>[] = [];
     
     for (let i = 0; i < resumes.length; i++) {
       for (let j = 0; j < jobs.length; j++) {
@@ -242,11 +242,11 @@ export async function processBatchMatches(
  */
 export async function processSmartBatch<T>(
   items: T[],
-  processor: (item: T) => Promise<any>,
+  processor: (item: T) => Promise<unknown>,
   maxConcurrency: number = 10
-): Promise<{ results: any[]; errors: any[] }> {
-  const results: any[] = [];
-  const errors: any[] = [];
+): Promise<{ results: unknown[]; errors: unknown[] }> {
+  const results: unknown[] = [];
+  const errors: unknown[] = [];
 
   // Process items in chunks to avoid overwhelming the system
   for (let i = 0; i < items.length; i += maxConcurrency) {

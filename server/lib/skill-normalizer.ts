@@ -9,6 +9,16 @@
 
 import stringSimilarity from 'string-similarity';
 
+// Type definitions for skill normalization
+interface NormalizedSkill {
+  skill: string;
+  matchPercentage: number;
+  originalSkill?: string;
+  confidence?: number;
+}
+
+type SkillInput = string | NormalizedSkill;
+
 // Dictionary of common variations and their canonical forms
 const SKILL_DICTIONARY: Record<string, string> = {
   // Programming Languages
@@ -178,7 +188,7 @@ export function normalizeSkill(skillName: string): string {
  * @param skills Array of skill names or skill objects
  * @returns Array of normalized skill objects
  */
-export function normalizeSkills(skills: any[]): any[] {
+export function normalizeSkills(skills: SkillInput[]): NormalizedSkill[] {
   if (!Array.isArray(skills)) return [];
   
   return skills.map(skill => {

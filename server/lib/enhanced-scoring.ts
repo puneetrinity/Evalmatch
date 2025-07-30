@@ -3,6 +3,19 @@ import { calculateSemanticSimilarity, cosineSimilarity, generateEmbedding } from
 import { normalizeSkillWithHierarchy, findRelatedSkills } from './skill-hierarchy';
 import stringSimilarity from 'string-similarity';
 
+// Type definitions for scoring system
+interface SkillBreakdown {
+  skill: string;
+  matched: boolean;
+  required: boolean;
+  score?: number;
+}
+
+interface MatchResult {
+  breakdown: SkillBreakdown[];
+  score?: number;
+}
+
 // Enhanced scoring weights - configurable per job
 export interface ScoringWeights {
   skills: number;
@@ -485,9 +498,9 @@ function calculateConfidence(factors: {
  * Generate human-readable explanations
  */
 function generateExplanation(
-  skillMatch: any,
-  experienceMatch: any,
-  educationMatch: any,
+  skillMatch: MatchResult,
+  experienceMatch: MatchResult,
+  educationMatch: MatchResult,
   semanticScore: number
 ): {
   strengths: string[];
@@ -499,8 +512,8 @@ function generateExplanation(
   const recommendations: string[] = [];
 
   // Analyze skills
-  const matchedSkills = skillMatch.breakdown.filter((s: any) => s.matched && s.required);
-  const missingSkills = skillMatch.breakdown.filter((s: any) => !s.matched && s.required);
+  const matchedSkills = skillMatch.breakdown.filter((s: SkillBreakdown) => s.matched && s.required);
+  const missingSkills = skillMatch.breakdown.filter((s: SkillBreakdown) => !s.matched && s.required);
 
   if (matchedSkills.length > 0) {
     strengths.push(`Strong skill alignment with ${matchedSkills.length} matching requirements`);
@@ -508,7 +521,7 @@ function generateExplanation(
   
   if (missingSkills.length > 0) {
     weaknesses.push(`Missing ${missingSkills.length} required skills`);
-    recommendations.push(`Consider training in: ${missingSkills.slice(0, 3).map((s: any) => s.skill).join(', ')}`);
+    recommendations.push(`Consider training in: ${missingSkills.slice(0, 3).map((s: SkillBreakdown) => s.skill).join(', ')}`);
   }
 
   // Analyze experience

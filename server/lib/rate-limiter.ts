@@ -44,9 +44,9 @@ export class DatabaseRateLimiter {
   private config: RateLimiterConfig;
   private requestTimestamps: number[] = [];
   private pendingOperations: Array<{
-    resolve: (value?: any) => void;
-    reject: (reason?: any) => void;
-    operation: () => Promise<any>;
+    resolve: (value?: unknown) => void;
+    reject: (reason?: unknown) => void;
+    operation: () => Promise<unknown>;
     context: string;
   }> = [];
   private isProcessingQueue = false;
@@ -130,7 +130,7 @@ export class DatabaseRateLimiter {
     // Queue the operation
     return new Promise<T>((resolve, reject) => {
       this.pendingOperations.push({
-        resolve: resolve as any,
+        resolve: resolve as (value?: unknown) => void,
         reject,
         operation,
         context

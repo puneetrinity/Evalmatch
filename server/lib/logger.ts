@@ -32,7 +32,7 @@ class Logger {
     }
   }
 
-  private formatMessage(level: string, message: string, data?: any): string {
+  private formatMessage(level: string, message: string, data?: unknown): string {
     const timestamp = new Date().toISOString();
     let formattedMessage = `[${timestamp}] [${level}] ${message}`;
     
@@ -47,19 +47,19 @@ class Logger {
     return formattedMessage;
   }
 
-  debug(message: string, data?: any): void {
+  debug(message: string, data?: unknown): void {
     if (this.logLevel <= LogLevel.DEBUG) {
       console.log(this.formatMessage('DEBUG', message, data));
     }
   }
 
-  info(message: string, data?: any): void {
+  info(message: string, data?: unknown): void {
     if (this.logLevel <= LogLevel.INFO) {
       console.log(this.formatMessage('INFO', message, data));
     }
   }
 
-  warn(message: string, data?: any): void {
+  warn(message: string, data?: unknown): void {
     if (this.logLevel <= LogLevel.WARN) {
       console.warn(this.formatMessage('WARN', message, data));
     }
@@ -75,13 +75,13 @@ class Logger {
   }
 
   // Production-safe logging methods
-  prodLog(message: string, data?: any): void {
+  prodLog(message: string, data?: unknown): void {
     if (!this.isDevelopment) {
       this.info(message, data);
     }
   }
 
-  devLog(message: string, data?: any): void {
+  devLog(message: string, data?: unknown): void {
     if (this.isDevelopment) {
       this.debug(message, data);
     }

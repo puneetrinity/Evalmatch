@@ -27,7 +27,7 @@ const RETRY_OPTIONS = {
 export async function withRetry<T>(operation: () => Promise<T>, context: string): Promise<T> {
   // Wrap the operation with rate limiting
   return dbRateLimiter.execute(async () => {
-    let lastError: any;
+    let lastError: Error;
     let delay = RETRY_OPTIONS.initialDelayMs;
     let timeoutRetryCount = 0;
     

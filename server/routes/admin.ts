@@ -3,13 +3,13 @@
  * Handles administrative operations, database fixes, and system management
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { logger } from '../lib/logger';
 
 const router = Router();
 
 // Admin route protection middleware
-const requireAdmin = (req: Request, res: Response, next: any) => {
+const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
   // For now, allow all admin routes - in production, add proper admin verification
   // TODO: Implement proper admin authentication
   next();

@@ -58,7 +58,7 @@ interface ApiUsage {
 }
 
 // In-memory cache with 1 hour TTL
-const responseCache: Record<string, CacheItem<any>> = {};
+const responseCache: Record<string, CacheItem<unknown>> = {};
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 // Token usage tracking
@@ -228,7 +228,7 @@ async function callGroqAPI(
   }
 
   try {
-    const requestParams: any = {
+    const requestParams: Record<string, unknown> = {
       messages: [
         {
           role: "user",

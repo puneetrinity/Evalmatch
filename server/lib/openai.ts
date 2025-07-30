@@ -9,6 +9,13 @@ import {
   type BiasAnalysisResponse,
 } from "@shared/schema";
 
+// Type definitions for skill processing
+interface SkillMatch {
+  skill: string;
+  matchPercentage: number;
+  confidence?: number;
+}
+
 // Initialize OpenAI client only if API key is available
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY
@@ -35,7 +42,7 @@ interface ApiUsage {
 }
 
 // In-memory cache
-const responseCache: Record<string, CacheItem<any>> = {};
+const responseCache: Record<string, CacheItem<unknown>> = {};
 
 // Token usage tracking
 let apiUsage: ApiUsage = {
@@ -578,13 +585,13 @@ export async function analyzeMatch(
       console.log(`Skill normalization is ${isEnabled ? 'enabled' : 'disabled'}`);
     } catch (error) {
       console.warn('Skill normalizer not available, using original skills:', error);
-      normalizeSkills = (skills: any[]) => skills;
+      normalizeSkills = (skills: unknown[]) => skills;
     }
     
     // Handle different response formats from OpenAI
     if (Array.isArray(result.matchedSkills)) {
       // First process the skills to ensure they're in the correct format
-      processedMatchedSkills = result.matchedSkills.map((skill: any) => {
+      processedMatchedSkills = result.matchedSkills.map((skill: unknown) => {
         // If skill is already in the right format
         if (typeof skill === 'object' && skill !== null) {
           // If matchPercentage is already correctly named
@@ -630,7 +637,7 @@ export async function analyzeMatch(
     } 
     // Handle snake_case matched_skills array
     else if (Array.isArray(result.matched_skills)) {
-      processedMatchedSkills = result.matched_skills.map((skill: any) => {
+      processedMatchedSkills = result.matched_skills.map((skill: unknown) => {
         // If skill is an object
         if (typeof skill === 'object' && skill !== null) {
           return {
