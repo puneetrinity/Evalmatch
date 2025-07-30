@@ -2518,6 +2518,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Populate skills database with comprehensive tech skills
+  app.post("/api/admin/populate-skills", async (req: Request, res: Response) => {
+    try {
+      const { Client } = await import('pg');
+      const client = new Client({
+        connectionString: process.env.DATABASE_URL
+      });
+
+      await client.connect();
+
+      // Clear existing data
+      await client.query('DELETE FROM skills');
+      await client.query('DELETE FROM skill_categories');
+
+      // Define skill categories
+      const categories = [
+        { name: 'Frontend Development', description: 'User interface and client-side technologies' },
+        { name: 'Backend Development', description: 'Server-side programming and APIs' },
+        { name: 'Mobile Development', description: 'Mobile app development frameworks and tools' },
+        { name: 'Database Management', description: 'Database systems and data management' },
+        { name: 'Cloud & DevOps', description: 'Cloud platforms and deployment technologies' },
+        { name: 'Machine Learning & AI', description: 'AI, ML, and data science technologies' },
+        { name: 'Programming Languages', description: 'Core programming languages' },
+        { name: 'Testing & QA', description: 'Testing frameworks and quality assurance' },
+        { name: 'Version Control', description: 'Code versioning and collaboration tools' },
+        { name: 'Web Technologies', description: 'Web standards and protocols' }
+      ];
+
+      // Insert categories and get their IDs
+      const categoryMap = {};
+      for (const category of categories) {
+        const result = await client.query(
+          'INSERT INTO skill_categories (name, description, level) VALUES ($1, $2, 1) RETURNING id',
+          [category.name, category.description]
+        );
+        categoryMap[category.name] = result.rows[0].id;
+      }
+
+      // Define comprehensive skills with aliases
+      const skills = [
+        // Frontend
+        { name: 'React', category: 'Frontend Development', aliases: ['ReactJS', 'React.js'] },
+        { name: 'Vue.js', category: 'Frontend Development', aliases: ['Vue', 'VueJS'] },
+        { name: 'Angular', category: 'Frontend Development', aliases: ['AngularJS', 'Angular.js'] },
+        { name: 'HTML', category: 'Frontend Development', aliases: ['HTML5'] },
+        { name: 'CSS', category: 'Frontend Development', aliases: ['CSS3', 'Cascading Style Sheets'] },
+        { name: 'JavaScript', category: 'Frontend Development', aliases: ['JS', 'ECMAScript', 'ES6', 'ES2015'] },
+        { name: 'TypeScript', category: 'Frontend Development', aliases: ['TS'] },
+        { name: 'Sass', category: 'Frontend Development', aliases: ['SCSS'] },
+        { name: 'Bootstrap', category: 'Frontend Development', aliases: [] },
+        { name: 'Tailwind CSS', category: 'Frontend Development', aliases: ['TailwindCSS'] },
+
+        // Backend
+        { name: 'Node.js', category: 'Backend Development', aliases: ['NodeJS', 'Node'] },
+        { name: 'Express.js', category: 'Backend Development', aliases: ['Express', 'ExpressJS'] },
+        { name: 'Django', category: 'Backend Development', aliases: [] },
+        { name: 'Flask', category: 'Backend Development', aliases: [] },
+        { name: 'Spring Boot', category: 'Backend Development', aliases: ['Spring'] },
+        { name: 'ASP.NET', category: 'Backend Development', aliases: ['.NET', 'DotNet'] },
+        { name: 'Ruby on Rails', category: 'Backend Development', aliases: ['Rails', 'RoR'] },
+        { name: 'FastAPI', category: 'Backend Development', aliases: [] },
+
+        // Languages
+        { name: 'Python', category: 'Programming Languages', aliases: [] },
+        { name: 'Java', category: 'Programming Languages', aliases: [] },
+        { name: 'C#', category: 'Programming Languages', aliases: ['C Sharp', 'CSharp'] },
+        { name: 'Go', category: 'Programming Languages', aliases: ['Golang'] },
+        { name: 'Rust', category: 'Programming Languages', aliases: [] },
+        { name: 'PHP', category: 'Programming Languages', aliases: [] },
+        { name: 'Ruby', category: 'Programming Languages', aliases: [] },
+        { name: 'Swift', category: 'Programming Languages', aliases: [] },
+        { name: 'Kotlin', category: 'Programming Languages', aliases: [] },
+
+        // Databases
+        { name: 'PostgreSQL', category: 'Database Management', aliases: ['Postgres'] },
+        { name: 'MySQL', category: 'Database Management', aliases: [] },
+        { name: 'MongoDB', category: 'Database Management', aliases: ['Mongo'] },
+        { name: 'Redis', category: 'Database Management', aliases: [] },
+        { name: 'Elasticsearch', category: 'Database Management', aliases: ['ElasticSearch'] },
+        { name: 'SQLite', category: 'Database Management', aliases: [] },
+        { name: 'Oracle', category: 'Database Management', aliases: ['Oracle DB'] },
+        { name: 'SQL Server', category: 'Database Management', aliases: ['MSSQL', 'Microsoft SQL Server'] },
+
+        // Cloud & DevOps
+        { name: 'AWS', category: 'Cloud & DevOps', aliases: ['Amazon Web Services'] },
+        { name: 'Google Cloud', category: 'Cloud & DevOps', aliases: ['GCP', 'Google Cloud Platform'] },
+        { name: 'Azure', category: 'Cloud & DevOps', aliases: ['Microsoft Azure'] },
+        { name: 'Docker', category: 'Cloud & DevOps', aliases: [] },
+        { name: 'Kubernetes', category: 'Cloud & DevOps', aliases: ['K8s'] },
+        { name: 'Jenkins', category: 'Cloud & DevOps', aliases: [] },
+        { name: 'Terraform', category: 'Cloud & DevOps', aliases: [] },
+        { name: 'Ansible', category: 'Cloud & DevOps', aliases: [] },
+
+        // ML & AI
+        { name: 'TensorFlow', category: 'Machine Learning & AI', aliases: [] },
+        { name: 'PyTorch', category: 'Machine Learning & AI', aliases: [] },
+        { name: 'Scikit-learn', category: 'Machine Learning & AI', aliases: ['sklearn'] },
+        { name: 'Pandas', category: 'Machine Learning & AI', aliases: [] },
+        { name: 'NumPy', category: 'Machine Learning & AI', aliases: [] },
+
+        // Mobile
+        { name: 'React Native', category: 'Mobile Development', aliases: [] },
+        { name: 'Flutter', category: 'Mobile Development', aliases: [] },
+        { name: 'iOS Development', category: 'Mobile Development', aliases: ['iOS'] },
+        { name: 'Android Development', category: 'Mobile Development', aliases: ['Android'] },
+
+        // Testing
+        { name: 'Jest', category: 'Testing & QA', aliases: [] },
+        { name: 'Cypress', category: 'Testing & QA', aliases: [] },
+        { name: 'Selenium', category: 'Testing & QA', aliases: [] },
+        { name: 'Pytest', category: 'Testing & QA', aliases: [] },
+
+        // Version Control
+        { name: 'Git', category: 'Version Control', aliases: [] },
+        { name: 'GitHub', category: 'Version Control', aliases: [] },
+        { name: 'GitLab', category: 'Version Control', aliases: [] }
+      ];
+
+      // Insert skills
+      let insertedCount = 0;
+      for (const skill of skills) {
+        const categoryId = categoryMap[skill.category];
+        await client.query(
+          'INSERT INTO skills (name, normalized_name, category_id, aliases) VALUES ($1, $2, $3, $4)',
+          [skill.name, skill.name.toLowerCase(), categoryId, JSON.stringify(skill.aliases)]
+        );
+        insertedCount++;
+      }
+
+      await client.end();
+
+      res.json({
+        success: true,
+        message: 'Skills database populated successfully!',
+        categories: categories.length,
+        skills: insertedCount
+      });
+
+    } catch (error) {
+      logger.error('Error populating skills database:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
