@@ -6,7 +6,7 @@
  */
 
 import { Express } from "express";
-import { registerModularRoutes, getRoutesSummary } from './routes';
+import { registerModularRoutes, getRoutesSummary } from './routes/index';
 import { logger } from "./lib/logger";
 
 /**
