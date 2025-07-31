@@ -223,6 +223,14 @@ export class HybridStorage implements IStorage {
       () => this.memStorage.getResume(id)
     );
   }
+
+  async getResumeById(id: number, userId: string): Promise<Resume | undefined> {
+    return this.executeWithFallback(
+      `getResumeById(${id}, ${userId})`,
+      () => this.dbStorage.getResumeById(id, userId),
+      () => this.memStorage.getResumeById(id, userId)
+    );
+  }
   
   async getResumes(sessionId?: string): Promise<Resume[]> {
     return this.executeWithFallback(
@@ -266,6 +274,14 @@ export class HybridStorage implements IStorage {
       () => this.memStorage.getJobDescription(id)
     );
   }
+
+  async getJobDescriptionById(id: number, userId: string): Promise<JobDescription | undefined> {
+    return this.executeWithFallback(
+      `getJobDescriptionById(${id}, ${userId})`,
+      () => this.dbStorage.getJobDescriptionById(id, userId),
+      () => this.memStorage.getJobDescriptionById(id, userId)
+    );
+  }
   
   async getJobDescriptions(): Promise<JobDescription[]> {
     return this.executeWithFallback(
@@ -291,6 +307,24 @@ export class HybridStorage implements IStorage {
       true
     );
   }
+
+  async updateJobDescription(id: number, updates: Partial<JobDescription>): Promise<JobDescription> {
+    return this.executeWithFallback(
+      `updateJobDescription(${id})`,
+      () => this.dbStorage.updateJobDescription(id, updates),
+      () => this.memStorage.updateJobDescription(id, updates),
+      true
+    );
+  }
+
+  async deleteJobDescription(id: number): Promise<void> {
+    return this.executeWithFallback(
+      `deleteJobDescription(${id})`,
+      () => this.dbStorage.deleteJobDescription(id),
+      () => this.memStorage.deleteJobDescription(id),
+      true
+    );
+  }
   
   async updateJobDescriptionAnalysis(id: number, analysis: AnalyzeJobDescriptionResponse): Promise<JobDescription> {
     return this.executeWithFallback(
@@ -307,6 +341,22 @@ export class HybridStorage implements IStorage {
       'getAnalysisResult',
       () => this.dbStorage.getAnalysisResult(id),
       () => this.memStorage.getAnalysisResult(id)
+    );
+  }
+
+  async getAnalysisResultByJobAndResume(jobId: number, resumeId: number, userId: string): Promise<AnalysisResult | undefined> {
+    return this.executeWithFallback(
+      `getAnalysisResultByJobAndResume(${jobId}, ${resumeId}, ${userId})`,
+      () => this.dbStorage.getAnalysisResultByJobAndResume(jobId, resumeId, userId),
+      () => this.memStorage.getAnalysisResultByJobAndResume(jobId, resumeId, userId)
+    );
+  }
+
+  async getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string): Promise<AnalysisResult[]> {
+    return this.executeWithFallback(
+      `getAnalysisResultsByJob(${jobId}, ${userId})`,
+      () => this.dbStorage.getAnalysisResultsByJob(jobId, userId, sessionId),
+      () => this.memStorage.getAnalysisResultsByJob(jobId, userId, sessionId)
     );
   }
   
