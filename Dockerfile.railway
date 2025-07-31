@@ -66,8 +66,8 @@ RUN mkdir -p /app/dist && \
     echo 'console.log("Working directory:", process.cwd());' >> /app/dist/index.js && \
     echo 'console.log("Node.js version:", process.version);' >> /app/dist/index.js && \
     echo '' >> /app/dist/index.js && \
-    echo 'const { existsSync } = require("fs");' >> /app/dist/index.js && \
-    echo 'const { spawn } = require("child_process");' >> /app/dist/index.js && \
+    echo 'import { existsSync, readdirSync } from "fs";' >> /app/dist/index.js && \
+    echo 'import { spawn } from "child_process";' >> /app/dist/index.js && \
     echo '' >> /app/dist/index.js && \
     echo 'function startApp() {' >> /app/dist/index.js && \
     echo '  const candidates = [' >> /app/dist/index.js && \
@@ -96,7 +96,7 @@ RUN mkdir -p /app/dist && \
     echo '  }' >> /app/dist/index.js && \
     echo '  ' >> /app/dist/index.js && \
     echo '  console.log("❌ No app found. Available files:");' >> /app/dist/index.js && \
-    echo '  require("fs").readdirSync("/app").forEach(f => console.log(" -", f));' >> /app/dist/index.js && \
+    echo '  readdirSync("/app").forEach(f => console.log(" -", f));' >> /app/dist/index.js && \
     echo '  process.exit(1);' >> /app/dist/index.js && \
     echo '}' >> /app/dist/index.js && \
     echo '' >> /app/dist/index.js && \
