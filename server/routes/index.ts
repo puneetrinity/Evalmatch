@@ -11,6 +11,7 @@ import jobRoutes from './jobs';
 import analysisRoutes from './analysis';
 import adminRoutes from './admin';
 import debugRoutes from './debug';
+import dbCheckRoutes from './db-check';
 
 /**
  * Register all modular routes with the Express app
@@ -36,6 +37,7 @@ export function registerModularRoutes(app: Express): void {
   
   // Debug and system status routes
   app.use('/api/debug', debugRoutes);
+  app.use('/api/debug', dbCheckRoutes);
 }
 
 /**
