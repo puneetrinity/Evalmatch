@@ -399,3 +399,23 @@ UPDATE job_descriptions SET created_at = CURRENT_TIMESTAMP WHERE created_at IS N
 UPDATE job_descriptions SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL;
 UPDATE analysis_results SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL;
 UPDATE analysis_results SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL;
+
+-- ============================================================================
+-- REMOVE DEPRECATED COLUMNS
+-- ============================================================================
+
+-- Remove deprecated 'created' columns (keeping only 'created_at' for consistency)
+DO $$ 
+BEGIN
+    -- Remove 'created' column from resumes if it exists
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_name = 'resumes' AND column_name = 'created') THEN
+        ALTER TABLE resumes DROP COLUMN created;
+    END IF;
+    
+    -- Remove 'created' column from analysis_results if it exists  
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_name = 'analysis_results' AND column_name = 'created') THEN
+        ALTER TABLE analysis_results DROP COLUMN created;
+    END IF;
+END $$;

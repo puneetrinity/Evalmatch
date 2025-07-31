@@ -45,7 +45,6 @@ export const resumes = pgTable("resumes", {
   embedding: json("embedding").$type<number[]>(),
   skillsEmbedding: json("skills_embedding").$type<number[]>(),
   analyzedData: json("analyzed_data").$type<AnalyzedResumeData>(),
-  created: timestamp("created").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -123,7 +122,6 @@ export const analysisResults = pgTable("analysis_results", {
     fairnessAssessment: string;
   }>(),
   
-  created: timestamp("created").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
