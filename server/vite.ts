@@ -78,15 +78,19 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(__dirname, "..", "build", "public");
+  const buildPath = path.resolve(__dirname, "..", "build", "public");
+  const distPath = path.resolve(__dirname, "..", "dist", "public");
+  
+  // Try build directory first, fall back to dist directory
+  const staticPath = fs.existsSync(buildPath) ? buildPath : distPath;
 
-  if (!fs.existsSync(distPath)) {
+  if (!fs.existsSync(staticPath)) {
     throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`,
+      `Could not find static files in either ${buildPath} or ${distPath}, make sure to build the client first`,
     );
   }
 
-  app.use(express.static(distPath));
+  app.use(express.static(staticPath));
 
   // fall through to index.html for frontend routes only
   // Explicitly exclude API routes to prevent routing conflicts
@@ -97,6 +101,6 @@ export function serveStatic(app: Express) {
     }
     
     // Serve index.html for all frontend routes
-    res.sendFile(path.resolve(distPath, "index.html"));
+    res.sendFile(path.resolve(staticPath, "index.html"));
   });
 }

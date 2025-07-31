@@ -28,7 +28,7 @@ export default defineConfig({
   },
   root: path.resolve(__dirname, "client"),
   build: {
-    outDir: path.resolve(__dirname, process.env.RAILWAY_ENVIRONMENT ? "build/public" : "dist/public"),
+    outDir: path.resolve(__dirname, "build/public"),
     emptyOutDir: true,
   },
 });
