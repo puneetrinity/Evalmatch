@@ -18,6 +18,7 @@ export interface IStorage {
   
   // Resume methods
   getResume(id: number): Promise<Resume | undefined>;
+  getResumeById(id: number, userId: string): Promise<Resume | undefined>;
   getResumes(sessionId?: string): Promise<Resume[]>;
   getResumesByUserId(userId: string, sessionId?: string): Promise<Resume[]>;
   createResume(resume: InsertResume): Promise<Resume>;
@@ -25,13 +26,18 @@ export interface IStorage {
   
   // Job description methods
   getJobDescription(id: number): Promise<JobDescription | undefined>;
+  getJobDescriptionById(id: number, userId: string): Promise<JobDescription | undefined>;
   getJobDescriptions(): Promise<JobDescription[]>;
   getJobDescriptionsByUserId(userId: string): Promise<JobDescription[]>;
   createJobDescription(jobDescription: InsertJobDescription): Promise<JobDescription>;
+  updateJobDescription(id: number, updates: Partial<JobDescription>): Promise<JobDescription>;
   updateJobDescriptionAnalysis(id: number, analysis: AnalyzeJobDescriptionResponse): Promise<JobDescription>;
+  deleteJobDescription(id: number): Promise<void>;
   
   // Analysis results methods
   getAnalysisResult(id: number): Promise<AnalysisResult | undefined>;
+  getAnalysisResultByJobAndResume(jobId: number, resumeId: number, userId: string): Promise<AnalysisResult | undefined>;
+  getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string): Promise<AnalysisResult[]>;
   getAnalysisResultsByResumeId(resumeId: number): Promise<AnalysisResult[]>;
   getAnalysisResultsByJobDescriptionId(jobDescriptionId: number): Promise<AnalysisResult[]>;
   createAnalysisResult(analysisResult: InsertAnalysisResult): Promise<AnalysisResult>;
@@ -108,6 +114,14 @@ export class MemStorage implements IStorage {
     return this.resumesData.get(id);
   }
 
+  async getResumeById(id: number, userId: string): Promise<Resume | undefined> {
+    const resume = this.resumesData.get(id);
+    if (resume && resume.userId === userId) {
+      return resume;
+    }
+    return undefined;
+  }
+
   async getResumes(sessionId?: string): Promise<Resume[]> {
     const allResumes = Array.from(this.resumesData.values());
     
@@ -171,6 +185,14 @@ export class MemStorage implements IStorage {
     return this.jobDescriptionsData.get(id);
   }
 
+  async getJobDescriptionById(id: number, userId: string): Promise<JobDescription | undefined> {
+    const jobDesc = this.jobDescriptionsData.get(id);
+    if (jobDesc && jobDesc.userId === userId) {
+      return jobDesc;
+    }
+    return undefined;
+  }
+
   async getJobDescriptions(): Promise<JobDescription[]> {
     return Array.from(this.jobDescriptionsData.values());
   }
@@ -193,6 +215,21 @@ export class MemStorage implements IStorage {
     return jobDescription;
   }
 
+  async updateJobDescription(id: number, updates: Partial<JobDescription>): Promise<JobDescription> {
+    const jobDescription = await this.getJobDescription(id);
+    if (!jobDescription) {
+      throw new Error(`Job description with ID ${id} not found`);
+    }
+    
+    const updatedJobDescription: JobDescription = {
+      ...jobDescription,
+      ...updates,
+    };
+    
+    this.jobDescriptionsData.set(id, updatedJobDescription);
+    return updatedJobDescription;
+  }
+
   async updateJobDescriptionAnalysis(id: number, analysis: AnalyzeJobDescriptionResponse): Promise<JobDescription> {
     const jobDescription = await this.getJobDescription(id);
     if (!jobDescription) {
@@ -208,9 +245,30 @@ export class MemStorage implements IStorage {
     return updatedJobDescription;
   }
 
+  async deleteJobDescription(id: number): Promise<void> {
+    this.jobDescriptionsData.delete(id);
+  }
+
   // Analysis results methods
   async getAnalysisResult(id: number): Promise<AnalysisResult | undefined> {
     return this.analysisResultsData.get(id);
+  }
+
+  async getAnalysisResultByJobAndResume(jobId: number, resumeId: number, userId: string): Promise<AnalysisResult | undefined> {
+    const results = Array.from(this.analysisResultsData.values());
+    return results.find(result => 
+      result.jobDescriptionId === jobId && 
+      result.resumeId === resumeId && 
+      result.userId === userId
+    );
+  }
+
+  async getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string): Promise<AnalysisResult[]> {
+    const results = Array.from(this.analysisResultsData.values());
+    return results.filter(result => 
+      result.jobDescriptionId === jobId && 
+      result.userId === userId
+    );
   }
 
   async getAnalysisResultsByResumeId(resumeId: number): Promise<AnalysisResult[]> {

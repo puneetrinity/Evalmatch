@@ -273,7 +273,7 @@ router.get("/analyze/:jobId/:resumeId", authenticateUser, async (req: Request, r
       });
     }
 
-    const analysisResult = await storage.getAnalysisResult(jobId, resumeId, userId);
+    const analysisResult = await storage.getAnalysisResultByJobAndResume(jobId, resumeId, userId);
     
     if (!analysisResult) {
       return res.status(404).json({
@@ -351,7 +351,7 @@ router.post("/interview-questions/:resumeId/:jobId", authenticateUser, async (re
     let matchAnalysis;
 
     // Get existing analysis result if available
-    const existingAnalysis = await storage.getAnalysisResult(jobId, resumeId, userId);
+    const existingAnalysis = await storage.getAnalysisResultByJobAndResume(jobId, resumeId, userId);
     if (existingAnalysis) {
       matchAnalysis = {
         matchPercentage: existingAnalysis.matchPercentage,
