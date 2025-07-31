@@ -4,5 +4,11 @@
  */
 
 export * from '../../shared/user-tiers';
+import { createDefaultUserTier, UserTierInfo } from '../../shared/user-tiers';
 
-// Additional server-side user tier functions can be added here
+// Server-side user tier functions
+export function getUserTierInfo(userId: string): UserTierInfo {
+  // In auth bypass mode, return default freemium tier for all users
+  // In production, this would query the database for user's actual tier
+  return createDefaultUserTier('freemium');
+}
