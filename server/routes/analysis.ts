@@ -16,6 +16,7 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
     const jobId = parseInt(req.params.jobId);
     const userId = req.user!.uid;
     const sessionId = req.body.sessionId;
+    const resumeIds = req.body.resumeIds; // Array of resume IDs to analyze
 
     if (isNaN(jobId)) {
       return res.status(400).json({
@@ -36,12 +37,25 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
     }
 
     // Get user's resumes
-    const resumes = await storage.getResumesByUserId(userId, sessionId);
+    let resumes = await storage.getResumesByUserId(userId, sessionId);
     if (!resumes || resumes.length === 0) {
       return res.status(404).json({
         error: "No resumes found",
         message: "Please upload at least one resume before running analysis"
       });
+    }
+
+    // Filter by specific resume IDs if provided
+    if (resumeIds && Array.isArray(resumeIds) && resumeIds.length > 0) {
+      resumes = resumes.filter(resume => resumeIds.includes(resume.id));
+      logger.info(`Filtered to ${resumes.length} resumes based on provided IDs: ${resumeIds.join(', ')}`);
+      
+      if (resumes.length === 0) {
+        return res.status(404).json({
+          error: "No matching resumes found",
+          message: "None of the specified resume IDs were found for your account"
+        });
+      }
     }
 
     logger.info(`Found ${resumes.length} resumes to analyze against job ${jobId}`);
