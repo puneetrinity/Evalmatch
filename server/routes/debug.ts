@@ -339,4 +339,32 @@ router.get('/config-validation', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Authentication status endpoint
+ */
+router.get('/auth-status', async (req: Request, res: Response) => {
+  try {
+    res.json({
+      status: 'bypassed',
+      mode: 'TESTING_MODE',
+      message: '🔓 Authentication is currently bypassed for core functionality testing',
+      user: req.user || null,
+      instructions: [
+        'All authenticated routes will work with a mock user',
+        'Resume uploads, job descriptions, and analysis should work',
+        'Firebase auth will be re-enabled after testing is complete',
+        'Check server logs for "AUTH BYPASS ACTIVE" messages'
+      ],
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('Auth status debug failed:', error);
+    res.status(500).json({
+      status: 'error',
+      error: 'Auth status debug failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
 export default router;
