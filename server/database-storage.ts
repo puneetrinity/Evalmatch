@@ -40,6 +40,15 @@ export class DatabaseStorage implements IStorage {
       return resume;
     }, `getResume(${id})`);
   }
+
+  async getResumeById(id: number, userId: string): Promise<Resume | undefined> {
+    return withRetry(async () => {
+      const [resume] = await db.select()
+        .from(resumes)
+        .where(and(eq(resumes.id, id), eq(resumes.userId, userId)));
+      return resume;
+    }, `getResumeById(${id}, ${userId})`);
+  }
   
   async getResumes(sessionId?: string): Promise<Resume[]> {
     return withRetry(async () => {
@@ -133,6 +142,23 @@ export class DatabaseStorage implements IStorage {
       }
     }, `getJobDescription(${id})`);
   }
+
+  async getJobDescriptionById(id: number, userId: string): Promise<JobDescription | undefined> {
+    console.log(`DatabaseStorage: Looking up job description with ID ${id} for user ${userId}`);
+    return withRetry(async () => {
+      try {
+        const [jobDescription] = await db.select()
+          .from(jobDescriptions)
+          .where(and(eq(jobDescriptions.id, id), eq(jobDescriptions.userId, userId)));
+        
+        console.log(`DatabaseStorage: User-scoped job lookup result: ${jobDescription ? `Found job '${jobDescription.title}' with ID ${jobDescription.id}` : 'No job found for user'}`);
+        return jobDescription;
+      } catch (error) {
+        console.error(`DatabaseStorage: Error fetching job description ${id} for user ${userId}:`, error);
+        throw error;
+      }
+    }, `getJobDescriptionById(${id}, ${userId})`);
+  }
   
   async getJobDescriptions(): Promise<JobDescription[]> {
     return withRetry(async () => {
@@ -174,6 +200,23 @@ export class DatabaseStorage implements IStorage {
       return jobDescription;
     }, `createJobDescription(${insertJobDescription.title})`);
   }
+
+  async updateJobDescription(id: number, updates: Partial<JobDescription>): Promise<JobDescription> {
+    return withRetry(async () => {
+      const [updatedJobDescription] = await db.update(jobDescriptions)
+        .set(updates)
+        .where(eq(jobDescriptions.id, id))
+        .returning();
+      
+      return updatedJobDescription;
+    }, `updateJobDescription(${id})`);
+  }
+
+  async deleteJobDescription(id: number): Promise<void> {
+    return withRetry(async () => {
+      await db.delete(jobDescriptions).where(eq(jobDescriptions.id, id));
+    }, `deleteJobDescription(${id})`);
+  }
   
   async updateJobDescriptionAnalysis(id: number, analysis: AnalyzeJobDescriptionResponse): Promise<JobDescription> {
     return withRetry(async () => {
@@ -196,6 +239,31 @@ export class DatabaseStorage implements IStorage {
         .where(eq(analysisResults.id, id));
       return analysisResult;
     }, `getAnalysisResult(${id})`);
+  }
+
+  async getAnalysisResultByJobAndResume(jobId: number, resumeId: number, userId: string): Promise<AnalysisResult | undefined> {
+    return withRetry(async () => {
+      const [analysisResult] = await db.select()
+        .from(analysisResults)
+        .where(and(
+          eq(analysisResults.jobDescriptionId, jobId), 
+          eq(analysisResults.resumeId, resumeId),
+          eq(analysisResults.userId, userId)
+        ));
+      return analysisResult;
+    }, `getAnalysisResultByJobAndResume(${jobId}, ${resumeId}, ${userId})`);
+  }
+
+  async getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string): Promise<AnalysisResult[]> {
+    return withRetry(async () => {
+      return db.select()
+        .from(analysisResults)
+        .where(and(
+          eq(analysisResults.jobDescriptionId, jobId),
+          eq(analysisResults.userId, userId)
+        ))
+        .orderBy(desc(analysisResults.createdAt));
+    }, `getAnalysisResultsByJob(${jobId}, ${userId})`);
   }
   
   async getAnalysisResultsByResumeId(resumeId: number): Promise<AnalysisResult[]> {
