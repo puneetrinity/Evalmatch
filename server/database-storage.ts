@@ -58,11 +58,11 @@ export class DatabaseStorage implements IStorage {
         return db.select()
           .from(resumes)
           .where(eq(resumes.sessionId, sessionId))
-          .orderBy(desc(resumes.createdAt));
+          .orderBy(desc(resumes.created));
       }
       
       // Otherwise return all resumes
-      return db.select().from(resumes).orderBy(desc(resumes.createdAt));
+      return db.select().from(resumes).orderBy(desc(resumes.created));
     }, `getResumes(${sessionId || 'all'})`);
   }
   
@@ -75,13 +75,13 @@ export class DatabaseStorage implements IStorage {
             eq(resumes.userId, userId),
             eq(resumes.sessionId, sessionId)
           ))
-          .orderBy(desc(resumes.createdAt));
+          .orderBy(desc(resumes.created));
       }
       
       return db.select()
         .from(resumes)
         .where(eq(resumes.userId, userId))
-        .orderBy(desc(resumes.createdAt));
+        .orderBy(desc(resumes.created));
     }, `getResumesByUserId(${userId}, ${sessionId || 'all'})`);
   }
   
@@ -164,7 +164,7 @@ export class DatabaseStorage implements IStorage {
     return withRetry(async () => {
       return db.select()
         .from(jobDescriptions)
-        .orderBy(desc(jobDescriptions.createdAt));
+        .orderBy(desc(jobDescriptions.created));
     }, 'getJobDescriptions()');
   }
   
@@ -173,7 +173,7 @@ export class DatabaseStorage implements IStorage {
       return db.select()
         .from(jobDescriptions)
         .where(eq(jobDescriptions.userId, userId))
-        .orderBy(desc(jobDescriptions.createdAt));
+        .orderBy(desc(jobDescriptions.created));
     }, `getJobDescriptionsByUserId(${userId})`);
   }
   
@@ -266,7 +266,7 @@ export class DatabaseStorage implements IStorage {
           eq(analysisResults.jobDescriptionId, jobId),
           eq(analysisResults.userId, userId)
         ))
-        .orderBy(desc(analysisResults.createdAt));
+        .orderBy(desc(analysisResults.created));
       
       // Transform the results to match the expected AnalysisResult type
       return results.map(result => ({
@@ -281,7 +281,7 @@ export class DatabaseStorage implements IStorage {
       return db.select()
         .from(analysisResults)
         .where(eq(analysisResults.resumeId, resumeId))
-        .orderBy(desc(analysisResults.createdAt));
+        .orderBy(desc(analysisResults.created));
     }, `getAnalysisResultsByResumeId(${resumeId})`);
   }
   
@@ -290,7 +290,7 @@ export class DatabaseStorage implements IStorage {
       return db.select()
         .from(analysisResults)
         .where(eq(analysisResults.jobDescriptionId, jobDescriptionId))
-        .orderBy(desc(analysisResults.createdAt));
+        .orderBy(desc(analysisResults.created));
     }, `getAnalysisResultsByJobDescriptionId(${jobDescriptionId})`);
   }
   
@@ -320,7 +320,7 @@ export class DatabaseStorage implements IStorage {
       return db.select()
         .from(interviewQuestions)
         .where(eq(interviewQuestions.resumeId, resumeId))
-        .orderBy(desc(interviewQuestions.createdAt));
+        .orderBy(desc(interviewQuestions.created));
     }, `getInterviewQuestionsByResumeId(${resumeId})`);
   }
   
@@ -329,7 +329,7 @@ export class DatabaseStorage implements IStorage {
       return db.select()
         .from(interviewQuestions)
         .where(eq(interviewQuestions.jobDescriptionId, jobDescriptionId))
-        .orderBy(desc(interviewQuestions.createdAt));
+        .orderBy(desc(interviewQuestions.created));
     }, `getInterviewQuestionsByJobDescriptionId(${jobDescriptionId})`);
   }
   
@@ -343,7 +343,7 @@ export class DatabaseStorage implements IStorage {
             eq(interviewQuestions.jobDescriptionId, jobDescriptionId)
           )
         )
-        .orderBy(desc(interviewQuestions.createdAt));
+        .orderBy(desc(interviewQuestions.created));
       return interviewQuestion;
     }, `getInterviewQuestionByResumeAndJob(${resumeId}, ${jobDescriptionId})`);
   }
@@ -378,7 +378,7 @@ export class DatabaseStorage implements IStorage {
           eq(analysisResults.jobDescriptionId, jobDescriptionId)
         )
       )
-      .orderBy(desc(analysisResults.createdAt))
+      .orderBy(desc(analysisResults.created))
       .limit(1);
     
     const [questions] = await db.select()
@@ -389,7 +389,7 @@ export class DatabaseStorage implements IStorage {
           eq(interviewQuestions.jobDescriptionId, jobDescriptionId)
         )
       )
-      .orderBy(desc(interviewQuestions.createdAt))
+      .orderBy(desc(interviewQuestions.created))
       .limit(1);
     
     return {
