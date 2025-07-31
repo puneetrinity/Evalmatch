@@ -129,8 +129,8 @@ router.post("/",
         fileType: file.mimetype,
         content,
         skills: analysis.skills || [],
-        experience: analysis.experience || "0 years",
-        education: analysis.education || [],
+        experience: analysis.experience || "0 years", // JSON string
+        education: Array.isArray(analysis.education) ? analysis.education : [], // JSON array
         analyzedData: analysis
       };
 
