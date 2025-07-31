@@ -31,6 +31,9 @@ RUN mkdir -p uploads uploads/temp data build build/public && \
 # Copy source files (this layer changes most frequently)
 COPY . .
 
+# Make start script executable
+RUN chmod +x start.sh
+
 # Build arguments for Firebase environment variables with defaults
 ARG VITE_FIREBASE_API_KEY=placeholder-api-key
 ARG VITE_FIREBASE_AUTH_DOMAIN=placeholder.firebaseapp.com
@@ -88,5 +91,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Add curl for health checks
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Command to run the app
-CMD ["node", "build/index.js"]
+# Use the unified start script that handles all scenarios
+CMD ["./start.sh"]
