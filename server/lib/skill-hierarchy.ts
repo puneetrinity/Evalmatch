@@ -219,7 +219,7 @@ export async function normalizeSkillWithHierarchy(skill: string): Promise<{
     // 2. Try alias matching
     const aliasMatches = await db.select()
       .from(skillsTable)
-      .where(sql`JSON_CONTAINS(aliases, ${JSON.stringify(lowerSkill)})`);
+      .where(sql`aliases ? ${lowerSkill}`);
 
     if (aliasMatches.length > 0) {
       const bestMatch = aliasMatches[0];
