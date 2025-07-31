@@ -55,6 +55,17 @@ RUN npm run build
 COPY server/migrations/ /app/build/migrations/
 RUN ls -la /app/build/ && echo "Build completed successfully"
 
+# Debug: List all files to verify build output
+RUN echo "=== DEBUGGING BUILD OUTPUT ===" && \
+    ls -la /app/ && \
+    echo "=== BUILD DIRECTORY ===" && \
+    ls -la /app/build/ && \
+    echo "=== DIST DIRECTORY (should not exist) ===" && \
+    ls -la /app/dist/ || echo "dist directory does not exist (good)" && \
+    echo "=== BUILD INDEX.JS EXISTS? ===" && \
+    ls -la /app/build/index.js && \
+    echo "=== READY TO START ==="
+
 # Clean up some dev dependencies but keep Vite for potential dynamic imports
 RUN npm prune --omit=dev --ignore-scripts && npm install vite
 
@@ -88,5 +99,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Add curl for health checks
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Command to run the app
-CMD ["node", "build/index.js"]
+# Command to run the app (updated 2025-07-31 to fix path)
+# Debug startup
+RUN echo "FINAL CHECK: About to set CMD to run build/index.js"
+CMD ["sh", "-c", "echo 'Starting app with:' && ls -la /app/build/index.js && node build/index.js"]
