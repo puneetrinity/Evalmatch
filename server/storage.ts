@@ -265,10 +265,16 @@ export class MemStorage implements IStorage {
 
   async getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string): Promise<AnalysisResult[]> {
     const results = Array.from(this.analysisResultsData.values());
-    return results.filter(result => 
+    const filteredResults = results.filter(result => 
       result.jobDescriptionId === jobId && 
       result.userId === userId
     );
+    
+    // Add resume data to each result
+    return filteredResults.map(result => ({
+      ...result,
+      resume: this.resumesData.get(result.resumeId)
+    })) as AnalysisResult[];
   }
 
   async getAnalysisResultsByResumeId(resumeId: number): Promise<AnalysisResult[]> {

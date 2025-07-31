@@ -256,13 +256,23 @@ export class DatabaseStorage implements IStorage {
 
   async getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string): Promise<AnalysisResult[]> {
     return withRetry(async () => {
-      return db.select()
+      const results = await db.select({
+        ...analysisResults,
+        resume: resumes
+      })
         .from(analysisResults)
+        .leftJoin(resumes, eq(analysisResults.resumeId, resumes.id))
         .where(and(
           eq(analysisResults.jobDescriptionId, jobId),
           eq(analysisResults.userId, userId)
         ))
         .orderBy(desc(analysisResults.createdAt));
+      
+      // Transform the results to match the expected AnalysisResult type
+      return results.map(result => ({
+        ...result,
+        resume: result.resume || undefined
+      })) as AnalysisResult[];
     }, `getAnalysisResultsByJob(${jobId}, ${userId})`);
   }
   
