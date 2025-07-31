@@ -75,7 +75,7 @@ router.get('/status', async (req: Request, res: Response) => {
       },
 
       // Environment Variables Check
-      environment: {
+      environmentVariables: {
         node_env: process.env.NODE_ENV,
         port: process.env.PORT,
         has_database_url: !!process.env.DATABASE_URL,
