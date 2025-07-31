@@ -10,6 +10,7 @@ import resumeRoutes from './resumes';
 import jobRoutes from './jobs';
 import analysisRoutes from './analysis';
 import adminRoutes from './admin';
+import debugRoutes from './debug';
 
 /**
  * Register all modular routes with the Express app
@@ -32,6 +33,9 @@ export function registerModularRoutes(app: Express): void {
   
   // Admin routes
   app.use('/api/admin', adminRoutes);
+  
+  // Debug and system status routes
+  app.use('/api/debug', debugRoutes);
 }
 
 /**
@@ -43,15 +47,16 @@ export function getRoutesSummary(): {
   estimatedRoutes: number;
 } {
   return {
-    totalModules: 6,
+    totalModules: 7,
     modules: [
       'health (5 routes)',
       'user (2 routes)', 
       'resumes (4 routes)',
       'jobs (5 routes)',
       'analysis (6 routes)',
-      'admin (5 routes)'
+      'admin (5 routes)',
+      'debug (6 routes)'
     ],
-    estimatedRoutes: 27 // Reduced from 35+ in monolithic version
+    estimatedRoutes: 33 // Comprehensive debugging included
   };
 }

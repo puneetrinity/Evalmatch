@@ -228,6 +228,40 @@ router.get("/debug-auth", requireAdmin, async (req: Request, res: Response) => {
     const authHeader = req.headers.authorization;
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
     
+    // Check Firebase Admin SDK configuration
+    const { verifyFirebaseConfig, verifyFirebaseToken } = await import('../lib/firebase-admin');
+    const firebaseStatus = await verifyFirebaseConfig();
+    
+    // Check environment variables
+    const envCheck = {
+      hasFirebaseProjectId: !!process.env.FIREBASE_PROJECT_ID,
+      hasFirebaseServiceAccount: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+      hasGoogleCredentials: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+      nodeEnv: process.env.NODE_ENV
+    };
+    
+    // Try to verify token if provided
+    let tokenVerification = null;
+    if (token) {
+      try {
+        const decodedToken = await verifyFirebaseToken(token);
+        tokenVerification = {
+          status: 'success',
+          decoded: decodedToken ? {
+            uid: decodedToken.uid,
+            email: decodedToken.email,
+            emailVerified: decodedToken.emailVerified
+          } : null
+        };
+      } catch (error) {
+        tokenVerification = {
+          status: 'failed',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+    }
+    
     res.json({
       status: "ok",
       authDebug: {
@@ -240,7 +274,10 @@ router.get("/debug-auth", requireAdmin, async (req: Request, res: Response) => {
         referer: req.headers.referer,
         contentType: req.headers['content-type'],
         timestamp: new Date().toISOString()
-      }
+      },
+      firebaseStatus,
+      envCheck,
+      tokenVerification
     });
     
   } catch (error) {
