@@ -178,6 +178,17 @@ if (process.env.NODE_ENV === "development") {
       logger.info('🧠 Using in-memory storage (fallback mode)');
     }
 
+  // Add simple root health check route for Railway
+  app.get('/', (req, res) => {
+    res.json({
+      status: 'ok',
+      message: 'Evalmatch API is running',
+      timestamp: new Date().toISOString(),
+      environment: config.env,
+      uptime: process.uptime()
+    });
+  });
+
   // Register all routes
   registerRoutes(app);
 

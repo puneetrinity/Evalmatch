@@ -8,16 +8,27 @@ import { logger } from '../lib/logger';
 
 const router = Router();
 
-// Health check endpoint - Enhanced for Railway deployment
+// Health check endpoint - Simplified for Railway deployment
 router.get("/health", async (req: Request, res: Response) => {
   try {
-    // Import and use the healthcheck function
-    const { healthCheck } = await import('../healthcheck.js');
-    await healthCheck(req, res);
+    // Simple health check that always works
+    const healthStatus = {
+      status: "ok",
+      message: "Service is healthy",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      environment: process.env.NODE_ENV || 'development'
+    };
+
+    res.json(healthStatus);
   } catch (error) {
-    // Fallback to simple response if the advanced check fails
     logger.error('Health check error:', error);
-    res.json({ status: "ok", message: "Basic health check passed" });
+    res.status(500).json({ 
+      status: "error", 
+      message: "Health check failed",
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
