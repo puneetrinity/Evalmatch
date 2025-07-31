@@ -32,9 +32,9 @@ declare global {
 export async function authenticateUser(req: Request, res: Response, next: NextFunction) {
   try {
     // TEMPORARY: Auth bypass for testing - allow all requests with mock user
-    logger.info('🔓 AUTH BYPASS ACTIVE - Using mock user for testing');
+    logger.info('🔓 AUTH BYPASS ACTIVE - Using consistent test user for testing');
     req.user = {
-      uid: 'test-user-' + Math.random().toString(36).substr(2, 9),
+      uid: 'test-user-consistent',
       email: 'test@example.com',
       emailVerified: true,
       displayName: 'Test User',
