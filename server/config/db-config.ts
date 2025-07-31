@@ -131,46 +131,23 @@ function getDbConfig(): NeonDbConfig {
 export const dbConfig = getDbConfig();
 
 // Helper to get database URL with appropriate connection parameters
-export function getNeonDatabaseUrl(): string {
+export function getRailwayDatabaseUrl(): string {
   const baseUrl = process.env.DATABASE_URL || '';
   
   if (!baseUrl) {
     return '';
   }
   
-  // Parse the URL to add connection parameters if needed
-  try {
-    const url = new URL(baseUrl);
-    
-    // Add connection parameters if they don't exist
-    if (!url.searchParams.has('connect_timeout')) {
-      url.searchParams.set('connect_timeout', String(Math.floor(dbConfig.pooling.connectionTimeoutMillis / 1000)));
-    }
-    
-    if (!url.searchParams.has('statement_timeout')) {
-      url.searchParams.set('statement_timeout', String(dbConfig.query.statementTimeout));
-    }
-    
-    if (!url.searchParams.has('idle_in_transaction_session_timeout')) {
-      url.searchParams.set('idle_in_transaction_session_timeout', '30000');
-    }
-    
-    return url.toString();
-  } catch (error) {
-    console.warn('Failed to parse DATABASE_URL, using as-is');
-    return baseUrl;
-  }
+  // For Railway PostgreSQL, use the URL as-is - Railway handles SSL and other params
+  return baseUrl;
 }
 
 // Export connection pool options for easy access
 export const poolOptions = {
-  connectionString: getNeonDatabaseUrl(),
+  connectionString: getRailwayDatabaseUrl(),
   max: dbConfig.pooling.max,
   idleTimeoutMillis: dbConfig.pooling.idleTimeoutMillis,
   connectionTimeoutMillis: dbConfig.pooling.connectionTimeoutMillis,
   maxUses: dbConfig.pooling.maxUses,
-  keepAlive: true,
-  allowExitOnIdle: true,
-  statement_timeout: dbConfig.query.statementTimeout,
-  query_timeout: dbConfig.query.queryTimeout
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 };

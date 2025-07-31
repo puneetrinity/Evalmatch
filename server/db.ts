@@ -1,27 +1,18 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
-import { dbConfig, poolOptions, getNeonDatabaseUrl } from './config/db-config';
-import { createNeonCompatiblePool, verifyNeonConnection } from './neon-optimizations';
+import { dbConfig, poolOptions, getRailwayDatabaseUrl } from './config/db-config';
 import { logger } from './lib/logger';
 
 /**
- * Enhanced Neon Database Connection with Intelligent Pooling
+ * Enhanced PostgreSQL Database Connection with Intelligent Pooling
  * 
- * This module implements an optimized connection strategy for Neon PostgreSQL
+ * This module implements an optimized connection strategy for PostgreSQL
  * with proper connection pooling, retry mechanisms, and error handling.
  * 
  * Uses environment-specific configuration from db-config.ts with
- * Neon-specific optimizations.
+ * Railway PostgreSQL optimizations.
  */
-
-// Configure Neon for WebSocket support
-neonConfig.webSocketConstructor = ws;
-
-// We need to disable the type check as the types are outdated
-// @ts-ignore - Neon configuration property may not be in type definitions
-neonConfig.pipelineConnect = true;
 
 // Track query and connection analytics
 const connectionStats = {
@@ -36,7 +27,7 @@ const connectionStats = {
   connectedSince: null as (Date | null),
   environment: process.env.NODE_ENV || 'development',
   poolSize: dbConfig.pooling.max,
-  serverType: 'Neon PostgreSQL',
+  serverType: 'Railway PostgreSQL',
   optimizationsApplied: false
 };
 
@@ -67,29 +58,34 @@ if (!process.env.DATABASE_URL) {
 }
 
 // Log connection details (without sensitive info)
-logger.info('Initializing Neon PostgreSQL connection', {
+logger.info('Initializing Railway PostgreSQL connection', {
   mode: process.env.NODE_ENV || 'development',
   poolSize: dbConfig.pooling.max,
   connectionTimeout: `${dbConfig.pooling.connectionTimeoutMillis}ms`,
   statementTimeout: `${dbConfig.query.statementTimeout}ms`
 });
 
-// Create enhanced connection pool with Neon-specific optimizations
-export const pool = createNeonCompatiblePool(poolOptions);
+// Create enhanced connection pool for Railway PostgreSQL
+export const pool = new Pool({
+  ...poolOptions,
+  application_name: 'EvalMatchAI',
+  keepAlive: true,
+  allowExitOnIdle: true
+});
 
 // Schedule a connection verification after startup
 setTimeout(async () => {
-  const isVerified = await verifyNeonConnection(pool);
+  const isVerified = await checkConnection(pool);
   connectionStats.optimizationsApplied = isVerified;
   if (isVerified) {
-    logger.info('Neon PostgreSQL connection verified and optimized successfully');
+    logger.info('Railway PostgreSQL connection verified successfully');
   } else {
-    logger.warn('Unable to fully optimize Neon PostgreSQL connection');
+    logger.warn('Unable to connect to Railway PostgreSQL');
   }
 }, 5000);
 
 // Initialize Drizzle ORM with our connection pool
-export const db = drizzle({ client: pool, schema });
+export const db = drizzle(pool, { schema });
 
 // Enhanced connection monitoring
 pool.on('connect', () => {
