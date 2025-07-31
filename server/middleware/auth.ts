@@ -148,6 +148,16 @@ export async function authenticateUser(req: Request, res: Response, next: NextFu
     });
   }
   */
+  } catch (error) {
+    // This catch block is needed for the temporary auth bypass
+    logger.error('Authentication middleware error (should not reach here during bypass)', error);
+    
+    return res.status(500).json({
+      error: 'Authentication error',
+      message: 'Internal server error during authentication. Please try again.',
+      code: 'AUTH_INTERNAL_ERROR',
+    });
+  }
 }
 
 /**
