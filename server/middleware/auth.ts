@@ -31,13 +31,13 @@ declare global {
  */
 export async function authenticateUser(req: Request, res: Response, next: NextFunction) {
   try {
-    // TEMPORARY: Auth bypass for testing - allow all requests with mock user
-    logger.info('🔓 AUTH BYPASS ACTIVE - Using consistent test user for testing');
+    // TEMPORARY: Complete auth bypass - set default test user for compatibility
+    logger.info('🔓 COMPLETE AUTH BYPASS - Using default test user');
     req.user = {
-      uid: 'test-user-consistent',
+      uid: 'default-test-user',
       email: 'test@example.com',
       emailVerified: true,
-      displayName: 'Test User',
+      displayName: 'Default Test User',
     };
     return next();
 
