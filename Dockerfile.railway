@@ -59,48 +59,46 @@ COPY server/migrations/ /app/build/migrations/
 RUN ls -la /app/build/ && echo "Build completed successfully"
 
 # WORKAROUND: Create redirect script for Railway's hardcoded start command
-RUN mkdir -p /app/dist && cat > /app/dist/index.js << 'EOF'
-#!/usr/bin/env node
-
-console.log('🚂 Railway is running /app/dist/index.js - redirecting to actual app...');
-console.log('Working directory:', process.cwd());
-console.log('Node.js version:', process.version);
-
-const { existsSync } = require('fs');
-const { resolve } = require('path');
-const { spawn } = require('child_process');
-
-const candidates = [
-  '/app/build/index.js',
-  '/app/server/index.js'
-];
-
-for (const candidate of candidates) {
-  console.log('Checking:', candidate);
-  if (existsSync(candidate)) {
-    console.log('✅ Found app at:', candidate);
-    console.log('🚀 Starting EvalMatch...');
-    
-    const child = spawn('node', [candidate], {
-      stdio: 'inherit',
-      cwd: '/app',
-      env: process.env
-    });
-    
-    process.on('SIGTERM', () => child.kill('SIGTERM'));
-    process.on('SIGINT', () => child.kill('SIGINT'));
-    
-    child.on('exit', (code) => process.exit(code || 0));
-    return;
-  }
-}
-
-console.log('❌ No app found. Available files:');
-require('fs').readdirSync('/app').forEach(f => console.log(' -', f));
-process.exit(1);
-EOF
-
-RUN chmod +x /app/dist/index.js && echo "Created Railway redirect script"
+RUN mkdir -p /app/dist && \
+    echo '#!/usr/bin/env node' > /app/dist/index.js && \
+    echo '' >> /app/dist/index.js && \
+    echo 'console.log("🚂 Railway is running /app/dist/index.js - redirecting to actual app...");' >> /app/dist/index.js && \
+    echo 'console.log("Working directory:", process.cwd());' >> /app/dist/index.js && \
+    echo 'console.log("Node.js version:", process.version);' >> /app/dist/index.js && \
+    echo '' >> /app/dist/index.js && \
+    echo 'const { existsSync } = require("fs");' >> /app/dist/index.js && \
+    echo 'const { spawn } = require("child_process");' >> /app/dist/index.js && \
+    echo '' >> /app/dist/index.js && \
+    echo 'const candidates = [' >> /app/dist/index.js && \
+    echo '  "/app/build/index.js",' >> /app/dist/index.js && \
+    echo '  "/app/server/index.js"' >> /app/dist/index.js && \
+    echo '];' >> /app/dist/index.js && \
+    echo '' >> /app/dist/index.js && \
+    echo 'for (const candidate of candidates) {' >> /app/dist/index.js && \
+    echo '  console.log("Checking:", candidate);' >> /app/dist/index.js && \
+    echo '  if (existsSync(candidate)) {' >> /app/dist/index.js && \
+    echo '    console.log("✅ Found app at:", candidate);' >> /app/dist/index.js && \
+    echo '    console.log("🚀 Starting EvalMatch...");' >> /app/dist/index.js && \
+    echo '    ' >> /app/dist/index.js && \
+    echo '    const child = spawn("node", [candidate], {' >> /app/dist/index.js && \
+    echo '      stdio: "inherit",' >> /app/dist/index.js && \
+    echo '      cwd: "/app",' >> /app/dist/index.js && \
+    echo '      env: process.env' >> /app/dist/index.js && \
+    echo '    });' >> /app/dist/index.js && \
+    echo '    ' >> /app/dist/index.js && \
+    echo '    process.on("SIGTERM", () => child.kill("SIGTERM"));' >> /app/dist/index.js && \
+    echo '    process.on("SIGINT", () => child.kill("SIGINT"));' >> /app/dist/index.js && \
+    echo '    ' >> /app/dist/index.js && \
+    echo '    child.on("exit", (code) => process.exit(code || 0));' >> /app/dist/index.js && \
+    echo '    return;' >> /app/dist/index.js && \
+    echo '  }' >> /app/dist/index.js && \
+    echo '}' >> /app/dist/index.js && \
+    echo '' >> /app/dist/index.js && \
+    echo 'console.log("❌ No app found. Available files:");' >> /app/dist/index.js && \
+    echo 'require("fs").readdirSync("/app").forEach(f => console.log(" -", f));' >> /app/dist/index.js && \
+    echo 'process.exit(1);' >> /app/dist/index.js && \
+    chmod +x /app/dist/index.js && \
+    echo "Created Railway redirect script"
 
 # Clean up some dev dependencies but keep Vite for potential dynamic imports
 RUN npm prune --omit=dev --ignore-scripts && npm install vite
