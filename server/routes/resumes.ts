@@ -103,7 +103,10 @@ router.post("/",
 
       // Parse document content
       const { parseDocument } = await import('../lib/document-parser');
-      const content = await parseDocument(file.path || file.buffer!, file.mimetype);
+      
+      // Read file into buffer (since we're using disk storage)
+      const fileBuffer = file.buffer || await import('fs').then(fs => fs.promises.readFile(file.path!));
+      const content = await parseDocument(fileBuffer, file.mimetype);
       
       if (!content || content.trim().length === 0) {
         return res.status(400).json({
