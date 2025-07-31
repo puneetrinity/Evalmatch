@@ -4,8 +4,9 @@ import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
-import { config } from "./config";
-import { initializeDatabase } from "./lib/db-migrations";
+import { config } from "./config/unified-config";
+import { initializeDatabase } from "./database";
+import { initializeFirebaseAuth } from "./auth/firebase-auth";
 import { initializeMonitoring, logger } from "./monitoring";
 
 const app = express();
@@ -41,29 +42,23 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS configuration
+// CORS configuration using unified config
 const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    // Allow Railway domains, Firebase domains, and localhost for development
-    const allowedOrigins = [
-      'https://web-production-392cc.up.railway.app',
-      'https://ealmatch-railway.firebaseapp.com',
-      'https://accounts.google.com',
-      'https://securetoken.googleapis.com',
-      'https://www.googleapis.com',
-      'http://localhost:5173',
-      'http://localhost:5000',
-      'http://localhost:3000',
-      'http://localhost:8080'
-    ];
-    
     // Allow requests with no origin (like mobile apps or curl)
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin) {
       callback(null, true);
-    } else if (process.env.NODE_ENV === 'development') {
+      return;
+    }
+    
+    // Check against configured origins
+    if (config.security.corsOrigins.includes(origin)) {
+      callback(null, true);
+    } else if (config.env === 'development') {
       // In development, allow all origins
       callback(null, true);
     } else {
+      logger.warn('CORS blocked origin:', { origin, allowed: config.security.corsOrigins });
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -131,37 +126,57 @@ if (process.env.NODE_ENV === "development") {
 }
 
 (async () => {
-  // Initialize database with consolidated migration system
-  if (config.isDatabaseEnabled) {
-    try {
-      logger.info('🚀 Initializing database with consolidated migration system...');
-      await initializeDatabase(); // Uses the new consolidated system
-      logger.info('✅ Database initialization completed successfully');
-    } catch (error) {
-      logger.error({ error }, 'Failed to initialize database schema');
-      logger.warn('Continuing with application startup, but database operations may fail');
-    }
-  } else {
-    logger.info('Database disabled - using memory storage fallback');
-  }
-
-  // Initialize storage system
   try {
-    logger.info('Initializing storage system...');
-    const { initializeAppStorage } = await import("./storage");
-    await initializeAppStorage();
-    logger.info('Storage system initialized successfully');
-  } catch (error) {
-    logger.error({ error }, 'Failed to initialize storage system');
-    process.exit(1); // Storage is critical, exit if it fails
-  }
-  
-  // Log which type of storage we're using
-  if (config.isDatabaseEnabled) {
-    logger.info('Using PostgreSQL database storage');
-  } else {
-    logger.info('Using in-memory storage (fallback mode)');
-  }
+    logger.info('🚀 Starting Evalmatch Application...');
+
+    // Initialize Firebase Authentication first
+    try {
+      await initializeFirebaseAuth();
+    } catch (error) {
+      logger.error('Firebase Auth initialization failed:', error);
+      if (config.env === 'production') {
+        logger.error('Cannot start in production without authentication');
+        process.exit(1);
+      }
+    }
+
+    // Initialize database
+    if (config.database.enabled) {
+      try {
+        logger.info('🗄️  Initializing PostgreSQL database...');
+        await initializeDatabase();
+        logger.info('✅ Database initialization completed successfully');
+      } catch (error) {
+        logger.error('Database initialization failed:', error);
+        
+        if (config.env === 'production') {
+          logger.error('Cannot start in production without database');
+          process.exit(1);
+        } else {
+          logger.warn('Continuing with memory storage in development');
+        }
+      }
+    } else {
+      logger.info('📝 Database disabled - using memory storage fallback');
+    }
+
+    // Initialize storage system
+    try {
+      logger.info('🏪 Initializing storage system...');
+      const { initializeAppStorage } = await import("./storage");
+      await initializeAppStorage();
+      logger.info('✅ Storage system initialized successfully');
+    } catch (error) {
+      logger.error('Storage system initialization failed:', error);
+      process.exit(1); // Storage is critical, exit if it fails
+    }
+    
+    // Log final storage configuration
+    if (config.database.enabled) {
+      logger.info('💾 Using PostgreSQL database storage');
+    } else {
+      logger.info('🧠 Using in-memory storage (fallback mode)');
+    }
 
   // Register all routes
   registerRoutes(app);
@@ -189,9 +204,8 @@ if (process.env.NODE_ENV === "development") {
     }
   });
 
-  // Use Railway's PORT environment variable or fallback to 5000
-  // Railway expects apps to use the PORT env var for proper routing
-  const port = parseInt(process.env.PORT || '5000', 10);
+  // Use configured port from unified config
+  const port = config.port;
   
   // Start the server
   const server = app.listen(port, "0.0.0.0", () => {
@@ -199,14 +213,25 @@ if (process.env.NODE_ENV === "development") {
     log(`serving on port ${port}`); // Keep the original log for vite
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (process.env.NODE_ENV === "development") {
-    await setupVite(app, server);
-  } else {
-    // In production, serve static files directly from Express
-    serveStatic(app);
-    logger.info('Static files served directly from Express');
+    // Setup Vite in development or serve static files in production
+    if (config.env === 'development') {
+      await setupVite(app, server);
+      logger.info('🔥 Vite development server attached');
+    } else if (config.features.staticFiles) {
+      serveStatic(app);
+      logger.info('📁 Static files served directly from Express');
+    }
+
+    logger.info('🎉 Evalmatch Application started successfully!', {
+      environment: config.env,
+      port: config.port,
+      database: config.database.enabled ? 'PostgreSQL' : 'Memory',
+      firebase: config.firebase.configured ? 'Configured' : 'Not Configured',
+      aiProvider: config.ai.primary || 'None',
+    });
+
+  } catch (error) {
+    logger.error('💥 Failed to start application:', error);
+    process.exit(1);
   }
 })();
