@@ -29,7 +29,7 @@ export function registerModularRoutes(app: Express): void {
   app.use('/api/job-descriptions', jobRoutes);
   
   // Analysis and matching routes
-  app.use('/api', analysisRoutes);
+  app.use('/api/analysis', analysisRoutes);
   
   // Admin routes
   app.use('/api/admin', adminRoutes);
