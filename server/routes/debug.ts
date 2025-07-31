@@ -367,4 +367,57 @@ router.get('/auth-status', async (req: Request, res: Response) => {
   }
 });
 
+// Database schema inspection endpoint
+router.get("/db-schema", async (req: Request, res: Response) => {
+  try {
+    const { db } = await import('../db');
+    const { sql } = await import('drizzle-orm');
+    
+    // Check resumes table schema
+    const resumesSchema = await db.execute(sql`
+      SELECT column_name, data_type, is_nullable 
+      FROM information_schema.columns 
+      WHERE table_name = 'resumes' 
+      ORDER BY ordinal_position
+    `);
+    
+    // Check analysis_results table schema  
+    const analysisSchema = await db.execute(sql`
+      SELECT column_name, data_type, is_nullable 
+      FROM information_schema.columns 
+      WHERE table_name = 'analysis_results' 
+      ORDER BY ordinal_position
+    `);
+    
+    // Check data counts
+    const resumeCount = await db.execute(sql`SELECT COUNT(*) as count FROM resumes`);
+    const jobCount = await db.execute(sql`SELECT COUNT(*) as count FROM job_descriptions`);
+    
+    res.json({
+      status: "ok",
+      tables: {
+        resumes: {
+          schema: resumesSchema.rows,
+          count: resumeCount.rows[0]?.count || 0
+        },
+        analysis_results: {
+          schema: analysisSchema.rows,
+          count: 0
+        },
+        job_descriptions: {
+          count: jobCount.rows[0]?.count || 0
+        }
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      error: "Database schema check failed",
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 export default router;
