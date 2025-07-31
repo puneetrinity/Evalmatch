@@ -86,6 +86,7 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
         const matchAnalysis = await analyzeMatch(
           resumeAnalysis,
           jobAnalysis,
+          userTierInfo,
           resume.content,
           jobDescription.description
         );
@@ -382,6 +383,7 @@ router.post("/interview-questions/:resumeId/:jobId", authenticateUser, async (re
       matchAnalysis = await analyzeMatch(
         resumeAnalysis,
         jobAnalysis,
+        userTierInfo,
         resume.content,
         jobDescription.description
       );
