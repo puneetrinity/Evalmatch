@@ -69,34 +69,38 @@ RUN mkdir -p /app/dist && \
     echo 'const { existsSync } = require("fs");' >> /app/dist/index.js && \
     echo 'const { spawn } = require("child_process");' >> /app/dist/index.js && \
     echo '' >> /app/dist/index.js && \
-    echo 'const candidates = [' >> /app/dist/index.js && \
-    echo '  "/app/build/index.js",' >> /app/dist/index.js && \
-    echo '  "/app/server/index.js"' >> /app/dist/index.js && \
-    echo '];' >> /app/dist/index.js && \
-    echo '' >> /app/dist/index.js && \
-    echo 'for (const candidate of candidates) {' >> /app/dist/index.js && \
-    echo '  console.log("Checking:", candidate);' >> /app/dist/index.js && \
-    echo '  if (existsSync(candidate)) {' >> /app/dist/index.js && \
-    echo '    console.log("✅ Found app at:", candidate);' >> /app/dist/index.js && \
-    echo '    console.log("🚀 Starting EvalMatch...");' >> /app/dist/index.js && \
-    echo '    ' >> /app/dist/index.js && \
-    echo '    const child = spawn("node", [candidate], {' >> /app/dist/index.js && \
-    echo '      stdio: "inherit",' >> /app/dist/index.js && \
-    echo '      cwd: "/app",' >> /app/dist/index.js && \
-    echo '      env: process.env' >> /app/dist/index.js && \
-    echo '    });' >> /app/dist/index.js && \
-    echo '    ' >> /app/dist/index.js && \
-    echo '    process.on("SIGTERM", () => child.kill("SIGTERM"));' >> /app/dist/index.js && \
-    echo '    process.on("SIGINT", () => child.kill("SIGINT"));' >> /app/dist/index.js && \
-    echo '    ' >> /app/dist/index.js && \
-    echo '    child.on("exit", (code) => process.exit(code || 0));' >> /app/dist/index.js && \
-    echo '    return;' >> /app/dist/index.js && \
+    echo 'function startApp() {' >> /app/dist/index.js && \
+    echo '  const candidates = [' >> /app/dist/index.js && \
+    echo '    "/app/build/index.js",' >> /app/dist/index.js && \
+    echo '    "/app/server/index.js"' >> /app/dist/index.js && \
+    echo '  ];' >> /app/dist/index.js && \
+    echo '  ' >> /app/dist/index.js && \
+    echo '  for (const candidate of candidates) {' >> /app/dist/index.js && \
+    echo '    console.log("Checking:", candidate);' >> /app/dist/index.js && \
+    echo '    if (existsSync(candidate)) {' >> /app/dist/index.js && \
+    echo '      console.log("✅ Found app at:", candidate);' >> /app/dist/index.js && \
+    echo '      console.log("🚀 Starting EvalMatch...");' >> /app/dist/index.js && \
+    echo '      ' >> /app/dist/index.js && \
+    echo '      const child = spawn("node", [candidate], {' >> /app/dist/index.js && \
+    echo '        stdio: "inherit",' >> /app/dist/index.js && \
+    echo '        cwd: "/app",' >> /app/dist/index.js && \
+    echo '        env: process.env' >> /app/dist/index.js && \
+    echo '      });' >> /app/dist/index.js && \
+    echo '      ' >> /app/dist/index.js && \
+    echo '      process.on("SIGTERM", () => child.kill("SIGTERM"));' >> /app/dist/index.js && \
+    echo '      process.on("SIGINT", () => child.kill("SIGINT"));' >> /app/dist/index.js && \
+    echo '      ' >> /app/dist/index.js && \
+    echo '      child.on("exit", (code) => process.exit(code || 0));' >> /app/dist/index.js && \
+    echo '      return;' >> /app/dist/index.js && \
+    echo '    }' >> /app/dist/index.js && \
     echo '  }' >> /app/dist/index.js && \
+    echo '  ' >> /app/dist/index.js && \
+    echo '  console.log("❌ No app found. Available files:");' >> /app/dist/index.js && \
+    echo '  require("fs").readdirSync("/app").forEach(f => console.log(" -", f));' >> /app/dist/index.js && \
+    echo '  process.exit(1);' >> /app/dist/index.js && \
     echo '}' >> /app/dist/index.js && \
     echo '' >> /app/dist/index.js && \
-    echo 'console.log("❌ No app found. Available files:");' >> /app/dist/index.js && \
-    echo 'require("fs").readdirSync("/app").forEach(f => console.log(" -", f));' >> /app/dist/index.js && \
-    echo 'process.exit(1);' >> /app/dist/index.js && \
+    echo 'startApp();' >> /app/dist/index.js && \
     chmod +x /app/dist/index.js && \
     echo "Created Railway redirect script"
 
