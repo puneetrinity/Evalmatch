@@ -58,16 +58,49 @@ RUN npm run build
 COPY server/migrations/ /app/build/migrations/
 RUN ls -la /app/build/ && echo "Build completed successfully"
 
-# Debug: List all files to verify build output
-RUN echo "=== DEBUGGING BUILD OUTPUT ===" && \
-    ls -la /app/ && \
-    echo "=== BUILD DIRECTORY ===" && \
-    ls -la /app/build/ && \
-    echo "=== DIST DIRECTORY (should not exist) ===" && \
-    ls -la /app/dist/ || echo "dist directory does not exist (good)" && \
-    echo "=== BUILD INDEX.JS EXISTS? ===" && \
-    ls -la /app/build/index.js && \
-    echo "=== READY TO START ==="
+# WORKAROUND: Create redirect script for Railway's hardcoded start command
+RUN mkdir -p /app/dist && cat > /app/dist/index.js << 'EOF'
+#!/usr/bin/env node
+
+console.log('🚂 Railway is running /app/dist/index.js - redirecting to actual app...');
+console.log('Working directory:', process.cwd());
+console.log('Node.js version:', process.version);
+
+const { existsSync } = require('fs');
+const { resolve } = require('path');
+const { spawn } = require('child_process');
+
+const candidates = [
+  '/app/build/index.js',
+  '/app/server/index.js'
+];
+
+for (const candidate of candidates) {
+  console.log('Checking:', candidate);
+  if (existsSync(candidate)) {
+    console.log('✅ Found app at:', candidate);
+    console.log('🚀 Starting EvalMatch...');
+    
+    const child = spawn('node', [candidate], {
+      stdio: 'inherit',
+      cwd: '/app',
+      env: process.env
+    });
+    
+    process.on('SIGTERM', () => child.kill('SIGTERM'));
+    process.on('SIGINT', () => child.kill('SIGINT'));
+    
+    child.on('exit', (code) => process.exit(code || 0));
+    return;
+  }
+}
+
+console.log('❌ No app found. Available files:');
+require('fs').readdirSync('/app').forEach(f => console.log(' -', f));
+process.exit(1);
+EOF
+
+RUN chmod +x /app/dist/index.js && echo "Created Railway redirect script"
 
 # Clean up some dev dependencies but keep Vite for potential dynamic imports
 RUN npm prune --omit=dev --ignore-scripts && npm install vite
