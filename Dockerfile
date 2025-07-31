@@ -25,21 +25,22 @@ RUN npm install -g npm@10 && \
     npm cache clean --force
 
 # Create necessary directories with proper permissions
-RUN mkdir -p uploads uploads/temp data && \
-    chmod 755 uploads uploads/temp data
+RUN mkdir -p uploads uploads/temp data build build/public && \
+    chmod 755 uploads uploads/temp data build build/public
 
 # Copy source files (this layer changes most frequently)
 COPY . .
 
-# Build arguments for Firebase environment variables
-ARG VITE_FIREBASE_API_KEY
-ARG VITE_FIREBASE_AUTH_DOMAIN
-ARG VITE_FIREBASE_PROJECT_ID
-ARG VITE_FIREBASE_STORAGE_BUCKET
-ARG VITE_FIREBASE_MESSAGING_SENDER_ID
-ARG VITE_FIREBASE_APP_ID
+# Build arguments for Firebase environment variables with defaults
+ARG VITE_FIREBASE_API_KEY=placeholder-api-key
+ARG VITE_FIREBASE_AUTH_DOMAIN=placeholder.firebaseapp.com
+ARG VITE_FIREBASE_PROJECT_ID=placeholder-project
+ARG VITE_FIREBASE_STORAGE_BUCKET=placeholder.appspot.com
+ARG VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+ARG VITE_FIREBASE_APP_ID=1:123456789:web:abcdef
 
 # Set environment variables for build process
+ENV RAILWAY_ENVIRONMENT=true
 ENV VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY
 ENV VITE_FIREBASE_AUTH_DOMAIN=$VITE_FIREBASE_AUTH_DOMAIN
 ENV VITE_FIREBASE_PROJECT_ID=$VITE_FIREBASE_PROJECT_ID
@@ -54,15 +55,15 @@ RUN npm run build
 RUN npm prune --omit=dev --ignore-scripts && npm install vite
 
 # Copy SQL migration files (not bundled by esbuild)
-COPY server/migrations/ /app/dist/migrations/
-RUN ls -la /app/dist/migrations/ && echo "Migration files copied successfully"
+COPY server/migrations/ /app/build/migrations/
+RUN ls -la /app/build/ && echo "Build completed successfully"
 
 # Set runtime environment variables
 ENV NODE_ENV=production
 ENV PORT=8080
 
-# Disable static file serving - nginx will handle it
-ENV SERVE_STATIC=false
+# Enable static file serving - Railway single container
+ENV SERVE_STATIC=true
 
 # Phase 2 Optimization Settings
 ENV EMBEDDING_MODEL=Xenova/all-MiniLM-L12-v2
@@ -88,4 +89,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Command to run the app
-CMD ["node", "dist/index.js"]
+CMD ["node", "build/index.js"]
