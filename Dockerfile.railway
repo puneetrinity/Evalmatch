@@ -114,6 +114,14 @@ ENV PORT=8080
 # Enable static file serving - Railway single container
 ENV SERVE_STATIC=true
 
+# Testing mode - allows more lenient configuration validation
+ENV AUTH_BYPASS_MODE=true
+
+# Minimal required environment variables for Railway deployment
+ENV FIREBASE_PROJECT_ID=railway-placeholder
+ENV FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"railway-placeholder","private_key_id":"placeholder","private_key":"-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDPlaceholder\n-----END PRIVATE KEY-----\n","client_email":"placeholder@railway-placeholder.iam.gserviceaccount.com","client_id":"placeholder","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"https://www.googleapis.com/robot/v1/metadata/x509/placeholder%40railway-placeholder.iam.gserviceaccount.com"}
+ENV GROQ_API_KEY=placeholder-groq-key-for-railway-testing
+
 # Phase 2 Optimization Settings
 ENV EMBEDDING_MODEL=Xenova/all-MiniLM-L12-v2
 ENV MAX_CONCURRENT_EMBEDDINGS=3

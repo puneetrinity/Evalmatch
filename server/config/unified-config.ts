@@ -83,6 +83,9 @@ export function loadUnifiedConfig(): AppConfig {
   const errors: string[] = [];
   const warnings: string[] = [];
   
+  // Check if we're in auth bypass testing mode
+  const authBypassMode = process.env.AUTH_BYPASS_MODE === 'true';
+  
   // Environment detection
   const nodeEnv = process.env.NODE_ENV || 'development';
   const env = nodeEnv as Environment;
@@ -113,7 +116,11 @@ export function loadUnifiedConfig(): AppConfig {
   const firebaseConfigured = !!(firebaseProjectId && firebaseServiceAccountKey);
   
   if (!firebaseConfigured) {
-    errors.push('Firebase not configured: Missing FIREBASE_PROJECT_ID or FIREBASE_SERVICE_ACCOUNT_KEY');
+    if (authBypassMode) {
+      warnings.push('Firebase not configured (auth bypass mode active - using placeholder config)');
+    } else {
+      errors.push('Firebase not configured: Missing FIREBASE_PROJECT_ID or FIREBASE_SERVICE_ACCOUNT_KEY');
+    }
   }
   
   // Validate service account key format if provided
@@ -142,7 +149,11 @@ export function loadUnifiedConfig(): AppConfig {
   const hasAnyProvider = !!(groqApiKey || openaiApiKey || anthropicApiKey);
   
   if (!hasAnyProvider) {
-    errors.push('No AI provider configured: Set at least one of GROQ_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY');
+    if (authBypassMode) {
+      warnings.push('No AI provider configured (auth bypass mode active - using placeholder config)');
+    } else {
+      errors.push('No AI provider configured: Set at least one of GROQ_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY');
+    }
   }
   
   // Determine primary AI provider
