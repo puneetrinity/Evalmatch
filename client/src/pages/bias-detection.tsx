@@ -85,7 +85,7 @@ export default function BiasDetectionPage() {
   // Analyze bias mutation
   const biasAnalyzeMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", `/api/analyze-bias/${jobId}`);
+      return apiRequest("POST", `/api/analysis/analyze-bias/${jobId}`);
     },
     onSuccess: async (response) => {
       try {

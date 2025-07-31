@@ -106,7 +106,7 @@ export default function InterviewPage() {
     data: analysisData,
     isLoading: isAnalysisLoading,
   } = useQuery<AnalysisData>({
-    queryKey: [`/api/analyze/${jobId}/${resumeId}`],
+    queryKey: [`/api/analysis/analyze/${jobId}/${resumeId}`],
     queryFn: async ({ queryKey }) => {
       const response = await apiRequest("GET", String(queryKey[0]));
       return response.json();

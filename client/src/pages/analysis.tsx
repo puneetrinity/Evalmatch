@@ -99,7 +99,7 @@ export default function AnalysisPage() {
       // Include the sessionId in the request body if available
       const requestBody = sessionId ? { sessionId } : {};
       
-      return apiRequest("POST", `/api/analyze/${jobId}`, requestBody);
+      return apiRequest("POST", `/api/analysis/analyze/${jobId}`, requestBody);
     },
     onSuccess: async (response) => {
       try {
@@ -145,7 +145,7 @@ export default function AnalysisPage() {
     error: fetchError, 
     refetch 
   } = useQuery<AnalysisResponse>({
-    queryKey: [`/api/analyze/${jobId}`, sessionId],
+    queryKey: [`/api/analysis/analyze/${jobId}`, sessionId],
     queryFn: async ({ queryKey }) => {
       const url = sessionId 
         ? `${queryKey[0]}?sessionId=${encodeURIComponent(sessionId)}`
