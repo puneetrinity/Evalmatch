@@ -301,7 +301,9 @@ function logConfigurationStatus(config: AppConfig): void {
  * Validate configuration and exit if critical errors exist
  */
 export function validateConfigurationOrExit(config: AppConfig): void {
-  if (!config.validation.isValid) {
+  const authBypassMode = process.env.AUTH_BYPASS_MODE === 'true';
+  
+  if (!config.validation.isValid && !authBypassMode) {
     logger.error('💥 Critical configuration errors detected:');
     config.validation.errors.forEach(error => {
       logger.error(`   • ${error}`);
@@ -321,6 +323,11 @@ export function validateConfigurationOrExit(config: AppConfig): void {
     logger.error('   DATABASE_URL=postgresql://user:pass@host:5432/db');
     
     process.exit(1);
+  } else if (!config.validation.isValid && authBypassMode) {
+    logger.warn('⚠️  Configuration errors detected but AUTH_BYPASS_MODE is active - continuing with placeholder configs');
+    config.validation.errors.forEach(error => {
+      logger.warn(`   • ${error}`);
+    });
   }
 }
 
