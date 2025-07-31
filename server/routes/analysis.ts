@@ -463,8 +463,8 @@ router.post("/analyze-bias/:jobId", authenticateUser, async (req: Request, res: 
     const userTierInfo = getUserTierInfo(userId);
 
     // Perform bias analysis
-    const { analyzeJobDescriptionBias } = await import('../lib/tiered-ai-provider');
-    const biasAnalysis = await analyzeJobDescriptionBias(
+    const { analyzeBias } = await import('../lib/tiered-ai-provider');
+    const biasAnalysis = await analyzeBias(
       jobDescription.title,
       jobDescription.description,
       userTierInfo

@@ -21,8 +21,8 @@ export async function initializeStorage(): Promise<IStorage> {
   if (process.env.NODE_ENV === 'production' || process.env.DATABASE_URL) {
     try {
       // Import modules only when needed
-      const { DatabaseStorage } = await import('./database-storage.js');
-      const { HybridStorage } = await import('./hybrid-storage.js');
+      const { DatabaseStorage } = await import('./database-storage');
+      const { HybridStorage } = await import('./hybrid-storage');
       
       // Create the database storage implementation
       const dbStorage = new DatabaseStorage();
