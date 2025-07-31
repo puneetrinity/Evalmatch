@@ -82,7 +82,7 @@ export default function InterviewPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: [`/api/interview-questions/${resumeId}/${jobId}`, sessionId],
+    queryKey: [`/api/analysis/interview-questions/${resumeId}/${jobId}`, sessionId],
     queryFn: async ({ queryKey }) => {
       const url = sessionId 
         ? `${queryKey[0]}?sessionId=${encodeURIComponent(sessionId)}`
