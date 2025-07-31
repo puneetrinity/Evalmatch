@@ -1,6 +1,7 @@
--- Consolidated Database Migration v1.0.0
+-- Consolidated Database Migration v2.0.0
 -- This migration consolidates all scattered fixes and creates the authoritative schema
--- Run date: 2025-01-30
+-- Handles existing tables by adding missing columns and creating new tables as needed
+-- Run date: 2025-01-31
 
 -- ============================================================================
 -- MIGRATION TRACKING TABLE
@@ -18,7 +19,7 @@ VALUES ('001_consolidated_schema', 'Consolidated database schema with all fixes'
 ON CONFLICT (version) DO NOTHING;
 
 -- ============================================================================
--- CORE TABLES
+-- CORE TABLES CREATION
 -- ============================================================================
 
 -- Users table (Firebase UID based)
@@ -34,18 +35,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Resumes table (comprehensive with all fields)
 CREATE TABLE IF NOT EXISTS resumes (
     id SERIAL PRIMARY KEY,
-    user_id TEXT, -- Firebase UID
-    session_id TEXT,
     filename TEXT NOT NULL,
-    file_size INTEGER,
-    file_type TEXT,
-    content TEXT,
-    skills JSON DEFAULT '[]'::json,
-    experience TEXT,
-    education TEXT,
-    embedding JSON, -- Vector embeddings for semantic search
-    skills_embedding JSON, -- Skill-specific embeddings
-    analyzed_data JSON, -- Complete AI analysis results
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -53,15 +43,28 @@ CREATE TABLE IF NOT EXISTS resumes (
 -- Job descriptions table (comprehensive with all fields)
 CREATE TABLE IF NOT EXISTS job_descriptions (
     id SERIAL PRIMARY KEY,
-    user_id TEXT, -- Firebase UID 
     title TEXT NOT NULL,
     description TEXT NOT NULL,
-    requirements JSON DEFAULT '[]'::json,
-    skills JSON DEFAULT '[]'::json,
-    experience TEXT,
-    embedding JSON, -- Vector embeddings for semantic search
-    requirements_embedding JSON, -- Requirements-specific embeddings
-    analyzed_data JSON, -- Complete AI analysis results
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Analysis results with enhanced scoring
+CREATE TABLE IF NOT EXISTS analysis_results (
+    id SERIAL PRIMARY KEY,
+    resume_id INTEGER,
+    job_description_id INTEGER,
+    match_percentage REAL NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Interview questions table
+CREATE TABLE IF NOT EXISTS interview_questions (
+    id SERIAL PRIMARY KEY,
+    resume_id INTEGER,
+    job_description_id INTEGER,
+    questions JSON DEFAULT '[]'::json,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -93,54 +96,248 @@ CREATE TABLE IF NOT EXISTS skills (
 );
 
 -- ============================================================================
--- ANALYSIS AND MATCHING SYSTEM
+-- ADD MISSING COLUMNS TO EXISTING TABLES
 -- ============================================================================
 
--- Analysis results with enhanced scoring
-CREATE TABLE IF NOT EXISTS analysis_results (
-    id SERIAL PRIMARY KEY,
-    user_id TEXT, -- Firebase UID
-    resume_id INTEGER REFERENCES resumes(id) ON DELETE CASCADE,
-    job_description_id INTEGER REFERENCES job_descriptions(id) ON DELETE CASCADE,
+-- Add missing columns to resumes table
+DO $$ 
+BEGIN
+    -- Add user_id column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'resumes' AND column_name = 'user_id') THEN
+        ALTER TABLE resumes ADD COLUMN user_id TEXT;
+    END IF;
     
-    -- Core matching results
-    match_percentage REAL NOT NULL,
-    matched_skills JSON DEFAULT '[]'::json, -- [{"skill": "JavaScript", "matchPercentage": 95}]
-    missing_skills JSON DEFAULT '[]'::json, -- ["Python", "Docker"]
-    candidate_strengths JSON DEFAULT '[]'::json,
-    candidate_weaknesses JSON DEFAULT '[]'::json,
-    confidence_level VARCHAR(10) CHECK (confidence_level IN ('low', 'medium', 'high')),
+    -- Add session_id column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'resumes' AND column_name = 'session_id') THEN
+        ALTER TABLE resumes ADD COLUMN session_id TEXT;
+    END IF;
     
-    -- Enhanced scoring dimensions
-    semantic_similarity REAL,
-    skills_similarity REAL,
-    experience_similarity REAL,
-    education_similarity REAL,
+    -- Add other missing columns
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'resumes' AND column_name = 'file_size') THEN
+        ALTER TABLE resumes ADD COLUMN file_size INTEGER;
+    END IF;
     
-    -- ML-based scoring breakdown
-    ml_confidence_score REAL,
-    scoring_dimensions JSON, -- {"skills": 0.45, "experience": 0.25, ...}
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'resumes' AND column_name = 'file_type') THEN
+        ALTER TABLE resumes ADD COLUMN file_type TEXT;
+    END IF;
     
-    -- Fairness and bias metrics
-    fairness_metrics JSON, -- {"biasConfidenceScore": 85, "potentialBiasAreas": [...]}
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'resumes' AND column_name = 'content') THEN
+        ALTER TABLE resumes ADD COLUMN content TEXT;
+    END IF;
     
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'resumes' AND column_name = 'skills') THEN
+        ALTER TABLE resumes ADD COLUMN skills JSON DEFAULT '[]'::json;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'resumes' AND column_name = 'experience') THEN
+        ALTER TABLE resumes ADD COLUMN experience TEXT;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'resumes' AND column_name = 'education') THEN
+        ALTER TABLE resumes ADD COLUMN education TEXT;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'resumes' AND column_name = 'embedding') THEN
+        ALTER TABLE resumes ADD COLUMN embedding JSON;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'resumes' AND column_name = 'skills_embedding') THEN
+        ALTER TABLE resumes ADD COLUMN skills_embedding JSON;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'resumes' AND column_name = 'analyzed_data') THEN
+        ALTER TABLE resumes ADD COLUMN analyzed_data JSON;
+    END IF;
+END $$;
 
--- Interview questions table
-CREATE TABLE IF NOT EXISTS interview_questions (
-    id SERIAL PRIMARY KEY,
-    user_id TEXT, -- Firebase UID
-    resume_id INTEGER REFERENCES resumes(id) ON DELETE CASCADE,
-    job_description_id INTEGER REFERENCES job_descriptions(id) ON DELETE CASCADE,
-    questions JSON DEFAULT '[]'::json, -- Array of question objects
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- Add missing columns to job_descriptions table
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'job_descriptions' AND column_name = 'user_id') THEN
+        ALTER TABLE job_descriptions ADD COLUMN user_id TEXT;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'job_descriptions' AND column_name = 'requirements') THEN
+        ALTER TABLE job_descriptions ADD COLUMN requirements JSON DEFAULT '[]'::json;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'job_descriptions' AND column_name = 'skills') THEN
+        ALTER TABLE job_descriptions ADD COLUMN skills JSON DEFAULT '[]'::json;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'job_descriptions' AND column_name = 'experience') THEN
+        ALTER TABLE job_descriptions ADD COLUMN experience TEXT;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'job_descriptions' AND column_name = 'embedding') THEN
+        ALTER TABLE job_descriptions ADD COLUMN embedding JSON;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'job_descriptions' AND column_name = 'requirements_embedding') THEN
+        ALTER TABLE job_descriptions ADD COLUMN requirements_embedding JSON;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'job_descriptions' AND column_name = 'analyzed_data') THEN
+        ALTER TABLE job_descriptions ADD COLUMN analyzed_data JSON;
+    END IF;
+END $$;
+
+-- Add missing columns to analysis_results table
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'user_id') THEN
+        ALTER TABLE analysis_results ADD COLUMN user_id TEXT;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'matched_skills') THEN
+        ALTER TABLE analysis_results ADD COLUMN matched_skills JSON DEFAULT '[]'::json;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'missing_skills') THEN
+        ALTER TABLE analysis_results ADD COLUMN missing_skills JSON DEFAULT '[]'::json;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'candidate_strengths') THEN
+        ALTER TABLE analysis_results ADD COLUMN candidate_strengths JSON DEFAULT '[]'::json;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'candidate_weaknesses') THEN
+        ALTER TABLE analysis_results ADD COLUMN candidate_weaknesses JSON DEFAULT '[]'::json;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'confidence_level') THEN
+        ALTER TABLE analysis_results ADD COLUMN confidence_level VARCHAR(10);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'semantic_similarity') THEN
+        ALTER TABLE analysis_results ADD COLUMN semantic_similarity REAL;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'skills_similarity') THEN
+        ALTER TABLE analysis_results ADD COLUMN skills_similarity REAL;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'experience_similarity') THEN
+        ALTER TABLE analysis_results ADD COLUMN experience_similarity REAL;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'education_similarity') THEN
+        ALTER TABLE analysis_results ADD COLUMN education_similarity REAL;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'ml_confidence_score') THEN
+        ALTER TABLE analysis_results ADD COLUMN ml_confidence_score REAL;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'scoring_dimensions') THEN
+        ALTER TABLE analysis_results ADD COLUMN scoring_dimensions JSON;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'fairness_metrics') THEN
+        ALTER TABLE analysis_results ADD COLUMN fairness_metrics JSON;
+    END IF;
+END $$;
+
+-- Add missing columns to interview_questions table
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'interview_questions' AND column_name = 'user_id') THEN
+        ALTER TABLE interview_questions ADD COLUMN user_id TEXT;
+    END IF;
+END $$;
 
 -- ============================================================================
--- INDEXES FOR PERFORMANCE
+-- DATA TYPE CORRECTIONS
+-- ============================================================================
+
+-- Fix any existing data type mismatches
+DO $$ 
+BEGIN
+    -- Fix match_percentage to be REAL (not INTEGER)
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_name = 'analysis_results' AND column_name = 'match_percentage' 
+               AND data_type = 'integer') THEN
+        ALTER TABLE analysis_results ALTER COLUMN match_percentage TYPE REAL;
+    END IF;
+END $$;
+
+-- ============================================================================
+-- ADD FOREIGN KEY CONSTRAINTS (if they don't exist)
+-- ============================================================================
+
+DO $$ 
+BEGIN
+    -- Add resume foreign key constraint to analysis_results if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints 
+                   WHERE constraint_name = 'analysis_results_resume_id_fkey' 
+                   AND table_name = 'analysis_results') THEN
+        ALTER TABLE analysis_results 
+        ADD CONSTRAINT analysis_results_resume_id_fkey 
+        FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE CASCADE;
+    END IF;
+    
+    -- Add job_description foreign key constraint to analysis_results if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints 
+                   WHERE constraint_name = 'analysis_results_job_description_id_fkey' 
+                   AND table_name = 'analysis_results') THEN
+        ALTER TABLE analysis_results 
+        ADD CONSTRAINT analysis_results_job_description_id_fkey 
+        FOREIGN KEY (job_description_id) REFERENCES job_descriptions(id) ON DELETE CASCADE;
+    END IF;
+    
+    -- Add resume foreign key constraint to interview_questions if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints 
+                   WHERE constraint_name = 'interview_questions_resume_id_fkey' 
+                   AND table_name = 'interview_questions') THEN
+        ALTER TABLE interview_questions 
+        ADD CONSTRAINT interview_questions_resume_id_fkey 
+        FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE CASCADE;
+    END IF;
+    
+    -- Add job_description foreign key constraint to interview_questions if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints 
+                   WHERE constraint_name = 'interview_questions_job_description_id_fkey' 
+                   AND table_name = 'interview_questions') THEN
+        ALTER TABLE interview_questions 
+        ADD CONSTRAINT interview_questions_job_description_id_fkey 
+        FOREIGN KEY (job_description_id) REFERENCES job_descriptions(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+
+-- ============================================================================
+-- INDEXES FOR PERFORMANCE (only after columns exist)
 -- ============================================================================
 
 -- User-based queries (most common)
@@ -169,40 +366,6 @@ CREATE INDEX IF NOT EXISTS idx_job_descriptions_created_at ON job_descriptions(c
 CREATE INDEX IF NOT EXISTS idx_analysis_results_created_at ON analysis_results(created_at);
 
 -- ============================================================================
--- DATA TYPE CORRECTIONS
--- ============================================================================
-
--- Fix any existing data type mismatches
-DO $$ 
-BEGIN
-    -- Fix user_id columns to be TEXT for Firebase UIDs
-    IF EXISTS (SELECT 1 FROM information_schema.columns 
-               WHERE table_name = 'job_descriptions' AND column_name = 'user_id' 
-               AND data_type != 'text') THEN
-        ALTER TABLE job_descriptions ALTER COLUMN user_id TYPE TEXT;
-    END IF;
-    
-    IF EXISTS (SELECT 1 FROM information_schema.columns 
-               WHERE table_name = 'analysis_results' AND column_name = 'user_id' 
-               AND data_type != 'text') THEN
-        ALTER TABLE analysis_results ALTER COLUMN user_id TYPE TEXT;
-    END IF;
-    
-    IF EXISTS (SELECT 1 FROM information_schema.columns 
-               WHERE table_name = 'interview_questions' AND column_name = 'user_id' 
-               AND data_type != 'text') THEN
-        ALTER TABLE interview_questions ALTER COLUMN user_id TYPE TEXT;
-    END IF;
-    
-    -- Fix match_percentage to be REAL (not INTEGER)
-    IF EXISTS (SELECT 1 FROM information_schema.columns 
-               WHERE table_name = 'analysis_results' AND column_name = 'match_percentage' 
-               AND data_type = 'integer') THEN
-        ALTER TABLE analysis_results ALTER COLUMN match_percentage TYPE REAL;
-    END IF;
-END $$;
-
--- ============================================================================
 -- INITIAL SKILL CATEGORIES
 -- ============================================================================
 
@@ -224,10 +387,10 @@ ON CONFLICT (name) DO NOTHING;
 -- ============================================================================
 
 -- Remove any duplicate or orphaned records
-DELETE FROM analysis_results WHERE resume_id NOT IN (SELECT id FROM resumes);
-DELETE FROM analysis_results WHERE job_description_id NOT IN (SELECT id FROM job_descriptions);
-DELETE FROM interview_questions WHERE resume_id NOT IN (SELECT id FROM resumes);
-DELETE FROM interview_questions WHERE job_description_id NOT IN (SELECT id FROM job_descriptions);
+DELETE FROM analysis_results WHERE resume_id IS NOT NULL AND resume_id NOT IN (SELECT id FROM resumes);
+DELETE FROM analysis_results WHERE job_description_id IS NOT NULL AND job_description_id NOT IN (SELECT id FROM job_descriptions);
+DELETE FROM interview_questions WHERE resume_id IS NOT NULL AND resume_id NOT IN (SELECT id FROM resumes);
+DELETE FROM interview_questions WHERE job_description_id IS NOT NULL AND job_description_id NOT IN (SELECT id FROM job_descriptions);
 
 -- Update any NULL created_at/updated_at fields
 UPDATE resumes SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL;
