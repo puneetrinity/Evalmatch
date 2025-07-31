@@ -1,6 +1,12 @@
 import pino from 'pino';
 import { Request, Response } from 'express';
-import { Environment } from '../config';
+
+// Define environment enum locally to avoid circular dependency
+enum Environment {
+  Development = 'development',
+  Production = 'production',
+  Test = 'test'
+}
 
 /**
  * Logger Configuration
