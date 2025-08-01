@@ -168,10 +168,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Apply general API rate limiting to all /api routes
   app.use('/api/', apiRateLimiter);
 
-  // Health check endpoint - Enhanced for Render deployment
+  // Health check endpoint - Railway-optimized for fast response
   app.get("/api/health", async (req: Request, res: Response) => {
     try {
-      // Import and use the healthcheck function
+      // Railway-specific: Check if AI health checks are disabled
+      const aiHealthCheckEnabled = process.env.AI_HEALTH_CHECK_ENABLED !== 'false';
+      
+      if (process.env.RAILWAY_ENVIRONMENT && !aiHealthCheckEnabled) {
+        // Railway-optimized: Simple health check without AI services
+        const uptime = Math.round(process.uptime());
+        const memUsage = process.memoryUsage();
+        const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+        const heapTotalMB = Math.round(memUsage.heapTotal / 1024 / 1024);
+        
+        res.json({
+          status: "healthy",
+          timestamp: new Date().toISOString(),
+          uptime,
+          memory: { heapUsed: heapUsedMB, heapTotal: heapTotalMB },
+          environment: "railway",
+          message: "Railway-optimized health check passed"
+        });
+        return;
+      }
+      
+      // Import and use the full healthcheck function for other environments
       const { healthCheck } = await import('./healthcheck.js');
       await healthCheck(req, res);
     } catch (error) {

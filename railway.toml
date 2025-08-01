@@ -13,9 +13,23 @@ NODE_ENV = "production"
 ENABLE_TELEMETRY = "true"
 ENABLE_LOCAL_EMBEDDINGS = "true"
 EMBEDDING_MODEL = "Xenova/all-MiniLM-L12-v2"
-MAX_CONCURRENT_EMBEDDINGS = "5"
+MAX_CONCURRENT_EMBEDDINGS = "3"
+# Railway optimization settings
+RAILWAY_HEALTHCHECK_TIMEOUT = "15000"
+AI_HEALTH_CHECK_ENABLED = "false"
+HEALTH_CHECK_AI_TIMEOUT = "2000"
+LOG_LEVEL = "info"
 
 # Memory and CPU limits for Railway
 [deploy.resources]
 memory = 8192  # 8GB RAM - plenty for advanced embeddings and ML models
 cpu = 2000     # 2 vCPU for better performance
+
+# Railway-specific optimizations
+[deploy.healthCheck]
+path = "/api/health"
+initialDelaySeconds = 120
+periodSeconds = 60
+timeoutSeconds = 15
+successThreshold = 1
+failureThreshold = 2
