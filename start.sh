@@ -1,8 +1,12 @@
 #!/bin/bash
 
+# Force NODE_OPTIONS for Railway deployment
+export NODE_OPTIONS="--max-old-space-size=7168 --max-semi-space-size=256"
+
 echo "=== EvalMatch Railway Startup ==="
 echo "Working directory: $(pwd)"
 echo "Node.js version: $(node --version)"
+echo "NODE_OPTIONS: $NODE_OPTIONS"
 echo "Environment: ${NODE_ENV:-development}"
 
 # Function to start the application
