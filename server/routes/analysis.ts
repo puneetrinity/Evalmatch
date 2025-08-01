@@ -193,21 +193,26 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
         : 0
     });
 
+    // Format response to match API contract expectations
     res.json({
-      status: "success",
-      message: `Analysis completed for ${resumes.length} resumes`,
-      jobDescriptionId: jobId,
-      jobTitle: jobDescription.title,
-      results,
-      summary: {
-        totalResumes: resumes.length,
-        successfulAnalyses: successfulAnalyses.length,
-        failedAnalyses: failedAnalyses.length,
-        averageMatchPercentage: successfulAnalyses.length > 0 
-          ? Math.round(successfulAnalyses.reduce((sum, r) => sum + (r.match?.matchPercentage || 0), 0) / successfulAnalyses.length)
-          : 0,
-        topMatch: successfulAnalyses.length > 0 ? successfulAnalyses[0] : null
-      }
+      analysisId: Date.now(), // Generate analysis ID for tracking
+      jobId: jobId,
+      results: results.map(r => ({
+        resumeId: r.resumeId,
+        filename: r.filename,
+        candidateName: r.candidateName,
+        matchPercentage: r.match?.matchPercentage || 0,
+        matchedSkills: r.match?.matchedSkills || [],
+        missingSkills: r.match?.missingSkills || [],
+        candidateStrengths: r.match?.candidateStrengths || [],
+        candidateWeaknesses: r.match?.candidateWeaknesses || [],
+        recommendations: [], // Add recommendations field
+        confidenceLevel: r.match?.confidenceLevel || 'low',
+        fairnessMetrics: r.match?.fairnessMetrics,
+        scoringDimensions: r.match?.scoringDimensions
+      })),
+      createdAt: new Date().toISOString(),
+      processingTime: Date.now() - Date.now() // TODO: Track actual processing time
     });
 
   } catch (error) {
@@ -257,31 +262,31 @@ router.get("/analyze/:jobId", authenticateUser, async (req: Request, res: Respon
       });
     }
 
-    // Format results for frontend
+    // Format results to match API contract expectations
     const formattedResults = analysisResults.map(result => ({
       resumeId: result.resumeId,
       filename: result.resume?.filename || `Resume ${result.resumeId}`,
       candidateName: result.resume?.filename?.replace(/\.[^/.]+$/, "") || `Candidate ${result.resumeId}`,
-      match: {
-        matchPercentage: result.matchPercentage,
-        matchedSkills: result.matchedSkills || [],
-        missingSkills: result.missingSkills || [],
-        candidateStrengths: result.candidateStrengths || [],
-        candidateWeaknesses: result.candidateWeaknesses || [],
-        confidenceLevel: result.confidenceLevel,
-        fairnessMetrics: result.fairnessMetrics
-      },
-      analysisId: result.id
+      matchPercentage: result.matchPercentage,
+      matchedSkills: result.matchedSkills || [],
+      missingSkills: result.missingSkills || [],
+      candidateStrengths: result.candidateStrengths || [],
+      candidateWeaknesses: result.candidateWeaknesses || [],
+      recommendations: [], // Add recommendations field
+      confidenceLevel: result.confidenceLevel || 'low',
+      fairnessMetrics: result.fairnessMetrics,
+      scoringDimensions: result.scoringDimensions
     }));
 
     // Sort by match percentage
-    formattedResults.sort((a, b) => (b.match?.matchPercentage || 0) - (a.match?.matchPercentage || 0));
+    formattedResults.sort((a, b) => (b.matchPercentage || 0) - (a.matchPercentage || 0));
 
     res.json({
-      status: "ok",
-      jobDescriptionId: jobId,
-      jobTitle: jobDescription.title,
-      results: formattedResults
+      analysisId: Date.now(), // Generate analysis ID for tracking
+      jobId: jobId,
+      results: formattedResults,
+      createdAt: new Date().toISOString(),
+      processingTime: 0 // TODO: Track actual processing time
     });
 
   } catch (error) {

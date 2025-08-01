@@ -31,16 +31,16 @@ ENV NPM_CONFIG_FUND=false
 ENV NPM_CONFIG_AUDIT=false
 ENV NPM_CONFIG_MAXSOCKETS=1
 ENV NPM_CONFIG_LEGACY_PEER_DEPS=true
+ENV NPM_CONFIG_OPTIONAL=false
 ENV PYTHON=/usr/bin/python3
 ENV MAKE=make
 ENV CXX=g++
 ENV CC=gcc
 
-# Increase memory allocation for node during npm install and add timeout
-# Use a two-stage approach: try npm ci first, fallback to npm install if it fails
+# Install core dependencies first, then optional ones separately
 RUN npm install -g npm@10 && \
-    (NODE_OPTIONS="--max-old-space-size=4096" npm ci --legacy-peer-deps --no-audit --no-fund --timeout=600000 || \
-     NODE_OPTIONS="--max-old-space-size=4096" npm install --legacy-peer-deps --no-audit --no-fund --timeout=600000) && \
+    NODE_OPTIONS="--max-old-space-size=4096" npm install --legacy-peer-deps --no-audit --no-fund --no-optional --timeout=600000 && \
+    (NODE_OPTIONS="--max-old-space-size=4096" npm install --legacy-peer-deps --no-audit --no-fund --optional --timeout=600000 || echo "Optional dependencies failed - continuing without them") && \
     npm cache clean --force
 
 # Create necessary directories with proper permissions
