@@ -26,6 +26,9 @@ export default defineConfig({
       "@assets": path.resolve(__dirname, "attached_assets"),
     },
   },
+  define: {
+    global: 'globalThis',
+  },
   root: path.resolve(__dirname, "client"),
   build: {
     outDir: path.resolve(__dirname, "build/public"),
@@ -40,7 +43,7 @@ export default defineConfig({
           'vendor-charts': ['recharts'],
           'vendor-utils': ['clsx', 'tailwind-merge', 'class-variance-authority']
         }
-      }
+      },
     },
     chunkSizeWarningLimit: 1000,
     target: 'esnext',

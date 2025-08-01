@@ -68,6 +68,7 @@
     "@types/string-similarity": "^4.0.2",
     "@types/uuid": "^10.0.0",
     "@xenova/transformers": "^2.15.0",
+    "buffer": "^6.0.3",
     "caniuse-lite": "^1.0.30001718",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
