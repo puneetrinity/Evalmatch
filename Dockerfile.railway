@@ -130,7 +130,7 @@ ENV MIN_ASCII_RATIO=0.8
 
 # Performance and caching optimization
 ENV TRANSFORMERS_CACHE=/tmp/transformers_cache
-ENV NODE_OPTIONS="--max-old-space-size=6144 --max-semi-space-size=256"
+ENV NODE_OPTIONS="--max-old-space-size=7168 --max-semi-space-size=256 --optimize-for-size"
 
 # Create cache directory for AI models
 RUN mkdir -p /tmp/transformers_cache && chmod 755 /tmp/transformers_cache

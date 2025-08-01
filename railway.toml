@@ -12,7 +12,7 @@ restartPolicyMaxRetries = 3
 NODE_ENV = "production"
 ENABLE_TELEMETRY = "true"
 ENABLE_LOCAL_EMBEDDINGS = "true"
-EMBEDDING_MODEL = "Xenova/all-MiniLM-L12-v2"
+EMBEDDING_MODEL = "Xenova/all-MiniLM-L6-v2"
 MAX_CONCURRENT_EMBEDDINGS = "3"
 # Railway optimization settings
 RAILWAY_HEALTHCHECK_TIMEOUT = "15000"
