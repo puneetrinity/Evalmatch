@@ -17,26 +17,44 @@ const app = express();
 // Trust proxy for Railway deployment (needed for rate limiting and real IP detection)
 app.set('trust proxy', true);
 
-// Security middleware
+// Generate CSP nonce for each request
+app.use((req, res, next) => {
+  res.locals.nonce = Math.random().toString(36).substring(2, 15);
+  next();
+});
+
+// Security middleware with improved CSP
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https:"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https:", "wss:"],
-      fontSrc: ["'self'", "https:", "data:"],
+      styleSrc: ["'self'", "https://fonts.googleapis.com", (req, res) => `'nonce-${res.locals.nonce}'`],
+      scriptSrc: ["'self'", "https://www.gstatic.com", "https://www.googleapis.com", (req, res) => `'nonce-${res.locals.nonce}'`],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "https:", "wss:", "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
-      frameSrc: ["'self'", "https://accounts.google.com", "https://*.firebaseapp.com", "https://*.googleapis.com", "https://ealmatch-railway.firebaseapp.com", "https://securetoken.googleapis.com", "https://www.googleapis.com"], // Allow Firebase OAuth popups
-      childSrc: ["'self'", "https://accounts.google.com", "https://*.firebaseapp.com", "https://*.googleapis.com", "https://ealmatch-railway.firebaseapp.com", "https://securetoken.googleapis.com", "https://www.googleapis.com"], // Allow Firebase OAuth popups
+      frameSrc: ["'self'", "https://accounts.google.com", "https://*.firebaseapp.com", "https://*.googleapis.com", "https://securetoken.googleapis.com"],
+      childSrc: ["'self'", "https://accounts.google.com", "https://*.firebaseapp.com", "https://*.googleapis.com", "https://securetoken.googleapis.com"],
       frameAncestors: ["'self'"],
       formAction: ["'self'"],
-      upgradeInsecureRequests: []
+      baseUri: ["'self'"],
+      manifestSrc: ["'self'"],
+      workerSrc: ["'self'", "blob:"],
+      upgradeInsecureRequests: config.env === 'production' ? [] : null
     }
   },
-  crossOriginEmbedderPolicy: false // Allow embedding for certain features
+  crossOriginEmbedderPolicy: false,
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  },
+  noSniff: true,
+  frameguard: { action: 'deny' },
+  xssFilter: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
 }));
 
 // Critical fix for Firebase OAuth popup - set Cross-Origin-Opener-Policy

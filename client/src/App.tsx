@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -8,53 +8,91 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { RequireAuth } from "@/hooks/use-auth-simple";
 import NotFound from "@/pages/not-found";
 
+// Core pages - loaded immediately for faster initial render
 import HomePage from "./pages/home";
 import AuthPage from "./pages/auth";
-import UploadPage from "./pages/upload";
-import JobDescriptionPage from "./pages/job-description";
-import BiasDetectionPage from "./pages/bias-detection";
-import AnalysisPage from "./pages/analysis";
-import InterviewPage from "./pages/interview";
-import PrivacyPolicy from "./pages/privacy-policy";
-import TermsOfService from "./pages/terms-of-service";
-import Feedback from "./pages/feedback";
 
-// Import onboarding components
-import { Welcome, HelpCenter } from "@/components/onboarding";
+// Lazy load heavy pages to reduce initial bundle size
+const UploadPage = lazy(() => import("./pages/upload"));
+const JobDescriptionPage = lazy(() => import("./pages/job-description"));
+const BiasDetectionPage = lazy(() => import("./pages/bias-detection"));
+const AnalysisPage = lazy(() => import("./pages/analysis"));
+const InterviewPage = lazy(() => import("./pages/interview"));
+const PrivacyPolicy = lazy(() => import("./pages/privacy-policy"));
+const TermsOfService = lazy(() => import("./pages/terms-of-service"));
+const Feedback = lazy(() => import("./pages/feedback"));
+
+// Lazy load onboarding components
+const Welcome = lazy(() => import("@/components/onboarding").then(m => ({ default: m.Welcome })));
+const HelpCenter = lazy(() => import("@/components/onboarding").then(m => ({ default: m.HelpCenter })));
+
+// Loading component for better UX during lazy loading
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    </div>
+  );
+}
 
 function Router() {
   return (
     <Switch>
+      {/* Core pages - no lazy loading needed */}
       <Route path="/" component={HomePage} />
       <Route path="/auth" component={AuthPage} />
-      <Route path="/privacy-policy" component={PrivacyPolicy} />
-      <Route path="/terms-of-service" component={TermsOfService} />
-      <Route path="/feedback" component={Feedback} />
       
-      {/* Protected Routes */}
+      {/* Lazy loaded pages wrapped in Suspense */}
+      <Route path="/privacy-policy">
+        <Suspense fallback={<PageLoader />}>
+          <PrivacyPolicy />
+        </Suspense>
+      </Route>
+      <Route path="/terms-of-service">
+        <Suspense fallback={<PageLoader />}>
+          <TermsOfService />
+        </Suspense>
+      </Route>
+      <Route path="/feedback">
+        <Suspense fallback={<PageLoader />}>
+          <Feedback />
+        </Suspense>
+      </Route>
+      
+      {/* Protected Routes with lazy loading */}
       <Route path="/upload">
         <RequireAuth>
-          <UploadPage />
+          <Suspense fallback={<PageLoader />}>
+            <UploadPage />
+          </Suspense>
         </RequireAuth>
       </Route>
       <Route path="/job-description">
         <RequireAuth>
-          <JobDescriptionPage />
+          <Suspense fallback={<PageLoader />}>
+            <JobDescriptionPage />
+          </Suspense>
         </RequireAuth>
       </Route>
       <Route path="/bias-detection/:jobId">
         <RequireAuth>
-          <BiasDetectionPage />
+          <Suspense fallback={<PageLoader />}>
+            <BiasDetectionPage />
+          </Suspense>
         </RequireAuth>
       </Route>
       <Route path="/analysis/:jobId">
         <RequireAuth>
-          <AnalysisPage />
+          <Suspense fallback={<PageLoader />}>
+            <AnalysisPage />
+          </Suspense>
         </RequireAuth>
       </Route>
       <Route path="/interview/:resumeId/:jobId">
         <RequireAuth>
-          <InterviewPage />
+          <Suspense fallback={<PageLoader />}>
+            <InterviewPage />
+          </Suspense>
         </RequireAuth>
       </Route>
       

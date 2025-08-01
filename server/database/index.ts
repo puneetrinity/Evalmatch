@@ -675,19 +675,34 @@ async function runMigrations(): Promise<void> {
   try {
     logger.info('🔄 Running database migrations...');
 
-    // Find migration file
-    const migrationPath = path.join(__dirname, '..', 'migrations', '001_consolidated_schema.sql');
-    
-    if (!fs.existsSync(migrationPath)) {
-      logger.warn('No migration file found - assuming database is already set up');
+    const migrationsDir = path.join(__dirname, '..', 'migrations');
+    if (!fs.existsSync(migrationsDir)) {
+      logger.warn('No migrations directory found - assuming database is already set up');
       return;
     }
 
-    // Read and execute migration
-    const migrationSQL = fs.readFileSync(migrationPath, 'utf-8');
-    await executeQuery(migrationSQL);
+    // Get all SQL migration files and sort them
+    const migrationFiles = fs.readdirSync(migrationsDir)
+      .filter(file => file.endsWith('.sql'))
+      .sort();
 
-    logger.info('✅ Database migrations completed successfully');
+    if (migrationFiles.length === 0) {
+      logger.warn('No migration files found - assuming database is already set up');
+      return;
+    }
+
+    // Run each migration file in order
+    for (const migrationFile of migrationFiles) {
+      const migrationPath = path.join(migrationsDir, migrationFile);
+      logger.info(`🔄 Running migration: ${migrationFile}`);
+      
+      const migrationSQL = fs.readFileSync(migrationPath, 'utf-8');
+      await executeQuery(migrationSQL);
+      
+      logger.info(`✅ Migration completed: ${migrationFile}`);
+    }
+    
+    logger.info('✅ All database migrations completed successfully');
 
   } catch (error) {
     logger.error('❌ Migration failed:', error);

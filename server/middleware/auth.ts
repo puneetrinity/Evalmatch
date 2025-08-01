@@ -31,18 +31,6 @@ declare global {
  */
 export async function authenticateUser(req: Request, res: Response, next: NextFunction) {
   try {
-    // TEMPORARY: Complete auth bypass - set default test user for compatibility
-    logger.info('🔓 COMPLETE AUTH BYPASS - Using default test user');
-    req.user = {
-      uid: 'default-test-user',
-      email: 'test@example.com',
-      emailVerified: true,
-      displayName: 'Default Test User',
-    };
-    return next();
-
-    // TODO: Re-enable this code after core functionality testing
-    /*
     // In development mode, allow bypass if Firebase not configured
     if (config.env === 'development' && !isFirebaseAuthAvailable()) {
       logger.warn('Development mode: Firebase auth not available, creating mock user');
@@ -140,17 +128,6 @@ export async function authenticateUser(req: Request, res: Response, next: NextFu
       method: req.method,
       stack: error instanceof Error ? error.stack : undefined,
     });
-    
-    return res.status(500).json({
-      error: 'Authentication error',
-      message: 'Internal server error during authentication. Please try again.',
-      code: 'AUTH_INTERNAL_ERROR',
-    });
-  }
-  */
-  } catch (error) {
-    // This catch block is needed for the temporary auth bypass
-    logger.error('Authentication middleware error (should not reach here during bypass)', error);
     
     return res.status(500).json({
       error: 'Authentication error',

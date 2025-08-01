@@ -30,5 +30,20 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "build/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-slot', '@radix-ui/react-toast'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-firebase': ['firebase/app', 'firebase/auth'],
+          'vendor-ai': ['@anthropic-ai/sdk', 'groq-sdk', 'openai'],
+          'vendor-charts': ['recharts'],
+          'vendor-utils': ['clsx', 'tailwind-merge', 'class-variance-authority']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000,
+    target: 'esnext',
+    minify: 'esbuild'
   },
 });
