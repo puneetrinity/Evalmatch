@@ -123,7 +123,8 @@ ENV FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"railway
 ENV GROQ_API_KEY=placeholder-groq-key-for-railway-testing
 
 # Phase 2 Optimization Settings
-ENV EMBEDDING_MODEL=Xenova/all-MiniLM-L12-v2
+ENV ENABLE_LOCAL_EMBEDDINGS=true
+ENV EMBEDDING_MODEL=Xenova/all-MiniLM-L6-v2
 ENV MAX_CONCURRENT_EMBEDDINGS=3
 ENV MAX_TEXT_LENGTH=50000
 ENV MIN_ASCII_RATIO=0.8
