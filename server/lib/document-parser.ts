@@ -362,8 +362,8 @@ function postProcessResumeText(raw: string): string {
     
     let detectedSkills = new Set<string>();
     for (const pattern of skillPatterns) {
-      const matches = text.matchAll(pattern);
-      for (const match of matches) {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
         if (match[1]) {
           detectedSkills.add(match[1].trim());
         }
@@ -436,8 +436,8 @@ function postProcessResumeText(raw: string): string {
   ];
   
   for (const pattern of skillPatterns) {
-    const matches = text.matchAll(pattern);
-    for (const match of matches) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
       const potentialSkill = match[1].trim();
       if (potentialSkill.length > 2 && potentialSkill.length < 30) {
         // Check if it looks like a technology/skill
