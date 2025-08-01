@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { authManager, AuthState } from '@/lib/auth-manager';
+import React, { ReactNode } from 'react';
 
 interface UseAuthReturn {
   // State
@@ -96,8 +97,6 @@ export function useAuth(): UseAuthReturn {
 /**
  * Higher-order component for protected routes
  */
-import React, { ReactNode } from 'react';
-
 interface RequireAuthProps {
   children: ReactNode;
   fallback?: ReactNode;
