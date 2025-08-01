@@ -158,22 +158,30 @@ export default function UploadPage() {
       
       const responseData = await response.json() as ApiResult<UploadResponse>;
       
-      if (!response.ok) {
-        const error: UploadError = {
-          message: isApiSuccess(responseData) ? 'Unknown error' : responseData.message,
-          code: isApiSuccess(responseData) ? undefined : responseData.code,
-          details: isApiSuccess(responseData) ? undefined : responseData.details,
-        };
-        throw error;
-      }
+      console.log('Upload response:', {
+        status: response.status,
+        ok: response.ok,
+        responseData,
+        isSuccess: isApiSuccess(responseData)
+      });
       
+      // Check if the API response indicates success
       if (isApiSuccess(responseData)) {
+        console.log('Upload successful, returning data:', responseData.data);
         return responseData.data;
       }
       
-      throw { message: responseData.message || "Upload failed", code: responseData.code };
+      // Handle API error response
+      const error: UploadError = {
+        message: responseData.message || "Upload failed",
+        code: responseData.code,
+        details: responseData.details,
+      };
+      throw error;
     },
     onSuccess: (data, variables) => {
+      console.log('onSuccess called with:', { data, variables });
+      
       // Update file list with server-assigned ID
       setFiles(prev => 
         prev.map(file => 
@@ -189,6 +197,8 @@ export default function UploadPage() {
       });
     },
     onError: (error, variables) => {
+      console.log('onError called with:', { error, variables });
+      
       // Update file status to error
       setFiles(prev => 
         prev.map(file => 
