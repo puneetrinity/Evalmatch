@@ -5,32 +5,26 @@
 
 import { Router, Request, Response } from 'express';
 import { logger } from '../lib/logger';
+import { 
+  basicHealthCheck, 
+  detailedHealthCheck, 
+  readinessProbe, 
+  livenessProbe 
+} from '../middleware/health-checks';
 
 const router = Router();
 
-// Health check endpoint - Simplified for Railway deployment
-router.get("/health", async (req: Request, res: Response) => {
-  try {
-    // Simple health check that always works
-    const healthStatus = {
-      status: "ok",
-      message: "Service is healthy",
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      environment: process.env.NODE_ENV || 'development'
-    };
+// Basic health check endpoint - Fast response for load balancers
+router.get("/health", basicHealthCheck);
 
-    res.json(healthStatus);
-  } catch (error) {
-    logger.error('Health check error:', error);
-    res.status(500).json({ 
-      status: "error", 
-      message: "Health check failed",
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
+// Detailed health check endpoint - Comprehensive system status
+router.get("/health/detailed", detailedHealthCheck);
+
+// Kubernetes-style readiness probe
+router.get("/ready", readinessProbe);
+
+// Kubernetes-style liveness probe  
+router.get("/live", livenessProbe);
 
 // Migration status endpoint - Monitor database schema migrations
 router.get("/migration-status", async (req: Request, res: Response) => {

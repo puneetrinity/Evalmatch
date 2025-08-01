@@ -7,6 +7,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User } from 'firebase/auth';
 import { authService } from '@/lib/firebase';
+import { authLogger } from '@/lib/auth-logger';
 
 interface AuthContextType {
   // User state
@@ -55,8 +56,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         });
         
         // Google OAuth now uses popup, no need to handle redirect result
-      } catch (error) {
-        console.error('Error initializing auth:', error);
+      } catch (error: any) {
+        authLogger.error('Auth initialization failed', error, {
+          operation: 'auth_init'
+        });
         // Set loading to false even if initialization fails
         if (mounted) {
           setLoading(false);
@@ -78,9 +81,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         // Log authentication state changes for debugging
         if (user) {
-          console.log('User signed in:', { uid: user.uid, email: user.email, displayName: user.displayName });
+          authLogger.debug('User signed in', {
+            operation: 'auth_state_change',
+            uid: user.uid,
+            email: user.email || undefined,
+            success: true
+          });
         } else {
-          console.log('User signed out');
+          authLogger.debug('User signed out', {
+            operation: 'auth_state_change',
+            success: false
+          });
         }
       }
     });

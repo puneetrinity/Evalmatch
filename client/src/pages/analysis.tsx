@@ -16,35 +16,69 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import SkillRadarChart from "@/components/skill-radar-chart";
 
-type MatchedSkill = {
-  skill: string;
-  skill_name?: string; // Support legacy property names
-  name?: string;       // Support legacy property names
-  matchPercentage: number;
-  match_percentage?: number; // Support legacy property names
-};
+import type {
+  JobId,
+  SessionId,
+  ResumeId,
+  AnalysisId,
+  JobDetailsResponse,
+  AnalysisResponse,
+  MatchedSkill,
+  FairnessMetrics,
+  ApiResult
+} from "@shared/api-contracts";
+import { isApiSuccess } from "@shared/api-contracts";
+import { isJobDetailsResponse, isAnalysisResponse } from "@shared/type-guards";
 
-type FairnessMetrics = {
-  biasConfidenceScore: number;
-  potentialBiasAreas?: string[];
-  fairnessAssessment?: string;
-};
-
-type AnalysisResult = {
-  resumeId: number;
-  filename: string;
-  candidateName: string;
-  match: {
-    matchPercentage: number;
-    matchedSkills: MatchedSkill[] | string[];
-    missingSkills: string[];
-    candidateStrengths?: string[];
-    candidateWeaknesses?: string[];
-    confidenceLevel?: 'low' | 'medium' | 'high';
-    fairnessMetrics?: FairnessMetrics;
+// Enhanced type definitions for the analysis page
+interface JobData {
+  id: JobId;
+  title: string;
+  description: string;
+  createdAt: string;
+  analyzedData: {
+    requiredSkills: string[];
+    preferredSkills: string[];
+    experienceLevel: string;
+    responsibilities: string[];
+    summary: string;
   };
-  analysisId: number;
-};
+}
+
+interface AnalysisResult {
+  resumeId: ResumeId;
+  filename: string;
+  candidateName?: string;
+  matchPercentage: number;
+  matchedSkills: MatchedSkill[];
+  missingSkills: string[];
+  candidateStrengths: string[];
+  candidateWeaknesses: string[];
+  recommendations: string[];
+  confidenceLevel: 'low' | 'medium' | 'high';
+  scoringDimensions?: {
+    skills: number;
+    experience: number;
+    education: number;
+    semantic: number;
+    cultural: number;
+  };
+  fairnessMetrics?: FairnessMetrics;
+}
+
+interface AnalysisData {
+  analysisId: AnalysisId;
+  jobId: JobId;
+  results: AnalysisResult[];
+  processingTime: number;
+  metadata: {
+    aiProvider: string;
+    modelVersion: string;
+    totalCandidates: number;
+    processedCandidates: number;
+    failedCandidates: number;
+  };
+}
 
 export default function AnalysisPage() {
   const { toast } = useToast();
@@ -52,28 +86,22 @@ export default function AnalysisPage() {
   const { steps } = useSteps(["Resume Upload", "Job Description", "Bias Detection", "Fit Analysis", "Interview Prep"], 3);
   
   const [match, routeParams] = useRoute("/analysis/:jobId");
-  const jobId = match ? parseInt(routeParams.jobId) : 0;
+  const jobId = match ? parseInt(routeParams.jobId) as JobId : 0 as JobId;
   
   const [expanded, setExpanded] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   // Get the current session ID from localStorage
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<SessionId | null>(null);
   
   // Load session ID from localStorage when component mounts
   useEffect(() => {
     const storedSessionId = localStorage.getItem('currentUploadSession');
-    setSessionId(storedSessionId);
+    setSessionId(storedSessionId as SessionId | null);
     console.log(`Loaded upload session for analysis: ${storedSessionId}`);
   }, []);
   
-  interface JobData {
-    id: number;
-    title: string;
-    description: string;
-    created: string;
-    analyzedData: any;
-  }
+  // Job data interface moved to top level with proper typing
 
   // Fetch job details with authentication
   const { 
@@ -92,30 +120,31 @@ export default function AnalysisPage() {
   });
   
   // Analyze mutation
-  const analyzeMutation = useMutation({
-    mutationFn: async () => {
+  const analyzeMutation = useMutation<AnalysisData, Error, void>({
+    mutationFn: async (): Promise<AnalysisData> => {
       setIsAnalyzing(true);
       
       // Include the sessionId in the request body if available
       const requestBody = sessionId ? { sessionId } : {};
       
-      return apiRequest("POST", `/api/analysis/analyze/${jobId}`, requestBody);
-    },
-    onSuccess: async (response) => {
-      try {
-        const data = await response.json();
-        const resultCount = data.results?.length || 0;
-        toast({
-          title: "Analysis complete",
-          description: `${resultCount} resume${resultCount !== 1 ? 's' : ''} analyzed successfully.`,
-        });
-      } catch (error) {
-        console.error("Error parsing analysis response:", error);
-        toast({
-          title: "Error processing analysis",
-          description: "The operation completed but there was an error processing the results.",
-        });
+      const response = await apiRequest("POST", `/api/analysis/analyze/${jobId}`, requestBody);
+      const result = await response.json() as ApiResult<AnalysisData>;
+      
+      if (isApiSuccess(result)) {
+        if (isAnalysisResponse(result.data)) {
+          return result.data;
+        }
+        throw new Error('Invalid analysis response format');
       }
+      
+      throw new Error(result.message || "Analysis failed");
+    },
+    onSuccess: (data) => {
+      const resultCount = data.results?.length || 0;
+      toast({
+        title: "Analysis complete",
+        description: `${resultCount} resume${resultCount !== 1 ? 's' : ''} analyzed successfully.`,
+      });
       setIsAnalyzing(false);
       refetch();
     },
@@ -123,19 +152,14 @@ export default function AnalysisPage() {
       console.error("Analysis error:", error);
       toast({
         title: "Analysis failed",
-        description: "There was an error analyzing resumes against this job description. Please try again.",
+        description: error.message || "There was an error analyzing resumes against this job description. Please try again.",
         variant: "destructive",
       });
       setIsAnalyzing(false);
     },
   });
   
-  // Define the analysis response type
-  interface AnalysisResponse {
-    jobDescriptionId: number;
-    jobTitle: string;
-    results: AnalysisResult[];
-  }
+  // Remove duplicate interface definition - using shared types
   
   // Fetch analysis data using proper auth
   const { 

@@ -5,6 +5,7 @@
 
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { auth, authService } from './firebase';
+import { authLogger } from './auth-logger';
 
 type AuthState = {
   user: User | null;
@@ -121,8 +122,12 @@ class AuthManager {
 
     try {
       return await user.getIdToken(forceRefresh);
-    } catch (error) {
-      console.error('Failed to get auth token:', error);
+    } catch (error: any) {
+      authLogger.error('Failed to get auth token', error, {
+        operation: 'get_token',
+        uid: user.uid,
+        errorCode: error.code
+      });
       return null;
     }
   }
@@ -189,8 +194,10 @@ class AuthManager {
     this.listeners.forEach(listener => {
       try {
         listener(state);
-      } catch (error) {
-        console.error('Error in auth listener:', error);
+      } catch (error: any) {
+        authLogger.error('Error in auth listener', error, {
+          operation: 'auth_listener'
+        });
       }
     });
   }

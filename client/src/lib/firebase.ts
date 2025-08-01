@@ -19,6 +19,7 @@ import {
   sendPasswordResetEmail,
   updateProfile
 } from 'firebase/auth';
+import { authLogger } from './auth-logger';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -30,14 +31,10 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Debug logging for Firebase config with actual auth domain value
-console.log('Firebase config loaded:', {
-  apiKey: firebaseConfig.apiKey ? 'SET' : 'MISSING',
-  authDomain: firebaseConfig.authDomain || 'MISSING',
-  projectId: firebaseConfig.projectId ? 'SET' : 'MISSING',
-  storageBucket: firebaseConfig.storageBucket ? 'SET' : 'MISSING',
-  messagingSenderId: firebaseConfig.messagingSenderId ? 'SET' : 'MISSING',
-  appId: firebaseConfig.appId ? 'SET' : 'MISSING'
+// Log Firebase config validation in development only
+authLogger.debug('Firebase config validation', {
+  success: true,
+  operation: 'config_load'
 });
 
 // Validate that all required Firebase config values are present
@@ -46,7 +43,9 @@ const missingFields = requiredFields.filter(field => !firebaseConfig[field as ke
 
 if (missingFields.length > 0) {
   const error = `Firebase configuration missing required fields: ${missingFields.join(', ')}. Please ensure VITE_FIREBASE_* environment variables are set during build.`;
-  console.error(error);
+  authLogger.error('Firebase configuration invalid', new Error(error), {
+    operation: 'config_validation'
+  });
   throw new Error(error);
 }
 
@@ -79,9 +78,21 @@ export const authService = {
         await updateProfile(userCredential.user, { displayName });
       }
       
+      authLogger.success('User registration successful', {
+        operation: 'register',
+        uid: userCredential.user.uid,
+        email: userCredential.user.email || undefined,
+        provider: 'email'
+      });
+      
       return userCredential.user;
-    } catch (error: unknown) {
-      console.error('Registration error:', error);
+    } catch (error: any) {
+      authLogger.error('Registration failed', error, {
+        operation: 'register',
+        email: email,
+        provider: 'email',
+        errorCode: error.code
+      });
       throw new Error(getAuthErrorMessage(error.code));
     }
   },
@@ -90,9 +101,22 @@ export const authService = {
   async signInWithEmail(email: string, password: string): Promise<User> {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      authLogger.success('Email sign-in successful', {
+        operation: 'signin',
+        uid: userCredential.user.uid,
+        email: userCredential.user.email || undefined,
+        provider: 'email'
+      });
+      
       return userCredential.user;
-    } catch (error: unknown) {
-      console.error('Sign in error:', error);
+    } catch (error: any) {
+      authLogger.error('Email sign-in failed', error, {
+        operation: 'signin',
+        email: email,
+        provider: 'email',
+        errorCode: error.code
+      });
       throw new Error(getAuthErrorMessage(error.code));
     }
   },
@@ -100,43 +124,29 @@ export const authService = {
   // Sign in with Google using popup
   async signInWithGoogle(): Promise<User> {
     try {
-      console.log('Attempting Google popup sign in...');
-      console.log('Firebase config check:', {
-        apiKey: firebaseConfig.apiKey ? 'SET' : 'MISSING',
-        authDomain: firebaseConfig.authDomain,
-        projectId: firebaseConfig.projectId
+      authLogger.debug('Starting Google popup sign-in', {
+        operation: 'google_signin',
+        provider: 'google'
       });
-      console.log('Current window origin:', window.location.origin);
-      console.log('Google provider scopes:', googleProvider.scopes);
-      
-      // Check if we're on Railway deployment
-      const isRailway = window.location.hostname === 'web-production-392cc.up.railway.app';
-      if (isRailway) {
-        console.log('Running on Railway deployment');
-        console.log('Auth domain should be: ealmatch-railway.firebaseapp.com');
-        console.log('Actual auth domain:', firebaseConfig.authDomain);
-      }
-      
-      console.log('Starting Google popup sign-in...');
       
       // Small delay to ensure DOM is stable before opening popup
       await new Promise(resolve => setTimeout(resolve, 100));
       
       const result = await signInWithPopup(auth, googleProvider);
-      console.log('Google popup sign in successful:', result.user.email);
+      
+      authLogger.success('Google sign-in successful', {
+        operation: 'google_signin',
+        uid: result.user.uid,
+        email: result.user.email || undefined,
+        provider: 'google'
+      });
       
       return result.user;
-    } catch (error: unknown) {
-      console.error('Google popup sign in failed:', error.code, error.message);
-      console.error('Full popup error:', error);
-      
-      // Log additional debugging info
-      console.error('Debug info:', {
-        origin: window.location.origin,
-        authDomain: firebaseConfig.authDomain,
-        errorCode: error.code,
-        errorMessage: error.message,
-        customData: error.customData
+    } catch (error: any) {
+      authLogger.error('Google sign-in failed', error, {
+        operation: 'google_signin',
+        provider: 'google',
+        errorCode: error.code
       });
       
       // Provide clear error messages and ask user to retry
@@ -168,7 +178,9 @@ export const authService = {
   // Handle Google redirect result (call this on app startup)
   async handleGoogleRedirectResult(): Promise<User | null> {
     try {
-      console.log('Checking for Google redirect result...');
+      authLogger.debug('Checking for Google redirect result', {
+        operation: 'google_redirect'
+      });
       
       // Add timeout to prevent hanging
       const timeoutPromise = new Promise<null>((_, reject) => {
@@ -181,14 +193,24 @@ export const authService = {
       ]);
       
       if (result && result.user) {
-        console.log('Google redirect sign in successful:', result.user.email);
+        authLogger.success('Google redirect sign-in successful', {
+          operation: 'google_redirect',
+          uid: result.user.uid,
+          email: result.user.email || undefined,
+          provider: 'google'
+        });
         return result.user;
       }
       
-      console.log('No Google redirect result found');
+      authLogger.debug('No Google redirect result found', {
+        operation: 'google_redirect'
+      });
       return null;
-    } catch (error: unknown) {
-      console.error('Google redirect result error:', error);
+    } catch (error: any) {
+      authLogger.error('Google redirect result error', error, {
+        operation: 'google_redirect',
+        errorCode: error.code
+      });
       // Don't throw error, just return null to allow app to continue
       return null;
     }
@@ -198,8 +220,14 @@ export const authService = {
   async signOut(): Promise<void> {
     try {
       await signOut(auth);
-    } catch (error: unknown) {
-      console.error('Sign out error:', error);
+      authLogger.debug('User signed out successfully', {
+        operation: 'signout'
+      });
+    } catch (error: any) {
+      authLogger.error('Sign out failed', error, {
+        operation: 'signout',
+        errorCode: error.code
+      });
       throw new Error('Failed to sign out');
     }
   },
@@ -208,8 +236,16 @@ export const authService = {
   async resetPassword(email: string): Promise<void> {
     try {
       await sendPasswordResetEmail(auth, email);
-    } catch (error: unknown) {
-      console.error('Password reset error:', error);
+      authLogger.debug('Password reset email sent', {
+        operation: 'password_reset',
+        email: email
+      });
+    } catch (error: any) {
+      authLogger.error('Password reset failed', error, {
+        operation: 'password_reset',
+        email: email,
+        errorCode: error.code
+      });
       throw new Error(getAuthErrorMessage(error.code));
     }
   },
@@ -223,7 +259,9 @@ export const authService = {
   async getAuthToken(forceRefresh = false): Promise<string | null> {
     // Wait for auth to be ready if currentUser is null
     if (!auth.currentUser) {
-      console.log('Waiting for auth state to be ready...');
+      authLogger.debug('Waiting for auth state to be ready', {
+        operation: 'get_token'
+      });
       try {
         await new Promise<void>((resolve, reject) => {
           const timeout = setTimeout(() => {
@@ -238,8 +276,10 @@ export const authService = {
             }
           });
         });
-      } catch (error) {
-        console.error('Auth state timeout:', error);
+      } catch (error: any) {
+        authLogger.error('Auth state timeout', error, {
+          operation: 'get_token'
+        });
         return null;
       }
     }
@@ -248,10 +288,18 @@ export const authService = {
     if (user) {
       try {
         const token = await user.getIdToken(forceRefresh);
-        console.log('Successfully retrieved auth token, length:', token?.length);
+        authLogger.debug('Auth token retrieved successfully', {
+          operation: 'get_token',
+          uid: user.uid,
+          success: true
+        });
         return token;
-      } catch (error) {
-        console.error('Error getting auth token:', error);
+      } catch (error: any) {
+        authLogger.error('Failed to get auth token', error, {
+          operation: 'get_token',
+          uid: user.uid,
+          errorCode: error.code
+        });
         return null;
       }
     }

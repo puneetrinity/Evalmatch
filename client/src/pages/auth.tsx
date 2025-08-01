@@ -15,10 +15,18 @@ export default function AuthPage() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
 
+  // Get redirect parameter from URL
+  const getRedirectPath = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const redirect = urlParams.get('redirect');
+    return redirect ? decodeURIComponent(redirect) : '/upload';
+  };
+
   // Redirect if already authenticated
   React.useEffect(() => {
     if (user) {
-      setLocation('/upload');
+      const redirectPath = getRedirectPath();
+      setLocation(redirectPath);
     }
   }, [user, setLocation]);
 
@@ -27,7 +35,8 @@ export default function AuthPage() {
   };
 
   const handleSuccess = () => {
-    setLocation('/upload');
+    const redirectPath = getRedirectPath();
+    setLocation(redirectPath);
   };
 
   if (user) {

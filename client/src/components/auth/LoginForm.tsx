@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
+import { authLogger } from '@/lib/auth-logger';
 
 interface LoginFormProps {
   onToggleMode: () => void;
@@ -37,9 +38,18 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
     setError('');
 
     try {
-      console.log('[LOGIN] Starting login attempt for:', email);
+      authLogger.debug('Starting email login attempt', {
+        operation: 'email_login',
+        email: email
+      });
+      
       await signIn(email, password);
-      console.log('[LOGIN] Login successful for:', email);
+      
+      authLogger.success('Email login successful', {
+        operation: 'email_login',
+        email: email,
+        success: true
+      });
       
       toast({
         title: "Welcome back!",
@@ -47,7 +57,11 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
       });
       onSuccess?.();
     } catch (error: any) {
-      console.error('[LOGIN] Login failed:', error);
+      authLogger.error('Email login failed', error, {
+        operation: 'email_login',
+        email: email,
+        errorCode: error.code
+      });
       setError(error.message);
     } finally {
       setLoading(false);
@@ -59,9 +73,18 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
     setError('');
 
     try {
-      console.log('[LOGIN] Starting Google login...');
+      authLogger.debug('Starting Google login attempt', {
+        operation: 'google_login',
+        provider: 'google'
+      });
+      
       await signInWithGoogle();
-      console.log('[LOGIN] Google login successful');
+      
+      authLogger.success('Google login successful', {
+        operation: 'google_login',
+        provider: 'google',
+        success: true
+      });
       
       toast({
         title: "Welcome!",
@@ -69,7 +92,11 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
       });
       onSuccess?.();
     } catch (error: any) {
-      console.error('[LOGIN] Google login error:', error);
+      authLogger.error('Google login failed', error, {
+        operation: 'google_login',
+        provider: 'google',
+        errorCode: error.code
+      });
       setError(error.message);
     }
   };

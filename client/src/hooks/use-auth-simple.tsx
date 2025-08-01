@@ -3,10 +3,10 @@
  * Uses the AuthManager to provide race-condition-free auth state
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, ReactNode } from 'react';
 import { User } from 'firebase/auth';
 import { authManager, AuthState } from '@/lib/auth-manager';
-import React, { ReactNode } from 'react';
+import { authLogger } from '@/lib/auth-logger';
 
 interface UseAuthReturn {
   // State
@@ -86,8 +86,11 @@ export function useAuth(): UseAuthReturn {
     getAuthToken: async (forceRefresh = false) => {
       try {
         return await authManager.getAuthToken(forceRefresh);
-      } catch (error) {
-        console.error('Failed to get auth token:', error);
+      } catch (error: any) {
+        authLogger.error('Failed to get auth token', error, {
+          operation: 'get_token',
+          errorCode: error.code
+        });
         return null;
       }
     }
@@ -96,39 +99,73 @@ export function useAuth(): UseAuthReturn {
 
 /**
  * Higher-order component for protected routes
+ * Simplified navigation logic with better UX
  */
 interface RequireAuthProps {
   children: ReactNode;
   fallback?: ReactNode;
+  redirectTo?: string;
 }
 
-export function RequireAuth({ children, fallback }: RequireAuthProps) {
-  const { user, loading } = useAuth();
+export function RequireAuth({ children, fallback, redirectTo = '/auth' }: RequireAuthProps) {
+  const { user, loading, isAuthenticated } = useAuth();
 
+  // Enhanced loading state with fade-in animation
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return fallback || (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
-          <p className="text-gray-600 mb-4">Please log in to access this content.</p>
-          <button
-            onClick={() => window.location.href = '/auth'}
-            className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
-          >
-            Go to Login
-          </button>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50/50 backdrop-blur-sm">
+        <div className="text-center animate-fade-in">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-sm text-gray-600 animate-pulse">Loading your session...</p>
         </div>
       </div>
     );
   }
 
-  return <>{children}</>;
+  // Redirect to auth if not authenticated
+  if (!isAuthenticated) {
+    // Preserve current path for redirect after authentication
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '';
+    const encodedRedirect = encodeURIComponent(currentPath);
+    const authUrl = `${redirectTo}${currentPath !== '/' ? `?redirect=${encodedRedirect}` : ''}`;
+    
+    // Use client-side navigation instead of hard redirect
+    React.useEffect(() => {
+      // Small delay to prevent flash of unauthenticated content
+      const timer = setTimeout(() => {
+        window.location.replace(authUrl);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }, [authUrl]);
+
+    // Show fallback or default unauthorized UI while redirecting
+    return fallback || (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md mx-auto px-6">
+          <div className="mb-6">
+            <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Authentication Required</h2>
+          <p className="text-gray-600 mb-6">
+            You need to be signed in to access this page. You'll be redirected to the login page in a moment.
+          </p>
+          <div className="flex items-center justify-center text-sm text-gray-500">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+            Redirecting to login...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Authenticated - render children with smooth transition
+  return (
+    <div className="animate-fade-in">
+      {children}
+    </div>
+  );
 }

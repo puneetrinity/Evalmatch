@@ -662,6 +662,37 @@ export async function extractTextWithOcr(buffer: Buffer): Promise<string> {
 }
 
 /**
+ * Extract text from a plain text file
+ * @param buffer Text file as a buffer
+ * @returns Extracted text
+ */
+export async function extractTextFromPlain(buffer: Buffer): Promise<string> {
+  try {
+    let extractedText = buffer.toString('utf8');
+    
+    // Post-process the extracted text
+    extractedText = postProcessResumeText(extractedText);
+    
+    // Validate the extracted text
+    const validation = validateExtractedText(extractedText);
+    if (!validation.isValid) {
+      throw new Error(`Text extraction failed: ${validation.reason}. Please ensure your document contains readable text.`);
+    }
+    
+    // Truncate if necessary
+    if (extractedText.length > MAX_TEXT_LENGTH) {
+      console.warn(`[TextParser][Warning] Text truncated from ${extractedText.length} to ${MAX_TEXT_LENGTH} characters`);
+      extractedText = truncateText(extractedText);
+    }
+    
+    return extractedText;
+  } catch (error) {
+    console.error('Error extracting text from plain text file:', error);
+    throw new Error('Failed to extract text from plain text file');
+  }
+}
+
+/**
  * Parse a document file and extract its text
  * @param file Document file (Buffer)
  * @param mimeType File MIME type
@@ -673,6 +704,8 @@ export async function parseDocument(buffer: Buffer, mimeType: string): Promise<s
       return extractTextFromPdf(buffer);
     case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
       return extractTextFromDocx(buffer);
+    case 'text/plain':
+      return extractTextFromPlain(buffer);
     default:
       throw new Error(`Unsupported file type: ${mimeType}`);
   }

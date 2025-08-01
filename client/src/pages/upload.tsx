@@ -10,17 +10,46 @@ import StepProgress from "@/components/step-progress";
 import { useSteps } from "@/hooks/use-steps";
 import { Button } from "@/components/ui/button";
 import { formatFileSize, getFileIcon, isFileAllowed, isFileSizeValid } from "@/lib/file-utils";
+import type { 
+  ResumeId, 
+  SessionId, 
+  ResumeListResponse, 
+  ResumeDetailsResponse,
+  ApiResult
+} from "@shared/api-contracts";
+import { isApiSuccess } from "@shared/api-contracts";
+import { isResumeListResponse } from "@shared/type-guards";
 
-type UploadedFile = {
-  id?: number;
+// Enhanced type definitions
+type FileUploadStatus = "uploading" | "success" | "error" | "pending";
+
+interface UploadedFile {
+  id?: ResumeId;
   file?: File;
   name: string;
   size: number;
   type: string;
-  status?: "uploading" | "success" | "error";
+  status: FileUploadStatus;
   progress?: number;
   error?: string;
-};
+  hash?: string;
+  uploadedAt?: string;
+}
+
+interface UploadResponse {
+  id: ResumeId;
+  filename: string;
+  fileSize: number;
+  fileType: string;
+  message: string;
+  processingTime?: number;
+}
+
+interface UploadError {
+  message: string;
+  code?: string;
+  details?: Record<string, unknown>;
+}
 
 export default function UploadPage() {
   const { toast } = useToast();
@@ -33,11 +62,11 @@ export default function UploadPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Track the current upload session
-  const [sessionId, setSessionId] = useState<string>("");
+  const [sessionId, setSessionId] = useState<SessionId | null>(null);
   
   // Generate a new random session ID
-  const createNewSession = useCallback(() => {
-    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+  const createNewSession = useCallback((): SessionId => {
+    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 10)}` as SessionId;
     setSessionId(newSessionId);
     console.log(`Created new upload session: ${newSessionId}`);
     localStorage.setItem('currentUploadSession', newSessionId);
@@ -51,7 +80,7 @@ export default function UploadPage() {
     
     if (existingSessionId) {
       // Use existing session ID
-      setSessionId(existingSessionId);
+      setSessionId(existingSessionId as SessionId);
       console.log(`Using existing upload session: ${existingSessionId}`);
     } else {
       // Generate a new random session ID if none exists
@@ -60,35 +89,54 @@ export default function UploadPage() {
   }, [createNewSession]);
   
   // Fetch existing resumes for current session only
-  const { data: existingResumes, isLoading } = useQuery({
+  const { data: existingResumes, isLoading, error: resumeLoadError } = useQuery<ResumeListResponse>({
     queryKey: ["/api/resumes", sessionId],
-    queryFn: async ({ queryKey }) => {
-      const endpoint = queryKey[0];
-      const currentSessionId = queryKey[1];
+    queryFn: async ({ queryKey }): Promise<ResumeListResponse> => {
+      const endpoint = queryKey[0] as string;
+      const currentSessionId = queryKey[1] as SessionId;
       const response = await apiRequest("GET", `${endpoint}?sessionId=${currentSessionId}`);
-      return response.json();
+      const data = await response.json() as ApiResult<ResumeListResponse>;
+      
+      if (isApiSuccess(data)) {
+        if (isResumeListResponse(data.data)) {
+          return data.data;
+        }
+        throw new Error('Invalid resume list response format');
+      }
+      throw new Error(data.message || 'Failed to fetch resumes');
     },
     enabled: !!sessionId, // Only enable the query when sessionId is available
     refetchOnWindowFocus: false,
+    retry: 2,
   });
 
   // Add existing resumes to files list when data is loaded
   useEffect(() => {
-    if (existingResumes && Array.isArray(existingResumes) && !files.length) {
-      const existingFiles = existingResumes.map((resume: any) => ({
+    if (existingResumes?.resumes && !files.length) {
+      const existingFiles: UploadedFile[] = existingResumes.resumes.map(resume => ({
         id: resume.id,
         name: resume.filename,
         size: resume.fileSize,
         type: resume.fileType,
         status: "success" as const,
+        uploadedAt: resume.uploadedAt,
       }));
       setFiles(existingFiles);
     }
   }, [existingResumes, files.length]);
 
   // Upload file mutation
-  const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
+  const uploadMutation = useMutation<UploadResponse, UploadError, File>({
+    mutationFn: async (file: File): Promise<UploadResponse> => {
+      // Validate file before upload
+      if (!isFileAllowed(file.type)) {
+        throw { message: 'File type not supported', code: 'INVALID_FILE_TYPE' };
+      }
+      
+      if (!isFileSizeValid(file.size)) {
+        throw { message: 'File size exceeds limit', code: 'FILE_TOO_LARGE' };
+      }
+      
       const formData = new FormData();
       formData.append("file", file);
       
@@ -108,12 +156,22 @@ export default function UploadPage() {
         body: formData,
       });
       
+      const responseData = await response.json() as ApiResult<UploadResponse>;
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Upload failed");
+        const error: UploadError = {
+          message: isApiSuccess(responseData) ? 'Unknown error' : responseData.message,
+          code: isApiSuccess(responseData) ? undefined : responseData.code,
+          details: isApiSuccess(responseData) ? undefined : responseData.details,
+        };
+        throw error;
       }
       
-      return response.json();
+      if (isApiSuccess(responseData)) {
+        return responseData.data;
+      }
+      
+      throw { message: responseData.message || "Upload failed", code: responseData.code };
     },
     onSuccess: (data, variables) => {
       // Update file list with server-assigned ID

@@ -1,9 +1,16 @@
 import fetch from 'node-fetch';
 
-const BASE_URL = 'https://web-production-392cc.up.railway.app';
+// This script is for development debugging only
+if (process.env.NODE_ENV === 'production') {
+  console.error('❌ This debug script should not be run in production!');
+  process.exit(1);
+}
+
+const BASE_URL = process.env.BASE_URL || 'https://web-production-392cc.up.railway.app';
 
 async function debugAuthFlow() {
-  console.log('🔍 DEBUGGING AUTHENTICATION FLOW\n');
+  console.log('🔍 DEBUGGING AUTHENTICATION FLOW (Development Only)\n');
+  console.log(`🌍 Testing against: ${BASE_URL}\n`);
   
   // 1. Check if the app uses Firebase client-side auth or server-side auth
   console.log('1. Checking authentication setup...');
@@ -11,7 +18,7 @@ async function debugAuthFlow() {
   try {
     // Test registration endpoint
     const testEmail = `test${Date.now()}@example.com`;
-    console.log(`\nTesting with email: ${testEmail}`);
+    console.log(`\n📧 Testing with email: ${testEmail}`);
     
     const registerResponse = await fetch(`${BASE_URL}/api/auth/register`, {
       method: 'POST',
@@ -98,7 +105,7 @@ async function debugAuthFlow() {
     
     // 6. Summary
     console.log('\n📊 AUTHENTICATION FLOW SUMMARY:');
-    console.log('================================');
+    console.log('='.repeat(50));
     
     if (registerResponse.status === 404 && loginResponse.status === 404) {
       console.log('❌ Server-side auth endpoints not found');
@@ -121,7 +128,20 @@ async function debugAuthFlow() {
     
   } catch (error) {
     console.error('\n❌ Error during auth flow debug:', error.message);
+    console.error('\n🔧 Troubleshooting Tips:');
+    console.error('1. Check if the server is running');
+    console.error('2. Verify the BASE_URL is correct');
+    console.error('3. Check network connectivity');
+    console.error('4. Review server logs for errors');
   }
 }
 
-debugAuthFlow();
+// Warn about sensitive operations
+console.warn('⚠️  WARNING: This script performs test operations that may affect your database.');
+console.warn('⚠️  Only run this in development environments!');
+console.warn('⚠️  Press Ctrl+C to cancel within 3 seconds if this is not intended.\n');
+
+// Give user a chance to cancel
+setTimeout(() => {
+  debugAuthFlow();
+}, 3000);

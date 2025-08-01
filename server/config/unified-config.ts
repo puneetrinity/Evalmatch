@@ -4,9 +4,13 @@
  * Single source of truth for all application configuration with comprehensive
  * validation and clear error messages. This replaces the scattered config files
  * and provides consistent environment variable handling.
+ * 
+ * Note: Environment validation is now handled by the env-validator module.
+ * This module focuses on building the configuration object from validated environment variables.
  */
 
 import { logger } from './logger';
+import { getEnvVar, getEnvNumber, getEnvBoolean, getEnvJSON } from '../lib/env-validator';
 
 // Environment types
 export enum Environment {
@@ -27,6 +31,15 @@ export interface AppConfig {
     enabled: boolean;
     poolSize: number;
     connectionTimeout: number;
+    queryTimeout: number;
+    idleTimeout: number;
+    healthCheckInterval: number;
+    maxConnectionRetries: number;
+    circuitBreaker: {
+      enabled: boolean;
+      failureThreshold: number;
+      retryInterval: number;
+    };
   };
   
   // Firebase Authentication
@@ -77,29 +90,24 @@ export interface AppConfig {
 }
 
 /**
- * Validate and load complete application configuration
+ * Load complete application configuration from validated environment variables
+ * 
+ * Note: This function assumes environment variables have already been validated
+ * by the env-validator module. It focuses on building the configuration object.
  */
 export function loadUnifiedConfig(): AppConfig {
-  const errors: string[] = [];
-  const warnings: string[] = [];
-  
-  // Check if we're in auth bypass testing mode
+  // Note: Environment variables are validated by validateEnvironmentOrExit() before this runs
   const authBypassMode = process.env.AUTH_BYPASS_MODE === 'true';
   
-  // Environment detection
-  const nodeEnv = process.env.NODE_ENV || 'development';
-  const env = nodeEnv as Environment;
+  // Environment configuration (safe to read directly after validation)
+  const env = (process.env.NODE_ENV || 'development') as Environment;
   const port = parseInt(process.env.PORT || '5000', 10);
   
   // Database configuration
   const databaseUrl = process.env.DATABASE_URL || null;
   const databaseEnabled = !!databaseUrl;
   
-  if (!databaseUrl && env === Environment.Production) {
-    warnings.push('No DATABASE_URL in production - using memory storage');
-  }
-  
-  // Firebase configuration validation
+  // Firebase configuration
   const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || null;
   const firebaseServiceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || null;
   
@@ -115,27 +123,7 @@ export function loadUnifiedConfig(): AppConfig {
   
   const firebaseConfigured = !!(firebaseProjectId && firebaseServiceAccountKey);
   
-  if (!firebaseConfigured) {
-    if (authBypassMode) {
-      warnings.push('Firebase not configured (auth bypass mode active - using placeholder config)');
-    } else {
-      errors.push('Firebase not configured: Missing FIREBASE_PROJECT_ID or FIREBASE_SERVICE_ACCOUNT_KEY');
-    }
-  }
-  
-  // Validate service account key format if provided
-  if (firebaseServiceAccountKey) {
-    try {
-      const parsed = JSON.parse(firebaseServiceAccountKey);
-      if (!parsed.type || !parsed.project_id || !parsed.private_key) {
-        errors.push('Invalid FIREBASE_SERVICE_ACCOUNT_KEY format - missing required fields');
-      }
-    } catch (e) {
-      errors.push('Invalid FIREBASE_SERVICE_ACCOUNT_KEY format - not valid JSON');
-    }
-  }
-  
-  // AI Provider configuration (standardized naming)
+  // AI Provider configuration
   const groqApiKey = process.env.GROQ_API_KEY || null;
   const openaiApiKey = process.env.OPENAI_API_KEY || null;
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY || null;
@@ -148,15 +136,7 @@ export function loadUnifiedConfig(): AppConfig {
   
   const hasAnyProvider = !!(groqApiKey || openaiApiKey || anthropicApiKey);
   
-  if (!hasAnyProvider) {
-    if (authBypassMode) {
-      warnings.push('No AI provider configured (auth bypass mode active - using placeholder config)');
-    } else {
-      errors.push('No AI provider configured: Set at least one of GROQ_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY');
-    }
-  }
-  
-  // Determine primary AI provider
+  // Determine primary AI provider (preference order: Groq -> OpenAI -> Anthropic)
   let primaryProvider: 'groq' | 'openai' | 'anthropic' | null = null;
   if (groqApiKey) primaryProvider = 'groq';
   else if (openaiApiKey) primaryProvider = 'openai';
@@ -164,11 +144,8 @@ export function loadUnifiedConfig(): AppConfig {
   
   // Security configuration
   const sessionSecret = process.env.SESSION_SECRET || generateSecureSecret();
-  if (!process.env.SESSION_SECRET) {
-    warnings.push('No SESSION_SECRET provided - using generated secret (sessions will reset on restart)');
-  }
   
-  // CORS origins (environment-aware)
+  // CORS origins (environment-aware with simplified logic)
   const corsOrigins = getCorsOrigins(env);
   
   // Feature flags
@@ -178,15 +155,24 @@ export function loadUnifiedConfig(): AppConfig {
     uploads: true, // Always enabled for now
   };
   
-  // Build configuration object
+  // Build configuration object (validation status is managed by env-validator)
   const config: AppConfig = {
     env,
     port,
     database: {
       url: databaseUrl,
       enabled: databaseEnabled,
-      poolSize: env === Environment.Production ? 15 : 10,
-      connectionTimeout: 30000,
+      poolSize: env === Environment.Production ? 20 : (env === Environment.Test ? 5 : 10),
+      connectionTimeout: env === Environment.Production ? 10000 : (env === Environment.Test ? 5000 : 15000),
+      queryTimeout: env === Environment.Production ? 30000 : (env === Environment.Test ? 10000 : 60000),
+      idleTimeout: env === Environment.Production ? 30000 : (env === Environment.Test ? 5000 : 60000),
+      healthCheckInterval: env === Environment.Production ? 30000 : 60000,
+      maxConnectionRetries: 3,
+      circuitBreaker: {
+        enabled: env === Environment.Production,
+        failureThreshold: 5,
+        retryInterval: 60000,
+      },
     },
     firebase: {
       projectId: firebaseProjectId,
@@ -205,48 +191,66 @@ export function loadUnifiedConfig(): AppConfig {
     },
     features,
     validation: {
-      isValid: errors.length === 0,
-      errors,
-      warnings,
+      isValid: true, // Assumed valid since env-validator ran successfully
+      errors: [],
+      warnings: [],
     },
   };
   
-  // Log configuration status
-  logConfigurationStatus(config);
+  // Log final configuration summary
+  logConfigurationSummary(config);
   
   return config;
 }
 
 /**
- * Generate CORS origins based on environment
+ * Generate CORS origins based on environment with simplified logic
  */
 function getCorsOrigins(env: Environment): string[] {
-  const origins = [
+  // Base development origins
+  const baseOrigins = [
     'http://localhost:3000',
-    'http://localhost:5000',
+    'http://localhost:5000', 
     'http://localhost:5173',
     'http://localhost:8080',
   ];
   
-  if (env === Environment.Production) {
-    // Add production origins - will be updated based on actual deployment
-    origins.push(
-      'https://web-production-392cc.up.railway.app',
-      'https://evalmatch.railway.app', // If custom domain is set
-    );
-    
-    // Add Firebase domains
-    const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
-    if (projectId) {
-      origins.push(
-        `https://${projectId}.firebaseapp.com`,
-        'https://accounts.google.com',
-        'https://securetoken.googleapis.com',
-      );
-    }
+  // In development, only use base origins
+  if (env === Environment.Development || env === Environment.Test) {
+    return baseOrigins;
   }
   
-  return origins;
+  // Production origins: start with base for testing, then add production URLs
+  const productionOrigins = [...baseOrigins];
+  
+  // 1. Custom origins from ALLOWED_ORIGINS (highest priority)
+  const customOrigins = process.env.ALLOWED_ORIGINS;
+  if (customOrigins) {
+    const origins = customOrigins.split(',').map(origin => origin.trim()).filter(Boolean);
+    productionOrigins.push(...origins);
+  }
+  
+  // 2. Auto-detect deployment platform URLs
+  const platformUrls = [
+    process.env.RAILWAY_PUBLIC_DOMAIN && `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`,
+    process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`,
+    process.env.URL // Netlify already includes https://
+  ].filter(Boolean) as string[];
+  
+  productionOrigins.push(...platformUrls);
+  
+  // 3. Firebase authentication domains (always needed for OAuth)
+  const firebaseProjectId = process.env.VITE_FIREBASE_PROJECT_ID;
+  if (firebaseProjectId) {
+    productionOrigins.push(
+      `https://${firebaseProjectId}.firebaseapp.com`,
+      'https://accounts.google.com',
+      'https://securetoken.googleapis.com'
+    );
+  }
+  
+  // Remove duplicates and return
+  return Array.from(new Set(productionOrigins));
 }
 
 /**
@@ -262,10 +266,10 @@ function generateSecureSecret(): string {
 }
 
 /**
- * Log configuration status with clear, actionable information
+ * Log final configuration summary (validation is handled by env-validator)
  */
-function logConfigurationStatus(config: AppConfig): void {
-  logger.info('🔧 Application Configuration Loaded', {
+function logConfigurationSummary(config: AppConfig): void {
+  logger.info('🔧 Application Configuration Summary', {
     environment: config.env,
     port: config.port,
     database: config.database.enabled ? 'PostgreSQL' : 'Memory Storage',
@@ -276,63 +280,21 @@ function logConfigurationStatus(config: AppConfig): void {
     primaryAI: config.ai.primary || 'None',
     staticFiles: config.features.staticFiles ? 'Enabled' : 'Disabled',
     monitoring: config.features.monitoring ? 'Enabled' : 'Disabled',
+    corsOrigins: config.env === 'development' ? 'Allow All (Dev Mode)' : `${config.security.corsOrigins.length} origins configured`,
   });
-  
-  // Log warnings
-  if (config.validation.warnings.length > 0) {
-    config.validation.warnings.forEach(warning => {
-      logger.warn(`⚠️  Configuration Warning: ${warning}`);
-    });
-  }
-  
-  // Log errors
-  if (config.validation.errors.length > 0) {
-    config.validation.errors.forEach(error => {
-      logger.error(`❌ Configuration Error: ${error}`);
-    });
-    
-    logger.error('🚨 Application cannot start with configuration errors. Please fix the above issues.');
-  } else {
-    logger.info('✅ Configuration validation passed');
-  }
 }
 
 /**
- * Validate configuration and exit if critical errors exist
+ * Legacy validation function - now handled by env-validator module
+ * Kept for backward compatibility but does nothing since validation
+ * is performed earlier in the startup process.
  */
 export function validateConfigurationOrExit(config: AppConfig): void {
-  const authBypassMode = process.env.AUTH_BYPASS_MODE === 'true';
-  
-  if (!config.validation.isValid && !authBypassMode) {
-    logger.error('💥 Critical configuration errors detected:');
-    config.validation.errors.forEach(error => {
-      logger.error(`   • ${error}`);
-    });
-    
-    logger.error('\n📋 Required Environment Variables:');
-    logger.error('   • FIREBASE_PROJECT_ID - Your Firebase project ID');
-    logger.error('   • FIREBASE_SERVICE_ACCOUNT_KEY - Firebase admin service account JSON');
-    logger.error('   • GROQ_API_KEY (or OPENAI_API_KEY or ANTHROPIC_API_KEY) - AI provider key');
-    logger.error('   • DATABASE_URL (optional) - PostgreSQL connection string');
-    logger.error('   • SESSION_SECRET (optional) - Secure random string for sessions');
-    
-    logger.error('\n🔧 Example .env file:');
-    logger.error('   FIREBASE_PROJECT_ID=your-project-id');
-    logger.error('   FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account",...}');
-    logger.error('   GROQ_API_KEY=your-groq-key-here');
-    logger.error('   DATABASE_URL=postgresql://user:pass@host:5432/db');
-    
-    process.exit(1);
-  } else if (!config.validation.isValid && authBypassMode) {
-    logger.warn('⚠️  Configuration errors detected but AUTH_BYPASS_MODE is active - continuing with placeholder configs');
-    config.validation.errors.forEach(error => {
-      logger.warn(`   • ${error}`);
-    });
-  }
+  // Validation is now handled by validateEnvironmentOrExit() in env-validator
+  // This function is kept for backward compatibility but is effectively a no-op
+  logger.debug('Configuration validation skipped - handled by env-validator module');
 }
 
 // Export singleton configuration
+// Note: Environment validation is now performed in server/index.ts before config loading
 export const config = loadUnifiedConfig();
-
-// Validate on module load
-validateConfigurationOrExit(config);

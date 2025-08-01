@@ -7,7 +7,7 @@ import { logger } from './logger';
 
 // Secure upload directory configuration
 const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
-const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.jpg', '.jpeg', '.png'];
+const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.txt', '.jpg', '.jpeg', '.png'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 // Ensure upload directory exists
@@ -63,6 +63,16 @@ async function validateFileContent(filepath: string, mimetype: string): Promise<
         return firstBytes[0] === 0x89 && firstBytes[1] === 0x50 && 
                firstBytes[2] === 0x4E && firstBytes[3] === 0x47;
       
+      case 'text/plain':
+        // Text files should contain readable ASCII/UTF-8 content
+        const textContent = buffer.toString('utf8', 0, Math.min(1000, buffer.length));
+        // Check if content is mostly printable characters
+        const printableRatio = textContent.split('').filter(c => {
+          const code = c.charCodeAt(0);
+          return (code >= 32 && code <= 126) || code === 9 || code === 10 || code === 13;
+        }).length / textContent.length;
+        return printableRatio > 0.8 && textContent.length > 0;
+      
       default:
         return false;
     }
@@ -112,12 +122,13 @@ export const secureUpload = multer({
     const allowedMimeTypes = [
       'application/pdf',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
       'image/jpeg',
       'image/png'
     ];
 
     if (!allowedMimeTypes.includes(file.mimetype)) {
-      return cb(new Error('Invalid file type. Only PDF, DOCX, JPEG and PNG files are allowed.'));
+      return cb(new Error('Invalid file type. Only PDF, DOCX, TXT, JPEG and PNG files are allowed.'));
     }
 
     // Additional extension validation

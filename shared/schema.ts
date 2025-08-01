@@ -1,23 +1,80 @@
 import { pgTable, serial, text, timestamp, json, integer, boolean, varchar, real } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
+import type { UserId, SessionId, ResumeId, JobId, AnalysisId } from './api-contracts';
 
-// Analyzed data interfaces
+// Analyzed data interfaces with stronger typing
 export interface AnalyzedResumeData {
-  name?: string;
-  skills?: string[];
-  experience?: string;
-  education?: string;
-  summary?: string;
-  keyStrengths?: string[];
+  name: string;
+  skills: string[];
+  experience: string;
+  education: string[];
+  summary: string;
+  keyStrengths: string[];
+  contactInfo?: {
+    email?: string;
+    phone?: string;
+    location?: string;
+    linkedin?: string;
+  };
+  workExperience?: Array<{
+    company: string;
+    position: string;
+    duration: string;
+    description: string;
+    technologies?: string[];
+  }>;
+  certifications?: Array<{
+    name: string;
+    issuer: string;
+    date?: string;
+    expiryDate?: string;
+  }>;
 }
 
 export interface AnalyzedJobData {
-  requiredSkills?: string[];
-  preferredSkills?: string[];
-  experienceLevel?: string;
-  responsibilities?: string[];
-  summary?: string;
+  requiredSkills: string[];
+  preferredSkills: string[];
+  experienceLevel: string;
+  responsibilities: string[];
+  summary: string;
+  department?: string;
+  location?: string;
+  salaryRange?: {
+    min?: number;
+    max?: number;
+    currency?: string;
+  };
+  benefits?: string[];
+  workArrangement?: 'remote' | 'hybrid' | 'onsite';
+  companySize?: 'startup' | 'small' | 'medium' | 'large' | 'enterprise';
+}
+
+// Enhanced skill matching types
+export interface SkillMatch {
+  skill: string;
+  matchPercentage: number;
+  category: string;
+  importance: 'critical' | 'important' | 'nice-to-have';
+  source: 'exact' | 'semantic' | 'inferred';
+}
+
+export interface ScoringDimensions {
+  skills: number;
+  experience: number;
+  education: number;
+  semantic: number;
+  cultural: number;
+  overall: number;
+}
+
+export interface FairnessMetrics {
+  biasConfidenceScore: number;
+  potentialBiasAreas: string[];
+  fairnessAssessment: string;
+  demographicBlindSpots?: string[];
+  inclusivityScore?: number;
+  recommendations?: string[];
 }
 
 // Users table
@@ -87,18 +144,19 @@ export const skillsTable = pgTable("skills", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Analysis results table
+// Analysis results table with enhanced typing
 export const analysisResults = pgTable("analysis_results", {
   id: serial("id").primaryKey(),
   userId: text("user_id"),
   resumeId: integer("resume_id"),
   jobDescriptionId: integer("job_description_id"),
   matchPercentage: real("match_percentage"),
-  matchedSkills: json("matched_skills").$type<Array<{skill: string; matchPercentage: number}>>(),
+  matchedSkills: json("matched_skills").$type<SkillMatch[]>(),
   missingSkills: json("missing_skills").$type<string[]>(),
   candidateStrengths: json("candidate_strengths").$type<string[]>(),
   candidateWeaknesses: json("candidate_weaknesses").$type<string[]>(),
-  confidenceLevel: varchar("confidence_level", { length: 10 }),
+  recommendations: json("recommendations").$type<string[]>(),
+  confidenceLevel: varchar("confidence_level", { length: 10 }).$type<'low' | 'medium' | 'high'>(),
   
   // Enhanced scoring dimensions
   semanticSimilarity: real("semantic_similarity"),
@@ -108,39 +166,53 @@ export const analysisResults = pgTable("analysis_results", {
   
   // ML-based scoring
   mlConfidenceScore: real("ml_confidence_score"),
-  scoringDimensions: json("scoring_dimensions").$type<{
-    skills: number;
-    experience: number;
-    education: number;
-    semantic: number;
-    cultural: number;
-  }>(),
+  scoringDimensions: json("scoring_dimensions").$type<ScoringDimensions>(),
   
-  fairnessMetrics: json("fairness_metrics").$type<{
-    biasConfidenceScore: number;
-    potentialBiasAreas: string[];
-    fairnessAssessment: string;
+  fairnessMetrics: json("fairness_metrics").$type<FairnessMetrics>(),
+  
+  // Processing metadata
+  processingTime: integer("processing_time"), // milliseconds
+  aiProvider: varchar("ai_provider", { length: 50 }),
+  modelVersion: varchar("model_version", { length: 50 }),
+  processingFlags: json("processing_flags").$type<{
+    usedFallback?: boolean;
+    rateLimited?: boolean;
+    cacheHit?: boolean;
+    warnings?: string[];
   }>(),
   
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Interview questions table
+// Interview questions table with enhanced typing
 export const interviewQuestions = pgTable("interview_questions", {
   id: serial("id").primaryKey(),
   userId: text("user_id"),
   resumeId: integer("resume_id"),
   jobDescriptionId: integer("job_description_id"),
-  questions: json("questions").$type<Array<{
-    question: string;
-    category: string;
-    difficulty: string;
-    expectedAnswer: string;
-  }>>(),
+  questions: json("questions").$type<Array<InterviewQuestionData>>(),
+  metadata: json("metadata").$type<{
+    estimatedDuration: number;
+    difficulty: 'junior' | 'mid' | 'senior' | 'lead';
+    focusAreas: string[];
+    interviewType: 'phone' | 'video' | 'onsite' | 'technical';
+  }>(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Enhanced interview question type
+export interface InterviewQuestionData {
+  question: string;
+  category: 'technical' | 'behavioral' | 'situational' | 'cultural' | 'problem-solving';
+  difficulty: 'easy' | 'medium' | 'hard';
+  expectedAnswer: string;
+  followUpQuestions?: string[];
+  skillsAssessed: string[];
+  timeAllotted?: number;
+  evaluationCriteria?: string[];
+}
 
 // Type inference
 export type User = typeof users.$inferSelect;
@@ -164,82 +236,239 @@ export type InsertSkillCategory = typeof skillCategories.$inferInsert;
 export type Skill = typeof skillsTable.$inferSelect;
 export type InsertSkill = typeof skillsTable.$inferInsert;
 
-// Zod schemas
-export const insertUserSchema = createInsertSchema(users);
+// Enhanced Zod schemas with validation
+export const insertUserSchema = createInsertSchema(users, {
+  username: z.string().min(3).max(50),
+  email: z.string().email().optional(),
+  password: z.string().min(8).optional(),
+});
 export const selectUserSchema = createSelectSchema(users);
 
-export const insertResumeSchema = createInsertSchema(resumes);
-export const selectResumeSchema = createSelectSchema(resumes);
-
-export const insertJobDescriptionSchema = createInsertSchema(jobDescriptions);
-export const selectJobDescriptionSchema = createSelectSchema(jobDescriptions);
-
-export const insertAnalysisResultSchema = createInsertSchema(analysisResults);
-export const selectAnalysisResultSchema = createSelectSchema(analysisResults);
-
-export const insertInterviewQuestionsSchema = createInsertSchema(interviewQuestions);
-export const selectInterviewQuestionsSchema = createSelectSchema(interviewQuestions);
-
-// Resume file schema for uploads (multer file object)
-export const resumeFileSchema = z.object({
-  originalname: z.string(),
-  mimetype: z.string(),
-  size: z.number(),
-  path: z.string().optional(), // For disk storage
-  buffer: z.instanceof(Buffer).optional(), // For memory storage
-});
-
-// Resume content schema (after parsing)
-export const resumeContentSchema = z.object({
-  filename: z.string(),
-  content: z.string(),
+export const insertResumeSchema = createInsertSchema(resumes, {
+  userId: z.string().min(1).optional(),
+  sessionId: z.string().min(1).optional(),
+  filename: z.string().min(1),
+  fileSize: z.number().positive().optional(),
+  fileType: z.string().min(1).optional(),
+  content: z.string().min(1).optional(),
   skills: z.array(z.string()).optional(),
   experience: z.string().optional(),
-  education: z.string().optional(),
+  education: z.array(z.string()).optional(),
+  analyzedData: analyzedResumeDataSchema.optional(),
+});
+export const selectResumeSchema = createSelectSchema(resumes);
+
+export const insertJobDescriptionSchema = createInsertSchema(jobDescriptions, {
+  userId: z.string().min(1).optional(),
+  title: z.string().min(1),
+  description: z.string().min(10),
+  requirements: z.array(z.string()).optional(),
+  skills: z.array(z.string()).optional(),
+  experience: z.string().optional(),
+  analyzedData: analyzedJobDataSchema.optional(),
+});
+export const selectJobDescriptionSchema = createSelectSchema(jobDescriptions);
+
+export const insertAnalysisResultSchema = createInsertSchema(analysisResults, {
+  userId: z.string().min(1).optional(),
+  resumeId: z.number().positive().optional(),
+  jobDescriptionId: z.number().positive().optional(),
+  matchPercentage: z.number().min(0).max(100).optional(),
+  matchedSkills: z.array(skillMatchSchema).optional(),
+  missingSkills: z.array(z.string()).optional(),
+  candidateStrengths: z.array(z.string()).optional(),
+  candidateWeaknesses: z.array(z.string()).optional(),
+  recommendations: z.array(z.string()).optional(),
+  confidenceLevel: z.enum(['low', 'medium', 'high']).optional(),
+  scoringDimensions: scoringDimensionsSchema.optional(),
+  fairnessMetrics: fairnessMetricsSchema.optional(),
+  processingTime: z.number().positive().optional(),
+  aiProvider: z.string().optional(),
+  modelVersion: z.string().optional(),
+});
+export const selectAnalysisResultSchema = createSelectSchema(analysisResults);
+
+export const insertInterviewQuestionsSchema = createInsertSchema(interviewQuestions, {
+  userId: z.string().min(1).optional(),
+  resumeId: z.number().positive().optional(),
+  jobDescriptionId: z.number().positive().optional(),
+  questions: z.array(interviewQuestionDataSchema).optional(),
+});
+export const selectInterviewQuestionsSchema = createSelectSchema(interviewQuestions);
+
+// Enhanced Zod schemas for runtime validation
+export const resumeFileSchema = z.object({
+  originalname: z.string().min(1, 'Filename is required'),
+  mimetype: z.enum([
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain'
+  ]),
+  size: z.number().positive().max(10 * 1024 * 1024, 'File too large (max 10MB)'),
+  path: z.string().optional(),
+  buffer: z.instanceof(Buffer).optional(),
+}).refine(data => data.path || data.buffer, {
+  message: 'Either path or buffer must be provided'
 });
 
-// API Response types
+// Resume content schema with stronger validation
+export const resumeContentSchema = z.object({
+  filename: z.string().min(1),
+  content: z.string().min(10, 'Content too short'),
+  skills: z.array(z.string().min(1)).default([]),
+  experience: z.string().default(''),
+  education: z.array(z.string()).default([]),
+});
+
+// Enhanced analyzed data schemas
+export const analyzedResumeDataSchema = z.object({
+  name: z.string().min(1),
+  skills: z.array(z.string().min(1)),
+  experience: z.string().min(1),
+  education: z.array(z.string()),
+  summary: z.string().min(1),
+  keyStrengths: z.array(z.string()),
+  contactInfo: z.object({
+    email: z.string().email().optional(),
+    phone: z.string().optional(),
+    location: z.string().optional(),
+    linkedin: z.string().url().optional(),
+  }).optional(),
+  workExperience: z.array(z.object({
+    company: z.string().min(1),
+    position: z.string().min(1),
+    duration: z.string().min(1),
+    description: z.string().min(1),
+    technologies: z.array(z.string()).optional(),
+  })).optional(),
+  certifications: z.array(z.object({
+    name: z.string().min(1),
+    issuer: z.string().min(1),
+    date: z.string().optional(),
+    expiryDate: z.string().optional(),
+  })).optional(),
+});
+
+export const analyzedJobDataSchema = z.object({
+  requiredSkills: z.array(z.string().min(1)),
+  preferredSkills: z.array(z.string().min(1)),
+  experienceLevel: z.string().min(1),
+  responsibilities: z.array(z.string().min(1)),
+  summary: z.string().min(1),
+  department: z.string().optional(),
+  location: z.string().optional(),
+  salaryRange: z.object({
+    min: z.number().optional(),
+    max: z.number().optional(),
+    currency: z.string().optional(),
+  }).optional(),
+  benefits: z.array(z.string()).optional(),
+  workArrangement: z.enum(['remote', 'hybrid', 'onsite']).optional(),
+  companySize: z.enum(['startup', 'small', 'medium', 'large', 'enterprise']).optional(),
+});
+
+// Skill match schema
+export const skillMatchSchema = z.object({
+  skill: z.string().min(1),
+  matchPercentage: z.number().min(0).max(100),
+  category: z.string().min(1),
+  importance: z.enum(['critical', 'important', 'nice-to-have']),
+  source: z.enum(['exact', 'semantic', 'inferred']),
+});
+
+// Scoring dimensions schema
+export const scoringDimensionsSchema = z.object({
+  skills: z.number().min(0).max(100),
+  experience: z.number().min(0).max(100),
+  education: z.number().min(0).max(100),
+  semantic: z.number().min(0).max(100),
+  cultural: z.number().min(0).max(100),
+  overall: z.number().min(0).max(100),
+});
+
+// Fairness metrics schema
+export const fairnessMetricsSchema = z.object({
+  biasConfidenceScore: z.number().min(0).max(100),
+  potentialBiasAreas: z.array(z.string()),
+  fairnessAssessment: z.string().min(1),
+  demographicBlindSpots: z.array(z.string()).optional(),
+  inclusivityScore: z.number().min(0).max(100).optional(),
+  recommendations: z.array(z.string()).optional(),
+});
+
+// Interview question schema
+export const interviewQuestionDataSchema = z.object({
+  question: z.string().min(10),
+  category: z.enum(['technical', 'behavioral', 'situational', 'cultural', 'problem-solving']),
+  difficulty: z.enum(['easy', 'medium', 'hard']),
+  expectedAnswer: z.string().min(10),
+  followUpQuestions: z.array(z.string()).optional(),
+  skillsAssessed: z.array(z.string().min(1)),
+  timeAllotted: z.number().positive().optional(),
+  evaluationCriteria: z.array(z.string()).optional(),
+});
+
+// Enhanced API Response types
 export interface AnalyzeResumeResponse {
-  skills: string[];
-  experience: string;
-  education: string;
-  summary: string;
-  strengths: string[];
-  weaknesses: string[];
-  recommendations: string[];
+  id: ResumeId;
+  filename: string;
+  analyzedData: AnalyzedResumeData;
+  processingTime: number;
+  confidence: number;
+  warnings?: string[];
 }
 
 export interface AnalyzeJobDescriptionResponse {
+  id: JobId;
   title: string;
-  requirements: string[];
-  skills: string[];
-  experience: string;
-  summary: string;
-  keyResponsibilities: string[];
+  analyzedData: AnalyzedJobData;
+  processingTime: number;
+  confidence: number;
+  warnings?: string[];
 }
 
 export interface MatchAnalysisResponse {
-  matchPercentage: number;
-  matchedSkills: Array<{skill: string; matchPercentage: number}>;
-  missingSkills: string[];
-  candidateStrengths: string[];
-  candidateWeaknesses: string[];
-  recommendations: string[];
-  confidenceLevel?: 'low' | 'medium' | 'high';
-  fairnessMetrics?: {
-    biasConfidenceScore: number;
-    potentialBiasAreas: string[];
-    fairnessAssessment: string;
+  analysisId: AnalysisId;
+  jobId: JobId;
+  results: Array<{
+    resumeId: ResumeId;
+    filename: string;
+    candidateName?: string;
+    matchPercentage: number;
+    matchedSkills: SkillMatch[];
+    missingSkills: string[];
+    candidateStrengths: string[];
+    candidateWeaknesses: string[];
+    recommendations: string[];
+    confidenceLevel: 'low' | 'medium' | 'high';
+    scoringDimensions: ScoringDimensions;
+    fairnessMetrics?: FairnessMetrics;
+  }>;
+  processingTime: number;
+  metadata: {
+    aiProvider: string;
+    modelVersion: string;
+    totalCandidates: number;
+    processedCandidates: number;
+    failedCandidates: number;
   };
 }
 
 export interface InterviewQuestionsResponse {
-  questions: Array<{
-    question: string;
-    category: string;
-    difficulty: string;
-    expectedAnswer: string;
-  }>;
+  resumeId: ResumeId;
+  jobId: JobId;
+  candidateName?: string;
+  jobTitle: string;
+  questions: InterviewQuestionData[];
+  metadata: {
+    estimatedDuration: number;
+    difficulty: 'junior' | 'mid' | 'senior' | 'lead';
+    focusAreas: string[];
+    interviewType: 'phone' | 'video' | 'onsite' | 'technical';
+  };
+  preparationTips?: string[];
+  processingTime: number;
 }
 
 export interface InterviewScriptResponse {
@@ -303,8 +532,62 @@ export interface InterviewScriptResponse {
 }
 
 export interface BiasAnalysisResponse {
-  biasConfidenceScore: number;
-  potentialBiasAreas: string[];
-  fairnessAssessment: string;
+  jobId: JobId;
+  analysisId: AnalysisId;
+  overallFairnessScore: number;
+  results: Array<{
+    resumeId: ResumeId;
+    candidateName?: string;
+    fairnessMetrics: FairnessMetrics;
+    flaggedConcerns: Array<{
+      type: 'language' | 'demographic' | 'education' | 'experience' | 'location';
+      severity: 'low' | 'medium' | 'high';
+      description: string;
+      recommendation: string;
+    }>;
+  }>;
+  systemwideAnalysis: {
+    commonBiases: string[];
+    improvementAreas: string[];
+    complianceScore: number;
+  };
   recommendations: string[];
+  processingTime: number;
+}
+
+// File processing types
+export interface FileUploadMetadata {
+  originalName: string;
+  mimetype: string;
+  size: number;
+  hash: string;
+  uploadedAt: string;
+  userId?: UserId;
+  sessionId?: SessionId;
+}
+
+export interface FileProcessingResult {
+  success: boolean;
+  fileId?: ResumeId;
+  extractedText?: string;
+  analyzedData?: AnalyzedResumeData;
+  processingTime: number;
+  warnings?: string[];
+  errors?: string[];
+}
+
+// Error types
+export interface ProcessingError {
+  code: string;
+  message: string;
+  details?: Record<string, unknown>;
+  timestamp: string;
+  recoverable: boolean;
+}
+
+export interface ValidationError {
+  field: string;
+  value: unknown;
+  message: string;
+  code: string;
 }

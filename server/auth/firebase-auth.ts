@@ -9,6 +9,7 @@ import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { config } from '../config/unified-config';
 import { logger } from '../config/logger';
+import { serverAuthLogger } from '../lib/auth-logger';
 
 // Firebase Admin instances
 let adminApp: App | null = null;
@@ -38,7 +39,9 @@ const authStatus: AuthStatus = {
  */
 export async function initializeFirebaseAuth(): Promise<void> {
   try {
-    logger.info('🔐 Initializing Firebase Admin SDK...');
+    serverAuthLogger.info('Initializing Firebase Admin SDK', {
+      operation: 'firebase_init'
+    });
 
     // Check if already initialized
     if (getApps().length > 0) {
@@ -46,7 +49,10 @@ export async function initializeFirebaseAuth(): Promise<void> {
       adminAuth = getAuth(adminApp);
       authStatus.initialized = true;
       authStatus.projectId = config.firebase.projectId;
-      logger.info('✅ Firebase Admin SDK already initialized');
+      serverAuthLogger.debug('Firebase Admin SDK already initialized', {
+        operation: 'firebase_init',
+        success: true
+      });
       return;
     }
 
@@ -56,10 +62,14 @@ export async function initializeFirebaseAuth(): Promise<void> {
       authStatus.error = error;
       
       if (config.env === 'production') {
-        logger.error(`❌ ${error}`);
+        serverAuthLogger.error('Firebase configuration invalid', new Error(error), {
+          operation: 'firebase_init'
+        });
         throw new Error(error);
       } else {
-        logger.warn(`⚠️  ${error} - Firebase auth will be disabled in development`);
+        serverAuthLogger.warn('Firebase not configured - running without auth in development', {
+          operation: 'firebase_init'
+        });
         return;
       }
     }
@@ -90,19 +100,25 @@ export async function initializeFirebaseAuth(): Promise<void> {
     authStatus.projectId = config.firebase.projectId;
     authStatus.error = null;
 
-    logger.info('✅ Firebase Admin SDK initialized successfully', {
+    serverAuthLogger.info('Firebase Admin SDK initialized successfully', {
+      operation: 'firebase_init',
       projectId: config.firebase.projectId,
+      success: true
     });
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown Firebase initialization error';
     authStatus.error = errorMessage;
-    logger.error('❌ Firebase Admin SDK initialization failed:', error);
+    serverAuthLogger.error('Firebase Admin SDK initialization failed', error, {
+      operation: 'firebase_init'
+    });
 
     if (config.env === 'production') {
       throw error;
     } else {
-      logger.warn('⚠️  Continuing without Firebase auth in development mode');
+      serverAuthLogger.warn('Continuing without Firebase auth in development mode', {
+        operation: 'firebase_init'
+      });
     }
   }
 }
@@ -118,9 +134,14 @@ async function testFirebaseConnection(): Promise<void> {
   try {
     // Try to list users (limit 1) as a connection test
     await adminAuth.listUsers(1);
-    logger.debug('✅ Firebase connection test passed');
+    serverAuthLogger.debug('Firebase connection test passed', {
+      operation: 'connection_test',
+      success: true
+    });
   } catch (error) {
-    logger.error('❌ Firebase connection test failed:', error);
+    serverAuthLogger.error('Firebase connection test failed', error, {
+      operation: 'connection_test'
+    });
     throw new Error(`Firebase connection test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -136,7 +157,9 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
   photoURL?: string;
 } | null> {
   if (!adminAuth || !authStatus.initialized) {
-    logger.warn('Firebase Auth not initialized - token verification failed');
+    serverAuthLogger.warn('Firebase Auth not initialized - token verification failed', {
+      operation: 'verify_token'
+    });
     return null;
   }
 
@@ -147,9 +170,11 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
     
     authStatus.lastVerification = new Date();
     
-    logger.debug('✅ Firebase token verified successfully', {
+    serverAuthLogger.debug('Firebase token verified successfully', {
+      operation: 'verify_token',
       uid: decodedToken.uid,
-      email: decodedToken.email,
+      email: decodedToken.email || undefined,
+      success: true
     });
 
     return {
@@ -165,13 +190,25 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
     
     // Log different error types with appropriate levels
     if (error.code === 'auth/id-token-expired') {
-      logger.debug('Token expired (normal occurrence):', { uid: 'unknown' });
+      serverAuthLogger.debug('Token expired (normal occurrence)', {
+        operation: 'verify_token',
+        errorCode: error.code
+      });
     } else if (error.code === 'auth/id-token-revoked') {
-      logger.warn('Token revoked:', { error: error.message });
+      serverAuthLogger.warn('Token revoked', {
+        operation: 'verify_token',
+        errorCode: error.code
+      });
     } else if (error.code === 'auth/invalid-id-token') {
-      logger.warn('Invalid token format:', { error: error.message });
+      serverAuthLogger.warn('Invalid token format', {
+        operation: 'verify_token',
+        errorCode: error.code
+      });
     } else {
-      logger.error('Token verification failed:', error);
+      serverAuthLogger.error('Token verification failed', error, {
+        operation: 'verify_token',
+        errorCode: error.code
+      });
     }
 
     return null;
@@ -183,7 +220,10 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
  */
 export async function getFirebaseUser(uid: string) {
   if (!adminAuth || !authStatus.initialized) {
-    logger.warn('Firebase Auth not initialized - user lookup failed');
+    serverAuthLogger.warn('Firebase Auth not initialized - user lookup failed', {
+      operation: 'get_user',
+      uid: uid
+    });
     return null;
   }
 
@@ -202,7 +242,11 @@ export async function getFirebaseUser(uid: string) {
       },
     };
   } catch (error) {
-    logger.error('Failed to get Firebase user:', error);
+    serverAuthLogger.error('Failed to get Firebase user', error, {
+      operation: 'get_user',
+      uid: uid,
+      errorCode: error.code
+    });
     return null;
   }
 }

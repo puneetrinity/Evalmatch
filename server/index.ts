@@ -8,6 +8,9 @@ import { config } from "./config/unified-config";
 import { initializeDatabase } from "./database";
 import { initializeFirebaseAuth } from "./auth/firebase-auth";
 import { initializeMonitoring, logger } from "./monitoring";
+import { globalErrorHandler, initializeGlobalErrorHandling } from "./middleware/global-error-handler";
+import { initializeHealthChecks } from "./middleware/health-checks";
+import { validateEnvironmentOrExit } from "./lib/env-validator";
 
 const app = express();
 
@@ -42,26 +45,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS configuration using unified config
+// Simplified CORS configuration using unified config
 const corsOptions = {
-  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) {
-      callback(null, true);
-      return;
-    }
-    
-    // Check against configured origins
-    if (config.security.corsOrigins.includes(origin)) {
-      callback(null, true);
-    } else if (config.env === 'development') {
-      // In development, allow all origins
-      callback(null, true);
-    } else {
-      logger.warn('CORS blocked origin:', { origin, allowed: config.security.corsOrigins });
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: config.env === 'development' ? true : config.security.corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: [
@@ -76,18 +62,20 @@ const corsOptions = {
   ],
   exposedHeaders: ['Content-Length', 'X-Request-ID'],
   optionsSuccessStatus: 200, // Some legacy browsers choke on 204
-  preflightContinue: false,
   maxAge: 86400 // Cache preflight requests for 24 hours
 };
 
-// Apply CORS to all API routes
+// Apply CORS to all API routes (handles OPTIONS automatically)
 app.use('/api', cors(corsOptions));
-
-// Handle OPTIONS requests specifically for all API endpoints
-app.options('/api/*', cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Initialize global error handling system
+initializeGlobalErrorHandling();
+
+// Initialize health check system
+initializeHealthChecks();
 
 // Initialize monitoring and logging for production readiness
 initializeMonitoring(app);
@@ -129,6 +117,16 @@ if (process.env.NODE_ENV === "development") {
   try {
     logger.info('🚀 Starting Evalmatch Application...');
 
+    // CRITICAL: Validate environment variables first - fail fast if configuration is invalid
+    logger.info('🔍 Validating environment configuration...');
+    const envValidation = validateEnvironmentOrExit();
+    
+    if (envValidation.warnings.length > 0) {
+      logger.info(`⚠️  Application starting with ${envValidation.warnings.length} configuration warning(s)`);
+    } else {
+      logger.info('✅ Environment validation completed successfully');
+    }
+
     // Initialize Firebase Authentication first
     try {
       await initializeFirebaseAuth();
@@ -149,12 +147,11 @@ if (process.env.NODE_ENV === "development") {
       } catch (error) {
         logger.error('Database initialization failed:', error);
         
-        if (config.env === 'production') {
-          logger.error('Cannot start in production without database');
-          process.exit(1);
-        } else {
-          logger.warn('Continuing with memory storage in development');
-        }
+        // Database failures should be fatal in all environments when database is enabled
+        // This ensures consistent behavior and prevents silent fallbacks
+        logger.error('CRITICAL: Cannot start application without functional database connection');
+        logger.error('Check database configuration and connectivity');
+        process.exit(1);
       }
     } else {
       logger.info('📝 Database disabled - using memory storage fallback');
@@ -181,28 +178,8 @@ if (process.env.NODE_ENV === "development") {
   // Register all routes
   registerRoutes(app);
 
-  // Error handling - now handled by monitoring middleware
-  // But keep this as a safety net for errors that might slip through
-  app.use((err: Error | unknown, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    logger.error({ err }, `Error handler caught: ${message}`);
-    
-    // Only send response if headers not already sent
-    if (!res.headersSent) {
-      res.status(status).json({ 
-        message,
-        code: err.code || 'INTERNAL_ERROR',
-        requestId: _req.id
-      });
-    }
-    
-    // Don't rethrow in production as it can crash the server
-    if (app.get("env") !== "production") {
-      throw err;
-    }
-  });
+  // Global error handling middleware (replaces basic error handler)
+  app.use(globalErrorHandler);
 
   // Use configured port from unified config
   const port = config.port;

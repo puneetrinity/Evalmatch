@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Evalmatch Full Workflow Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+    .test-section { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .success { color: green; }
+    .error { color: red; }
+    .info { color: blue; }
+    button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    pre { background: #f0f0f0; padding: 10px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>Evalmatch End-to-End Test</h1>
+  
+  <div class="test-section">
+    <h2>1. Test Job Creation</h2>
+    <button onclick="testJobCreation()">Create Test Job</button>
+    <div id="job-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>2. Test Bias Analysis</h2>
+    <button onclick="testBiasAnalysis()" disabled id="bias-btn">Run Bias Analysis</button>
+    <div id="bias-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>3. Test Resume Upload</h2>
+    <button onclick="testResumeUpload()">Test Resume API</button>
+    <div id="resume-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>4. Test Full Analysis</h2>
+    <button onclick="testFullAnalysis()" disabled id="analysis-btn">Run Full Analysis</button>
+    <div id="analysis-result"></div>
+  </div>
+
+  <script>
+    const BASE_URL = 'https://web-production-392cc.up.railway.app';
+    let currentJobId = null;
+    let currentResumeId = null;
+
+    async function log(containerId, message, type = 'info') {
+      const container = document.getElementById(containerId);
+      const p = document.createElement('p');
+      p.className = type;
+      p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      container.appendChild(p);
+    }
+
+    async function testJobCreation() {
+      const resultDiv = 'job-result';
+      document.getElementById(resultDiv).innerHTML = '';
+      
+      try {
+        log(resultDiv, 'Creating test job description...');
+        
+        const response = await fetch(`${BASE_URL}/api/job-descriptions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: 'Senior Software Engineer',
+            description: 'We are looking for a passionate Senior Software Engineer to join our team. The ideal candidate should have experience with React, Node.js, and cloud technologies. You will be working on cutting-edge projects.'
+          })
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          currentJobId = data.jobDescription.id;
+          log(resultDiv, `✅ Job created successfully! ID: ${currentJobId}`, 'success');
+          log(resultDiv, `Title: ${data.jobDescription.title}`, 'info');
+          
+          // Enable bias analysis button
+          document.getElementById('bias-btn').disabled = false;
+          document.getElementById('analysis-btn').disabled = false;
+        } else {
+          log(resultDiv, `❌ Failed: ${data.error || data.message}`, 'error');
+        }
+      } catch (error) {
+        log(resultDiv, `❌ Error: ${error.message}`, 'error');
+      }
+    }
+
+    async function testBiasAnalysis() {
+      if (!currentJobId) {
+        alert('Please create a job first!');
+        return;
+      }
+      
+      const resultDiv = 'bias-result';
+      document.getElementById(resultDiv).innerHTML = '';
+      
+      try {
+        log(resultDiv, `Running bias analysis for job ${currentJobId}...`);
+        
+        const response = await fetch(`${BASE_URL}/api/analysis/analyze-bias/${currentJobId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          log(resultDiv, '✅ Bias analysis completed!', 'success');
+          if (data.biasAnalysis) {
+            log(resultDiv, `Has Bias: ${data.biasAnalysis.hasBias}`, 'info');
+            log(resultDiv, `Bias Score: ${data.biasAnalysis.biasConfidenceScore}`, 'info');
+            if (data.biasAnalysis.biasTypes) {
+              log(resultDiv, `Bias Types: ${data.biasAnalysis.biasTypes.join(', ')}`, 'info');
+            }
+          }
+        } else {
+          log(resultDiv, `❌ Failed: ${data.error || data.message}`, 'error');
+        }
+      } catch (error) {
+        log(resultDiv, `❌ Error: ${error.message}`, 'error');
+      }
+    }
+
+    async function testResumeUpload() {
+      const resultDiv = 'resume-result';
+      document.getElementById(resultDiv).innerHTML = '';
+      
+      try {
+        log(resultDiv, 'Testing resume upload endpoint...');
+        
+        // Create a test file
+        const testContent = `John Doe
+Senior Software Engineer
+10+ years experience with React, Node.js, TypeScript, AWS
+Education: BS Computer Science`;
+        
+        const blob = new Blob([testContent], { type: 'text/plain' });
+        const formData = new FormData();
+        formData.append('resume', blob, 'test-resume.txt');
+        
+        const response = await fetch(`${BASE_URL}/api/resumes`, {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          currentResumeId = data.resume.id;
+          log(resultDiv, `✅ Resume uploaded! ID: ${currentResumeId}`, 'success');
+          log(resultDiv, `Filename: ${data.resume.filename}`, 'info');
+        } else {
+          log(resultDiv, `❌ Failed: ${data.error || data.message}`, 'error');
+        }
+      } catch (error) {
+        log(resultDiv, `❌ Error: ${error.message}`, 'error');
+      }
+    }
+
+    async function testFullAnalysis() {
+      if (!currentJobId) {
+        alert('Please create a job first!');
+        return;
+      }
+      
+      const resultDiv = 'analysis-result';
+      document.getElementById(resultDiv).innerHTML = '';
+      
+      try {
+        log(resultDiv, `Running full analysis for job ${currentJobId}...`);
+        
+        const response = await fetch(`${BASE_URL}/api/analysis/analyze/${currentJobId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({})
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          log(resultDiv, '✅ Analysis completed!', 'success');
+          log(resultDiv, `Results found: ${data.results?.length || 0}`, 'info');
+          
+          if (data.results && data.results.length > 0) {
+            data.results.forEach((result, index) => {
+              log(resultDiv, `Resume ${index + 1}: ${result.matchPercentage}% match`, 'info');
+            });
+          }
+        } else {
+          log(resultDiv, `❌ Failed: ${data.error || data.message}`, 'error');
+        }
+      } catch (error) {
+        log(resultDiv, `❌ Error: ${error.message}`, 'error');
+      }
+    }
+  </script>
+</body>
+</html>

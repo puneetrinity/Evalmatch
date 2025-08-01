@@ -7,6 +7,7 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { logger } from './logger';
+import { serverAuthLogger } from './auth-logger';
 
 // Initialize Firebase Admin SDK
 let adminApp;
@@ -35,13 +36,21 @@ try {
       });
     }
     
-    logger.info('Firebase Admin SDK initialized successfully');
+    serverAuthLogger.info('Firebase Admin SDK initialized successfully', {
+      operation: 'admin_init',
+      success: true
+    });
   } else {
     adminApp = getApps()[0];
-    logger.info('Firebase Admin SDK already initialized');
+    serverAuthLogger.debug('Firebase Admin SDK already initialized', {
+      operation: 'admin_init',
+      success: true
+    });
   }
 } catch (error) {
-  logger.error('Failed to initialize Firebase Admin SDK', error);
+  serverAuthLogger.error('Failed to initialize Firebase Admin SDK', error, {
+    operation: 'admin_init'
+  });
   adminApp = null;
 }
 
@@ -57,16 +66,20 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
   photoURL?: string;
 } | null> {
   if (!adminAuth) {
-    logger.error('Firebase Admin Auth not initialized');
+    serverAuthLogger.error('Firebase Admin Auth not initialized', undefined, {
+      operation: 'verify_token'
+    });
     return null;
   }
 
   try {
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     
-    logger.debug('Firebase token verified successfully', {
+    serverAuthLogger.debug('Firebase token verified successfully', {
+      operation: 'verify_token',
       uid: decodedToken.uid,
-      email: decodedToken.email,
+      email: decodedToken.email || undefined,
+      success: true
     });
 
     return {
@@ -77,7 +90,10 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
       photoURL: decodedToken.picture,
     };
   } catch (error) {
-    logger.error('Firebase token verification failed', error);
+    serverAuthLogger.error('Firebase token verification failed', error, {
+      operation: 'verify_token',
+      errorCode: error.code
+    });
     return null;
   }
 }
@@ -85,7 +101,9 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
 // Get user by UID
 export async function getFirebaseUser(uid: string) {
   if (!adminAuth) {
-    logger.error('Firebase Admin Auth not initialized');
+    serverAuthLogger.error('Firebase Admin Auth not initialized', undefined, {
+      operation: 'get_user'
+    });
     return null;
   }
 
@@ -104,7 +122,11 @@ export async function getFirebaseUser(uid: string) {
       },
     };
   } catch (error) {
-    logger.error('Failed to get Firebase user', error);
+    serverAuthLogger.error('Failed to get Firebase user', error, {
+      operation: 'get_user',
+      uid: uid,
+      errorCode: error.code
+    });
     return null;
   }
 }
