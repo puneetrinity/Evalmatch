@@ -236,7 +236,120 @@ export type InsertSkillCategory = typeof skillCategories.$inferInsert;
 export type Skill = typeof skillsTable.$inferSelect;
 export type InsertSkill = typeof skillsTable.$inferInsert;
 
-// Enhanced Zod schemas with validation
+// Enhanced Zod schemas for runtime validation - MUST be defined before insert schemas
+export const resumeFileSchema = z.object({
+  originalname: z.string().min(1, 'Filename is required'),
+  mimetype: z.enum([
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain'
+  ]),
+  size: z.number().positive().max(10 * 1024 * 1024, 'File too large (max 10MB)'),
+  path: z.string().optional(),
+  buffer: z.instanceof(Buffer).optional(),
+}).refine(data => data.path || data.buffer, {
+  message: 'Either path or buffer must be provided'
+});
+
+// Resume content schema with stronger validation
+export const resumeContentSchema = z.object({
+  filename: z.string().min(1),
+  content: z.string().min(10, 'Content too short'),
+  skills: z.array(z.string().min(1)).default([]),
+  experience: z.string().default(''),
+  education: z.array(z.string()).default([]),
+});
+
+// Enhanced analyzed data schemas - MUST be defined before insert schemas
+export const analyzedResumeDataSchema = z.object({
+  name: z.string().min(1),
+  skills: z.array(z.string().min(1)),
+  experience: z.string().min(1),
+  education: z.array(z.string()),
+  summary: z.string().min(1),
+  keyStrengths: z.array(z.string()),
+  contactInfo: z.object({
+    email: z.string().email().optional(),
+    phone: z.string().optional(),
+    location: z.string().optional(),
+    linkedin: z.string().url().optional(),
+  }).optional(),
+  workExperience: z.array(z.object({
+    company: z.string().min(1),
+    position: z.string().min(1),
+    duration: z.string().min(1),
+    description: z.string().min(1),
+    technologies: z.array(z.string()).optional(),
+  })).optional(),
+  certifications: z.array(z.object({
+    name: z.string().min(1),
+    issuer: z.string().min(1),
+    date: z.string().optional(),
+    expiryDate: z.string().optional(),
+  })).optional(),
+});
+
+export const analyzedJobDataSchema = z.object({
+  requiredSkills: z.array(z.string().min(1)),
+  preferredSkills: z.array(z.string().min(1)),
+  experienceLevel: z.string().min(1),
+  responsibilities: z.array(z.string().min(1)),
+  summary: z.string().min(1),
+  department: z.string().optional(),
+  location: z.string().optional(),
+  salaryRange: z.object({
+    min: z.number().optional(),
+    max: z.number().optional(),
+    currency: z.string().optional(),
+  }).optional(),
+  benefits: z.array(z.string()).optional(),
+  workArrangement: z.enum(['remote', 'hybrid', 'onsite']).optional(),
+  companySize: z.enum(['startup', 'small', 'medium', 'large', 'enterprise']).optional(),
+});
+
+// Skill match schema - MUST be defined before insert schemas
+export const skillMatchSchema = z.object({
+  skill: z.string().min(1),
+  matchPercentage: z.number().min(0).max(100),
+  category: z.string().min(1),
+  importance: z.enum(['critical', 'important', 'nice-to-have']),
+  source: z.enum(['exact', 'semantic', 'inferred']),
+});
+
+// Scoring dimensions schema - MUST be defined before insert schemas
+export const scoringDimensionsSchema = z.object({
+  skills: z.number().min(0).max(100),
+  experience: z.number().min(0).max(100),
+  education: z.number().min(0).max(100),
+  semantic: z.number().min(0).max(100),
+  cultural: z.number().min(0).max(100),
+  overall: z.number().min(0).max(100),
+});
+
+// Fairness metrics schema - MUST be defined before insert schemas
+export const fairnessMetricsSchema = z.object({
+  biasConfidenceScore: z.number().min(0).max(100),
+  potentialBiasAreas: z.array(z.string()),
+  fairnessAssessment: z.string().min(1),
+  demographicBlindSpots: z.array(z.string()).optional(),
+  inclusivityScore: z.number().min(0).max(100).optional(),
+  recommendations: z.array(z.string()).optional(),
+});
+
+// Interview question schema - MUST be defined before insert schemas
+export const interviewQuestionDataSchema = z.object({
+  question: z.string().min(10),
+  category: z.enum(['technical', 'behavioral', 'situational', 'cultural', 'problem-solving']),
+  difficulty: z.enum(['easy', 'medium', 'hard']),
+  expectedAnswer: z.string().min(10),
+  followUpQuestions: z.array(z.string()).optional(),
+  skillsAssessed: z.array(z.string().min(1)),
+  timeAllotted: z.number().positive().optional(),
+  evaluationCriteria: z.array(z.string()).optional(),
+});
+
+// Enhanced Zod schemas with validation - NOW all dependencies are defined above
 export const insertUserSchema = createInsertSchema(users, {
   username: z.string().min(3).max(50),
   email: z.string().email().optional(),
@@ -295,119 +408,6 @@ export const insertInterviewQuestionsSchema = createInsertSchema(interviewQuesti
   questions: z.array(interviewQuestionDataSchema).optional(),
 });
 export const selectInterviewQuestionsSchema = createSelectSchema(interviewQuestions);
-
-// Enhanced Zod schemas for runtime validation
-export const resumeFileSchema = z.object({
-  originalname: z.string().min(1, 'Filename is required'),
-  mimetype: z.enum([
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'text/plain'
-  ]),
-  size: z.number().positive().max(10 * 1024 * 1024, 'File too large (max 10MB)'),
-  path: z.string().optional(),
-  buffer: z.instanceof(Buffer).optional(),
-}).refine(data => data.path || data.buffer, {
-  message: 'Either path or buffer must be provided'
-});
-
-// Resume content schema with stronger validation
-export const resumeContentSchema = z.object({
-  filename: z.string().min(1),
-  content: z.string().min(10, 'Content too short'),
-  skills: z.array(z.string().min(1)).default([]),
-  experience: z.string().default(''),
-  education: z.array(z.string()).default([]),
-});
-
-// Enhanced analyzed data schemas
-export const analyzedResumeDataSchema = z.object({
-  name: z.string().min(1),
-  skills: z.array(z.string().min(1)),
-  experience: z.string().min(1),
-  education: z.array(z.string()),
-  summary: z.string().min(1),
-  keyStrengths: z.array(z.string()),
-  contactInfo: z.object({
-    email: z.string().email().optional(),
-    phone: z.string().optional(),
-    location: z.string().optional(),
-    linkedin: z.string().url().optional(),
-  }).optional(),
-  workExperience: z.array(z.object({
-    company: z.string().min(1),
-    position: z.string().min(1),
-    duration: z.string().min(1),
-    description: z.string().min(1),
-    technologies: z.array(z.string()).optional(),
-  })).optional(),
-  certifications: z.array(z.object({
-    name: z.string().min(1),
-    issuer: z.string().min(1),
-    date: z.string().optional(),
-    expiryDate: z.string().optional(),
-  })).optional(),
-});
-
-export const analyzedJobDataSchema = z.object({
-  requiredSkills: z.array(z.string().min(1)),
-  preferredSkills: z.array(z.string().min(1)),
-  experienceLevel: z.string().min(1),
-  responsibilities: z.array(z.string().min(1)),
-  summary: z.string().min(1),
-  department: z.string().optional(),
-  location: z.string().optional(),
-  salaryRange: z.object({
-    min: z.number().optional(),
-    max: z.number().optional(),
-    currency: z.string().optional(),
-  }).optional(),
-  benefits: z.array(z.string()).optional(),
-  workArrangement: z.enum(['remote', 'hybrid', 'onsite']).optional(),
-  companySize: z.enum(['startup', 'small', 'medium', 'large', 'enterprise']).optional(),
-});
-
-// Skill match schema
-export const skillMatchSchema = z.object({
-  skill: z.string().min(1),
-  matchPercentage: z.number().min(0).max(100),
-  category: z.string().min(1),
-  importance: z.enum(['critical', 'important', 'nice-to-have']),
-  source: z.enum(['exact', 'semantic', 'inferred']),
-});
-
-// Scoring dimensions schema
-export const scoringDimensionsSchema = z.object({
-  skills: z.number().min(0).max(100),
-  experience: z.number().min(0).max(100),
-  education: z.number().min(0).max(100),
-  semantic: z.number().min(0).max(100),
-  cultural: z.number().min(0).max(100),
-  overall: z.number().min(0).max(100),
-});
-
-// Fairness metrics schema
-export const fairnessMetricsSchema = z.object({
-  biasConfidenceScore: z.number().min(0).max(100),
-  potentialBiasAreas: z.array(z.string()),
-  fairnessAssessment: z.string().min(1),
-  demographicBlindSpots: z.array(z.string()).optional(),
-  inclusivityScore: z.number().min(0).max(100).optional(),
-  recommendations: z.array(z.string()).optional(),
-});
-
-// Interview question schema
-export const interviewQuestionDataSchema = z.object({
-  question: z.string().min(10),
-  category: z.enum(['technical', 'behavioral', 'situational', 'cultural', 'problem-solving']),
-  difficulty: z.enum(['easy', 'medium', 'hard']),
-  expectedAnswer: z.string().min(10),
-  followUpQuestions: z.array(z.string()).optional(),
-  skillsAssessed: z.array(z.string().min(1)),
-  timeAllotted: z.number().positive().optional(),
-  evaluationCriteria: z.array(z.string()).optional(),
-});
 
 // Enhanced API Response types
 export interface AnalyzeResumeResponse {
