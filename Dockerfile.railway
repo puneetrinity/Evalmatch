@@ -84,7 +84,7 @@ RUN mkdir -p /app/dist && \
     echo '      const child = spawn("node", [candidate], {' >> /app/dist/index.js && \
     echo '        stdio: "inherit",' >> /app/dist/index.js && \
     echo '        cwd: "/app",' >> /app/dist/index.js && \
-    echo '        env: process.env' >> /app/dist/index.js && \
+    echo '        env: { ...process.env, NODE_OPTIONS: "--max-old-space-size=7168 --max-semi-space-size=256" }' >> /app/dist/index.js && \
     echo '      });' >> /app/dist/index.js && \
     echo '      ' >> /app/dist/index.js && \
     echo '      process.on("SIGTERM", () => child.kill("SIGTERM"));' >> /app/dist/index.js && \
