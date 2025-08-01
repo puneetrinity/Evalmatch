@@ -17,7 +17,6 @@
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3,
     "healthcheckPath": "/api/health",
-    "healthcheckTimeout": 30,
-    "startCommand": "node build/index.js"
+    "healthcheckTimeout": 30
   }
 }

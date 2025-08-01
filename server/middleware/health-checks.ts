@@ -284,7 +284,7 @@ async function checkDatabase(): Promise<HealthCheckResult> {
 }
 
 /**
- * Memory usage health check
+ * Memory usage health check with NODE_OPTIONS verification
  */
 async function checkMemoryUsage(): Promise<HealthCheckResult> {
   const startTime = Date.now();
@@ -296,15 +296,37 @@ async function checkMemoryUsage(): Promise<HealthCheckResult> {
     const mbTotal = Math.round(memUsage.heapTotal / 1024 / 1024);
     const usagePercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
     
-    let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-    let message = `Memory usage: ${mbUsed}MB / ${mbTotal}MB (${usagePercent}%)`;
+    // Get V8 heap statistics to verify NODE_OPTIONS
+    const v8 = await import('v8');
+    const heapStats = v8.getHeapStatistics();
+    const heapLimitMB = Math.round(heapStats.heap_size_limit / 1024 / 1024);
+    const availableMB = Math.round(heapStats.total_available_size / 1024 / 1024);
     
-    if (usagePercent > 90) {
+    // Check if NODE_OPTIONS is properly applied
+    const expectedHeapLimitMB = 7168; // Expected from NODE_OPTIONS
+    const nodeOptionsApplied = heapLimitMB > 2000; // Much higher than default ~1.7GB
+    const nodeOptionsCorrect = heapLimitMB >= expectedHeapLimitMB * 0.9; // Allow 10% tolerance
+    
+    let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
+    let message = `Memory: ${mbUsed}/${mbTotal}MB (${usagePercent}%), Limit: ${heapLimitMB}MB`;
+    
+    // Primary concern: Is NODE_OPTIONS working?
+    if (!nodeOptionsApplied) {
+      status = 'unhealthy';
+      message = `NODE_OPTIONS not applied! Heap limit: ${heapLimitMB}MB (expected ~${expectedHeapLimitMB}MB)`;
+    } else if (!nodeOptionsCorrect) {
+      status = 'degraded';
+      message = `NODE_OPTIONS partially applied. Heap limit: ${heapLimitMB}MB (expected ${expectedHeapLimitMB}MB)`;
+    }
+    // Secondary concern: Current memory usage
+    else if (usagePercent > 90) {
       status = 'unhealthy';
       message += ' - Critical memory usage';
     } else if (usagePercent > 75) {
       status = 'degraded';
       message += ' - High memory usage';
+    } else {
+      message += ' - NODE_OPTIONS working correctly';
     }
     
     return {
@@ -313,11 +335,26 @@ async function checkMemoryUsage(): Promise<HealthCheckResult> {
       responseTime: Date.now() - startTime,
       message,
       details: {
-        heapUsed: mbUsed,
-        heapTotal: mbTotal,
-        usagePercent,
-        external: Math.round(memUsage.external / 1024 / 1024),
-        rss: Math.round(memUsage.rss / 1024 / 1024),
+        current: {
+          heapUsed: mbUsed,
+          heapTotal: mbTotal,
+          usagePercent,
+          external: Math.round(memUsage.external / 1024 / 1024),
+          rss: Math.round(memUsage.rss / 1024 / 1024),
+        },
+        limits: {
+          heapSizeLimit: heapLimitMB,
+          totalAvailable: availableMB,
+          nodeOptionsApplied,
+          nodeOptionsCorrect,
+          expectedLimit: expectedHeapLimitMB,
+          actualvsExpected: `${heapLimitMB}MB vs ${expectedHeapLimitMB}MB`
+        },
+        configuration: {
+          nodeOptions: process.env.NODE_OPTIONS || 'NOT SET',
+          nodeVersion: process.version,
+          railwayEnv: !!process.env.RAILWAY_ENVIRONMENT
+        }
       },
       lastChecked: new Date().toISOString(),
     };

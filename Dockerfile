@@ -69,14 +69,17 @@ ENV PORT=8080
 ENV SERVE_STATIC=true
 
 # Phase 2 Optimization Settings
-ENV EMBEDDING_MODEL=Xenova/all-MiniLM-L12-v2
+ENV EMBEDDING_MODEL=Xenova/all-MiniLM-L6-v2
 ENV MAX_CONCURRENT_EMBEDDINGS=3
 ENV MAX_TEXT_LENGTH=50000
 ENV MIN_ASCII_RATIO=0.8
 
 # Performance and caching optimization
 ENV TRANSFORMERS_CACHE=/tmp/transformers_cache
-ENV NODE_OPTIONS="--max-old-space-size=2048"
+ENV NODE_OPTIONS="--max-old-space-size=7168 --max-semi-space-size=256"
+
+# Railway memory debugging
+ENV RAILWAY_DEBUG_MEMORY=true
 
 # Create cache directory for AI models
 RUN mkdir -p /tmp/transformers_cache && chmod 755 /tmp/transformers_cache
