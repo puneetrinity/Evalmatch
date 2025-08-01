@@ -146,5 +146,5 @@ HEALTHCHECK --interval=60s --timeout=15s --start-period=120s --retries=2 \
 # Add curl for health checks
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Use the unified start script that handles all scenarios
-CMD ["./start.sh"]
+# Use shell form to ensure NODE_OPTIONS is applied
+CMD /bin/sh -c "export NODE_OPTIONS='--max-old-space-size=7168 --max-semi-space-size=256' && ./start.sh"
