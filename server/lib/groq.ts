@@ -61,6 +61,12 @@ interface ApiUsage {
 const responseCache: Record<string, CacheItem<unknown>> = {};
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
+// Clear cache function for debugging
+export function clearResponseCache(): void {
+  Object.keys(responseCache).forEach(key => delete responseCache[key]);
+  logger.info('Response cache cleared - forcing fresh analysis');
+}
+
 // Token usage tracking
 let apiUsage: ApiUsage = {
   promptTokens: 0,
@@ -327,7 +333,12 @@ export async function analyzeResumeParallel(resumeText: string): Promise<Analyze
       jobTitles: experience?.jobTitles || []
     };
     
-    setCachedResponse(cacheKey, parsedResponse);
+    // Only cache if we have meaningful results (at least some skills)
+    if (skills && skills.length > 0) {
+      setCachedResponse(cacheKey, parsedResponse);
+    } else {
+      logger.warn('Not caching resume analysis - no skills extracted');
+    }
     
     // Log optimization metrics
     logger.info('Resume analyzed successfully with Groq (parallel)', {
@@ -373,8 +384,14 @@ Respond with only the JSON object, no additional text.`;
     const cleanedResponse = stripMarkdownFromJSON(response);
     const parsedResponse = JSON.parse(cleanedResponse) as AnalyzeResumeResponse;
     
-    setCachedResponse(cacheKey, parsedResponse);
-    logger.info('Resume analyzed successfully with Groq');
+    // Only cache if we have meaningful results (at least some skills)
+    if (parsedResponse.skills && parsedResponse.skills.length > 0) {
+      setCachedResponse(cacheKey, parsedResponse);
+      logger.info('Resume analyzed successfully with Groq');
+    } else {
+      logger.warn('Not caching resume analysis - no skills extracted in sequential analysis');
+    }
+    
     return parsedResponse;
   } catch (error) {
     logger.error('Error analyzing resume with Groq', error);

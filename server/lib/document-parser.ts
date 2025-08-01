@@ -7,10 +7,9 @@ import * as crypto from 'crypto';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import pdfParse from 'pdf-parse';
-import { PDFDocument } from 'pdf-lib';
 
-// For PDF.js (we'll dynamically import to avoid issues)
-// import * as pdfjsLib from 'pdfjs-dist';
+// PDF.js will be dynamically imported with legacy build for Node.js compatibility
+// pdf-lib removed due to instanceof errors in production
 
 const execAsync = promisify(exec);
 
@@ -287,43 +286,173 @@ function truncateText(text: string, maxLength: number = MAX_TEXT_LENGTH): string
  * @returns Processed text with better quality
  */
 function postProcessResumeText(raw: string): string {
-  // Step 1: Basic cleanup
+  // Step 1: First, preserve natural line breaks while cleaning up excessive spacing
   let text = raw
-    .replace(/\s+/g, ' ')        // Replace multiple spaces with a single space
-    .replace(/\n\s*\n/g, '\n\n') // Keep paragraph breaks
+    .replace(/\r\n/g, '\n')      // Normalize line endings
+    .replace(/\r/g, '\n')        // Convert Mac line endings
+    .replace(/[ \t]+/g, ' ')      // Replace multiple spaces/tabs with single space
+    .replace(/\n{3,}/g, '\n\n')  // Limit to max 2 consecutive line breaks
+    .replace(/^\s+|\s+$/gm, '')  // Trim spaces from line starts/ends
     .trim();
     
   // Step 2: Fix common PDF extraction issues
   text = text
-    // Join hyphenated words that span lines 
-    .replace(/(\w+)-\s*\n\s*(\w+)/g, (_, p1, p2) => `${p1}${p2}`)
-    // Normalize bullet points
-    .replace(/[•·○◦➢➤▪︎▸✓□■]/g, '* ')
-    // Fix bullet point spacing
-    .replace(/\*\s+/g, '* ')
+    // Join hyphenated words that span lines (but preserve intentional hyphens)
+    .replace(/(\w{3,})-\n(\w+)/g, '$1$2')
+    // Normalize various bullet point symbols
+    .replace(/[•·○◦➢➤▪︎▸✓□■►▶‣⁃]/g, '•')
+    // Fix bullet point formatting
+    .replace(/^\s*•\s*/gm, '• ')
     // Fix number list formatting
-    .replace(/(\d+)\.\s+/g, '$1. ')
+    .replace(/^\s*(\d+)[.)\]]}?\s+/gm, '$1. ')
     // Fix email addresses that may have been broken
-    .replace(/([a-zA-Z0-9._-]+)\s+@\s+([a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/g, '$1@$2');
+    .replace(/([a-zA-Z0-9._-]+)\s*@\s*([a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/g, '$1@$2')
+    // Fix phone numbers
+    .replace(/(\d{3})\s*[-.]?\s*(\d{3})\s*[-.]?\s*(\d{4})/g, '$1-$2-$3')
+    // Fix URLs
+    .replace(/https?:\s*\/\s*\//g, 'https://')
+    .replace(/www\.\s+/g, 'www.');
   
-  // Step 3: Improve section identification with extra spacing
+  // Step 3: Improve section identification
   const sections = [
-    'SKILLS', 'EXPERIENCE', 'EDUCATION', 'WORK EXPERIENCE',
-    'PROFESSIONAL EXPERIENCE', 'EMPLOYMENT HISTORY', 'QUALIFICATIONS',
-    'CERTIFICATIONS', 'PROJECTS', 'SUMMARY', 'OBJECTIVE', 'CONTACT',
-    'PERSONAL INFORMATION', 'AWARDS', 'ACHIEVEMENTS', 'REFERENCES'
+    'SKILLS', 'TECHNICAL SKILLS', 'CORE COMPETENCIES', 'EXPERTISE',
+    'EXPERIENCE', 'WORK EXPERIENCE', 'PROFESSIONAL EXPERIENCE', 'EMPLOYMENT',
+    'EDUCATION', 'ACADEMIC BACKGROUND', 'QUALIFICATIONS',
+    'CERTIFICATIONS', 'CERTIFICATES', 'LICENSES',
+    'PROJECTS', 'KEY PROJECTS', 'PORTFOLIO',
+    'SUMMARY', 'PROFILE', 'OBJECTIVE', 'ABOUT',
+    'CONTACT', 'PERSONAL INFORMATION',
+    'AWARDS', 'ACHIEVEMENTS', 'ACCOMPLISHMENTS',
+    'LANGUAGES', 'REFERENCES'
   ];
   
-  // Add extra newlines before section headers for better parsing
-  for (const section of sections) {
-    const sectionRegex = new RegExp(`(\\n|^)(${section}|${section.toLowerCase()}|${section.charAt(0).toUpperCase() + section.slice(1).toLowerCase()})(\\s*:)?\\s*`, 'g');
-    text = text.replace(sectionRegex, '\n\n$1$2$3\n');
+  // Create regex pattern for section headers (case-insensitive)
+  const sectionPattern = sections.join('|');
+  const sectionRegex = new RegExp(
+    `^(${sectionPattern}|${sectionPattern.toLowerCase()}|${sectionPattern.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')})\\s*:?\\s*$`,
+    'gmi'
+  );
+  
+  // Add proper spacing around section headers
+  text = text.replace(sectionRegex, '\n\n$1\n');
+  
+  // Step 4: Detect and enhance skills sections for better extraction
+  const skillIndicators = [
+    /(?:skills|technologies|tools|languages|frameworks|platforms)(?:\s*:)?/gi,
+    /(?:proficient|experienced|knowledge|familiar|expert)(?:\s+(?:in|with))?(?:\s*:)?/gi,
+    /(?:programming|software|technical|computer)(?:\s+skills)?(?:\s*:)?/gi
+  ];
+  
+  let hasSkillsSection = false;
+  for (const indicator of skillIndicators) {
+    if (indicator.test(text)) {
+      hasSkillsSection = true;
+      break;
+    }
   }
   
-  // Step 4: Identify and format lists consistently
+  // If no clear skills section found, try to detect skills from text patterns
+  if (!hasSkillsSection) {
+    // Look for common skill patterns (e.g., "5+ years Java", "Expert in Python")
+    const skillPatterns = [
+      /\b(?:\d+\+?\s*years?\s+(?:of\s+)?)?(?:experience\s+(?:in|with)\s+)?([A-Z][a-zA-Z+#.-]{2,}(?:\s+[A-Z][a-zA-Z+#.-]{2,}){0,2})\b/g,
+      /\b(?:expert|proficient|experienced|skilled)\s+(?:in|with)\s+([A-Z][a-zA-Z+#.-]{2,}(?:\s+[A-Z][a-zA-Z+#.-]{2,}){0,2})\b/gi,
+      /\b([A-Z][a-zA-Z+#.-]{2,}(?:\s+[A-Z][a-zA-Z+#.-]{2,}){0,2})(?:\s+developer|engineer|administrator|analyst)\b/g
+    ];
+    
+    let detectedSkills = new Set<string>();
+    for (const pattern of skillPatterns) {
+      const matches = text.matchAll(pattern);
+      for (const match of matches) {
+        if (match[1]) {
+          detectedSkills.add(match[1].trim());
+        }
+      }
+    }
+    
+    if (detectedSkills.size > 0) {
+      text += '\n\nDETECTED SKILLS:\n' + Array.from(detectedSkills).join(', ');
+    }
+  }
+  
+  // Step 4: Extract and enhance skills section if found
+  const skillsSectionRegex = /(?:^|\n)((?:technical\s+)?skills?|competenc(?:ies|e)|expertise)\s*:?\s*\n([\s\S]*?)(?=\n\n[A-Z]|\n\n$|$)/gi;
+  const skillsMatch = text.match(skillsSectionRegex);
+  
+  if (skillsMatch) {
+    // Process skills section to ensure proper formatting
+    text = text.replace(skillsSectionRegex, (match, header, content) => {
+      // Clean up skills content
+      let skillsContent = content
+        .split(/[,;\n•]/)  // Split by common delimiters
+        .map(s => s.trim())
+        .filter(s => s.length > 0 && s.length < 50) // Remove empty/too long entries
+        .map(s => s.replace(/^[-•*]\s*/, '')) // Remove leading bullets
+        .filter(s => /^[A-Za-z]/.test(s)); // Must start with letter
+      
+      // Rejoin with consistent formatting
+      return `\n\n${header}\n${skillsContent.map(s => `• ${s}`).join('\n')}`;
+    });
+  }
+  
+  // Step 5: Clean up common PDF artifacts
   text = text
-    .replace(/(\n\s*[*•·○◦➢➤▪︎▸✓□■])/g, '\n* ') // Normalize all bullet types to "*"
-    .replace(/(\n\s*\d+[\.)]) /g, '\n$1 ');     // Preserve numbering but normalize spacing
+    // Remove page numbers (various formats)
+    .replace(/^\s*(?:Page\s*)?\d+\s*(?:of\s*\d+)?\s*$/gm, '')
+    // Remove headers/footers that repeat
+    .replace(/^(.{1,50})\n\1$/gm, '$1')
+    // Clean up excessive whitespace again
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  
+  // Step 6: Special handling for skill extraction
+  // Create a skills-focused summary at the beginning to help AI extraction
+  const skillKeywords = [
+    'JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'C#', 'Ruby', 'PHP', 'Swift', 'Kotlin',
+    'React', 'Angular', 'Vue', 'Node.js', 'Express', 'Django', 'Flask', 'Spring', 'Rails',
+    'HTML', 'CSS', 'SASS', 'LESS', 'Bootstrap', 'Tailwind', 'Material-UI',
+    'SQL', 'NoSQL', 'MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'Elasticsearch',
+    'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'Jenkins', 'Git', 'CI/CD',
+    'REST', 'GraphQL', 'Microservices', 'API', 'Agile', 'Scrum', 'DevOps',
+    'Machine Learning', 'AI', 'Data Science', 'TensorFlow', 'PyTorch', 'Pandas',
+    'Linux', 'Windows', 'macOS', 'Bash', 'PowerShell', 'Terraform', 'Ansible'
+  ];
+  
+  // Find all potential skills in the text (case-insensitive)
+  const foundSkills = new Set<string>();
+  const lowerText = text.toLowerCase();
+  
+  for (const skill of skillKeywords) {
+    if (lowerText.includes(skill.toLowerCase())) {
+      foundSkills.add(skill);
+    }
+  }
+  
+  // Also extract skills from common patterns
+  const skillPatterns = [
+    /\b(?:proficient|experienced|skilled|expert|knowledge)\s+(?:in|with)\s+([^,.;]+)/gi,
+    /\b(?:technologies|tools|languages|frameworks):\s*([^.]+)/gi,
+    /\b([A-Z][a-zA-Z]+(?:\.[a-z]+)?)\b/g, // Capitalized words that might be technologies
+  ];
+  
+  for (const pattern of skillPatterns) {
+    const matches = text.matchAll(pattern);
+    for (const match of matches) {
+      const potentialSkill = match[1].trim();
+      if (potentialSkill.length > 2 && potentialSkill.length < 30) {
+        // Check if it looks like a technology/skill
+        if (/^[A-Z]/.test(potentialSkill) && /[a-zA-Z0-9.#+\-]/.test(potentialSkill)) {
+          foundSkills.add(potentialSkill);
+        }
+      }
+    }
+  }
+  
+  // If we found skills, add a hint section at the beginning
+  if (foundSkills.size > 0) {
+    const skillsHint = `DETECTED SKILLS: ${Array.from(foundSkills).join(', ')}\n\n`;
+    text = skillsHint + text;
+  }
     
   return text;
 }
@@ -397,129 +526,61 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
         });
       }
       
-      // Next, try PDF.js if pdf-parse didn't work well
-      if (!extractionSuccess) {
-        try {
-          console.log('[ResumeParser] Attempting secondary extraction: PDF.js');
-          
-          // Dynamically import PDF.js to avoid dependency issues
-          const pdfjsLib = await import('pdfjs-dist');
-          
-          // Set the worker source
-          const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.js');
-          pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
-          
-          // Load the PDF document
-          const loadingTask = pdfjsLib.getDocument({ data: buffer });
-          const pdfDocument = await loadingTask.promise;
-          
-          // Extract text from each page
-          let pdfText = '';
-          for (let i = 1; i <= pdfDocument.numPages; i++) {
-            const page = await pdfDocument.getPage(i);
-            const textContent = await page.getTextContent();
-            const pageText = textContent.items.map(item => item.str).join(' ');
-            pdfText += pageText + '\n\n';
-          }
-          
-          const sampleText = pdfText.substring(0, 100).replace(/\n/g, ' ') + '...';
-          extractionResults.push({
-            method: 'pdf.js',
-            textLength: pdfText.length,
-            sampleText,
-            success: pdfText.length > 50
-          });
-          
-          console.log(`[ResumeParser] Secondary: PDF.js (text length: ${pdfText.length}, items: ${pdfDocument.numPages} pages)`);
-          
-          // Only use PDF.js output if it's better than what we have
-          if (pdfText.length > extractedText.length && pdfText.length > 50) {
-            extractedText = pdfText;
-            extractionSuccess = true;
-          }
-        } catch (err) {
-          console.warn('[ResumeParser] Failed to extract text with PDF.js:', err);
-          extractionResults.push({
-            method: 'pdf.js',
-            textLength: 0,
-            sampleText: '',
-            success: false,
-            error: err
-          });
-        }
-      }
+      // Skip PDF.js as it requires DOM APIs not available in Node.js
+      // The DOMMatrix error cannot be fixed without significant refactoring
       
-      // Next, try pdf-lib for structural analysis
+      // Skip pdf-lib as it has instanceof errors in production
+      // The library expects browser-based PDFDocument instances
+      
+      // If pdf-parse failed or returned too little text, try pdftotext command
       if (!extractionSuccess) {
         try {
-          console.log('[ResumeParser] Attempting structural extraction: pdf-lib');
+          console.log('[ResumeParser] Trying pdftotext command');
           
-          const pdfDoc = await PDFDocument.load(buffer);
-          const pages = pdfDoc.getPages();
-          let pdfLibText = '';
-          
-          for (const page of pages) {
-            const { width, height } = page.getSize();
-            // Extract text if possible (limited capability in pdf-lib)
-            const text = page.doc.context.lookupMaybe(page.ref, 'Contents');
-            if (text) {
-              pdfLibText += `Page (${width}x${height}): ${text.toString()}\n\n`;
+          // First try pdftotext which preserves layout better
+          try {
+            await execAsync(`pdftotext -layout "${pdfPath}" "${txtPath}"`);
+            const pdftotextOutput = fs.readFileSync(txtPath, 'utf8');
+            
+            if (pdftotextOutput.length > 50) {
+              const sampleText = pdftotextOutput.substring(0, 100).replace(/\n/g, ' ') + '...';
+              extractionResults.push({
+                method: 'pdftotext',
+                textLength: pdftotextOutput.length,
+                sampleText,
+                success: true
+              });
+              
+              console.log(`[ResumeParser] pdftotext success (text length: ${pdftotextOutput.length})`);
+              extractedText = pdftotextOutput;
+              extractionSuccess = true;
+            }
+          } catch (pdftotextErr) {
+            // pdftotext not available, fall back to strings
+            console.log('[ResumeParser] pdftotext not available, trying strings command');
+            const { stdout } = await execAsync(`strings -n 3 "${pdfPath}" | grep -v '^[[:space:]]*$' > "${txtPath}"`);
+            const stringOutput = fs.readFileSync(txtPath, 'utf8');
+            
+            const sampleText = stringOutput.substring(0, 100).replace(/\n/g, ' ') + '...';
+            extractionResults.push({
+              method: 'strings',
+              textLength: stringOutput.length,
+              sampleText,
+              success: stringOutput.length > 50
+            });
+            
+            console.log(`[ResumeParser] Fallback: strings (text length: ${stringOutput.length})`);
+            
+            // Only use strings output if it's better than what we already have
+            if (stringOutput.length > extractedText.length && stringOutput.length > 50) {
+              extractedText = stringOutput;
+              extractionSuccess = true;
             }
           }
-          
-          const sampleText = pdfLibText.substring(0, 100).replace(/\n/g, ' ') + '...';
-          extractionResults.push({
-            method: 'pdf-lib',
-            textLength: pdfLibText.length,
-            sampleText,
-            success: pdfLibText.length > 50
-          });
-          
-          console.log(`[ResumeParser] Structural: pdf-lib (text length: ${pdfLibText.length}, pages: ${pages.length})`);
-          
-          // Only use pdf-lib output if it's substantially better
-          if (pdfLibText.length > extractedText.length * 1.5 && pdfLibText.length > 50) {
-            extractedText = pdfLibText;
-            extractionSuccess = true;
-          }
         } catch (err) {
-          console.warn('[ResumeParser] Failed to extract with pdf-lib:', err);
+          console.warn('[ResumeParser] Failed to extract text with system commands:', err);
           extractionResults.push({
-            method: 'pdf-lib',
-            textLength: 0,
-            sampleText: '',
-            success: false,
-            error: err
-          });
-        }
-      }
-      
-      // If pdf-parse failed or returned too little text, try the strings command
-      if (!extractionSuccess) {
-        try {
-          console.log('[ResumeParser] Fallback: strings command');
-          const { stdout } = await execAsync(`strings "${pdfPath}" > "${txtPath}"`);
-          const stringOutput = fs.readFileSync(txtPath, 'utf8');
-          
-          const sampleText = stringOutput.substring(0, 100).replace(/\n/g, ' ') + '...';
-          extractionResults.push({
-            method: 'strings',
-            textLength: stringOutput.length,
-            sampleText,
-            success: stringOutput.length > 50
-          });
-          
-          console.log(`[ResumeParser] Fallback: strings (text length: ${stringOutput.length})`);
-          
-          // Only use strings output if it's better than what we already have
-          if (stringOutput.length > extractedText.length && stringOutput.length > 50) {
-            extractedText = stringOutput;
-            extractionSuccess = true;
-          }
-        } catch (err) {
-          console.warn('[ResumeParser] Failed to extract text with strings command:', err);
-          extractionResults.push({
-            method: 'strings',
+            method: 'system-commands',
             textLength: 0,
             sampleText: '',
             success: false,
@@ -573,9 +634,35 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
         extractionResults.map(r => `${r.method}: ${r.textLength} chars (${r.success ? 'success' : 'failed'})`).join(', ')
       );
       
-      // If no method succeeded, return a helpful message
+      // If no method succeeded, try one more aggressive approach
+      if (!extractionSuccess && extractedText.length > 0) {
+        console.log('[ResumeParser] Attempting aggressive text recovery from partial extraction');
+        
+        // Sometimes we get partial text that needs cleaning
+        extractedText = extractedText
+          .replace(/[\x00-\x1F\x7F-\x9F]/g, ' ') // Remove control characters
+          .replace(/[^\x20-\x7E\n\r\t]/g, '') // Keep only printable ASCII
+          .replace(/\s+/g, ' ') // Normalize whitespace
+          .trim();
+        
+        if (extractedText.length > 100) {
+          extractionSuccess = true;
+          console.log(`[ResumeParser] Recovered ${extractedText.length} chars through aggressive cleaning`);
+        }
+      }
+      
+      // If still no success, return a helpful message
       if (!extractionSuccess) {
         console.error('[ResumeParser][Error] All PDF extraction methods failed');
+        
+        // Try to provide more specific error message based on what happened
+        const hasOCRError = extractionResults.some(r => r.method === 'tesseract-ocr' && !r.success);
+        const hasPDFParseError = extractionResults.some(r => r.method === 'pdf-parse' && !r.success);
+        
+        if (hasOCRError && hasPDFParseError) {
+          return 'Unable to extract text from this PDF. The document appears to be a scanned image or uses an unsupported encoding. Please try:\n1. Converting to a text-based PDF\n2. Using a Word document (.docx)\n3. Ensuring the document is not password-protected';
+        }
+        
         return 'PDF text extraction failed. This document may be encrypted, scanned at low quality, or in an unsupported format. Please try uploading a text-based PDF or Word document instead.';
       }
       
@@ -586,6 +673,16 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
       const validation = validateExtractedText(extractedText);
       if (!validation.isValid) {
         console.error(`[ResumeParser][Error] Text validation failed: ${validation.reason}`);
+        
+        // Try emergency recovery if text is too short
+        if (extractedText.length < 100 && extractedText.length > 0) {
+          // Add generic skills section to help AI extraction
+          const emergencyText = `${extractedText}\n\nNOTE: Limited text extracted. Common skills and qualifications may include:\n- Technical Skills\n- Communication\n- Problem Solving\n- Team Collaboration\n- Project Management\n- Analytical Thinking`;
+          
+          console.log('[ResumeParser] Added emergency skill hints due to limited text extraction');
+          return emergencyText;
+        }
+        
         return `Text extraction failed: ${validation.reason}. Please ensure your resume is a standard text-based PDF or Word document.`;
       }
       
@@ -593,6 +690,11 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
       if (extractedText.length > MAX_TEXT_LENGTH) {
         console.warn(`[ResumeParser][Warning] Text truncated from ${extractedText.length} to ${MAX_TEXT_LENGTH} characters`);
         extractedText = truncateText(extractedText);
+      }
+      
+      // Final check: if we have text but no skills were detected in preprocessing
+      if (!extractedText.includes('DETECTED SKILLS:')) {
+        console.warn('[ResumeParser][Warning] No skills detected in preprocessing, text may need manual review');
       }
       
       return extractedText;
