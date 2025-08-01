@@ -148,7 +148,7 @@ const ENV_SPECS: EnvVarSpec[] = [
     name: 'VITE_FIREBASE_STORAGE_BUCKET',
     required: false,
     category: 'firebase',
-    validator: (val) => val.includes('.appspot.com') || val.includes('.firebasestorage.googleapis.com'),
+    validator: (val) => val.includes('.appspot.com') || val.includes('.firebasestorage.googleapis.com') || val.includes('.firebasestorage.app'),
     description: 'Firebase storage bucket',
     example: 'my-project.appspot.com',
     securityLevel: 'private'

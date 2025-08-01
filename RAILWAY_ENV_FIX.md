@@ -9,9 +9,11 @@
 VITE_FIREBASE_STORAGE_BUCKET=your-project-id
 ```
 
-**✅ CORRECT FORMAT:**
+**✅ CORRECT FORMATS (any of these):**
 ```
 VITE_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+VITE_FIREBASE_STORAGE_BUCKET=your-project-id.firebasestorage.app
+VITE_FIREBASE_STORAGE_BUCKET=your-project-id.firebasestorage.googleapis.com
 ```
 
 ### 2. SESSION_SECRET Configuration
