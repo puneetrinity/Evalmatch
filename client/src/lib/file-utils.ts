@@ -50,7 +50,12 @@ export function isFileAllowed(file: File): boolean {
     'application/msword'
   ];
   
-  return allowedTypes.includes(file.type);
+  // Also check by file extension as fallback since MIME types can be inconsistent
+  const fileName = file.name.toLowerCase();
+  const allowedExtensions = ['.pdf', '.doc', '.docx'];
+  const hasAllowedExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
+  
+  return allowedTypes.includes(file.type) || hasAllowedExtension;
 }
 
 /**

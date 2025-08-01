@@ -132,11 +132,11 @@ const upload = multer({
   },
   fileFilter: (req, file, cb) => {
     // Accept only certain file types
-    const allowedMimeTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png'];
+    const allowedMimeTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword', 'image/jpeg', 'image/png'];
     if (allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only PDF, DOCX, JPEG and PNG files are allowed.'));
+      cb(new Error('Invalid file type. Only PDF, DOC, DOCX, JPEG and PNG files are allowed.'));
     }
   }
 });

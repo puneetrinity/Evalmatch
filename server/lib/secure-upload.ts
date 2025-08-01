@@ -7,7 +7,7 @@ import { logger } from './logger';
 
 // Secure upload directory configuration
 const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
-const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.txt', '.jpg', '.jpeg', '.png'];
+const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 // Ensure upload directory exists
@@ -53,6 +53,11 @@ async function validateFileContent(filepath: string, mimetype: string): Promise<
       case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
         // DOCX files are ZIP archives, check for PK signature
         return firstBytes[0] === 0x50 && firstBytes[1] === 0x4B;
+      
+      case 'application/msword':
+        // DOC files start with D0 CF 11 E0 A1 B1 1A E1 (OLE Compound Document)
+        return firstBytes[0] === 0xD0 && firstBytes[1] === 0xCF && 
+               firstBytes[2] === 0x11 && firstBytes[3] === 0xE0;
       
       case 'image/jpeg':
         // JPEG files start with FF D8 FF
@@ -122,13 +127,14 @@ export const secureUpload = multer({
     const allowedMimeTypes = [
       'application/pdf',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword', // Support for .doc files
       'text/plain',
       'image/jpeg',
       'image/png'
     ];
 
     if (!allowedMimeTypes.includes(file.mimetype)) {
-      return cb(new Error('Invalid file type. Only PDF, DOCX, TXT, JPEG and PNG files are allowed.'));
+      return cb(new Error('Invalid file type. Only PDF, DOC, DOCX, TXT, JPEG and PNG files are allowed.'));
     }
 
     // Additional extension validation

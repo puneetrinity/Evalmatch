@@ -693,6 +693,89 @@ export async function extractTextFromPlain(buffer: Buffer): Promise<string> {
 }
 
 /**
+ * Extract text from DOC files using antiword or textract
+ * @param buffer DOC file buffer
+ * @returns Extracted text
+ */
+export async function extractTextFromDoc(buffer: Buffer): Promise<string> {
+  try {
+    const fileId = crypto.randomBytes(16).toString('hex');
+    
+    // Create a temporary directory for files if it doesn't exist
+    const tempDir = path.join(process.cwd(), 'uploads', 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    
+    // Save the DOC buffer to a temporary file
+    const docPath = path.join(tempDir, `${fileId}.doc`);
+    const txtPath = path.join(tempDir, `${fileId}.txt`);
+    
+    fs.writeFileSync(docPath, buffer);
+    
+    let extractedText = '';
+    
+    try {
+      // Try using antiword first (if available)
+      const antiwordResult = await execAsync(`antiword "${docPath}" > "${txtPath}"`);
+      if (fs.existsSync(txtPath)) {
+        extractedText = fs.readFileSync(txtPath, 'utf8');
+      }
+    } catch (antiwordError) {
+      try {
+        // Fallback to textract if antiword is not available
+        const textractResult = await execAsync(`textract "${docPath}" > "${txtPath}"`);
+        if (fs.existsSync(txtPath)) {
+          extractedText = fs.readFileSync(txtPath, 'utf8');
+        }
+      } catch (textractError) {
+        // If both tools fail, try python-docx2txt
+        try {
+          const docx2txtResult = await execAsync(`python3 -c "import docx2txt; print(docx2txt.process('${docPath}'))" > "${txtPath}"`);
+          if (fs.existsSync(txtPath)) {
+            extractedText = fs.readFileSync(txtPath, 'utf8');
+          }
+        } catch (pythonError) {
+          throw new Error('Unable to extract text from DOC file. Please convert to DOCX or PDF format.');
+        }
+      }
+    }
+    
+    // Clean up temporary files
+    try {
+      if (fs.existsSync(docPath)) fs.unlinkSync(docPath);
+      if (fs.existsSync(txtPath)) fs.unlinkSync(txtPath);
+    } catch (cleanupError) {
+      console.warn('Failed to clean up temporary files:', cleanupError);
+    }
+    
+    if (!extractedText || extractedText.trim().length === 0) {
+      throw new Error('No text could be extracted from the DOC file');
+    }
+    
+    // Post-process the extracted text
+    extractedText = postProcessResumeText(extractedText);
+    
+    // Validate the extracted text
+    const validation = validateExtractedText(extractedText);
+    if (!validation.isValid) {
+      throw new Error(`Text extraction failed: ${validation.reason}. Please ensure your document contains readable text.`);
+    }
+    
+    // Truncate if necessary
+    if (extractedText.length > MAX_TEXT_LENGTH) {
+      extractedText = extractedText.substring(0, MAX_TEXT_LENGTH) + '...';
+    }
+    
+    return extractedText;
+    
+  } catch (error) {
+    console.error('Error extracting text from DOC:', error);
+    throw new Error(`Failed to extract text from DOC file: ${error.message}. Please try converting to DOCX or PDF format.`);
+  }
+}
+
+/**
  * Parse a document file and extract its text
  * @param file Document file (Buffer)
  * @param mimeType File MIME type
@@ -704,6 +787,8 @@ export async function parseDocument(buffer: Buffer, mimeType: string): Promise<s
       return extractTextFromPdf(buffer);
     case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
       return extractTextFromDocx(buffer);
+    case 'application/msword':
+      return extractTextFromDoc(buffer);
     case 'text/plain':
       return extractTextFromPlain(buffer);
     default:
