@@ -51,7 +51,8 @@ export function isFileAllowed(file: File): boolean {
   ];
   
   // Also check by file extension as fallback since MIME types can be inconsistent
-  const fileName = file.name.toLowerCase();
+  // Add null/undefined check before calling toLowerCase()
+  const fileName = file.name?.toLowerCase() || '';
   const allowedExtensions = ['.pdf', '.doc', '.docx'];
   const hasAllowedExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
   

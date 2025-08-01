@@ -129,11 +129,11 @@ export default function UploadPage() {
   const uploadMutation = useMutation<UploadResponse, UploadError, File>({
     mutationFn: async (file: File): Promise<UploadResponse> => {
       // Validate file before upload
-      if (!isFileAllowed(file.type)) {
+      if (!isFileAllowed(file)) {
         throw { message: 'File type not supported', code: 'INVALID_FILE_TYPE' };
       }
       
-      if (!isFileSizeValid(file.size)) {
+      if (!isFileSizeValid(file)) {
         throw { message: 'File size exceeds limit', code: 'FILE_TOO_LARGE' };
       }
       
