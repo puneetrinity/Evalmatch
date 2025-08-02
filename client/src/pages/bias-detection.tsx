@@ -40,6 +40,9 @@ type JobData = {
   analysis?: {
     biasAnalysis?: BiasAnalysisData;
   };
+  analyzedData?: {
+    biasAnalysis?: BiasAnalysisData;
+  };
 };
 
 export default function BiasDetectionPage() {
@@ -141,9 +144,13 @@ export default function BiasDetectionPage() {
       console.log(`Job data fetched. Job ID: ${jobId}, ID: ${jobData.id}, Title: ${jobData.title}, Analyzed: ${jobData.isAnalyzed}`);
       console.log("Full job data:", JSON.stringify(jobData, null, 2));
       console.log(`Analysis exists: ${!!jobData.analysis}, Bias Analysis exists: ${!!jobData.analysis?.biasAnalysis}`);
+      console.log(`AnalyzedData exists: ${!!jobData.analyzedData}, AnalyzedData Bias Analysis exists: ${!!jobData.analyzedData?.biasAnalysis}`);
+      
+      // Check for existing bias analysis in both possible locations
+      const existingBiasAnalysis = jobData.analysis?.biasAnalysis || jobData.analyzedData?.biasAnalysis;
       
       // If the job is analyzed but we don't have bias analysis yet, start the bias analysis
-      if (jobData.isAnalyzed && !biasAnalysis && !isBiasAnalyzing) {
+      if (jobData.isAnalyzed && !existingBiasAnalysis && !biasAnalysis && !isBiasAnalyzing) {
         console.log("Job analysis complete, automatically starting new bias analysis via API");
         setIsBiasAnalyzing(true);
         biasAnalyzeMutation.mutate();
@@ -192,7 +199,7 @@ export default function BiasDetectionPage() {
 
   // Determine if job analysis is complete - log more detailed information to help debug
   const hasAnalysis = !!jobData?.analysis;
-  const hasBiasAnalysis = !!jobData?.analysis?.biasAnalysis;
+  const hasBiasAnalysis = !!jobData?.analysis?.biasAnalysis || !!jobData?.analyzedData?.biasAnalysis;
   const isJobAnalyzed = !!jobData?.isAnalyzed;
   console.log(`Job status: hasAnalysis=${hasAnalysis}, hasBiasAnalysis=${hasBiasAnalysis}, isJobAnalyzed=${isJobAnalyzed}`);
   
@@ -202,10 +209,12 @@ export default function BiasDetectionPage() {
   // IMMEDIATE ACTION: If we have bias analysis data in the job but no biasAnalysis state
   // This effect runs immediately after jobData is available
   useEffect(() => {
-    if (jobData && jobData.analysis?.biasAnalysis && !biasAnalysis) {
+    const existingBiasAnalysis = jobData?.analysis?.biasAnalysis || jobData?.analyzedData?.biasAnalysis;
+    
+    if (jobData && existingBiasAnalysis && !biasAnalysis) {
       console.log("IMMEDIATE ACTION: Setting bias analysis from job data");
       
-      const existingAnalysis = jobData.analysis.biasAnalysis;
+      const existingAnalysis = existingBiasAnalysis;
       
       // Create biased phrase object if bias exists
       let biasedPhrases: { phrase: string, reason: string }[] = [];
