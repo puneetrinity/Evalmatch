@@ -289,6 +289,46 @@ router.get("/debug-auth", requireAdmin, async (req: Request, res: Response) => {
   }
 });
 
+// Manual migration trigger endpoint - Force run database migrations
+router.post("/run-migrations", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    logger.info('Admin manual migration trigger requested');
+    
+    const { runMigrations, getMigrationStatus } = await import('../lib/db-migrations');
+    
+    // Get status before migration
+    const statusBefore = await getMigrationStatus();
+    logger.info('Migration status before:', statusBefore);
+    
+    // Run migrations
+    await runMigrations();
+    
+    // Get status after migration
+    const statusAfter = await getMigrationStatus();
+    logger.info('Migration status after:', statusAfter);
+    
+    res.json({
+      success: true,
+      data: {
+        message: "Migrations executed successfully",
+        before: statusBefore,
+        after: statusAfter,
+        migrationsRun: statusAfter.appliedMigrations.length - statusBefore.appliedMigrations.length
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    logger.error('Manual migration failed:', error);
+    res.status(500).json({
+      success: false,
+      error: "Migration execution failed",
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Populate skills database
 router.post("/populate-skills", requireAdmin, async (req: Request, res: Response) => {
   try {
