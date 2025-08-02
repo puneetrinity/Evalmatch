@@ -233,6 +233,18 @@ export default function AnalysisPage() {
   
   // Automatic analysis trigger - runs when page loads with resumes but no results
   useEffect(() => {
+    // Debug logging for auto-analysis conditions
+    console.log('Auto-analysis check:', {
+      isLoading,
+      hasResults: analysisData?.results?.length > 0,
+      isAnalyzing,
+      isPending: analyzeMutation.isPending,
+      sessionId,
+      jobId,
+      currentBatchId,
+      hasAttempted: hasAttemptedAutoAnalysis.current
+    });
+
     // Check if we should automatically start analysis
     const shouldAutoAnalyze = (
       !isLoading &&                                        // Data finished loading
@@ -244,6 +256,8 @@ export default function AnalysisPage() {
       currentBatchId &&                                     // Valid batch
       !hasAttemptedAutoAnalysis.current                     // Haven't tried auto-analysis yet
     );
+
+    console.log('Should auto-analyze:', shouldAutoAnalyze);
 
     if (shouldAutoAnalyze) {
       hasAttemptedAutoAnalysis.current = true;
