@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useRoute } from "wouter";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import Header from "@/components/layout/header";
@@ -49,12 +49,14 @@ export default function BiasDetectionPage() {
   const { toast } = useToast();
   const [_, setLocation] = useLocation();
   const { steps } = useSteps(["Resume Upload", "Job Description", "Bias Detection", "Fit Analysis", "Interview Prep"], 2);
+  const queryClient = useQueryClient();
   
   const [match, routeParams] = useRoute("/bias-detection/:jobId");
   const jobId = match ? routeParams.jobId : null;
   
   const [isBiasAnalyzing, setIsBiasAnalyzing] = useState(false);
   const [biasAnalysis, setBiasAnalysis] = useState<BiasAnalysisUI | null>(null);
+  const [hasAttemptedBiasAnalysis, setHasAttemptedBiasAnalysis] = useState(false);
 
   // Get job description with proper caching strategy
   const { data: jobData, isLoading } = useQuery<JobData>({
@@ -72,7 +74,17 @@ export default function BiasDetectionPage() {
         // Extract jobDescription from the response
         if (data.jobDescription) {
           // Add isAnalyzed flag from the parent response
-          return { ...data.jobDescription, isAnalyzed: data.isAnalyzed };
+          // Also ensure we map analyzedData.biasAnalysis to analysis.biasAnalysis for backward compatibility
+          const jobData = { ...data.jobDescription, isAnalyzed: data.isAnalyzed };
+          
+          // Create analysis field for backward compatibility
+          if (jobData.analyzedData && !jobData.analysis) {
+            jobData.analysis = {
+              biasAnalysis: jobData.analyzedData.biasAnalysis
+            };
+          }
+          
+          return jobData;
         }
         return data;
       } catch (error) {
@@ -105,6 +117,10 @@ export default function BiasDetectionPage() {
         }
         
         setBiasAnalysis(data.biasAnalysis);
+        
+        // Invalidate job description query to refresh data with bias analysis
+        queryClient.invalidateQueries({ queryKey: [`/api/job-descriptions/${jobId}`] });
+        
         toast({
           title: "Bias analysis complete",
           description: "Job description has been analyzed for potential bias.",
@@ -134,33 +150,56 @@ export default function BiasDetectionPage() {
   useEffect(() => {
     if (!jobId) {
       setLocation("/job-description");
+    } else {
+      // Reset bias analysis attempt flag when jobId changes
+      setHasAttemptedBiasAnalysis(false);
+      setBiasAnalysis(null);
     }
   }, [jobId, setLocation]);
 
-  // Process job data when it changes
+  // Process job data when it changes - SIMPLIFIED to prevent infinite loop
   useEffect(() => {
     if (jobData) {
-      // More detailed logging to help debug the issue
       console.log(`Job data fetched. Job ID: ${jobId}, ID: ${jobData.id}, Title: ${jobData.title}, Analyzed: ${jobData.isAnalyzed}`);
-      console.log("Full job data:", JSON.stringify(jobData, null, 2));
-      console.log(`Analysis exists: ${!!jobData.analysis}, Bias Analysis exists: ${!!jobData.analysis?.biasAnalysis}`);
-      console.log(`AnalyzedData exists: ${!!jobData.analyzedData}, AnalyzedData Bias Analysis exists: ${!!jobData.analyzedData?.biasAnalysis}`);
       
       // Check for existing bias analysis in both possible locations
       const existingBiasAnalysis = jobData.analysis?.biasAnalysis || jobData.analyzedData?.biasAnalysis;
+      console.log(`Analysis exists: ${!!jobData.analysis?.biasAnalysis}, AnalyzedData Bias Analysis exists: ${!!jobData.analyzedData?.biasAnalysis}`);
       
-      // If the job is analyzed but we don't have bias analysis yet, start the bias analysis
-      if (jobData.isAnalyzed && !existingBiasAnalysis && !biasAnalysis && !isBiasAnalyzing) {
+      // If we found existing bias analysis, set it immediately and stop the loop
+      if (existingBiasAnalysis && !biasAnalysis) {
+        console.log("Found existing bias analysis, setting it to prevent loop");
+        setBiasAnalysis({
+          hasBias: existingBiasAnalysis.hasBias || false,
+          biasTypes: existingBiasAnalysis.biasTypes || [],
+          biasedPhrases: existingBiasAnalysis.biasedPhrases || [],
+          suggestions: existingBiasAnalysis.suggestions || [],
+          improvedDescription: existingBiasAnalysis.improvedDescription || jobData.description,
+          biasConfidenceScore: existingBiasAnalysis.biasConfidenceScore || 95,
+          fairnessAssessment: existingBiasAnalysis.fairnessAssessment || 'Analysis completed'
+        });
+        setHasAttemptedBiasAnalysis(true); // Prevent further attempts
+        return;
+      }
+      
+      // Only auto-trigger bias analysis if:
+      // 1. Job is analyzed 
+      // 2. No existing bias analysis found
+      // 3. Haven't attempted bias analysis yet
+      // 4. Not currently analyzing
+      if (jobData.isAnalyzed && !existingBiasAnalysis && !hasAttemptedBiasAnalysis && !isBiasAnalyzing) {
         console.log("Job analysis complete, automatically starting new bias analysis via API");
         setIsBiasAnalyzing(true);
+        setHasAttemptedBiasAnalysis(true);
         biasAnalyzeMutation.mutate();
       }
     }
-  }, [jobId, jobData, biasAnalysis, isBiasAnalyzing]);
+  }, [jobData, hasAttemptedBiasAnalysis, isBiasAnalyzing]); // Removed biasAnalysis from deps to prevent loop
 
   // Handle analyze bias button click
   const handleAnalyzeBias = () => {
     setIsBiasAnalyzing(true);
+    setHasAttemptedBiasAnalysis(true);
     biasAnalyzeMutation.mutate();
   };
 
@@ -197,59 +236,11 @@ export default function BiasDetectionPage() {
     updateJobDescriptionMutation.mutate(biasAnalysis.improvedDescription);
   };
 
-  // Determine if job analysis is complete - log more detailed information to help debug
+  // Simplified job status tracking
   const hasAnalysis = !!jobData?.analysis;
   const hasBiasAnalysis = !!jobData?.analysis?.biasAnalysis || !!jobData?.analyzedData?.biasAnalysis;
   const isJobAnalyzed = !!jobData?.isAnalyzed;
-  console.log(`Job status: hasAnalysis=${hasAnalysis}, hasBiasAnalysis=${hasBiasAnalysis}, isJobAnalyzed=${isJobAnalyzed}`);
-  
-  // Job is analyzed if any of these conditions are true
   const isJobAnalysisComplete = isJobAnalyzed || hasBiasAnalysis;
-  
-  // IMMEDIATE ACTION: If we have bias analysis data in the job but no biasAnalysis state
-  // This effect runs immediately after jobData is available
-  useEffect(() => {
-    const existingBiasAnalysis = jobData?.analysis?.biasAnalysis || jobData?.analyzedData?.biasAnalysis;
-    
-    if (jobData && existingBiasAnalysis && !biasAnalysis) {
-      console.log("IMMEDIATE ACTION: Setting bias analysis from job data");
-      
-      const existingAnalysis = existingBiasAnalysis;
-      
-      // Create biased phrase object if bias exists
-      let biasedPhrases: { phrase: string, reason: string }[] = [];
-      
-      // Special handling for case with hasBias = true
-      if (existingAnalysis.hasBias) {
-        // Extract biased phrases from description or use explanation
-        let biasedPhrase = "";
-        if (jobData.description.includes("future builders of Roblox")) {
-          biasedPhrase = "future builders of Roblox";
-        }
-        
-        biasedPhrases = [{ 
-          phrase: biasedPhrase || "(See explanation below)", 
-          reason: existingAnalysis.explanation || "This phrase may discourage diverse candidates."
-        }];
-      }
-      
-      // Convert server format to UI format, handling schema differences
-      setBiasAnalysis({
-        hasBias: existingAnalysis.hasBias,
-        biasTypes: existingAnalysis.biasTypes || [],
-        biasedPhrases: biasedPhrases,
-        // Handle different field names in different response schemas
-        suggestions: existingAnalysis.suggestedImprovements || existingAnalysis.suggestions || [],
-        improvedDescription: existingAnalysis.improvedDescription || 
-          (existingAnalysis.hasBias ? 
-            jobData.description.replace(
-              "future builders of Roblox", 
-              "talented professionals at Roblox"
-            ) : 
-            jobData.description)
-      });
-    }
-  }, [jobData, biasAnalysis]);
 
   return (
     <div className="flex flex-col min-h-screen">
