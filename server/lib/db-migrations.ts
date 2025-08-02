@@ -57,6 +57,8 @@ async function executeMigration(migration: Migration): Promise<void> {
   // In development, they're in server/migrations/
   // Try multiple possible paths for migration files
   const possiblePaths = [
+    // Production build path (Railway)
+    path.join(process.cwd(), 'build', 'migrations', migration.filename),
     // Nixpacks copied path
     path.join(process.cwd(), 'dist', 'migrations', migration.filename),
     // Original development path
