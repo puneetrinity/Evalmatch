@@ -65,7 +65,13 @@ export default function BiasDetectionPage() {
     queryFn: async () => {
       try {
         const response = await apiRequest("GET", `/api/job-descriptions/${jobId}`);
-        return response.json();
+        const data = await response.json();
+        // Extract jobDescription from the response
+        if (data.jobDescription) {
+          // Add isAnalyzed flag from the parent response
+          return { ...data.jobDescription, isAnalyzed: data.isAnalyzed };
+        }
+        return data;
       } catch (error) {
         // Handle 404 errors gracefully
         if (error instanceof Error && error.message.includes('404')) {

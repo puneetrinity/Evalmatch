@@ -114,7 +114,13 @@ export default function AnalysisPage() {
     queryKey: [`/api/job-descriptions/${jobId}`],
     queryFn: async ({ queryKey }) => {
       const response = await apiRequest("GET", String(queryKey[0]));
-      return response.json();
+      const data = await response.json();
+      // Extract jobDescription from the response
+      if (data.jobDescription) {
+        // Add isAnalyzed flag from the parent response
+        return { ...data.jobDescription, isAnalyzed: data.isAnalyzed };
+      }
+      return data;
     },
     enabled: !!jobId,
     retry: 1

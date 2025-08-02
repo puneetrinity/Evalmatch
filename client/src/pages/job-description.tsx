@@ -34,8 +34,8 @@ export default function JobDescriptionPage() {
       });
       
       // Navigate to bias detection page with job ID
-      console.log('Job created with ID:', data.id);
-      setLocation(`/bias-detection/${data.id}`);
+      console.log('Job created with ID:', data.jobDescription?.id);
+      setLocation(`/bias-detection/${data.jobDescription?.id}`);
     },
     onError: (error) => {
       toast({
