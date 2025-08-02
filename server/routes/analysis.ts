@@ -137,6 +137,8 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
           fairnessMetrics: matchAnalysis.fairnessMetrics
         });
 
+        logger.info(`Analysis result saved for resume ${resume.id}, job ${jobId}, match ${matchAnalysis.matchPercentage}%`);
+
         return {
           resumeId: resume.id,
           filename: resume.filename,
@@ -238,7 +240,7 @@ router.get("/analyze/:jobId", authenticateUser, async (req: Request, res: Respon
       });
     }
 
-    logger.info(`Getting analysis results for job ${jobId}, user ${userId}`);
+    logger.info(`Getting analysis results for job ${jobId}, user ${userId}, session ${sessionId || 'none'}`);
 
     // Get job description
     const jobDescription = await storage.getJobDescriptionById(jobId, userId);
@@ -249,16 +251,28 @@ router.get("/analyze/:jobId", authenticateUser, async (req: Request, res: Respon
       });
     }
 
+    // Check for available resumes first
+    const userResumes = await storage.getResumesByUserId(userId, sessionId);
+    logger.info(`Found ${userResumes.length} resumes for user ${userId} with session ${sessionId || 'none'}`);
+
     // Get analysis results
     const analysisResults = await storage.getAnalysisResultsByJob(jobId, userId, sessionId);
+    logger.info(`Found ${analysisResults.length} analysis results for job ${jobId}`);
 
     if (!analysisResults || analysisResults.length === 0) {
       return res.json({
         status: "ok",
-        message: "No analysis results found",
+        message: userResumes.length === 0 
+          ? "No resumes found for analysis. Please upload resumes first."
+          : "No analysis results found. Click 'Analyze Resumes' to run analysis.",
         jobDescriptionId: jobId,
         jobTitle: jobDescription.title,
-        results: []
+        results: [],
+        debug: {
+          resumesAvailable: userResumes.length,
+          sessionId: sessionId || 'none',
+          analysisResultsFound: analysisResults.length
+        }
       });
     }
 
@@ -511,24 +525,30 @@ router.post("/analyze-bias/:jobId", authenticateUser, async (req: Request, res: 
     );
 
     logger.info(`Bias analysis completed for job ${jobId}`, {
-      hasBias: biasAnalysis.overallScore < 80, // Assuming lower score means more bias
-      score: biasAnalysis.overallScore
+      hasBias: biasAnalysis.hasBias,
+      biasTypes: biasAnalysis.biasTypes?.length || 0
     });
+
+    // Save bias analysis to storage
+    try {
+      await storage.updateJobDescriptionBiasAnalysis(jobId, biasAnalysis);
+      logger.info(`Bias analysis saved for job ${jobId}`);
+    } catch (storageError) {
+      logger.warn('Failed to save bias analysis to storage:', storageError);
+      // Continue with response even if storage fails
+    }
 
     // Format response to match frontend expectations
     const response = {
       status: "success",
       message: "Bias analysis completed",
       biasAnalysis: {
-        hasBias: (biasAnalysis.overallScore || 100) < 80,
-        biasTypes: biasAnalysis.biasIndicators?.map(b => b.type) || [],
-        biasedPhrases: biasAnalysis.biasIndicators?.map(b => ({
-          phrase: b.text || '',
-          reason: b.suggestion || ''
-        })) || [],
-        suggestions: biasAnalysis.recommendations || [],
-        improvedDescription: jobDescription.description, // TODO: Generate improved version
-        biasConfidenceScore: biasAnalysis.overallScore || 100,
+        hasBias: biasAnalysis.hasBias,
+        biasTypes: biasAnalysis.biasTypes || [],
+        biasedPhrases: biasAnalysis.biasedPhrases || [],
+        suggestions: biasAnalysis.suggestions || [],
+        improvedDescription: biasAnalysis.improvedDescription || jobDescription.description,
+        biasConfidenceScore: biasAnalysis.overallScore || (biasAnalysis.hasBias ? 60 : 95),
         fairnessAssessment: biasAnalysis.summary || 'Analysis completed'
       }
     };

@@ -32,6 +32,26 @@ export interface AnalyzedResumeData {
   }>;
 }
 
+// Bias analysis response type
+export interface SimpleBiasAnalysis {
+  hasBias: boolean;
+  biasTypes: string[];
+  biasedPhrases: Array<{
+    phrase: string;
+    reason: string;
+  }>;
+  suggestions: string[];
+  improvedDescription: string;
+  overallScore?: number;
+  summary?: string;
+  biasIndicators?: Array<{
+    type: string;
+    text: string;
+    suggestion: string;
+  }>;
+  recommendations?: string[];
+}
+
 export interface AnalyzedJobData {
   requiredSkills: string[];
   preferredSkills: string[];
@@ -48,6 +68,7 @@ export interface AnalyzedJobData {
   benefits?: string[];
   workArrangement?: 'remote' | 'hybrid' | 'onsite';
   companySize?: 'startup' | 'small' | 'medium' | 'large' | 'enterprise';
+  biasAnalysis?: SimpleBiasAnalysis;
 }
 
 // Enhanced skill matching types
@@ -531,7 +552,11 @@ export interface InterviewScriptResponse {
   };
 }
 
-export interface BiasAnalysisResponse {
+// Simple bias analysis response from AI providers
+export type BiasAnalysisResponse = SimpleBiasAnalysis;
+
+// Complex system-wide bias analysis response (for comprehensive analysis)
+export interface SystemBiasAnalysisResponse {
   jobId: JobId;
   analysisId: AnalysisId;
   overallFairnessScore: number;

@@ -5,7 +5,7 @@ import {
   type InterviewQuestions, type InsertInterviewQuestions,
   type AnalyzeResumeResponse, type AnalyzeJobDescriptionResponse, 
   type MatchAnalysisResponse, type InterviewQuestionsResponse,
-  type User, type InsertUser
+  type User, type InsertUser, type SimpleBiasAnalysis
 } from "@shared/schema";
 import { UserTierInfo } from "@shared/user-tiers";
 
@@ -32,6 +32,7 @@ export interface IStorage {
   createJobDescription(jobDescription: InsertJobDescription): Promise<JobDescription>;
   updateJobDescription(id: number, updates: Partial<JobDescription>): Promise<JobDescription>;
   updateJobDescriptionAnalysis(id: number, analysis: AnalyzeJobDescriptionResponse): Promise<JobDescription>;
+  updateJobDescriptionBiasAnalysis(id: number, biasAnalysis: SimpleBiasAnalysis): Promise<JobDescription>;
   deleteJobDescription(id: number): Promise<void>;
   
   // Analysis results methods
@@ -239,6 +240,24 @@ export class MemStorage implements IStorage {
     const updatedJobDescription: JobDescription = {
       ...jobDescription,
       analyzedData: analysis,
+    };
+    
+    this.jobDescriptionsData.set(id, updatedJobDescription);
+    return updatedJobDescription;
+  }
+
+  async updateJobDescriptionBiasAnalysis(id: number, biasAnalysis: SimpleBiasAnalysis): Promise<JobDescription> {
+    const jobDescription = await this.getJobDescription(id);
+    if (!jobDescription) {
+      throw new Error(`Job description with ID ${id} not found`);
+    }
+    
+    const updatedJobDescription: JobDescription = {
+      ...jobDescription,
+      analyzedData: {
+        ...jobDescription.analyzedData,
+        biasAnalysis: biasAnalysis,
+      } as any, // Handle null analyzedData case
     };
     
     this.jobDescriptionsData.set(id, updatedJobDescription);
