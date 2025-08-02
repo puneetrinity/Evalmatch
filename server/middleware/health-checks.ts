@@ -1428,22 +1428,25 @@ export async function basicHealthCheck(req: Request, res: Response): Promise<voi
     const responseTime = Date.now() - startTime;
     
     const response = {
-      status,
-      timestamp: new Date().toISOString(),
-      responseTime,
-      version: process.env.npm_package_version || '1.0.0',
-      environment: config.env,
-      requestId,
-      checks: essentialChecks.map(check => ({
-        name: check.name,
-        status: check.status,
-        responseTime: check.responseTime
-      })),
-      metadata: {
-        checkType: 'basic',
-        checksPerformed: essentialChecks.length,
-        cacheHitRate: calculateCacheHitRate(),
-      }
+      success: status !== 'unhealthy',
+      data: {
+        status,
+        uptime: Math.round(process.uptime()),
+        version: process.env.npm_package_version || '1.0.0',
+        environment: config.env,
+        requestId,
+        checks: essentialChecks.map(check => ({
+          name: check.name,
+          status: check.status,
+          responseTime: check.responseTime
+        })),
+        metadata: {
+          checkType: 'basic',
+          checksPerformed: essentialChecks.length,
+          cacheHitRate: calculateCacheHitRate(),
+        }
+      },
+      timestamp: new Date().toISOString()
     };
     
     // Determine HTTP status code based on health status
@@ -1492,20 +1495,11 @@ export async function basicHealthCheck(req: Request, res: Response): Promise<voi
     }, 'Basic health check failed');
     
     res.status(503).json({
-      status: 'unhealthy',
-      timestamp: new Date().toISOString(),
-      responseTime,
-      requestId,
-      error: {
-        message: 'Health check system failure',
-        code: 'HEALTH_CHECK_ERROR',
-        details: config.env === 'development' ? error.message : undefined
-      },
-      metadata: {
-        checkType: 'basic',
-        checksPerformed: 0,
-        systemError: true
-      }
+      success: false,
+      error: 'Health check system failure',
+      message: config.env === 'development' ? error.message : 'Internal health check error',
+      code: 'HEALTH_CHECK_ERROR',
+      timestamp: new Date().toISOString()
     });
   }
 }
@@ -1540,41 +1534,44 @@ export async function detailedHealthCheck(req: Request, res: Response): Promise<
     
     const performanceMetrics = getPerformanceMetrics();
     
-    const response: HealthStatus = {
-      status: overallStatus,
-      timestamp: new Date().toISOString(),
-      uptime: Math.round(process.uptime()),
-      version: process.env.npm_package_version || '1.0.0',
-      environment: config.env,
-      requestId,
-      checks,
-      summary: {
-        ...summary,
-        critical: checks.filter(c => isCriticalCheck(c.name) && c.status === 'unhealthy').length,
-        warnings: checks.filter(c => c.status === 'degraded').length
-      },
-      performance: {
-        responseTime,
-        cacheHitRate: performanceMetrics.cache.hitRate,
-        averageCheckTime: performanceMetrics.performance.averageResponseTime,
-        slowestCheck: performanceMetrics.performance.slowestCheck,
-        fastestCheck: performanceMetrics.performance.fastestCheck,
-        totalRequests: performanceMetrics.cache.totalRequests,
-        recommendations: performanceMetrics.recommendations
-      },
-      metadata: {
-        checkType: 'detailed',
-        responseTime,
-        performanceThresholds: {
-          responseTimeWarning: '2000ms',
-          responseTimeCritical: '5000ms',
-          successRateWarning: '95%',
-          successRateCritical: '90%',
-          cacheHitRateTarget: '70%'
+    const response = {
+      success: overallStatus !== 'unhealthy',
+      data: {
+        status: overallStatus,
+        uptime: Math.round(process.uptime()),
+        version: process.env.npm_package_version || '1.0.0',
+        environment: config.env,
+        requestId,
+        checks,
+        summary: {
+          ...summary,
+          critical: checks.filter(c => isCriticalCheck(c.name) && c.status === 'unhealthy').length,
+          warnings: checks.filter(c => c.status === 'degraded').length
         },
-        nextScheduledCheck: new Date(Date.now() + CACHE_TTL).toISOString(),
-        cacheStatistics: performanceMetrics.cache
-      }
+        performance: {
+          responseTime,
+          cacheHitRate: performanceMetrics.cache.hitRate,
+          averageCheckTime: performanceMetrics.performance.averageResponseTime,
+          slowestCheck: performanceMetrics.performance.slowestCheck,
+          fastestCheck: performanceMetrics.performance.fastestCheck,
+          totalRequests: performanceMetrics.cache.totalRequests,
+          recommendations: performanceMetrics.recommendations
+        },
+        metadata: {
+          checkType: 'detailed',
+          responseTime,
+          performanceThresholds: {
+            responseTimeWarning: '2000ms',
+            responseTimeCritical: '5000ms',
+            successRateWarning: '95%',
+            successRateCritical: '90%',
+            cacheHitRateTarget: '70%'
+          },
+          nextScheduledCheck: new Date(Date.now() + CACHE_TTL).toISOString(),
+          cacheStatistics: performanceMetrics.cache
+        }
+      },
+      timestamp: new Date().toISOString()
     };
     
     // Determine HTTP status code with more granular logic
@@ -1635,30 +1632,11 @@ export async function detailedHealthCheck(req: Request, res: Response): Promise<
     }, 'Detailed health check failed');
     
     res.status(503).json({
-      status: 'unhealthy',
-      timestamp: new Date().toISOString(),
-      responseTime,
-      requestId,
-      error: {
-        message: 'Health check system failure',
-        code: 'HEALTH_CHECK_ERROR',
-        type: 'system_error',
-        details: config.env === 'development' ? error.message : 'Internal health check error'
-      },
-      summary: {
-        total: 0,
-        healthy: 0,
-        degraded: 0,
-        unhealthy: 0,
-        successRate: 0,
-        averageResponseTime: responseTime
-      },
-      metadata: {
-        checkType: 'detailed',
-        responseTime,
-        systemError: true,
-        checksPerformed: 0
-      }
+      success: false,
+      error: 'Health check system failure',
+      message: config.env === 'development' ? error.message : 'Internal health check error',
+      code: 'HEALTH_CHECK_ERROR',
+      timestamp: new Date().toISOString()
     });
   }
 }
@@ -1709,31 +1687,32 @@ export async function livenessProbe(req: Request, res: Response): Promise<void> 
     const httpStatus = isAlive ? 200 : 503;
     
     const response = {
-      status,
-      timestamp: new Date().toISOString(),
-      responseTime,
-      requestId,
-      uptime,
-      message: isAlive 
-        ? `Application is alive (uptime: ${uptime}s)` 
-        : 'Application requires restart',
-      details: {
-        processId: process.pid,
-        nodeVersion: process.version,
-        platform: process.platform,
-        memoryUsagePercent: heapUsagePercent,
-        heapUsedMB: Math.round(memoryUsage.heapUsed / 1024 / 1024),
-        heapTotalMB: Math.round(memoryUsage.heapTotal / 1024 / 1024)
-      },
-      issues: issues.length > 0 ? issues : undefined,
-      metadata: {
-        probeType: 'liveness',
-        thresholds: {
-          memoryWarning: '95%',
-          responseTimeWarning: '10000ms',
-          minimumUptime: '5s'
+      success: isAlive,
+      data: {
+        status,
+        uptime,
+        message: isAlive 
+          ? `Application is alive (uptime: ${uptime}s)` 
+          : 'Application requires restart',
+        details: {
+          processId: process.pid,
+          nodeVersion: process.version,
+          platform: process.platform,
+          memoryUsagePercent: heapUsagePercent,
+          heapUsedMB: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+          heapTotalMB: Math.round(memoryUsage.heapTotal / 1024 / 1024)
+        },
+        issues: issues.length > 0 ? issues : undefined,
+        metadata: {
+          probeType: 'liveness',
+          thresholds: {
+            memoryWarning: '95%',
+            responseTimeWarning: '10000ms',
+            minimumUptime: '5s'
+          }
         }
-      }
+      },
+      timestamp: new Date().toISOString()
     };
     
     res.status(httpStatus).json(response);
@@ -1767,17 +1746,11 @@ export async function livenessProbe(req: Request, res: Response): Promise<void> 
     
     // If we can't even run the liveness check, the app is likely dead
     res.status(503).json({
-      status: 'dead',
-      timestamp: new Date().toISOString(),
-      responseTime,
-      requestId,
-      message: 'Liveness probe system failure - application may be dead',
-      error: {
-        message: 'Unable to determine liveness status',
-        code: 'LIVENESS_PROBE_ERROR',
-        details: config.env === 'development' ? error.message : undefined
-      },
-      recommendation: 'Restart application immediately'
+      success: false,
+      error: 'Liveness probe system failure',
+      message: config.env === 'development' ? error.message : 'Unable to determine liveness status',
+      code: 'LIVENESS_PROBE_ERROR',
+      timestamp: new Date().toISOString()
     });
   }
 }
@@ -1847,37 +1820,38 @@ export async function readinessProbe(req: Request, res: Response): Promise<void>
     const httpStatus = isReady ? 200 : 503;
     
     const response = {
-      status,
-      timestamp: new Date().toISOString(),
-      responseTime,
-      requestId,
-      uptime,
-      message,
-      ready: isReady,
-      checks: {
-        critical: criticalChecks.map(check => ({
-          name: check.name,
-          status: check.status,
-          responseTime: check.responseTime,
-          message: check.message
-        })),
-        summary: {
-          total: criticalChecks.length,
-          healthy: healthyChecks.length,
-          degraded: degradedChecks.length,
-          unhealthy: unhealthyChecks.length
+      success: isReady,
+      data: {
+        status,
+        uptime,
+        message,
+        ready: isReady,
+        checks: {
+          critical: criticalChecks.map(check => ({
+            name: check.name,
+            status: check.status,
+            responseTime: check.responseTime,
+            message: check.message
+          })),
+          summary: {
+            total: criticalChecks.length,
+            healthy: healthyChecks.length,
+            degraded: degradedChecks.length,
+            unhealthy: unhealthyChecks.length
+          }
+        },
+        recommendation,
+        metadata: {
+          probeType: 'readiness',
+          criticalSystemsRequired: ['database', 'system_resources', 'memory'],
+          thresholds: {
+            minimumUptime: '10s',
+            maxDegradedSystems: '50%',
+            maxUnhealthySystems: '0'
+          }
         }
       },
-      recommendation,
-      metadata: {
-        probeType: 'readiness',
-        criticalSystemsRequired: ['database', 'system_resources', 'memory'],
-        thresholds: {
-          minimumUptime: '10s',
-          maxDegradedSystems: '50%',
-          maxUnhealthySystems: '0'
-        }
-      }
+      timestamp: new Date().toISOString()
     };
     
     res.status(httpStatus).json(response);
@@ -1912,22 +1886,11 @@ export async function readinessProbe(req: Request, res: Response): Promise<void>
     }, 'Readiness probe failed');
     
     res.status(503).json({
-      status: 'not_ready',
-      timestamp: new Date().toISOString(),
-      responseTime,
-      requestId,
-      ready: false,
-      message: 'Readiness check system failure',
-      error: {
-        message: 'Unable to determine readiness status',
-        code: 'READINESS_PROBE_ERROR',
-        details: config.env === 'development' ? error.message : undefined
-      },
-      recommendation: 'Check application logs and system health',
-      metadata: {
-        probeType: 'readiness',
-        systemError: true
-      }
+      success: false,
+      error: 'Readiness check system failure',
+      message: config.env === 'development' ? error.message : 'Unable to determine readiness status',
+      code: 'READINESS_PROBE_ERROR',
+      timestamp: new Date().toISOString()
     });
   }
 }

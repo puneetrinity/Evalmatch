@@ -33,16 +33,19 @@ router.get("/migration-status", async (req: Request, res: Response) => {
     const status = await getMigrationStatus();
     
     res.json({
-      status: "ok",
-      migrations: status,
+      success: true,
+      data: {
+        migrations: status
+      },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     logger.error('Migration status check failed:', error);
     res.status(500).json({
-      status: "error",
-      message: "Failed to check migration status",
-      error: error instanceof Error ? error.message : 'Unknown error'
+      success: false,
+      error: "Failed to check migration status",
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -76,16 +79,20 @@ router.get("/db-status", async (req: Request, res: Response) => {
     }
 
     res.json({
-      status: dbHealthStatus.available ? "healthy" : "degraded",
-      database: dbHealthStatus,
+      success: true,
+      data: {
+        status: dbHealthStatus.available ? "healthy" : "degraded",
+        database: dbHealthStatus
+      },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     logger.error('Database status check failed:', error);
     res.status(500).json({
-      status: "error",
-      message: "Failed to check database status",
-      error: error instanceof Error ? error.message : 'Unknown error'
+      success: false,
+      error: "Failed to check database status",
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -111,15 +118,17 @@ router.get("/debug", async (req: Request, res: Response) => {
     };
 
     res.json({
-      status: "ok",
-      debug: debugInfo
+      success: true,
+      data: debugInfo,
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     logger.error('Debug endpoint error:', error);
     res.status(500).json({
-      status: "error",
-      message: "Failed to get debug information",
-      error: error instanceof Error ? error.message : 'Unknown error'
+      success: false,
+      error: "Failed to get debug information",
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -159,15 +168,19 @@ router.get("/service-status", async (req: Request, res: Response) => {
     }
 
     res.json({
-      status: "ok",
-      services
+      success: true,
+      data: {
+        services
+      },
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     logger.error('Service status check failed:', error);
     res.status(500).json({
-      status: "error",
-      message: "Failed to check service status",
-      error: error instanceof Error ? error.message : 'Unknown error'
+      success: false,
+      error: "Failed to check service status",
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
     });
   }
 });

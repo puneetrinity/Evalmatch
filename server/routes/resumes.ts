@@ -23,16 +23,20 @@ router.get("/", authenticateUser, async (req: Request, res: Response) => {
     const resumes = await storage.getResumesByUserId(userId, sessionId);
     
     res.json({
-      status: "ok",
-      resumes: resumes || [],
-      count: resumes?.length || 0,
+      success: true,
+      data: {
+        resumes: resumes || [],
+        count: resumes?.length || 0
+      },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     logger.error('Failed to get resumes:', error);
     res.status(500).json({
+      success: false,
       error: "Failed to retrieve resumes",
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -45,8 +49,10 @@ router.get("/:id", authenticateUser, async (req: Request, res: Response) => {
     
     if (isNaN(resumeId)) {
       return res.status(400).json({
+        success: false,
         error: "Invalid resume ID",
-        message: "Resume ID must be a number"
+        message: "Resume ID must be a number",
+        timestamp: new Date().toISOString()
       });
     }
     
@@ -56,21 +62,25 @@ router.get("/:id", authenticateUser, async (req: Request, res: Response) => {
     
     if (!resume) {
       return res.status(404).json({
+        success: false,
         error: "Resume not found",
-        message: "Resume not found or you don't have permission to access it"
+        message: "Resume not found or you don't have permission to access it",
+        timestamp: new Date().toISOString()
       });
     }
     
     res.json({
-      status: "ok",
-      resume,
+      success: true,
+      data: resume,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     logger.error('Failed to get resume:', error);
     res.status(500).json({
+      success: false,
       error: "Failed to retrieve resume",
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -88,8 +98,10 @@ router.post("/",
     
     if (!file) {
       return res.status(400).json({
+        success: false,
         error: "No file uploaded",
-        message: "Please select a resume file to upload"
+        message: "Please select a resume file to upload",
+        timestamp: new Date().toISOString()
       });
     }
 
@@ -110,8 +122,10 @@ router.post("/",
       
       if (!content || content.trim().length === 0) {
         return res.status(400).json({
+          success: false,
           error: "Unable to parse resume",
-          message: "The uploaded file appears to be empty or in an unsupported format"
+          message: "The uploaded file appears to be empty or in an unsupported format",
+          timestamp: new Date().toISOString()
         });
       }
 
@@ -146,22 +160,16 @@ router.post("/",
       });
 
       res.json({
-        status: "success",
-        message: "Resume uploaded and analyzed successfully",
-        resume: {
+        success: true,
+        data: {
           id: resume.id,
           filename: resume.filename,
-          skills: resume.skills,
-          experience: resume.experience,
-          education: resume.education,
-          analyzedData: resume.analyzedData,
-          createdAt: resume.createdAt
+          fileSize: resume.fileSize,
+          fileType: resume.fileType,
+          message: "Resume uploaded and analyzed successfully",
+          processingTime: Date.now() - new Date(resume.createdAt).getTime()
         },
-        analysis: {
-          skillsExtracted: analysis.skills?.length || 0,
-          experienceDetected: analysis.experience !== "0 years",
-          educationFound: (analysis.education?.length || 0) > 0
-        }
+        timestamp: new Date().toISOString()
       });
 
     } catch (error) {
@@ -171,22 +179,28 @@ router.post("/",
       if (error instanceof Error) {
         if (error.message.includes('document parsing')) {
           return res.status(400).json({
+            success: false,
             error: "Document parsing failed",
-            message: "Unable to extract text from the uploaded file. Please ensure it's a valid PDF, Word document, or image."
+            message: "Unable to extract text from the uploaded file. Please ensure it's a valid PDF, Word document, or image.",
+            timestamp: new Date().toISOString()
           });
         }
         
         if (error.message.includes('AI analysis')) {
           return res.status(503).json({
+            success: false,
             error: "Analysis service unavailable",
-            message: "The resume analysis service is temporarily unavailable. Please try again later."
+            message: "The resume analysis service is temporarily unavailable. Please try again later.",
+            timestamp: new Date().toISOString()
           });
         }
       }
 
       res.status(500).json({
+        success: false,
         error: "Resume processing failed",
-        message: error instanceof Error ? error.message : 'Unknown error occurred during resume processing'
+        message: error instanceof Error ? error.message : 'Unknown error occurred during resume processing',
+        timestamp: new Date().toISOString()
       });
     }
   }
@@ -204,8 +218,10 @@ router.post("/batch",
     
     if (!files || files.length === 0) {
       return res.status(400).json({
+        success: false,
         error: "No files uploaded",
-        message: "Please select resume files to upload"
+        message: "Please select resume files to upload",
+        timestamp: new Date().toISOString()
       });
     }
 
@@ -234,32 +250,37 @@ router.post("/batch",
       });
 
       res.json({
-        status: "completed",
-        message: `Processed ${files.length} files: ${successful.length} successful, ${failed.length} failed`,
-        results: {
-          successful: successful.map(r => ({
-            filename: r.filename,
-            resumeId: r.resumeId,
-            skillsCount: r.analysis?.skills?.length || 0
-          })),
-          failed: failed.map(r => ({
-            filename: r.filename,
-            error: r.error
-          }))
+        success: true,
+        data: {
+          message: `Processed ${files.length} files: ${successful.length} successful, ${failed.length} failed`,
+          results: {
+            successful: successful.map(r => ({
+              filename: r.filename,
+              resumeId: r.resumeId,
+              skillsCount: r.analysis?.skills?.length || 0
+            })),
+            failed: failed.map(r => ({
+              filename: r.filename,
+              error: r.error
+            }))
+          },
+          summary: {
+            totalFiles: files.length,
+            successfulUploads: successful.length,
+            failedUploads: failed.length,
+            totalSkillsExtracted: successful.reduce((sum, r) => sum + (r.analysis?.skills?.length || 0), 0)
+          }
         },
-        summary: {
-          totalFiles: files.length,
-          successfulUploads: successful.length,
-          failedUploads: failed.length,
-          totalSkillsExtracted: successful.reduce((sum, r) => sum + (r.analysis?.skills?.length || 0), 0)
-        }
+        timestamp: new Date().toISOString()
       });
 
     } catch (error) {
       logger.error('Batch resume upload failed:', error);
       res.status(500).json({
+        success: false,
         error: "Batch upload failed",
-        message: error instanceof Error ? error.message : 'Unknown error occurred during batch processing'
+        message: error instanceof Error ? error.message : 'Unknown error occurred during batch processing',
+        timestamp: new Date().toISOString()
       });
     }
   }
