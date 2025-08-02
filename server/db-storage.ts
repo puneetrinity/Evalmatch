@@ -299,7 +299,7 @@ export class DatabaseStorage implements IStorage {
       // Sort by created date (newest first) and take the first one
       const latestAnalysis = matchingResults.length > 0 
         ? matchingResults.sort((a, b) => 
-            b.created.getTime() - a.created.getTime()
+            b.createdAt.getTime() - a.createdAt.getTime()
           )[0] 
         : undefined;
       

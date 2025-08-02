@@ -157,7 +157,7 @@ export class MemStorage implements IStorage {
     const resume: Resume = {
       ...insertResume,
       id,
-      created: now,
+      createdAt: now,
       analyzedData: null,
       sessionId, // Ensure sessionId is assigned
     };
@@ -208,7 +208,7 @@ export class MemStorage implements IStorage {
     const jobDescription: JobDescription = {
       ...insertJobDescription,
       id,
-      created: now,
+      createdAt: now,
       analyzedData: null,
     };
     this.jobDescriptionsData.set(id, jobDescription);
@@ -295,7 +295,7 @@ export class MemStorage implements IStorage {
     const analysisResult: AnalysisResult = {
       ...insertAnalysisResult,
       id,
-      created: now,
+      createdAt: now,
     };
     this.analysisResultsData.set(id, analysisResult);
     return analysisResult;
@@ -330,7 +330,7 @@ export class MemStorage implements IStorage {
     const interviewQuestions: InterviewQuestions = {
       ...insertInterviewQuestions,
       id,
-      created: now,
+      createdAt: now,
     };
     this.interviewQuestionsData.set(id, interviewQuestions);
     return interviewQuestions;
@@ -350,7 +350,7 @@ export class MemStorage implements IStorage {
     const analysisResults = await this.getAnalysisResultsByResumeId(resumeId);
     const analysis = analysisResults
       .filter(result => result.jobDescriptionId === jobDescriptionId)
-      .sort((a, b) => b.created.getTime() - a.created.getTime())[0];
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
     
     const questions = await this.getInterviewQuestionByResumeAndJob(resumeId, jobDescriptionId);
     

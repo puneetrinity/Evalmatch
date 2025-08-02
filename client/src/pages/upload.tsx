@@ -330,7 +330,7 @@ export default function UploadPage() {
             Upload up to 100 resumes in PDF, DOC, or DOCX format. We'll analyze them and compare with your job description to find the best matches.
           </p>
           
-          {existingResumes && existingResumes.length > 0 && (
+          {existingResumes && existingResumes.resumes.length > 0 && (
             <div className="mb-8 p-3 border border-blue-200 bg-blue-50 rounded-md text-sm text-blue-800">
               <p className="flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

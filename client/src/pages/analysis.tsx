@@ -56,6 +56,7 @@ interface AnalysisResult {
   candidateWeaknesses: string[];
   recommendations: string[];
   confidenceLevel: 'low' | 'medium' | 'high';
+  analysisId?: AnalysisId;
   scoringDimensions?: {
     skills: number;
     experience: number;
@@ -323,11 +324,11 @@ export default function AnalysisPage() {
         ) : (
           <div className="space-y-6 mb-8">
             {analysisData?.results && analysisData.results.map((result: AnalysisResult) => (
-              <Card key={`resume-${result.resumeId}-analysis-${result.analysisId}`} className="overflow-hidden">
+              <Card key={`resume-${result.resumeId}-analysis-${result.analysisId || 'unknown'}`} className="overflow-hidden">
                 <div className="flex items-center justify-between bg-gray-50 p-4 border-b">
                   <div className="flex items-center">
-                    <div className={`h-12 w-12 rounded-full ${stringToColor(result.candidateName)} flex items-center justify-center font-bold text-xl`}>
-                      {getInitials(result.candidateName)}
+                    <div className={`h-12 w-12 rounded-full ${stringToColor(result.candidateName || result.filename)} flex items-center justify-center font-bold text-xl`}>
+                      {getInitials(result.candidateName || result.filename)}
                     </div>
                     <div className="ml-4">
                       <h3 className="text-lg font-semibold text-gray-900">{result.candidateName || "Unknown Candidate"}</h3>
@@ -338,17 +339,17 @@ export default function AnalysisPage() {
                     <div className="mr-6">
                       <div className="flex items-center gap-4">
                         <div>
-                          <span className="text-3xl font-bold text-primary">{result.match.matchPercentage}%</span>
+                          <span className="text-3xl font-bold text-primary">{result.matchPercentage}%</span>
                           <span className="text-sm text-gray-500 ml-1">match</span>
                         </div>
-                        {result.match.confidenceLevel && (
+                        {result.confidenceLevel && (
                           <div className="flex flex-col items-center">
                             <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              result.match.confidenceLevel === 'high' ? 'bg-green-100 text-green-800' :
-                              result.match.confidenceLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                              result.confidenceLevel === 'high' ? 'bg-green-100 text-green-800' :
+                              result.confidenceLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
                               'bg-red-100 text-red-800'
                             }`}>
-                              {result.match.confidenceLevel} confidence
+                              {result.confidenceLevel} confidence
                             </div>
                           </div>
                         )}
@@ -369,7 +370,7 @@ export default function AnalysisPage() {
                       <div>
                         <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-3">Key Skills</h4>
                         <div className="space-y-3">
-                          {result.match.matchedSkills && result.match.matchedSkills.slice(0, 5).map((skill: any, index: number) => {
+                          {result.matchedSkills && result.matchedSkills.slice(0, 5).map((skill: any, index: number) => {
                             // Extract skill name and match percentage
                             const skillName = typeof skill === 'string' 
                               ? skill 
@@ -420,8 +421,8 @@ export default function AnalysisPage() {
                           <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
                             <SkillRadarChart 
                               matchedSkills={
-                                Array.isArray(result.match.matchedSkills) 
-                                  ? result.match.matchedSkills.map(skill => {
+                                Array.isArray(result.matchedSkills) 
+                                  ? result.matchedSkills.map(skill => {
                                       // Log individual skill for debugging
                                       console.log('Processing skill for radar chart:', skill);
                                       
@@ -435,10 +436,10 @@ export default function AnalysisPage() {
                                         let skillName;
                                         if (typeof skill.skill === 'string' && skill.skill.trim() !== '') {
                                           skillName = skill.skill;
-                                        } else if (typeof skill.name === 'string' && skill.name.trim() !== '') {
-                                          skillName = skill.name;
-                                        } else if (typeof skill.skill_name === 'string' && skill.skill_name.trim() !== '') {
-                                          skillName = skill.skill_name;
+                                        } else if (typeof (skill as any).name === 'string' && (skill as any).name.trim() !== '') {
+                                          skillName = (skill as any).name;
+                                        } else if (typeof (skill as any).skill_name === 'string' && (skill as any).skill_name.trim() !== '') {
+                                          skillName = (skill as any).skill_name;
                                         } else {
                                           skillName = 'Unnamed Skill';
                                         }
@@ -447,8 +448,8 @@ export default function AnalysisPage() {
                                         let matchPct;
                                         if (typeof skill.matchPercentage === 'number') {
                                           matchPct = skill.matchPercentage;
-                                        } else if (typeof skill.match_percentage === 'number') {
-                                          matchPct = skill.match_percentage;
+                                        } else if (typeof (skill as any).match_percentage === 'number') {
+                                          matchPct = (skill as any).match_percentage;
                                         } else {
                                           matchPct = 100;
                                         }
@@ -472,17 +473,17 @@ export default function AnalysisPage() {
                       <div>
                         <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-3">Experience & Missing Skills</h4>
                         <div className="space-y-4">
-                          {result.match.candidateStrengths && result.match.candidateStrengths.slice(0, 2).map((strength, index) => (
+                          {result.candidateStrengths && result.candidateStrengths.slice(0, 2).map((strength, index) => (
                             <div key={index}>
                               <p className="font-medium text-gray-800">{strength}</p>
                             </div>
                           ))}
                           
-                          {result.match.missingSkills?.length > 0 && (
+                          {result.missingSkills?.length > 0 && (
                             <div className="pt-2">
                               <h5 className="text-sm font-medium text-gray-700 mb-2">Missing Skills</h5>
                               <div className="flex flex-wrap gap-2">
-                                {result.match.missingSkills.map((skill, index) => (
+                                {result.missingSkills.map((skill, index) => (
                                   <Badge key={index} variant="outline" className="bg-red-50 text-red-700 border-red-200">
                                     {skill}
                                   </Badge>
@@ -492,31 +493,31 @@ export default function AnalysisPage() {
                           )}
                           
                           {/* Confidence Level Section */}
-                          {result.match.confidenceLevel && (
+                          {result.confidenceLevel && (
                             <div className="pt-4 mt-4 border-t border-gray-200">
                               <h5 className="text-sm font-semibold text-gray-600 mb-3">Analysis Confidence</h5>
                               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                                 <div className="flex items-center justify-between">
                                   <span className="text-sm font-medium text-gray-800">Confidence Level</span>
                                   <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                    result.match.confidenceLevel === 'high' ? 'bg-green-100 text-green-800' :
-                                    result.match.confidenceLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                    result.confidenceLevel === 'high' ? 'bg-green-100 text-green-800' :
+                                    result.confidenceLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
                                     'bg-red-100 text-red-800'
                                   }`}>
-                                    {result.match.confidenceLevel.toUpperCase()}
+                                    {result.confidenceLevel.toUpperCase()}
                                   </div>
                                 </div>
                                 <p className="text-xs text-gray-600 mt-2">
-                                  {result.match.confidenceLevel === 'high' && 'High confidence: Analysis based on comprehensive data with clear skill matches.'}
-                                  {result.match.confidenceLevel === 'medium' && 'Medium confidence: Analysis based on adequate data but some areas may need more information.'}
-                                  {result.match.confidenceLevel === 'low' && 'Low confidence: Analysis based on limited data. Consider providing more detailed information.'}
+                                  {result.confidenceLevel === 'high' && 'High confidence: Analysis based on comprehensive data with clear skill matches.'}
+                                  {result.confidenceLevel === 'medium' && 'Medium confidence: Analysis based on adequate data but some areas may need more information.'}
+                                  {result.confidenceLevel === 'low' && 'Low confidence: Analysis based on limited data. Consider providing more detailed information.'}
                                 </p>
                               </div>
                             </div>
                           )}
                           
                           {/* Fairness Metrics Section */}
-                          {result.match.fairnessMetrics && (
+                          {result.fairnessMetrics && (
                             <div className="pt-4 mt-4 border-t border-gray-200">
                               <h5 className="text-sm font-semibold text-gray-600 mb-3">Fairness Analysis</h5>
                               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
@@ -524,41 +525,41 @@ export default function AnalysisPage() {
                                   <div className="flex justify-between text-sm mb-1">
                                     <span className="font-medium text-gray-800">Bias Confidence Score</span>
                                     <span className={`font-medium ${
-                                      result.match.fairnessMetrics.biasConfidenceScore >= 80 
+                                      result.fairnessMetrics.biasConfidenceScore >= 80 
                                         ? 'text-green-600' 
-                                        : result.match.fairnessMetrics.biasConfidenceScore >= 40 
+                                        : result.fairnessMetrics.biasConfidenceScore >= 40 
                                           ? 'text-amber-600' 
                                           : 'text-red-600'
                                     }`}>
-                                      {result.match.fairnessMetrics.biasConfidenceScore}%
+                                      {result.fairnessMetrics.biasConfidenceScore}%
                                     </span>
                                   </div>
                                   <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div 
                                       className={`rounded-full h-full ${
-                                        result.match.fairnessMetrics.biasConfidenceScore >= 80 
+                                        result.fairnessMetrics.biasConfidenceScore >= 80 
                                           ? 'bg-green-500' 
-                                          : result.match.fairnessMetrics.biasConfidenceScore >= 40 
+                                          : result.fairnessMetrics.biasConfidenceScore >= 40 
                                             ? 'bg-amber-500' 
                                             : 'bg-red-500'
                                       }`} 
-                                      style={{ width: `${result.match.fairnessMetrics.biasConfidenceScore}%` }}
+                                      style={{ width: `${result.fairnessMetrics.biasConfidenceScore}%` }}
                                     ></div>
                                   </div>
                                 </div>
                                 
-                                {result.match.fairnessMetrics.fairnessAssessment && (
+                                {result.fairnessMetrics.fairnessAssessment && (
                                   <p className="text-sm text-gray-700 mt-2">
-                                    {result.match.fairnessMetrics.fairnessAssessment}
+                                    {result.fairnessMetrics.fairnessAssessment}
                                   </p>
                                 )}
                                 
-                                {result.match.fairnessMetrics.potentialBiasAreas && 
-                                  result.match.fairnessMetrics.potentialBiasAreas.length > 0 && (
+                                {result.fairnessMetrics.potentialBiasAreas && 
+                                  result.fairnessMetrics.potentialBiasAreas.length > 0 && (
                                     <div className="mt-3">
                                       <h6 className="text-xs font-medium text-gray-700 mb-2">Potential Bias Areas</h6>
                                       <div className="flex flex-wrap gap-2">
-                                        {result.match.fairnessMetrics.potentialBiasAreas.map((area, index) => (
+                                        {result.fairnessMetrics.potentialBiasAreas.map((area, index) => (
                                           <Badge key={index} variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
                                             {area}
                                           </Badge>

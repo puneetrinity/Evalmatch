@@ -185,7 +185,7 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
       photoURL: decodedToken.picture,
     };
 
-  } catch (error) {
+  } catch (error: any) {
     authStatus.failedVerifications++;
     
     // Log different error types with appropriate levels
@@ -241,7 +241,7 @@ export async function getFirebaseUser(uid: string) {
         lastSignInTime: userRecord.metadata.lastSignInTime,
       },
     };
-  } catch (error) {
+  } catch (error: any) {
     serverAuthLogger.error('Failed to get Firebase user', error, {
       operation: 'get_user',
       uid: uid,

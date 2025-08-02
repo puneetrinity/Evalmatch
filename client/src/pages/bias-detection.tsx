@@ -68,7 +68,7 @@ export default function BiasDetectionPage() {
         return response.json();
       } catch (error) {
         // Handle 404 errors gracefully
-        if (error.message.includes('404')) {
+        if (error instanceof Error && error.message.includes('404')) {
           toast({
             title: "Job not found",
             description: "This job description doesn't exist. Let's create a new one.",

@@ -81,7 +81,7 @@ export class DatabaseStorage implements IStorage {
       return db.select()
         .from(resumes)
         .where(eq(resumes.userId, userId))
-        .orderBy(desc(resumes.created));
+        .orderBy(desc(resumes.createdAt));
     }, `getResumesByUserId(${userId}, ${sessionId || 'all'})`);
   }
   
