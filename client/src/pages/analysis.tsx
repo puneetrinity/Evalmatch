@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -198,7 +198,7 @@ export default function AnalysisPage() {
   });
   
   // Track if we've attempted automatic analysis to prevent loops
-  const hasAttemptedAutoAnalysis = useRef(false);
+  const [hasAttemptedAutoAnalysis, setHasAttemptedAutoAnalysis] = useState(false);
   
   // Remove duplicate interface definition - using shared types
   
@@ -242,7 +242,7 @@ export default function AnalysisPage() {
       sessionId,
       jobId,
       currentBatchId,
-      hasAttempted: hasAttemptedAutoAnalysis.current
+      hasAttempted: hasAttemptedAutoAnalysis
     });
 
     // Check if we should automatically start analysis
@@ -254,13 +254,13 @@ export default function AnalysisPage() {
       sessionId &&                                          // Valid session
       jobId &&                                             // Valid job
       currentBatchId &&                                     // Valid batch
-      !hasAttemptedAutoAnalysis.current                     // Haven't tried auto-analysis yet
+      !hasAttemptedAutoAnalysis                     // Haven't tried auto-analysis yet
     );
 
     console.log('Should auto-analyze:', shouldAutoAnalyze);
 
     if (shouldAutoAnalyze) {
-      hasAttemptedAutoAnalysis.current = true;
+      setHasAttemptedAutoAnalysis(true);
       console.log(`Starting automatic analysis for batch: ${currentBatchId}`);
       toast({
         title: "Starting automatic analysis",
@@ -268,7 +268,7 @@ export default function AnalysisPage() {
       });
       analyzeMutation.mutate();
     }
-  }, [isLoading, analysisData, isAnalyzing, analyzeMutation.isPending, sessionId, jobId, currentBatchId]);
+  }, [isLoading, analysisData, isAnalyzing, analyzeMutation.isPending, sessionId, jobId, currentBatchId, hasAttemptedAutoAnalysis]);
   
   const handleAnalyze = () => {
     analyzeMutation.mutate();
