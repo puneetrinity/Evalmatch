@@ -231,44 +231,28 @@ export default function AnalysisPage() {
     retry: 1
   });
   
-  // Automatic analysis trigger - runs when page loads with resumes but no results
+  // Simplified automatic analysis trigger - runs once when conditions are met
   useEffect(() => {
-    // Debug logging for auto-analysis conditions
-    console.log('Auto-analysis check:', {
-      isLoading,
-      hasResults: analysisData?.results?.length > 0,
-      isAnalyzing,
-      isPending: analyzeMutation.isPending,
-      sessionId,
-      jobId,
-      currentBatchId,
-      hasAttempted: hasAttemptedAutoAnalysis
-    });
-
-    // Check if we should automatically start analysis
-    const shouldAutoAnalyze = (
-      !isLoading &&                                        // Data finished loading
-      (!analysisData?.results || analysisData.results.length === 0) && // No results exist
-      !isAnalyzing &&                                      // Not currently analyzing
-      !analyzeMutation.isPending &&                        // No pending analysis
-      sessionId &&                                          // Valid session
-      jobId &&                                             // Valid job
-      currentBatchId &&                                     // Valid batch
-      !hasAttemptedAutoAnalysis                     // Haven't tried auto-analysis yet
-    );
-
-    console.log('Should auto-analyze:', shouldAutoAnalyze);
-
-    if (shouldAutoAnalyze) {
+    // Only run once when data is loaded and no results exist
+    if (!isLoading && 
+        (!analysisData?.results || analysisData.results.length === 0) && 
+        !hasAttemptedAutoAnalysis && 
+        sessionId && 
+        jobId && 
+        currentBatchId &&
+        !isAnalyzing) {
+      
+      console.log(`Auto-starting analysis for job ${jobId}, batch ${currentBatchId}`);
       setHasAttemptedAutoAnalysis(true);
-      console.log(`Starting automatic analysis for batch: ${currentBatchId}`);
+      
       toast({
-        title: "Starting automatic analysis",
-        description: `Analyzing resumes from current batch...`,
+        title: "Starting analysis",
+        description: "Analyzing resumes automatically...",
       });
+      
       analyzeMutation.mutate();
     }
-  }, [isLoading, analysisData, isAnalyzing, analyzeMutation.isPending, sessionId, jobId, currentBatchId, hasAttemptedAutoAnalysis]);
+  }, [isLoading, analysisData?.results?.length, hasAttemptedAutoAnalysis]);
   
   const handleAnalyze = () => {
     analyzeMutation.mutate();
