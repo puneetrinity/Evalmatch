@@ -42,7 +42,11 @@ router.post("/fix-database", requireAdmin, async (req: Request, res: Response) =
         'ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS candidate_weaknesses JSON',
         'ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS confidence_level VARCHAR(10)',
         'ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS fairness_metrics JSON',
-        'ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS recommendations JSON DEFAULT \'[]\'::json'
+        'ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS recommendations JSON DEFAULT \'[]\'::json',
+        'ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS processing_time INTEGER',
+        'ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS ai_provider TEXT',
+        'ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS model_version TEXT',
+        'ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS processing_flags JSON DEFAULT \'{}\'::json'
       ];
       
       for (const fixQuery of missingColumnFixes) {
