@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { logger } from '../lib/logger';
 
 // Auth endpoints rate limiter - stricter limits to prevent brute force
@@ -46,12 +46,8 @@ export const uploadRateLimiter = rateLimit({
   message: 'Too many file uploads, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
-  // Fix for Railway proxy trust issue
-  trustProxy: false, // Disable trust proxy to avoid security warning
-  keyGenerator: (req) => {
-    // Use x-forwarded-for header if available (Railway sets this)
-    return req.headers['x-forwarded-for'] as string || req.ip || 'unknown';
-  },
+  // Use proper IPv6-compatible key generator
+  keyGenerator: ipKeyGenerator(),
   handler: (req, res) => {
     logger.warn(`Upload rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
