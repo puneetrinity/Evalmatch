@@ -254,7 +254,7 @@ export default function AnalysisPage() {
       });
       analyzeMutation.mutate();
     }
-  }, [isLoading, analysisData, isAnalyzing, analyzeMutation.isPending, sessionId, jobId, currentBatchId, analyzeMutation, toast]);
+  }, [isLoading, analysisData, isAnalyzing, analyzeMutation.isPending, sessionId, jobId, currentBatchId]);
   
   const handleAnalyze = () => {
     analyzeMutation.mutate();
