@@ -48,7 +48,11 @@ router.post("/fix-database", requireAdmin, async (req: Request, res: Response) =
         'ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS model_version TEXT',
         'ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS processing_flags JSON DEFAULT \'{}\'::json',
         'ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-        'ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
+        'ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+        'ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS user_id TEXT',
+        'ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS metadata JSON DEFAULT \'{}\'::json',
+        'ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+        'ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
       ];
       
       for (const fixQuery of missingColumnFixes) {
@@ -104,7 +108,10 @@ router.post("/fix-database", requireAdmin, async (req: Request, res: Response) =
         'CREATE INDEX IF NOT EXISTS idx_job_descriptions_user_id ON job_descriptions(user_id)',
         'CREATE INDEX IF NOT EXISTS idx_analysis_results_user_id ON analysis_results(user_id)',
         'CREATE INDEX IF NOT EXISTS idx_analysis_results_resume_id ON analysis_results(resume_id)',
-        'CREATE INDEX IF NOT EXISTS idx_analysis_results_job_id ON analysis_results(job_description_id)'
+        'CREATE INDEX IF NOT EXISTS idx_analysis_results_job_id ON analysis_results(job_description_id)',
+        'CREATE INDEX IF NOT EXISTS idx_interview_questions_user_id ON interview_questions(user_id)',
+        'CREATE INDEX IF NOT EXISTS idx_interview_questions_resume_id ON interview_questions(resume_id)',
+        'CREATE INDEX IF NOT EXISTS idx_interview_questions_job_id ON interview_questions(job_description_id)'
       ];
       
       for (const indexQuery of indexFixes) {
