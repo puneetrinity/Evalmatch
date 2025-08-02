@@ -26,6 +26,11 @@ const MIGRATIONS: Migration[] = [
     version: '001_consolidated_schema',
     description: 'Consolidated database schema with all fixes',
     filename: '001_consolidated_schema.sql'
+  },
+  {
+    version: '002_add_recommendations_column',
+    description: 'Add recommendations column to analysis_results table',
+    filename: '002_add_recommendations_column.sql'
   }
 ];
 
