@@ -20,7 +20,7 @@ import {
   type AnalysisResult, type InsertAnalysisResult,
   type InterviewQuestions, type InsertInterviewQuestions,
   type AnalyzeResumeResponse, type AnalyzeJobDescriptionResponse,
-  type User, type InsertUser
+  type User, type InsertUser, type SimpleBiasAnalysis
 } from "@shared/schema";
 
 // Keep track of database health
@@ -331,6 +331,15 @@ export class HybridStorage implements IStorage {
       `updateJobDescriptionAnalysis(${id})`,
       () => this.dbStorage.updateJobDescriptionAnalysis(id, analysis),
       () => this.memStorage.updateJobDescriptionAnalysis(id, analysis),
+      true
+    );
+  }
+  
+  async updateJobDescriptionBiasAnalysis(id: number, biasAnalysis: SimpleBiasAnalysis): Promise<JobDescription> {
+    return this.executeWithFallback(
+      `updateJobDescriptionBiasAnalysis(${id})`,
+      () => this.dbStorage.updateJobDescriptionBiasAnalysis(id, biasAnalysis),
+      () => this.memStorage.updateJobDescriptionBiasAnalysis(id, biasAnalysis),
       true
     );
   }
