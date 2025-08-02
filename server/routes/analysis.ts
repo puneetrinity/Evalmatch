@@ -132,6 +132,7 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
           matchPercentage: matchAnalysis.matchPercentage,
           matchedSkills: matchAnalysis.matchedSkills,
           missingSkills: matchAnalysis.missingSkills,
+          analysis: matchAnalysis, // Provide the full analysis object for the required field
           candidateStrengths: matchAnalysis.candidateStrengths,
           candidateWeaknesses: matchAnalysis.candidateWeaknesses,
           confidenceLevel: matchAnalysis.confidenceLevel,

@@ -175,6 +175,7 @@ export const analysisResults = pgTable("analysis_results", {
   matchPercentage: real("match_percentage"),
   matchedSkills: json("matched_skills").$type<SkillMatch[]>(),
   missingSkills: json("missing_skills").$type<string[]>(),
+  analysis: json("analysis").$type<any>().notNull().default({}),
   candidateStrengths: json("candidate_strengths").$type<string[]>(),
   candidateWeaknesses: json("candidate_weaknesses").$type<string[]>(),
   recommendations: json("recommendations").$type<string[]>(),
