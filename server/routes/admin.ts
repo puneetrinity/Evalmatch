@@ -81,6 +81,23 @@ router.post("/fix-database", requireAdmin, async (req: Request, res: Response) =
         }
       }
       
+      // Add batch_id column for batch-based analysis
+      const batchIdFixes = [
+        'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS batch_id TEXT',
+        'CREATE INDEX IF NOT EXISTS idx_resumes_batch_id ON resumes(batch_id)',
+        'CREATE INDEX IF NOT EXISTS idx_resumes_user_batch ON resumes(user_id, batch_id)',
+        'CREATE INDEX IF NOT EXISTS idx_resumes_session_batch ON resumes(session_id, batch_id)'
+      ];
+      
+      for (const batchQuery of batchIdFixes) {
+        try {
+          await db.execute(sql.raw(batchQuery));
+          fixes.push(`✅ ${batchQuery}`);
+        } catch (error: unknown) {
+          fixes.push(`ℹ️ Batch ID fix not needed or failed: ${batchQuery} - ${error.message}`);
+        }
+      }
+      
       // Add indexes if missing
       const indexFixes = [
         'CREATE INDEX IF NOT EXISTS idx_resumes_user_id ON resumes(user_id)',
