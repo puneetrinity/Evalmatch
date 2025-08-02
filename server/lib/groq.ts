@@ -750,11 +750,29 @@ Respond with only the JSON object, no additional text.`;
   try {
     const response = await callGroqAPI(prompt, MODELS.PREMIUM);
     const cleanedResponse = stripMarkdownFromJSON(response);
-    const parsedResponse = JSON.parse(cleanedResponse) as BiasAnalysisResponse;
+    const groqResponse = JSON.parse(cleanedResponse);
     
-    setCachedResponse(cacheKey, parsedResponse);
-    logger.info('Bias analysis completed successfully with Groq');
-    return parsedResponse;
+    // Transform Groq response format to BiasAnalysisResponse format
+    const transformedResponse: BiasAnalysisResponse = {
+      hasBias: groqResponse.biasIndicators && groqResponse.biasIndicators.length > 0,
+      biasTypes: groqResponse.biasIndicators ? groqResponse.biasIndicators.map((indicator: any) => indicator.type) : [],
+      biasedPhrases: groqResponse.biasIndicators ? groqResponse.biasIndicators.map((indicator: any) => ({
+        phrase: indicator.text,
+        reason: indicator.suggestion || `${indicator.type} bias detected`
+      })) : [],
+      suggestions: groqResponse.recommendations || [],
+      improvedDescription: description, // TODO: Generate improved description
+      overallScore: groqResponse.overallScore,
+      summary: groqResponse.summary
+    };
+    
+    setCachedResponse(cacheKey, transformedResponse);
+    logger.info('Bias analysis completed successfully with Groq', {
+      hasBias: transformedResponse.hasBias,
+      biasTypes: transformedResponse.biasTypes.length,
+      overallScore: transformedResponse.overallScore
+    });
+    return transformedResponse;
   } catch (error) {
     logger.error('Error analyzing bias with Groq', error);
     
