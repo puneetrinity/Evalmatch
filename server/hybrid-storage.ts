@@ -240,11 +240,11 @@ export class HybridStorage implements IStorage {
     );
   }
   
-  async getResumesByUserId(userId: string, sessionId?: string): Promise<Resume[]> {
+  async getResumesByUserId(userId: string, sessionId?: string, batchId?: string): Promise<Resume[]> {
     return this.executeWithFallback(
-      `getResumesByUserId(${userId}, ${sessionId})`,
-      () => this.dbStorage.getResumesByUserId(userId, sessionId),
-      () => this.memStorage.getResumesByUserId(userId, sessionId)
+      `getResumesByUserId(${userId}, ${sessionId}, ${batchId})`,
+      () => this.dbStorage.getResumesByUserId(userId, sessionId, batchId),
+      () => this.memStorage.getResumesByUserId(userId, sessionId, batchId)
     );
   }
   
@@ -352,11 +352,11 @@ export class HybridStorage implements IStorage {
     );
   }
 
-  async getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string): Promise<AnalysisResult[]> {
+  async getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string, batchId?: string): Promise<AnalysisResult[]> {
     return this.executeWithFallback(
-      `getAnalysisResultsByJob(${jobId}, ${userId})`,
-      () => this.dbStorage.getAnalysisResultsByJob(jobId, userId, sessionId),
-      () => this.memStorage.getAnalysisResultsByJob(jobId, userId, sessionId)
+      `getAnalysisResultsByJob(${jobId}, ${userId}, ${sessionId}, ${batchId})`,
+      () => this.dbStorage.getAnalysisResultsByJob(jobId, userId, sessionId, batchId),
+      () => this.memStorage.getAnalysisResultsByJob(jobId, userId, sessionId, batchId)
     );
   }
   

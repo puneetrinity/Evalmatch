@@ -92,14 +92,18 @@ export default function AnalysisPage() {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
-  // Get the current session ID from localStorage
+  // Get the current session ID and batch ID from localStorage
   const [sessionId, setSessionId] = useState<SessionId | null>(null);
+  const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
   
-  // Load session ID from localStorage when component mounts
+  // Load session ID and batch ID from localStorage when component mounts
   useEffect(() => {
     const storedSessionId = localStorage.getItem('currentUploadSession');
+    const storedBatchId = localStorage.getItem('currentBatchId');
     setSessionId(storedSessionId as SessionId | null);
+    setCurrentBatchId(storedBatchId);
     console.log(`Loaded upload session for analysis: ${storedSessionId}`);
+    console.log(`Loaded current batch for analysis: ${storedBatchId}`);
   }, []);
   
   // Job data interface moved to top level with proper typing
@@ -131,8 +135,10 @@ export default function AnalysisPage() {
     mutationFn: async (): Promise<AnalysisData> => {
       setIsAnalyzing(true);
       
-      // Include the sessionId in the request body if available
-      const requestBody = sessionId ? { sessionId } : {};
+      // Include the sessionId and batchId in the request body if available
+      const requestBody: { sessionId?: string; batchId?: string } = {};
+      if (sessionId) requestBody.sessionId = sessionId;
+      if (currentBatchId) requestBody.batchId = currentBatchId;
       
       const response = await apiRequest("POST", `/api/analysis/analyze/${jobId}`, requestBody);
       const result = await response.json() as ApiResult<AnalysisData>;
@@ -176,13 +182,17 @@ export default function AnalysisPage() {
     error: fetchError, 
     refetch 
   } = useQuery<AnalysisResponse>({
-    queryKey: [`/api/analysis/analyze/${jobId}`, sessionId],
+    queryKey: [`/api/analysis/analyze/${jobId}`, sessionId, currentBatchId],
     queryFn: async ({ queryKey }) => {
-      const url = sessionId 
-        ? `${queryKey[0]}?sessionId=${encodeURIComponent(sessionId)}`
-        : String(queryKey[0]);
+      const baseUrl = String(queryKey[0]);
+      const params = new URLSearchParams();
       
-      console.log(`Fetching analysis data from: ${url} with session: ${sessionId || 'none'}`);
+      if (sessionId) params.append('sessionId', sessionId);
+      if (currentBatchId) params.append('batchId', currentBatchId);
+      
+      const url = params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
+      
+      console.log(`Fetching analysis data from: ${url} with session: ${sessionId || 'none'} and batch: ${currentBatchId || 'none'}`);
       
       const response = await apiRequest("GET", url);
       const data = await response.json();
@@ -276,6 +286,19 @@ export default function AnalysisPage() {
           <p className="text-gray-600">
             We've analyzed your job description and candidate resumes. Here are the results ranked by overall fit.
           </p>
+          
+          {currentBatchId && (
+            <div className="mt-4 p-3 border border-blue-200 bg-blue-50 rounded-md text-sm text-blue-800">
+              <p className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <span><strong>Analyzing Batch:</strong> {currentBatchId.slice(-8)} - Only resumes from the current upload batch</span>
+              </p>
+            </div>
+          )}
         </div>
         
         {isLoading ? (

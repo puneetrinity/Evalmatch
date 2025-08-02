@@ -16,6 +16,7 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
     const jobId = parseInt(req.params.jobId);
     const userId = req.user!.uid;
     const sessionId = req.body.sessionId;
+    const batchId = req.body.batchId; // Batch ID to filter resumes
     const resumeIds = req.body.resumeIds; // Array of resume IDs to analyze
 
     if (isNaN(jobId)) {
@@ -25,7 +26,7 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
       });
     }
 
-    logger.info(`Starting analysis for job ${jobId}, user ${userId}${sessionId ? `, session ${sessionId}` : ''}`);
+    logger.info(`Starting analysis for job ${jobId}, user ${userId}${sessionId ? `, session ${sessionId}` : ''}${batchId ? `, batch ${batchId}` : ''}`);
 
     // Get job description
     const jobDescription = await storage.getJobDescriptionById(jobId, userId);
@@ -36,8 +37,8 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
       });
     }
 
-    // Get user's resumes
-    let resumes = await storage.getResumesByUserId(userId, sessionId);
+    // Get user's resumes (prioritize batchId filtering over sessionId)
+    let resumes = await storage.getResumesByUserId(userId, sessionId, batchId);
     if (!resumes || resumes.length === 0) {
       return res.status(404).json({
         error: "No resumes found",
@@ -232,6 +233,7 @@ router.get("/analyze/:jobId", authenticateUser, async (req: Request, res: Respon
     const jobId = parseInt(req.params.jobId);
     const userId = req.user!.uid;
     const sessionId = req.query.sessionId as string;
+    const batchId = req.query.batchId as string;
 
     if (isNaN(jobId)) {
       return res.status(400).json({
@@ -240,7 +242,7 @@ router.get("/analyze/:jobId", authenticateUser, async (req: Request, res: Respon
       });
     }
 
-    logger.info(`Getting analysis results for job ${jobId}, user ${userId}, session ${sessionId || 'none'}`);
+    logger.info(`Getting analysis results for job ${jobId}, user ${userId}, session ${sessionId || 'none'}, batch ${batchId || 'none'}`);
 
     // Get job description
     const jobDescription = await storage.getJobDescriptionById(jobId, userId);
@@ -251,12 +253,12 @@ router.get("/analyze/:jobId", authenticateUser, async (req: Request, res: Respon
       });
     }
 
-    // Check for available resumes first
-    const userResumes = await storage.getResumesByUserId(userId, sessionId);
-    logger.info(`Found ${userResumes.length} resumes for user ${userId} with session ${sessionId || 'none'}`);
+    // Check for available resumes first (prioritize batchId filtering)
+    const userResumes = await storage.getResumesByUserId(userId, sessionId, batchId);
+    logger.info(`Found ${userResumes.length} resumes for user ${userId} with session ${sessionId || 'none'} and batch ${batchId || 'none'}`);
 
-    // Get analysis results
-    const analysisResults = await storage.getAnalysisResultsByJob(jobId, userId, sessionId);
+    // Get analysis results (prioritize batchId filtering)
+    const analysisResults = await storage.getAnalysisResultsByJob(jobId, userId, sessionId, batchId);
     logger.info(`Found ${analysisResults.length} analysis results for job ${jobId}`);
 
     if (!analysisResults || analysisResults.length === 0) {
@@ -271,6 +273,7 @@ router.get("/analyze/:jobId", authenticateUser, async (req: Request, res: Respon
         debug: {
           resumesAvailable: userResumes.length,
           sessionId: sessionId || 'none',
+          batchId: batchId || 'none',
           analysisResultsFound: analysisResults.length
         }
       });

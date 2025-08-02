@@ -64,12 +64,22 @@ export default function UploadPage() {
   // Track the current upload session
   const [sessionId, setSessionId] = useState<SessionId | null>(null);
   
+  // Track the current batch ID for this upload operation
+  const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
+  
   // Generate a new random session ID
   const createNewSession = useCallback((): SessionId => {
     const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 10)}` as SessionId;
     setSessionId(newSessionId);
     console.log(`Created new upload session: ${newSessionId}`);
     localStorage.setItem('currentUploadSession', newSessionId);
+    
+    // Create new batch ID for this session
+    const newBatchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    setCurrentBatchId(newBatchId);
+    localStorage.setItem('currentBatchId', newBatchId);
+    console.log(`Created new batch: ${newBatchId}`);
+    
     return newSessionId;
   }, []);
   
@@ -77,11 +87,24 @@ export default function UploadPage() {
   useEffect(() => {
     // Check if we already have a session ID in localStorage
     const existingSessionId = localStorage.getItem('currentUploadSession');
+    const existingBatchId = localStorage.getItem('currentBatchId');
     
     if (existingSessionId) {
       // Use existing session ID
       setSessionId(existingSessionId as SessionId);
       console.log(`Using existing upload session: ${existingSessionId}`);
+      
+      // Use existing batch ID or create new one
+      if (existingBatchId) {
+        setCurrentBatchId(existingBatchId);
+        console.log(`Using existing batch: ${existingBatchId}`);
+      } else {
+        // Create new batch ID for existing session
+        const newBatchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+        setCurrentBatchId(newBatchId);
+        localStorage.setItem('currentBatchId', newBatchId);
+        console.log(`Created new batch for existing session: ${newBatchId}`);
+      }
     } else {
       // Generate a new random session ID if none exists
       createNewSession();
@@ -143,6 +166,11 @@ export default function UploadPage() {
       // Include the session ID in the upload
       if (sessionId) {
         formData.append("sessionId", sessionId);
+      }
+      
+      // Include the current batch ID in the upload
+      if (currentBatchId) {
+        formData.append("batchId", currentBatchId);
       }
       
       // Get auth token and add it to headers manually for FormData requests
@@ -216,9 +244,25 @@ export default function UploadPage() {
     },
   });
 
+  // Create a new batch for the next upload operation
+  const createNewBatch = useCallback(() => {
+    const newBatchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    setCurrentBatchId(newBatchId);
+    localStorage.setItem('currentBatchId', newBatchId);
+    console.log(`Created new batch: ${newBatchId}`);
+    return newBatchId;
+  }, []);
+
   // Handle file selection
   const handleFileSelect = useCallback((selectedFiles: FileList | null) => {
     if (!selectedFiles) return;
+    
+    // Use the current batch ID for all uploads in this session
+    // Don't create a new batch ID here - it should only be created when starting a new session
+    if (!currentBatchId) {
+      const newBatchId = createNewBatch();
+      console.log(`Created new batch for file selection: ${newBatchId}`);
+    }
     
     // Check if adding these files would exceed the limit of 100
     if (files.length + selectedFiles.length > 100) {
@@ -267,7 +311,7 @@ export default function UploadPage() {
       // Upload file
       uploadMutation.mutate(file);
     });
-  }, [files, toast, uploadMutation]);
+  }, [files, toast, uploadMutation, currentBatchId, createNewBatch]);
 
   // Handle file input change
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -330,6 +374,17 @@ export default function UploadPage() {
             Upload up to 100 resumes in PDF, DOC, or DOCX format. We'll analyze them and compare with your job description to find the best matches.
           </p>
           
+          {currentBatchId && (
+            <div className="mb-6 p-3 border border-green-200 bg-green-50 rounded-md text-sm text-green-800">
+              <p className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20,6 9,17 4,12"></polyline>
+                </svg>
+                <span><strong>Current Batch:</strong> {currentBatchId.slice(-8)} - All uploads in this session will be analyzed together. Use "Reset Session" to start a new batch.</span>
+              </p>
+            </div>
+          )}
+          
           {existingResumes && existingResumes.resumes.length > 0 && (
             <div className="mb-8 p-3 border border-blue-200 bg-blue-50 rounded-md text-sm text-blue-800">
               <p className="flex items-center gap-2">
@@ -379,7 +434,7 @@ export default function UploadPage() {
                   queryClient.invalidateQueries({ queryKey: ["/api/resumes"] });
                   toast({
                     title: "Session Reset",
-                    description: "You've started a new upload session.",
+                    description: "You've started a new upload session with a fresh batch.",
                   });
                 }}
                 variant="outline"

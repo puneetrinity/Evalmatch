@@ -267,6 +267,32 @@ BEGIN
                    WHERE table_name = 'analysis_results' AND column_name = 'fairness_metrics') THEN
         ALTER TABLE analysis_results ADD COLUMN fairness_metrics JSON;
     END IF;
+    
+    -- Add missing columns that are causing database errors
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'processing_time') THEN
+        ALTER TABLE analysis_results ADD COLUMN processing_time INTEGER;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'ai_provider') THEN
+        ALTER TABLE analysis_results ADD COLUMN ai_provider VARCHAR(50);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'model_version') THEN
+        ALTER TABLE analysis_results ADD COLUMN model_version VARCHAR(50);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'processing_flags') THEN
+        ALTER TABLE analysis_results ADD COLUMN processing_flags JSON;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'analysis_results' AND column_name = 'recommendations') THEN
+        ALTER TABLE analysis_results ADD COLUMN recommendations JSON DEFAULT '[]'::json;
+    END IF;
 END $$;
 
 -- Add missing columns to interview_questions table

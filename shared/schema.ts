@@ -113,6 +113,7 @@ export const resumes = pgTable("resumes", {
   id: serial("id").primaryKey(),
   userId: text("user_id"),
   sessionId: text("session_id"),
+  batchId: text("batch_id"), // Track which upload batch this resume belongs to
   filename: text("filename").notNull(),
   fileSize: integer("file_size"),
   fileType: text("file_type"),

@@ -28,6 +28,11 @@ const MIGRATIONS: Migration[] = [
     filename: '001_consolidated_schema.sql'
   },
   {
+    version: '002_add_batch_id',
+    description: 'Add batch_id column to resumes table for batch-based analysis',
+    filename: '002_add_batch_id.sql'
+  },
+  {
     version: '002_add_recommendations_column',
     description: 'Add recommendations column to analysis_results table',
     filename: '002_add_recommendations_column.sql'

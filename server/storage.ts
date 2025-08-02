@@ -20,7 +20,7 @@ export interface IStorage {
   getResume(id: number): Promise<Resume | undefined>;
   getResumeById(id: number, userId: string): Promise<Resume | undefined>;
   getResumes(sessionId?: string): Promise<Resume[]>;
-  getResumesByUserId(userId: string, sessionId?: string): Promise<Resume[]>;
+  getResumesByUserId(userId: string, sessionId?: string, batchId?: string): Promise<Resume[]>;
   createResume(resume: InsertResume): Promise<Resume>;
   updateResumeAnalysis(id: number, analysis: AnalyzeResumeResponse): Promise<Resume>;
   
@@ -38,7 +38,7 @@ export interface IStorage {
   // Analysis results methods
   getAnalysisResult(id: number): Promise<AnalysisResult | undefined>;
   getAnalysisResultByJobAndResume(jobId: number, resumeId: number, userId: string): Promise<AnalysisResult | undefined>;
-  getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string): Promise<AnalysisResult[]>;
+  getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string, batchId?: string): Promise<AnalysisResult[]>;
   getAnalysisResultsByResumeId(resumeId: number): Promise<AnalysisResult[]>;
   getAnalysisResultsByJobDescriptionId(jobDescriptionId: number): Promise<AnalysisResult[]>;
   createAnalysisResult(analysisResult: InsertAnalysisResult): Promise<AnalysisResult>;
@@ -135,7 +135,7 @@ export class MemStorage implements IStorage {
     return allResumes.filter(resume => resume.sessionId === sessionId);
   }
 
-  async getResumesByUserId(userId: string, sessionId?: string): Promise<Resume[]> {
+  async getResumesByUserId(userId: string, sessionId?: string, batchId?: string): Promise<Resume[]> {
     const allResumes = Array.from(this.resumesData.values());
     
     // Filter by userId first
@@ -146,6 +146,11 @@ export class MemStorage implements IStorage {
       userResumes = userResumes.filter(resume => resume.sessionId === sessionId);
     }
     
+    // Then filter by batchId if provided (this is the key change for batch analysis)
+    if (batchId) {
+      userResumes = userResumes.filter(resume => resume.batchId === batchId);
+    }
+    
     return userResumes;
   }
 
@@ -154,6 +159,8 @@ export class MemStorage implements IStorage {
     const now = new Date();
     // Make sure sessionId is set to a default value if not provided
     const sessionId = insertResume.sessionId || "default";
+    // Make sure batchId is set to a default value if not provided
+    const batchId = insertResume.batchId || "default";
     
     const resume: Resume = {
       ...insertResume,
@@ -161,6 +168,7 @@ export class MemStorage implements IStorage {
       createdAt: now,
       analyzedData: null,
       sessionId, // Ensure sessionId is assigned
+      batchId, // Ensure batchId is assigned
     };
     this.resumesData.set(id, resume);
     return resume;
@@ -282,12 +290,26 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string): Promise<AnalysisResult[]> {
+  async getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string, batchId?: string): Promise<AnalysisResult[]> {
     const results = Array.from(this.analysisResultsData.values());
-    const filteredResults = results.filter(result => 
+    let filteredResults = results.filter(result => 
       result.jobDescriptionId === jobId && 
       result.userId === userId
     );
+    
+    // If batchId is provided, filter results to only include resumes from that batch
+    if (batchId) {
+      filteredResults = filteredResults.filter(result => {
+        const resume = this.resumesData.get(result.resumeId);
+        return resume && resume.batchId === batchId;
+      });
+    } else if (sessionId) {
+      // Fallback to sessionId filtering if no batchId provided
+      filteredResults = filteredResults.filter(result => {
+        const resume = this.resumesData.get(result.resumeId);
+        return resume && resume.sessionId === sessionId;
+      });
+    }
     
     // Add resume data to each result
     return filteredResults.map(result => ({

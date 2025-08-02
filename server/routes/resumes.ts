@@ -16,11 +16,12 @@ const router = Router();
 router.get("/", authenticateUser, async (req: Request, res: Response) => {
   try {
     const sessionId = req.query.sessionId as string;
+    const batchId = req.query.batchId as string;
     const userId = req.user!.uid;
     
-    logger.info(`Getting resumes for user ${userId}${sessionId ? ` (session: ${sessionId})` : ''}`);
+    logger.info(`Getting resumes for user ${userId}${sessionId ? ` (session: ${sessionId})` : ''}${batchId ? ` (batch: ${batchId})` : ''}`);
     
-    const resumes = await storage.getResumesByUserId(userId, sessionId);
+    const resumes = await storage.getResumesByUserId(userId, sessionId, batchId);
     
     res.json({
       success: true,
@@ -95,6 +96,7 @@ router.post("/",
     const file = req.file;
     const userId = req.user!.uid;
     const sessionId = req.body.sessionId || req.headers['x-session-id'] as string;
+    const batchId = req.body.batchId || req.headers['x-batch-id'] as string;
     
     if (!file) {
       return res.status(400).json({
@@ -110,7 +112,8 @@ router.post("/",
         filename: file.originalname,
         size: file.size,
         mimetype: file.mimetype,
-        sessionId
+        sessionId,
+        batchId
       });
 
       // Parse document content
@@ -141,6 +144,7 @@ router.post("/",
       const resumeData = {
         userId,
         sessionId,
+        batchId,
         filename: file.originalname,
         fileSize: file.size,
         fileType: file.mimetype,

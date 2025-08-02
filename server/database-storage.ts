@@ -5,7 +5,8 @@ import {
   type JobDescription, type InsertJobDescription,
   type AnalysisResult, type InsertAnalysisResult,
   type InterviewQuestions, type InsertInterviewQuestions,
-  type AnalyzeResumeResponse, type AnalyzeJobDescriptionResponse
+  type AnalyzeResumeResponse, type AnalyzeJobDescriptionResponse,
+  type SimpleBiasAnalysis
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -66,23 +67,21 @@ export class DatabaseStorage implements IStorage {
     }, `getResumes(${sessionId || 'all'})`);
   }
   
-  async getResumesByUserId(userId: string, sessionId?: string): Promise<Resume[]> {
+  async getResumesByUserId(userId: string, sessionId?: string, batchId?: string): Promise<Resume[]> {
     return withRetry(async () => {
-      if (sessionId) {
-        return db.select()
-          .from(resumes)
-          .where(and(
-            eq(resumes.userId, userId),
-            eq(resumes.sessionId, sessionId)
-          ))
-          .orderBy(desc(resumes.createdAt));
+      const conditions = [eq(resumes.userId, userId)];
+      
+      if (batchId) {
+        conditions.push(eq(resumes.batchId, batchId));
+      } else if (sessionId) {
+        conditions.push(eq(resumes.sessionId, sessionId));
       }
       
       return db.select()
         .from(resumes)
-        .where(eq(resumes.userId, userId))
+        .where(and(...conditions))
         .orderBy(desc(resumes.createdAt));
-    }, `getResumesByUserId(${userId}, ${sessionId || 'all'})`);
+    }, `getResumesByUserId(${userId}, ${sessionId || 'all'}, ${batchId || 'none'})`);
   }
   
   async createResume(insertResume: InsertResume): Promise<Resume> {
@@ -91,6 +90,7 @@ export class DatabaseStorage implements IStorage {
         filename: insertResume.filename,
         userId: insertResume.userId,
         sessionId: insertResume.sessionId,
+        batchId: insertResume.batchId,
         hasContent: !!insertResume.content,
         contentLength: insertResume.content?.length || 0
       });
@@ -230,6 +230,34 @@ export class DatabaseStorage implements IStorage {
       return updatedJobDescription;
     }, `updateJobDescriptionAnalysis(${id})`);
   }
+
+  async updateJobDescriptionBiasAnalysis(id: number, biasAnalysis: SimpleBiasAnalysis): Promise<JobDescription> {
+    return withRetry(async () => {
+      // First get the existing job description
+      const [existingJob] = await db.select()
+        .from(jobDescriptions)
+        .where(eq(jobDescriptions.id, id));
+      
+      if (!existingJob) {
+        throw new Error(`Job description with ID ${id} not found`);
+      }
+      
+      // Merge bias analysis into existing analyzedData
+      const updatedAnalyzedData = {
+        ...existingJob.analyzedData,
+        biasAnalysis: biasAnalysis
+      };
+      
+      const [updatedJobDescription] = await db.update(jobDescriptions)
+        .set({
+          analyzedData: updatedAnalyzedData
+        })
+        .where(eq(jobDescriptions.id, id))
+        .returning();
+      
+      return updatedJobDescription;
+    }, `updateJobDescriptionBiasAnalysis(${id})`);
+  }
   
   // Analysis result methods
   async getAnalysisResult(id: number): Promise<AnalysisResult | undefined> {
@@ -254,8 +282,21 @@ export class DatabaseStorage implements IStorage {
     }, `getAnalysisResultByJobAndResume(${jobId}, ${resumeId}, ${userId})`);
   }
 
-  async getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string): Promise<AnalysisResult[]> {
+  async getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string, batchId?: string): Promise<AnalysisResult[]> {
     return withRetry(async () => {
+      const conditions = [
+        eq(analysisResults.jobDescriptionId, jobId),
+        eq(analysisResults.userId, userId)
+      ];
+      
+      // Add batch or session filtering conditions for resumes
+      const resumeConditions = [];
+      if (batchId) {
+        resumeConditions.push(eq(resumes.batchId, batchId));
+      } else if (sessionId) {
+        resumeConditions.push(eq(resumes.sessionId, sessionId));
+      }
+      
       const results = await db.select({
         ...analysisResults,
         resume: resumes
@@ -263,8 +304,8 @@ export class DatabaseStorage implements IStorage {
         .from(analysisResults)
         .leftJoin(resumes, eq(analysisResults.resumeId, resumes.id))
         .where(and(
-          eq(analysisResults.jobDescriptionId, jobId),
-          eq(analysisResults.userId, userId)
+          ...conditions,
+          ...(resumeConditions.length > 0 ? resumeConditions : [])
         ))
         .orderBy(desc(analysisResults.createdAt));
       
@@ -273,7 +314,7 @@ export class DatabaseStorage implements IStorage {
         ...result,
         resume: result.resume || undefined
       })) as AnalysisResult[];
-    }, `getAnalysisResultsByJob(${jobId}, ${userId})`);
+    }, `getAnalysisResultsByJob(${jobId}, ${userId}, ${sessionId || 'all'}, ${batchId || 'none'})`);
   }
   
   async getAnalysisResultsByResumeId(resumeId: number): Promise<AnalysisResult[]> {
