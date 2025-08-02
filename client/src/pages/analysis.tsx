@@ -106,6 +106,31 @@ export default function AnalysisPage() {
     console.log(`Loaded current batch for analysis: ${storedBatchId}`);
   }, []);
   
+  // Automatic analysis trigger - run analysis when resumes exist but no results found
+  useEffect(() => {
+    // Only trigger automatic analysis when:
+    // 1. Initial data loading is complete
+    // 2. There are no existing analysis results
+    // 3. Not currently analyzing or in error state
+    // 4. sessionId and jobId are available
+    if (!isLoading && !isAnalyzing && !isError && sessionId && jobId && 
+        (!analysisData?.results || analysisData.results.length === 0) && 
+        !analyzeMutation.isPending) {
+      
+      console.log('Triggering automatic analysis - no results found but session/job available');
+      console.log(`Analysis conditions: isLoading=${isLoading}, isAnalyzing=${isAnalyzing}, isError=${isError}, sessionId=${sessionId}, jobId=${jobId}, resultsCount=${analysisData?.results?.length || 0}`);
+      
+      // Show toast for automatic analysis
+      toast({
+        title: "Starting automatic analysis",
+        description: `Analyzing resumes from batch ${currentBatchId?.slice(-8) || 'current'} against this job description.`,
+      });
+      
+      // Trigger analysis automatically
+      analyzeMutation.mutate();
+    }
+  }, [isLoading, analysisData, sessionId, jobId, isAnalyzing, isError, analyzeMutation, toast, currentBatchId]);
+  
   // Job data interface moved to top level with proper typing
 
   // Fetch job details with authentication
@@ -321,11 +346,14 @@ export default function AnalysisPage() {
           <div className="bg-gray-50 p-8 rounded-lg border text-center">
             <h3 className="text-xl font-medium mb-4">No Analysis Results Available</h3>
             
-            {isAnalyzing ? (
+            {isAnalyzing || analyzeMutation.isPending ? (
               <div className="flex flex-col items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
                 <p className="text-gray-600">Analyzing resumes against job description...</p>
                 <p className="text-sm text-gray-500 mt-2">This may take a moment</p>
+                {sessionId && currentBatchId && (
+                  <p className="text-xs text-blue-600 mt-2">Auto-analyzing batch: {currentBatchId.slice(-8)}</p>
+                )}
               </div>
             ) : (
               <div>
