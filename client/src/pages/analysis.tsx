@@ -178,17 +178,27 @@ export default function AnalysisPage() {
     },
     onError: (error) => {
       console.error("Analysis error:", error);
+      
+      const willRetry = retryCount < MAX_RETRIES;
+      const retryMessage = willRetry ? ` Will retry automatically (${retryCount + 1}/${MAX_RETRIES}).` : " Maximum retries reached.";
+      
       toast({
         title: "Analysis failed",
-        description: error.message || "There was an error analyzing resumes against this job description. Please try again.",
+        description: (error.message || "There was an error analyzing resumes against this job description.") + retryMessage,
         variant: "destructive",
       });
       setIsAnalyzing(false);
+      
+      if (!willRetry) {
+        console.log("❌ MAX RETRIES REACHED - Auto-analysis stopped");
+      }
     },
   });
   
   // Track if we've attempted automatic analysis to prevent loops
   const [hasAttemptedAutoAnalysis, setHasAttemptedAutoAnalysis] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 3;
   
   // Remove duplicate interface definition - using shared types
   
@@ -221,7 +231,19 @@ export default function AnalysisPage() {
     retry: 1
   });
   
-  // Automatic analysis trigger - runs once when conditions are met
+  // Reset auto-analysis flag when currentBatchId changes
+  useEffect(() => {
+    console.log('=== BATCH ID CHANGE EFFECT ===');
+    console.log(`Current batch ID changed to: ${currentBatchId}`);
+    
+    if (currentBatchId) {
+      console.log('✅ Resetting hasAttemptedAutoAnalysis due to batch change');
+      setHasAttemptedAutoAnalysis(false);
+      setRetryCount(0);
+    }
+  }, [currentBatchId]);
+  
+  // Automatic analysis trigger with retry mechanism
   useEffect(() => {
     console.log('=== AUTO ANALYSIS EFFECT TRIGGERED ===');
     console.log(`Conditions check:
@@ -235,35 +257,60 @@ export default function AnalysisPage() {
       - currentBatchId: ${currentBatchId || 'null'}
       - isAnalyzing: ${isAnalyzing}
       - analyzeMutation.isPending: ${analyzeMutation.isPending}
+      - retryCount: ${retryCount}
+      - analyzeMutation.isError: ${analyzeMutation.isError}
     `);
     
     // Only run automatic analysis when:
     // 1. Initial data loading is complete
     // 2. There are no existing analysis results
-    // 3. We haven't attempted auto-analysis yet
+    // 3. We haven't attempted auto-analysis yet OR we're retrying after an error
     // 4. We have sessionId, jobId, and currentBatchId
-    // 5. Not currently analyzing or in error state
-    if (!isLoading && 
+    // 5. Not currently analyzing
+    // 6. Haven't exceeded max retries
+    const shouldAttemptAnalysis = !isLoading && 
         !isError &&
         (!analysisData?.results || analysisData.results.length === 0) && 
-        !hasAttemptedAutoAnalysis && 
+        (!hasAttemptedAutoAnalysis || (analyzeMutation.isError && retryCount < MAX_RETRIES)) && 
         sessionId && 
         jobId && 
         currentBatchId &&
         !isAnalyzing &&
-        !analyzeMutation.isPending) {
+        !analyzeMutation.isPending;
+    
+    if (shouldAttemptAnalysis) {
+      console.log(`✅ AUTO-STARTING ANALYSIS for job ${jobId}, batch ${currentBatchId} (attempt ${retryCount + 1})`);
       
-      console.log(`✅ AUTO-STARTING ANALYSIS for job ${jobId}, batch ${currentBatchId}`);
-      setHasAttemptedAutoAnalysis(true);
-      
-      toast({
-        title: "Starting automatic analysis",
-        description: `Analyzing resumes from batch ${currentBatchId.slice(-8)} against this job description.`,
-      });
+      if (!hasAttemptedAutoAnalysis) {
+        setHasAttemptedAutoAnalysis(true);
+        toast({
+          title: "Starting automatic analysis",
+          description: `Analyzing resumes from batch ${currentBatchId.slice(-8)} against this job description.`,
+        });
+      } else if (analyzeMutation.isError) {
+        console.log(`🔄 RETRYING ANALYSIS (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        setRetryCount(prev => prev + 1);
+        toast({
+          title: "Retrying analysis",
+          description: `Retry attempt ${retryCount + 1} of ${MAX_RETRIES}`,
+        });
+      }
       
       analyzeMutation.mutate();
     } else {
       console.log('❌ Auto-analysis conditions not met');
+      
+      // Log specific reasons why conditions aren't met
+      if (isLoading) console.log('  - Still loading data');
+      if (isError) console.log('  - Error state present');
+      if (analysisData?.results && analysisData.results.length > 0) console.log('  - Analysis results already exist');
+      if (hasAttemptedAutoAnalysis && !analyzeMutation.isError) console.log('  - Already attempted auto-analysis');
+      if (analyzeMutation.isError && retryCount >= MAX_RETRIES) console.log('  - Max retries exceeded');
+      if (!sessionId) console.log('  - Missing sessionId');
+      if (!jobId) console.log('  - Missing jobId');
+      if (!currentBatchId) console.log('  - Missing currentBatchId');
+      if (isAnalyzing) console.log('  - Currently analyzing');
+      if (analyzeMutation.isPending) console.log('  - Mutation pending');
     }
   }, [
     isLoading, 
@@ -275,16 +322,24 @@ export default function AnalysisPage() {
     currentBatchId,
     isAnalyzing,
     analyzeMutation.isPending,
+    analyzeMutation.isError,
+    retryCount,
     analyzeMutation,
     toast
   ]);
   
   const handleAnalyze = () => {
+    console.log('🔄 Manual analysis triggered - resetting retry state');
+    setRetryCount(0);
+    setHasAttemptedAutoAnalysis(true);
     analyzeMutation.mutate();
   };
   
   const handleReAnalyze = () => {
-    handleAnalyze();
+    console.log('🔄 Manual re-analysis triggered - resetting all auto-analysis state');
+    setRetryCount(0);
+    setHasAttemptedAutoAnalysis(false);
+    analyzeMutation.mutate();
   };
   
   const handleViewDetails = (resumeId: number) => {

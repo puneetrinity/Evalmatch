@@ -116,6 +116,12 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
         }
 
         // Perform matching analysis
+        logger.debug('Starting match analysis', {
+          resumeId: resume.id,
+          jobId: jobId
+        });
+        
+        const matchAnalysisStartTime = Date.now();
         const matchAnalysis = await analyzeMatch(
           resumeAnalysis,
           jobAnalysis,
@@ -123,8 +129,25 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
           resume.content,
           jobDescription.description
         );
+        const matchAnalysisTime = Date.now() - matchAnalysisStartTime;
+        
+        logger.debug('Match analysis completed', {
+          resumeId: resume.id,
+          jobId: jobId,
+          matchPercentage: matchAnalysis.matchPercentage,
+          matchedSkills: matchAnalysis.matchedSkills?.length || 0,
+          missingSkills: matchAnalysis.missingSkills?.length || 0,
+          analysisTime: matchAnalysisTime
+        });
 
         // Store analysis result
+        logger.debug('Storing analysis result', {
+          resumeId: resume.id,
+          jobId: jobId,
+          matchPercentage: matchAnalysis.matchPercentage
+        });
+        
+        const dbStoreStartTime = Date.now();
         const analysisResult = await storage.createAnalysisResult({
           userId,
           resumeId: resume.id,
@@ -138,8 +161,18 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
           confidenceLevel: matchAnalysis.confidenceLevel,
           fairnessMetrics: matchAnalysis.fairnessMetrics
         });
+        const dbStoreTime = Date.now() - dbStoreStartTime;
+        const totalResumeTime = Date.now() - resumeProcessStartTime;
 
-        logger.info(`Analysis result saved for resume ${resume.id}, job ${jobId}, match ${matchAnalysis.matchPercentage}%`);
+        logger.info('Resume analysis completed successfully', {
+          resumeId: resume.id,
+          filename: resume.filename,
+          jobId: jobId,
+          matchPercentage: matchAnalysis.matchPercentage,
+          analysisResultId: analysisResult.id,
+          dbStoreTime,
+          totalProcessingTime: totalResumeTime
+        });
 
         return {
           resumeId: resume.id,
@@ -158,7 +191,15 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
         };
 
       } catch (resumeError) {
-        logger.error(`Analysis failed for resume ${resume.id}:`, resumeError);
+        const totalResumeTime = Date.now() - resumeProcessStartTime;
+        logger.error('Resume analysis failed', {
+          resumeId: resume.id,
+          filename: resume.filename,
+          jobId: jobId,
+          error: resumeError instanceof Error ? resumeError.message : 'Unknown error',
+          errorStack: resumeError instanceof Error ? resumeError.stack : undefined,
+          processingTime: totalResumeTime
+        });
         
         return {
           resumeId: resume.id,
@@ -179,27 +220,62 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
     });
 
     // Wait for all parallel processing to complete
+    logger.debug('Waiting for all resume analyses to complete');
     const parallelResults = await Promise.all(matchPromises);
     results.push(...parallelResults);
+    const totalAnalysisTime = Date.now() - analysisStartTime;
 
     // Sort results by match percentage (highest first)
     results.sort((a, b) => (b.match?.matchPercentage || 0) - (a.match?.matchPercentage || 0));
 
     const successfulAnalyses = results.filter(r => !r.error);
     const failedAnalyses = results.filter(r => r.error);
+    const averageMatch = successfulAnalyses.length > 0 
+      ? Math.round(successfulAnalyses.reduce((sum, r) => sum + (r.match?.matchPercentage || 0), 0) / successfulAnalyses.length)
+      : 0;
 
-    logger.info(`Analysis completed for job ${jobId}`, {
+    logger.info('Analysis processing completed', {
+      jobId,
+      userId,
+      sessionId: sessionId || null,
+      batchId: batchId || null,
       totalResumes: resumes.length,
       successful: successfulAnalyses.length,
       failed: failedAnalyses.length,
-      averageMatch: successfulAnalyses.length > 0 
-        ? Math.round(successfulAnalyses.reduce((sum, r) => sum + (r.match?.matchPercentage || 0), 0) / successfulAnalyses.length)
-        : 0
+      successRate: Math.round((successfulAnalyses.length / resumes.length) * 100),
+      averageMatch,
+      totalTime: totalAnalysisTime,
+      avgTimePerResume: Math.round(totalAnalysisTime / resumes.length),
+      userTier: userTierInfo.name,
+      endTime: new Date().toISOString()
     });
 
+    if (failedAnalyses.length > 0) {
+      logger.warn('Some analyses failed', {
+        jobId,
+        failedCount: failedAnalyses.length,
+        failures: failedAnalyses.map(f => ({
+          resumeId: f.resumeId,
+          filename: f.filename,
+          error: f.error
+        }))
+      });
+    }
+
     // Format response to match API contract expectations
+    const analysisId = Date.now();
+    
+    logger.info('Sending analysis response', {
+      analysisId,
+      jobId,
+      resultCount: results.length,
+      successfulCount: successfulAnalyses.length,
+      failedCount: failedAnalyses.length,
+      processingTime: totalAnalysisTime
+    });
+    
     res.json({
-      analysisId: Date.now(), // Generate analysis ID for tracking
+      analysisId,
       jobId: jobId,
       results: results.map(r => ({
         resumeId: r.resumeId,
@@ -216,11 +292,20 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
         scoringDimensions: r.match?.scoringDimensions
       })),
       createdAt: new Date().toISOString(),
-      processingTime: Date.now() - Date.now() // TODO: Track actual processing time
+      processingTime: totalAnalysisTime
     });
 
   } catch (error) {
-    logger.error('Analysis failed:', error);
+    logger.error('Analysis request failed catastrophically', {
+      jobId: parseInt(req.params.jobId),
+      userId: req.user?.uid,
+      sessionId: req.body.sessionId || null,
+      batchId: req.body.batchId || null,
+      resumeIds: req.body.resumeIds || null,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      errorStack: error instanceof Error ? error.stack : undefined
+    });
+    
     res.status(500).json({
       error: "Analysis failed",
       message: error instanceof Error ? error.message : 'Unknown error occurred during analysis'
@@ -243,7 +328,13 @@ router.get("/analyze/:jobId", authenticateUser, async (req: Request, res: Respon
       });
     }
 
-    logger.info(`Getting analysis results for job ${jobId}, user ${userId}, session ${sessionId || 'none'}, batch ${batchId || 'none'}`);
+    logger.info('Getting analysis results request', {
+      jobId,
+      userId,
+      sessionId: sessionId || null,
+      batchId: batchId || null,
+      timestamp: new Date().toISOString()
+    });
 
     // Get job description
     const jobDescription = await storage.getJobDescriptionById(jobId, userId);
@@ -255,14 +346,55 @@ router.get("/analyze/:jobId", authenticateUser, async (req: Request, res: Respon
     }
 
     // Check for available resumes first (prioritize batchId filtering)
+    const resumeFetchStartTime = Date.now();
     const userResumes = await storage.getResumesByUserId(userId, sessionId, batchId);
-    logger.info(`Found ${userResumes.length} resumes for user ${userId} with session ${sessionId || 'none'} and batch ${batchId || 'none'}`);
+    const resumeFetchTime = Date.now() - resumeFetchStartTime;
+    
+    logger.info('Available resumes fetched', {
+      userId,
+      sessionId: sessionId || null,
+      batchId: batchId || null,
+      resumesFound: userResumes.length,
+      fetchTime: resumeFetchTime,
+      resumeDetails: userResumes.map(r => ({
+        id: r.id,
+        filename: r.filename,
+        createdAt: r.createdAt
+      }))
+    });
 
     // Get analysis results (prioritize batchId filtering)
+    const analysisFetchStartTime = Date.now();
     const analysisResults = await storage.getAnalysisResultsByJob(jobId, userId, sessionId, batchId);
-    logger.info(`Found ${analysisResults.length} analysis results for job ${jobId}`);
+    const analysisFetchTime = Date.now() - analysisFetchStartTime;
+    
+    logger.info('Analysis results fetched', {
+      jobId,
+      userId,
+      sessionId: sessionId || null,
+      batchId: batchId || null,
+      analysisResultsFound: analysisResults.length,
+      fetchTime: analysisFetchTime,
+      resultSummary: {
+        resumeIds: analysisResults.map(r => r.resumeId),
+        averageMatch: analysisResults.length > 0 
+          ? Math.round(analysisResults.reduce((sum, r) => sum + (r.matchPercentage || 0), 0) / analysisResults.length)
+          : 0,
+        highestMatch: Math.max(...analysisResults.map(r => r.matchPercentage || 0), 0),
+        lowestMatch: Math.min(...analysisResults.map(r => r.matchPercentage || 100), 100)
+      }
+    });
 
     if (!analysisResults || analysisResults.length === 0) {
+      logger.info('No analysis results found', {
+        jobId,
+        userId,
+        sessionId: sessionId || null,
+        batchId: batchId || null,
+        resumesAvailable: userResumes.length,
+        reason: userResumes.length === 0 ? 'no_resumes' : 'no_analysis_run'
+      });
+      
       return res.json({
         status: "ok",
         message: userResumes.length === 0 
@@ -298,17 +430,36 @@ router.get("/analyze/:jobId", authenticateUser, async (req: Request, res: Respon
 
     // Sort by match percentage
     formattedResults.sort((a, b) => (b.matchPercentage || 0) - (a.matchPercentage || 0));
+    const totalRequestTime = Date.now() - analysisFetchStartTime + resumeFetchTime;
+
+    logger.info('Sending analysis results response', {
+      jobId,
+      userId,
+      sessionId: sessionId || null,
+      batchId: batchId || null,
+      resultCount: formattedResults.length,
+      totalRequestTime,
+      topMatch: formattedResults[0]?.matchPercentage || 0
+    });
 
     res.json({
       analysisId: Date.now(), // Generate analysis ID for tracking
       jobId: jobId,
       results: formattedResults,
       createdAt: new Date().toISOString(),
-      processingTime: 0 // TODO: Track actual processing time
+      processingTime: totalRequestTime
     });
 
   } catch (error) {
-    logger.error('Failed to get analysis results:', error);
+    logger.error('Failed to get analysis results', {
+      jobId: parseInt(req.params.jobId),
+      userId: req.user?.uid,
+      sessionId: req.query.sessionId as string || null,
+      batchId: req.query.batchId as string || null,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      errorStack: error instanceof Error ? error.stack : undefined
+    });
+    
     res.status(500).json({
       error: "Failed to retrieve analysis results",
       message: error instanceof Error ? error.message : 'Unknown error'
@@ -376,7 +527,13 @@ router.post("/interview-questions/:resumeId/:jobId", authenticateUser, async (re
       });
     }
 
-    logger.info(`Generating interview questions for resume ${resumeId}, job ${jobId}, user ${userId}`);
+    logger.info('Starting interview question generation', {
+      resumeId,
+      jobId,
+      userId,
+      sessionId: sessionId || null,
+      timestamp: new Date().toISOString()
+    });
 
     // Get resume and job description
     const [resume, jobDescription] = await Promise.all([
@@ -462,10 +619,19 @@ router.post("/interview-questions/:resumeId/:jobId", authenticateUser, async (re
       questions: interviewQuestions.questions || []
     });
 
-    logger.info(`Interview questions generated successfully`, {
+    logger.info('Interview questions generated successfully', {
       resumeId,
       jobId,
-      questionsCount: interviewQuestions.questions?.length || 0
+      userId,
+      sessionId: sessionId || null,
+      questionsCount: interviewQuestions.questions?.length || 0,
+      questionBreakdown: {
+        technical: interviewQuestions.questions?.filter(q => q.category === 'technical').length || 0,
+        experience: interviewQuestions.questions?.filter(q => q.category === 'experience').length || 0,
+        skillGap: interviewQuestions.questions?.filter(q => q.category === 'skill-gap').length || 0,
+        inclusion: interviewQuestions.questions?.filter(q => q.category === 'inclusion').length || 0
+      },
+      matchPercentage: matchAnalysis.matchPercentage
     });
 
     res.json({
@@ -484,7 +650,15 @@ router.post("/interview-questions/:resumeId/:jobId", authenticateUser, async (re
     });
 
   } catch (error) {
-    logger.error('Interview question generation failed:', error);
+    logger.error('Interview question generation failed', {
+      resumeId: parseInt(req.params.resumeId),
+      jobId: parseInt(req.params.jobId),
+      userId: req.user?.uid,
+      sessionId: req.body.sessionId || req.query.sessionId as string || null,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      errorStack: error instanceof Error ? error.stack : undefined
+    });
+    
     res.status(500).json({
       error: "Failed to generate interview questions",
       message: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -505,7 +679,11 @@ router.post("/analyze-bias/:jobId", authenticateUser, async (req: Request, res: 
       });
     }
 
-    logger.info(`Analyzing bias for job ${jobId}, user ${userId}`);
+    logger.info('Starting bias analysis', {
+      jobId,
+      userId,
+      timestamp: new Date().toISOString()
+    });
 
     // Get job description
     const jobDescription = await storage.getJobDescriptionById(jobId, userId);
@@ -528,22 +706,37 @@ router.post("/analyze-bias/:jobId", authenticateUser, async (req: Request, res: 
       userTierInfo
     );
 
-    logger.info(`Bias analysis completed for job ${jobId}`, {
+    logger.info('Bias analysis completed', {
+      jobId,
+      userId,
       hasBias: biasAnalysis.hasBias,
-      biasTypes: biasAnalysis.biasTypes?.length || 0
+      biasTypes: biasAnalysis.biasTypes?.length || 0,
+      biasedPhrasesCount: biasAnalysis.biasedPhrases?.length || 0,
+      suggestionsCount: biasAnalysis.suggestions?.length || 0,
+      overallScore: biasAnalysis.overallScore,
+      summary: biasAnalysis.summary?.substring(0, 100) + (biasAnalysis.summary?.length > 100 ? '...' : '')
     });
 
     // Save bias analysis to storage
+    const storageStartTime = Date.now();
     try {
       await storage.updateJobDescriptionBiasAnalysis(jobId, biasAnalysis);
-      logger.info(`Bias analysis saved for job ${jobId}`);
-    } catch (storageError) {
-      logger.error('Failed to save bias analysis to storage:', {
-        error: storageError,
-        errorMessage: storageError instanceof Error ? storageError.message : 'Unknown error',
-        errorStack: storageError instanceof Error ? storageError.stack : undefined,
+      const storageTime = Date.now() - storageStartTime;
+      
+      logger.info('Bias analysis saved to storage', {
         jobId,
-        biasAnalysisKeys: Object.keys(biasAnalysis || {})
+        storageTime
+      });
+    } catch (storageError) {
+      const storageTime = Date.now() - storageStartTime;
+      
+      logger.error('Failed to save bias analysis to storage', {
+        jobId,
+        userId,
+        error: storageError instanceof Error ? storageError.message : 'Unknown error',
+        errorStack: storageError instanceof Error ? storageError.stack : undefined,
+        biasAnalysisKeys: Object.keys(biasAnalysis || {}),
+        storageTime
       });
       // Continue with response even if storage fails
     }
@@ -566,7 +759,13 @@ router.post("/analyze-bias/:jobId", authenticateUser, async (req: Request, res: 
     res.json(response);
 
   } catch (error) {
-    logger.error('Bias analysis failed:', error);
+    logger.error('Bias analysis failed', {
+      jobId: parseInt(req.params.jobId),
+      userId: req.user?.uid,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      errorStack: error instanceof Error ? error.stack : undefined
+    });
+    
     res.status(500).json({
       error: "Bias analysis failed",
       message: error instanceof Error ? error.message : 'Unknown error occurred'
