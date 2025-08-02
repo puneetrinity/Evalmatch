@@ -98,38 +98,22 @@ export default function AnalysisPage() {
   
   // Load session ID and batch ID from localStorage when component mounts
   useEffect(() => {
+    console.log('=== LOADING LOCALSTORAGE VALUES ===');
     const storedSessionId = localStorage.getItem('currentUploadSession');
     const storedBatchId = localStorage.getItem('currentBatchId');
+    
+    console.log(`localStorage.getItem('currentUploadSession'): ${storedSessionId}`);
+    console.log(`localStorage.getItem('currentBatchId'): ${storedBatchId}`);
+    
     setSessionId(storedSessionId as SessionId | null);
     setCurrentBatchId(storedBatchId);
-    console.log(`Loaded upload session for analysis: ${storedSessionId}`);
-    console.log(`Loaded current batch for analysis: ${storedBatchId}`);
+    
+    console.log(`State will be set to:
+      - sessionId: ${storedSessionId}
+      - currentBatchId: ${storedBatchId}
+    `);
   }, []);
   
-  // Automatic analysis trigger - run analysis when resumes exist but no results found
-  useEffect(() => {
-    // Only trigger automatic analysis when:
-    // 1. Initial data loading is complete
-    // 2. There are no existing analysis results
-    // 3. Not currently analyzing or in error state
-    // 4. sessionId and jobId are available
-    if (!isLoading && !isAnalyzing && !isError && sessionId && jobId && 
-        (!analysisData?.results || analysisData.results.length === 0) && 
-        !analyzeMutation.isPending) {
-      
-      console.log('Triggering automatic analysis - no results found but session/job available');
-      console.log(`Analysis conditions: isLoading=${isLoading}, isAnalyzing=${isAnalyzing}, isError=${isError}, sessionId=${sessionId}, jobId=${jobId}, resultsCount=${analysisData?.results?.length || 0}`);
-      
-      // Show toast for automatic analysis
-      toast({
-        title: "Starting automatic analysis",
-        description: `Analyzing resumes from batch ${currentBatchId?.slice(-8) || 'current'} against this job description.`,
-      });
-      
-      // Trigger analysis automatically
-      analyzeMutation.mutate();
-    }
-  }, [isLoading, analysisData, sessionId, jobId, isAnalyzing, isError, analyzeMutation, toast, currentBatchId]);
   
   // Job data interface moved to top level with proper typing
 
@@ -160,10 +144,16 @@ export default function AnalysisPage() {
     mutationFn: async (): Promise<AnalysisData> => {
       setIsAnalyzing(true);
       
+      // Get fresh values from localStorage to ensure we have the latest data
+      const currentSessionId = localStorage.getItem('currentUploadSession');
+      const currentBatchIdValue = localStorage.getItem('currentBatchId');
+      
+      console.log(`Starting analysis mutation with sessionId: ${currentSessionId}, batchId: ${currentBatchIdValue}, jobId: ${jobId}`);
+      
       // Include the sessionId and batchId in the request body if available
       const requestBody: { sessionId?: string; batchId?: string } = {};
-      if (sessionId) requestBody.sessionId = sessionId;
-      if (currentBatchId) requestBody.batchId = currentBatchId;
+      if (currentSessionId) requestBody.sessionId = currentSessionId;
+      if (currentBatchIdValue) requestBody.batchId = currentBatchIdValue;
       
       const response = await apiRequest("POST", `/api/analysis/analyze/${jobId}`, requestBody);
       const result = await response.json() as ApiResult<AnalysisData>;
@@ -231,28 +221,63 @@ export default function AnalysisPage() {
     retry: 1
   });
   
-  // Simplified automatic analysis trigger - runs once when conditions are met
+  // Automatic analysis trigger - runs once when conditions are met
   useEffect(() => {
-    // Only run once when data is loaded and no results exist
+    console.log('=== AUTO ANALYSIS EFFECT TRIGGERED ===');
+    console.log(`Conditions check:
+      - isLoading: ${isLoading}
+      - isError: ${isError}
+      - analysisData?.results: ${analysisData?.results ? 'exists' : 'null'}
+      - resultsCount: ${analysisData?.results?.length || 0}
+      - hasAttemptedAutoAnalysis: ${hasAttemptedAutoAnalysis}
+      - sessionId: ${sessionId || 'null'}
+      - jobId: ${jobId || 'null'}
+      - currentBatchId: ${currentBatchId || 'null'}
+      - isAnalyzing: ${isAnalyzing}
+      - analyzeMutation.isPending: ${analyzeMutation.isPending}
+    `);
+    
+    // Only run automatic analysis when:
+    // 1. Initial data loading is complete
+    // 2. There are no existing analysis results
+    // 3. We haven't attempted auto-analysis yet
+    // 4. We have sessionId, jobId, and currentBatchId
+    // 5. Not currently analyzing or in error state
     if (!isLoading && 
+        !isError &&
         (!analysisData?.results || analysisData.results.length === 0) && 
         !hasAttemptedAutoAnalysis && 
         sessionId && 
         jobId && 
         currentBatchId &&
-        !isAnalyzing) {
+        !isAnalyzing &&
+        !analyzeMutation.isPending) {
       
-      console.log(`Auto-starting analysis for job ${jobId}, batch ${currentBatchId}`);
+      console.log(`✅ AUTO-STARTING ANALYSIS for job ${jobId}, batch ${currentBatchId}`);
       setHasAttemptedAutoAnalysis(true);
       
       toast({
-        title: "Starting analysis",
-        description: "Analyzing resumes automatically...",
+        title: "Starting automatic analysis",
+        description: `Analyzing resumes from batch ${currentBatchId.slice(-8)} against this job description.`,
       });
       
       analyzeMutation.mutate();
+    } else {
+      console.log('❌ Auto-analysis conditions not met');
     }
-  }, [isLoading, analysisData?.results?.length, hasAttemptedAutoAnalysis]);
+  }, [
+    isLoading, 
+    isError,
+    analysisData?.results?.length, 
+    hasAttemptedAutoAnalysis, 
+    sessionId, 
+    jobId, 
+    currentBatchId,
+    isAnalyzing,
+    analyzeMutation.isPending,
+    analyzeMutation,
+    toast
+  ]);
   
   const handleAnalyze = () => {
     analyzeMutation.mutate();
