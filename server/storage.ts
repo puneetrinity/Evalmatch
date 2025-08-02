@@ -260,12 +260,14 @@ export class MemStorage implements IStorage {
       throw new Error(`Job description with ID ${id} not found`);
     }
     
+    // Safely handle null analyzedData
+    const currentAnalyzedData = jobDescription.analyzedData || {};
     const updatedJobDescription: JobDescription = {
       ...jobDescription,
       analyzedData: {
-        ...jobDescription.analyzedData,
+        ...currentAnalyzedData,
         biasAnalysis: biasAnalysis,
-      } as any, // Handle null analyzedData case
+      },
     };
     
     this.jobDescriptionsData.set(id, updatedJobDescription);

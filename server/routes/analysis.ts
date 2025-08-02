@@ -537,7 +537,13 @@ router.post("/analyze-bias/:jobId", authenticateUser, async (req: Request, res: 
       await storage.updateJobDescriptionBiasAnalysis(jobId, biasAnalysis);
       logger.info(`Bias analysis saved for job ${jobId}`);
     } catch (storageError) {
-      logger.warn('Failed to save bias analysis to storage:', storageError);
+      logger.error('Failed to save bias analysis to storage:', {
+        error: storageError,
+        errorMessage: storageError instanceof Error ? storageError.message : 'Unknown error',
+        errorStack: storageError instanceof Error ? storageError.stack : undefined,
+        jobId,
+        biasAnalysisKeys: Object.keys(biasAnalysis || {})
+      });
       // Continue with response even if storage fails
     }
 

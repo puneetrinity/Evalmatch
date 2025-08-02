@@ -35,8 +35,9 @@ export async function withRetry<T>(operation: () => Promise<T>, context: string)
       try {
         return await operation();
       } catch (error: unknown) {
-        lastError = error;
-        const errorMessage = error?.message || 'Unknown error';
+        // Ensure we preserve the full error object
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const errorMessage = lastError.message || 'Unknown error';
         
         // Check error types to determine retry strategy
         const isNeonControlPlaneError = 

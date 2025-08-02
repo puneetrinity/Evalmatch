@@ -242,11 +242,18 @@ export class DatabaseStorage implements IStorage {
         throw new Error(`Job description with ID ${id} not found`);
       }
       
-      // Merge bias analysis into existing analyzedData
+      // Safely merge bias analysis into existing analyzedData
+      // Handle case where analyzedData is null
+      const currentAnalyzedData = existingJob.analyzedData || {};
       const updatedAnalyzedData = {
-        ...existingJob.analyzedData,
+        ...currentAnalyzedData,
         biasAnalysis: biasAnalysis
       };
+      
+      logger.info(`Updating job ${id} with bias analysis`, {
+        hasExistingData: !!existingJob.analyzedData,
+        biasAnalysisKeys: Object.keys(biasAnalysis)
+      });
       
       const [updatedJobDescription] = await db.update(jobDescriptions)
         .set({
@@ -255,6 +262,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(jobDescriptions.id, id))
         .returning();
       
+      logger.info(`Successfully updated job ${id} bias analysis`);
       return updatedJobDescription;
     }, `updateJobDescriptionBiasAnalysis(${id})`);
   }
