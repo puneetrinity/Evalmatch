@@ -102,6 +102,7 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
     // Process all resume-job matches in parallel
     const results = [];
     const matchPromises = resumes.map(async (resume) => {
+      const resumeProcessStartTime = Date.now(); // Add timing for individual resume processing
       try {
         // Get or create resume analysis
         let resumeAnalysis = resume.analyzedData;

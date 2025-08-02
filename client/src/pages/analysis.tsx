@@ -276,7 +276,8 @@ export default function AnalysisPage() {
         jobId && 
         currentBatchId &&
         !isAnalyzing &&
-        !analyzeMutation.isPending;
+        !analyzeMutation.isPending &&
+        retryCount < MAX_RETRIES; // Additional check to prevent infinite checking after max retries
     
     if (shouldAttemptAnalysis) {
       console.log(`✅ AUTO-STARTING ANALYSIS for job ${jobId}, batch ${currentBatchId} (attempt ${retryCount + 1})`);
@@ -323,9 +324,8 @@ export default function AnalysisPage() {
     isAnalyzing,
     analyzeMutation.isPending,
     analyzeMutation.isError,
-    retryCount,
-    analyzeMutation,
-    toast
+    retryCount
+    // Note: analyzeMutation and toast removed from deps to prevent infinite loops
   ]);
   
   const handleAnalyze = () => {
