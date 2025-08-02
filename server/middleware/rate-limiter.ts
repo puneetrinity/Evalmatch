@@ -46,6 +46,12 @@ export const uploadRateLimiter = rateLimit({
   message: 'Too many file uploads, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
+  // Fix for Railway proxy trust issue
+  trustProxy: false, // Disable trust proxy to avoid security warning
+  keyGenerator: (req) => {
+    // Use x-forwarded-for header if available (Railway sets this)
+    return req.headers['x-forwarded-for'] as string || req.ip || 'unknown';
+  },
   handler: (req, res) => {
     logger.warn(`Upload rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
