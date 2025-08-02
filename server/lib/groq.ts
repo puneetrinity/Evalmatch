@@ -737,7 +737,8 @@ export async function analyzeBias(title: string, description: string): Promise<B
     }
   ],
   "recommendations": ["Remove age references", "Use neutral language"],
-  "summary": "Brief summary of bias analysis"
+  "summary": "Brief summary of bias analysis",
+  "improvedDescription": "Rewritten job description with all bias removed and inclusive language"
 }
 
 Job Title: ${title}
@@ -745,6 +746,9 @@ Job Description:
 ${description}
 
 Look for bias related to: age, gender, race, religion, disability, nationality, sexual orientation, and other protected characteristics.
+
+IMPORTANT: If you find any bias, provide an "improvedDescription" field with a rewritten version of the job description that removes all biased language and uses inclusive, neutral terms. If no bias is found, set "improvedDescription" to the original description.
+
 Respond with only the JSON object, no additional text.`;
 
   try {
@@ -761,7 +765,7 @@ Respond with only the JSON object, no additional text.`;
         reason: indicator.suggestion || `${indicator.type} bias detected`
       })) : [],
       suggestions: groqResponse.recommendations || [],
-      improvedDescription: description, // TODO: Generate improved description
+      improvedDescription: groqResponse.improvedDescription || description,
       overallScore: groqResponse.overallScore,
       summary: groqResponse.summary
     };
