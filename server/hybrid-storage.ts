@@ -250,7 +250,7 @@ export class HybridStorage implements IStorage {
   
   async createResume(resume: InsertResume): Promise<Resume> {
     return this.executeWithFallback(
-      `createResume(${resume.name})`,
+      `createResume(${resume.filename})`,
       () => this.dbStorage.createResume(resume),
       () => this.memStorage.createResume(resume),
       true
@@ -442,12 +442,19 @@ export class HybridStorage implements IStorage {
   }
   
   // Combination methods
-  async getResumeWithLatestAnalysisAndQuestions(resumeId: number, jobDescriptionId: number): Promise<{ resume: Resume; analysis: AnalysisResult | undefined; interviewQuestions: InterviewQuestions | undefined; }> {
-    return this.executeWithFallback(
+  async getResumeWithLatestAnalysisAndQuestions(resumeId: number, jobDescriptionId: number): Promise<{ resume: Resume; analysis: AnalysisResult | undefined; questions: InterviewQuestions | undefined; }> {
+    const result = await this.executeWithFallback(
       `getResumeWithLatestAnalysisAndQuestions(${resumeId}, ${jobDescriptionId})`,
       () => this.dbStorage.getResumeWithLatestAnalysisAndQuestions(resumeId, jobDescriptionId),
       () => this.memStorage.getResumeWithLatestAnalysisAndQuestions(resumeId, jobDescriptionId)
     );
+    
+    // Map interviewQuestions to questions to match interface
+    return {
+      resume: result.resume,
+      analysis: result.analysis,
+      questions: result.questions
+    };
   }
   
   /**

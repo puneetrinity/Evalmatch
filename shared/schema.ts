@@ -462,6 +462,13 @@ export interface AnalyzeResumeResponse {
   processingTime: number;
   confidence: number;
   warnings?: string[];
+  // Convenience properties for backward compatibility
+  name?: string;
+  skills?: string[];
+  experience?: any[];
+  education?: any[];
+  contact?: any;
+  experienceYears?: number;
 }
 
 export interface AnalyzeJobDescriptionResponse {
@@ -471,6 +478,17 @@ export interface AnalyzeJobDescriptionResponse {
   processingTime: number;
   confidence: number;
   warnings?: string[];
+  // Convenience properties for backward compatibility
+  requiredSkills?: string[];
+  preferredSkills?: string[];
+  skills?: string[];
+  experience?: string;
+  experienceLevel?: string;
+  responsibilities?: string[];
+  requirements?: string[];
+  company?: string;
+  summary?: string;
+  biasAnalysis?: SimpleBiasAnalysis;
 }
 
 export interface MatchAnalysisResponse {
@@ -498,6 +516,14 @@ export interface MatchAnalysisResponse {
     processedCandidates: number;
     failedCandidates: number;
   };
+  // Convenience properties for single-result responses
+  matchPercentage?: number;
+  matchedSkills?: SkillMatch[];
+  missingSkills?: string[];
+  candidateStrengths?: string[];
+  candidateWeaknesses?: string[];
+  confidenceLevel?: 'low' | 'medium' | 'high';
+  fairnessMetrics?: FairnessMetrics;
 }
 
 export interface InterviewQuestionsResponse {
@@ -514,6 +540,10 @@ export interface InterviewQuestionsResponse {
   };
   preparationTips?: string[];
   processingTime: number;
+  // Convenience properties for backward compatibility
+  technicalQuestions?: InterviewQuestionData[];
+  experienceQuestions?: InterviewQuestionData[];
+  skillGapQuestions?: InterviewQuestionData[];
 }
 
 export interface InterviewScriptResponse {
