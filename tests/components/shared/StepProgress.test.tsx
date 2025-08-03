@@ -13,7 +13,7 @@
 
 import React from 'react';
 import { render, screen, within } from '@testing-library/react';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
 
 import StepProgress from '@/components/step-progress';
 import type { Step } from '@/hooks/use-steps';

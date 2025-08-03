@@ -15,7 +15,7 @@
 
 import React, { Component, ReactNode } from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
 import userEvent from '@testing-library/user-event';
 
 import ErrorBoundary, {

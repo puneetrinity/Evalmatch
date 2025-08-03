@@ -23,7 +23,7 @@ let regularUser: TestUser;
 
 beforeAll(async () => {
   // Import and setup server
-  const { default: expressApp } = await import('../../../server/index.js');
+  const { default: expressApp } = await import('../../../server/index');
   app = expressApp;
   
   await TestSuiteHelper.setupTestEnvironment();

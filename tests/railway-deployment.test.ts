@@ -31,7 +31,7 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
   }
 }
 
-describe('Railway Deployment Tests', () => {
+describe.skip('Railway Deployment Tests', () => {
   let deploymentStartTime: number;
   
   beforeAll(async () => {

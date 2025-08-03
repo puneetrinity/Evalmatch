@@ -13,7 +13,7 @@
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
 import userEvent from '@testing-library/user-event';
 
 import Footer from '@/components/layout/footer';

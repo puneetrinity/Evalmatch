@@ -14,8 +14,8 @@
  */
 
 import React from 'react';
-import { screen, waitFor, within } from '@testing-library/react';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/dom';
 
 import AnalysisPage from '@/pages/analysis';
 import {
