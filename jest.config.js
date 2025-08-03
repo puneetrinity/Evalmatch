@@ -13,6 +13,10 @@ export default {
     '^@server/(.*)$': '<rootDir>/server/$1',
     '^@/(.*)$': '<rootDir>/client/src/$1',
     '^@/tests/(.*)$': '<rootDir>/tests/$1',
+    '^firebase-admin/(.*)$': '<rootDir>/tests/__mocks__/firebase-admin.ts',
+    '^firebase-admin$': '<rootDir>/tests/__mocks__/firebase-admin.ts',
+    '^jose$': '<rootDir>/tests/__mocks__/jose.ts',
+    '^jwks-rsa$': '<rootDir>/tests/__mocks__/jwks-rsa.ts',
   },
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
@@ -27,11 +31,12 @@ export default {
   extensionsToTreatAsEsm: ['.ts', '.tsx'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   transformIgnorePatterns: [
-    'node_modules/(?!(wouter)/)'
+    'node_modules/(?!(wouter|jose|jwks-rsa|@firebase)/)'
   ],
   testTimeout: 30000,
   clearMocks: true,
   restoreMocks: true,
+  resetModules: true,
   collectCoverageFrom: [
     'client/src/**/*.{ts,tsx}',
     'server/**/*.{ts,js}',

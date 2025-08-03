@@ -17,8 +17,19 @@ export default {
     }]
   },
   moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1'
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^@shared/(.*)$': '<rootDir>/shared/$1',
+    '^@server/(.*)$': '<rootDir>/server/$1',
+    '^@/(.*)$': '<rootDir>/client/src/$1',
+    '^@/tests/(.*)$': '<rootDir>/tests/$1',
+    '^firebase-admin/(.*)$': '<rootDir>/tests/__mocks__/firebase-admin.ts',
+    '^firebase-admin$': '<rootDir>/tests/__mocks__/firebase-admin.ts',
+    '^jose$': '<rootDir>/tests/__mocks__/jose.ts',
+    '^jwks-rsa$': '<rootDir>/tests/__mocks__/jwks-rsa.ts',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(jose|jwks-rsa|@firebase)/)'
+  ],
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.ts'],
   collectCoverageFrom: [
