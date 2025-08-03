@@ -229,6 +229,8 @@ export enum BatchStatusType {
   ORPHANED = 'orphaned',
   EXPIRED = 'expired',
   CORRUPTED = 'corrupted',
+  READY = 'ready',
+  PENDING = 'pending',
 }
 
 export enum BatchAccessType {

@@ -3,6 +3,7 @@ export default {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+  setupFiles: ['<rootDir>/tests/jest.setup.js'],
   testMatch: [
     '**/tests/**/*.test.ts',
     '**/tests/**/*.test.tsx'
@@ -14,6 +15,7 @@ export default {
   },
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
+      useESM: true,
       tsconfig: {
         jsx: 'react-jsx',
         esModuleInterop: true,
@@ -21,6 +23,7 @@ export default {
       }
     }]
   },
+  extensionsToTreatAsEsm: ['.ts', '.tsx'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   testTimeout: 30000,
   clearMocks: true,
@@ -35,10 +38,5 @@ export default {
     '!**/build/**'
   ],
   coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov', 'html'],
-  globals: {
-    'ts-jest': {
-      useESM: true
-    }
-  }
+  coverageReporters: ['text', 'lcov', 'html']
 };

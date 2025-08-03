@@ -31,6 +31,9 @@ import { validateEnvironmentOrExit } from "./lib/env-validator";
 
 const app = express();
 
+// Export app for testing purposes
+export default app;
+
 // Trust proxy for Railway deployment (needed for rate limiting and real IP detection)
 app.set('trust proxy', true);
 
