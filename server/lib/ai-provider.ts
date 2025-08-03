@@ -153,14 +153,14 @@ export async function analyzeMatch(
       
       const enhancedResult = await calculateEnhancedMatch(
         {
-          skills: resumeAnalysis.skills,
-          experience: resumeAnalysis.experience,
-          education: resumeAnalysis.education,
+          skills: resumeAnalysis.skills || [],
+          experience: resumeAnalysis.experience || '',
+          education: resumeAnalysis.education || '',
           content: resumeText
         },
         {
-          skills: jobAnalysis.skills,
-          experience: jobAnalysis.experience,
+          skills: jobAnalysis.skills || [],
+          experience: jobAnalysis.experience || '',
           description: jobText
         },
         DEFAULT_SCORING_WEIGHTS
@@ -171,7 +171,13 @@ export async function analyzeMatch(
         matchPercentage: enhancedResult.totalScore,
         matchedSkills: enhancedResult.skillBreakdown
           .filter(s => s.matched)
-          .map(s => ({ skill: s.skill, matchPercentage: s.score })),
+          .map(s => ({ 
+            skill: s.skill, 
+            matchPercentage: s.score,
+            category: 'technical',
+            importance: 'important' as const,
+            source: 'semantic' as const
+          })),
         missingSkills: enhancedResult.skillBreakdown
           .filter(s => !s.matched && s.required)
           .map(s => s.skill),

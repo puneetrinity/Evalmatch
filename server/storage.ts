@@ -166,9 +166,18 @@ export class MemStorage implements IStorage {
       ...insertResume,
       id,
       createdAt: now,
+      updatedAt: insertResume.updatedAt || null,
       analyzedData: null,
       sessionId, // Ensure sessionId is assigned
       batchId, // Ensure batchId is assigned
+      content: insertResume.content || null,
+      fileSize: insertResume.fileSize || null,
+      fileType: insertResume.fileType || null,
+      skills: insertResume.skills || null,
+      experience: insertResume.experience || null,
+      embedding: insertResume.embedding || null,
+      skillsEmbedding: insertResume.skillsEmbedding || null,
+      userId: insertResume.userId || null,
     };
     this.resumesData.set(id, resume);
     return resume;
@@ -182,7 +191,15 @@ export class MemStorage implements IStorage {
     
     const updatedResume: Resume = {
       ...resume,
-      analyzedData: analysis,
+      analyzedData: analysis.analyzedData || {
+        name: analysis.name || "",
+        skills: analysis.skills || [],
+        experience: analysis.experience || [],
+        education: analysis.education || [],
+        contact: analysis.contact || { email: "", phone: "", location: "" },
+        summary: "Analysis data",
+        keyStrengths: analysis.skills?.slice(0, 3) || []
+      },
     };
     
     this.resumesData.set(id, updatedResume);
@@ -218,7 +235,14 @@ export class MemStorage implements IStorage {
       ...insertJobDescription,
       id,
       createdAt: now,
+      updatedAt: insertJobDescription.updatedAt || null,
       analyzedData: null,
+      userId: insertJobDescription.userId || null,
+      skills: insertJobDescription.skills || null,
+      experience: insertJobDescription.experience || null,
+      embedding: insertJobDescription.embedding || null,
+      requirements: insertJobDescription.requirements || null,
+      requirementsEmbedding: insertJobDescription.requirementsEmbedding || null,
     };
     this.jobDescriptionsData.set(id, jobDescription);
     return jobDescription;
@@ -247,7 +271,17 @@ export class MemStorage implements IStorage {
     
     const updatedJobDescription: JobDescription = {
       ...jobDescription,
-      analyzedData: analysis,
+      analyzedData: analysis.analyzedData || {
+        requiredSkills: analysis.requiredSkills || [],
+        preferredSkills: analysis.preferredSkills || [],
+        experienceLevel: analysis.experienceLevel || "",
+        responsibilities: analysis.responsibilities || [],
+        summary: analysis.summary || "",
+        benefits: [],
+        qualifications: [],
+        companyInfo: { name: "", size: "medium", industry: "" },
+        location: { type: "remote", city: "", country: "" }
+      },
     };
     
     this.jobDescriptionsData.set(id, updatedJobDescription);
@@ -261,7 +295,17 @@ export class MemStorage implements IStorage {
     }
     
     // Safely handle null analyzedData
-    const currentAnalyzedData = jobDescription.analyzedData || {};
+    const currentAnalyzedData = jobDescription.analyzedData || {
+      requiredSkills: [],
+      preferredSkills: [],
+      experienceLevel: "",
+      responsibilities: [],
+      summary: "",
+      benefits: [],
+      qualifications: [],
+      companyInfo: { name: "", size: "medium", industry: "" },
+      location: { type: "remote", city: "", country: "" }
+    };
     const updatedJobDescription: JobDescription = {
       ...jobDescription,
       analyzedData: {
@@ -339,6 +383,23 @@ export class MemStorage implements IStorage {
       ...insertAnalysisResult,
       id,
       createdAt: now,
+      updatedAt: insertAnalysisResult.updatedAt || null,
+      analysis: insertAnalysisResult.analysis || null,
+      userId: insertAnalysisResult.userId || null,
+      resumeId: insertAnalysisResult.resumeId || null,
+      jobDescriptionId: insertAnalysisResult.jobDescriptionId || null,
+      matchPercentage: insertAnalysisResult.matchPercentage || null,
+      processingTime: insertAnalysisResult.processingTime || null,
+      matchedSkills: insertAnalysisResult.matchedSkills || null,
+      missingSkills: insertAnalysisResult.missingSkills || null,
+      candidateStrengths: insertAnalysisResult.candidateStrengths || null,
+      candidateWeaknesses: insertAnalysisResult.candidateWeaknesses || null,
+      recommendations: insertAnalysisResult.recommendations || null,
+      confidenceLevel: insertAnalysisResult.confidenceLevel || null,
+      scoringDimensions: insertAnalysisResult.scoringDimensions || null,
+      fairnessMetrics: insertAnalysisResult.fairnessMetrics || null,
+      biasFlags: insertAnalysisResult.biasFlags || null,
+      processingFlags: insertAnalysisResult.processingFlags || null,
     };
     this.analysisResultsData.set(id, analysisResult);
     return analysisResult;
@@ -374,6 +435,12 @@ export class MemStorage implements IStorage {
       ...insertInterviewQuestions,
       id,
       createdAt: now,
+      updatedAt: insertInterviewQuestions.updatedAt || null,
+      userId: insertInterviewQuestions.userId || null,
+      resumeId: insertInterviewQuestions.resumeId || null,
+      jobDescriptionId: insertInterviewQuestions.jobDescriptionId || null,
+      questions: insertInterviewQuestions.questions || null,
+      metadata: insertInterviewQuestions.metadata || null,
     };
     this.interviewQuestionsData.set(id, interviewQuestions);
     return interviewQuestions;
@@ -393,7 +460,7 @@ export class MemStorage implements IStorage {
     const analysisResults = await this.getAnalysisResultsByResumeId(resumeId);
     const analysis = analysisResults
       .filter(result => result.jobDescriptionId === jobDescriptionId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0))[0];
     
     const questions = await this.getInterviewQuestionByResumeAndJob(resumeId, jobDescriptionId);
     

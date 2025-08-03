@@ -98,28 +98,43 @@ export async function analyzeResume(resumeText: string): Promise<AnalyzeResumeRe
   
   // Fallback response if Anthropic API is unavailable
   const fallbackResponse: AnalyzeResumeResponse = {
+    id: 'fallback-resume' as any,
+    filename: 'fallback.pdf',
+    analyzedData: {
+      name: "Analysis temporarily unavailable",
+      skills: ["Communication", "Problem Solving", "Teamwork"],
+      experience: [
+        {
+          title: "Experience extraction temporarily unavailable",
+          company: "Please try again later",
+          duration: "",
+          description: ""
+        }
+      ],
+      education: [
+        {
+          degree: "Education extraction temporarily unavailable",
+          institution: "Please try again later",
+          year: ""
+        }
+      ],
+      contact: {
+        email: "",
+        phone: "",
+        location: ""
+      },
+      summary: "Analysis temporarily unavailable",
+      keyStrengths: ["Service temporarily unavailable"]
+    },
+    processingTime: 0,
+    confidence: 0,
+    warnings: ["Service temporarily unavailable"],
+    // Convenience properties
+    name: "Analysis temporarily unavailable",
     skills: ["Communication", "Problem Solving", "Teamwork"],
-    experience: [
-      {
-        title: "Experience extraction temporarily unavailable",
-        company: "Please try again later",
-        duration: "",
-        description: ""
-      }
-    ],
-    education: [
-      {
-        degree: "Education extraction temporarily unavailable",
-        institution: "Please try again later",
-        year: ""
-      }
-    ],
-    name: "Name extraction temporarily unavailable",
-    contact: {
-      email: "",
-      phone: "",
-      location: ""
-    }
+    experience: [],
+    education: [],
+    contact: { email: "", phone: "", location: "" }
   };
   
   // If Anthropic API is marked as unavailable, return fallback immediately
@@ -199,33 +214,53 @@ Format the response as valid JSON with the following structure:
         serviceStatus.apiUsageStats.estimatedCost += inputCost + outputCost;
       }
       
-      // Return normalized response
+      // Return normalized response matching AnalyzeResumeResponse interface
+      const skills = Array.isArray(parsedResponse.skills) ? parsedResponse.skills : [];
+      const experience = Array.isArray(parsedResponse.experience) 
+        ? parsedResponse.experience.map((exp: any) => ({
+            title: exp.title || "",
+            company: exp.company || "",
+            duration: exp.duration || "",
+            description: exp.description || ""
+          }))
+        : [];
+      const education = Array.isArray(parsedResponse.education)
+        ? parsedResponse.education.map((edu: any) => ({
+            degree: edu.degree || "",
+            institution: edu.institution || "",
+            year: edu.year || ""
+          }))
+        : [];
+      const contact = {
+        email: parsedResponse.contact?.email || "",
+        phone: parsedResponse.contact?.phone || "",
+        location: parsedResponse.contact?.location || ""
+      };
+
       return {
-        name: parsedResponse.name || "",
-        contact: {
-          email: parsedResponse.contact?.email || "",
-          phone: parsedResponse.contact?.phone || "",
-          location: parsedResponse.contact?.location || ""
+        id: 'anthropic-resume' as any,
+        filename: 'resume.pdf',
+        analyzedData: {
+          name: parsedResponse.name || "",
+          skills,
+          experience,
+          education,
+          contact,
+          summary: parsedResponse.summary || "",
+          keyStrengths: parsedResponse.keyStrengths || skills.slice(0, 3)
         },
-        skills: Array.isArray(parsedResponse.skills) ? parsedResponse.skills : [],
-        experience: Array.isArray(parsedResponse.experience) 
-          ? parsedResponse.experience.map(exp => ({
-              title: exp.title || "",
-              company: exp.company || "",
-              duration: exp.duration || "",
-              description: exp.description || ""
-            }))
-          : [],
-        education: Array.isArray(parsedResponse.education)
-          ? parsedResponse.education.map(edu => ({
-              degree: edu.degree || "",
-              institution: edu.institution || "",
-              year: edu.year || ""
-            }))
-          : []
+        processingTime: Date.now() - performance.now(),
+        confidence: 0.8,
+        warnings: [],
+        // Convenience properties
+        name: parsedResponse.name || "",
+        skills,
+        experience,
+        education,
+        contact
       };
     } catch (parseError) {
-      logApiServiceStatus(`Error parsing Anthropic response: ${parseError.message}`, true);
+      logApiServiceStatus(`Error parsing Anthropic response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`, true);
       return fallbackResponse;
     }
   } catch (error) {
@@ -261,9 +296,9 @@ export async function analyzeMatch(
     return {
       matchPercentage: 60,
       matchedSkills: [
-        { skill: "Problem Solving", matchPercentage: 90 },
-        { skill: "Communication", matchPercentage: 85 },
-        { skill: "Technical Knowledge", matchPercentage: 80 }
+        { skill: "Problem Solving", matchPercentage: 90, category: "soft", importance: "important" as const, source: "semantic" as const },
+        { skill: "Communication", matchPercentage: 85, category: "soft", importance: "critical" as const, source: "semantic" as const },
+        { skill: "Technical Knowledge", matchPercentage: 80, category: "technical", importance: "important" as const, source: "semantic" as const }
       ],
       missingSkills: ["Leadership", "Project Management"],
       candidateStrengths: ["Strong technical background", "Good communicator"],
@@ -363,13 +398,13 @@ Format your response as valid JSON with this structure:
         candidateWeaknesses: Array.isArray(parsedResponse.candidateWeaknesses) ? parsedResponse.candidateWeaknesses : []
       };
     } catch (parseError) {
-      logApiServiceStatus(`Error parsing Anthropic response: ${parseError.message}`, true);
+      logApiServiceStatus(`Error parsing Anthropic response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`, true);
       return {
         matchPercentage: 60,
         matchedSkills: [
-          { skill: "Problem Solving", matchPercentage: 90 },
-          { skill: "Communication", matchPercentage: 85 },
-          { skill: "Technical Knowledge", matchPercentage: 80 }
+          { skill: "Problem Solving", matchPercentage: 90, category: "soft", importance: "important" as const, source: "semantic" as const },
+          { skill: "Communication", matchPercentage: 85, category: "soft", importance: "critical" as const, source: "semantic" as const },
+          { skill: "Technical Knowledge", matchPercentage: 80, category: "technical", importance: "important" as const, source: "semantic" as const }
         ],
         missingSkills: ["Leadership", "Project Management"],
         candidateStrengths: ["Strong technical background", "Good communicator"],
@@ -395,9 +430,9 @@ Format your response as valid JSON with this structure:
     return {
       matchPercentage: 60,
       matchedSkills: [
-        { skill: "Problem Solving", matchPercentage: 90 },
-        { skill: "Communication", matchPercentage: 85 },
-        { skill: "Technical Knowledge", matchPercentage: 80 }
+        { skill: "Problem Solving", matchPercentage: 90, category: "soft", importance: "important" as const, source: "semantic" as const },
+        { skill: "Communication", matchPercentage: 85, category: "soft", importance: "critical" as const, source: "semantic" as const },
+        { skill: "Technical Knowledge", matchPercentage: 80, category: "technical", importance: "important" as const, source: "semantic" as const }
       ],
       missingSkills: ["Leadership", "Project Management"],
       candidateStrengths: ["Strong technical background", "Good communicator"],
@@ -507,7 +542,7 @@ Format the response as valid JSON with the following structure:
         qualifications: Array.isArray(parsedResponse.qualifications) ? parsedResponse.qualifications : []
       };
     } catch (parseError) {
-      logApiServiceStatus(`Error parsing Anthropic response: ${parseError.message}`, true);
+      logApiServiceStatus(`Error parsing Anthropic response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`, true);
       return fallbackResponse;
     }
   } catch (error) {
@@ -635,7 +670,7 @@ Format your response as valid JSON with this structure:
         improvedDescription: parsedResponse.improvedDescription || description
       };
     } catch (parseError) {
-      logApiServiceStatus(`Error parsing Anthropic response: ${parseError.message}`, true);
+      logApiServiceStatus(`Error parsing Anthropic response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`, true);
       return {
         hasBias: true,
         biasTypes: ["Gender bias", "Age bias"],
@@ -908,7 +943,7 @@ Format your response as valid JSON with this structure:
           parsedResponse.inclusionQuestions : []
       };
     } catch (parseError) {
-      logApiServiceStatus(`Error parsing Anthropic response: ${parseError.message}`, true);
+      logApiServiceStatus(`Error parsing Anthropic response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`, true);
       return {
         technicalQuestions: [
           "Can you explain how you would implement a secure authentication system?",
@@ -1042,7 +1077,7 @@ Format your response as:
         return [];
       }
     } catch (parseError) {
-      logApiServiceStatus(`Error parsing Anthropic response: ${parseError.message}`, true);
+      logApiServiceStatus(`Error parsing Anthropic response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`, true);
       return [
         "JavaScript",
         "TypeScript",
@@ -1154,7 +1189,7 @@ Format your response as valid JSON with this structure:
         missingSkills: Array.isArray(parsedResponse.missingSkills) ? parsedResponse.missingSkills : []
       };
     } catch (parseError) {
-      logApiServiceStatus(`Error parsing Anthropic response: ${parseError.message}`, true);
+      logApiServiceStatus(`Error parsing Anthropic response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`, true);
       return {
         matchedSkills: ["JavaScript", "React", "CSS", "HTML"],
         missingSkills: ["TypeScript", "Node.js", "AWS", "DevOps"]
