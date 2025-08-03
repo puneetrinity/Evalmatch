@@ -9,6 +9,8 @@
   "extends": [
     "eslint:recommended"
   ],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
   "ignorePatterns": [
     "dist",
     "build", 
@@ -22,13 +24,28 @@
   ],
   "parserOptions": {
     "ecmaVersion": "latest",
-    "sourceType": "module"
+    "sourceType": "module",
+    "project": "./tsconfig.json"
   },
   "rules": {
-    "no-unused-vars": "warn",
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": "warn",
     "no-console": "off",
-    "no-undef": "warn",
-    "no-redeclare": "warn",
-    "no-empty": "warn"
-  }
+    "no-undef": "off",
+    "no-redeclare": "off",
+    "@typescript-eslint/no-redeclare": "warn",
+    "no-empty": "warn",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/ban-ts-comment": "off"
+  },
+  "overrides": [
+    {
+      "files": ["*.js"],
+      "extends": ["eslint:recommended"],
+      "rules": {
+        "no-unused-vars": "warn",
+        "no-undef": "warn"
+      }
+    }
+  ]
 }

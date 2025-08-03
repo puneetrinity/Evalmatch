@@ -1,6 +1,6 @@
 /**
  * Database Configuration
- * 
+ *
  * This module provides centralized configuration for Neon PostgreSQL
  * with environment-specific settings and connection pooling options.
  */
@@ -9,27 +9,27 @@
 interface NeonDbConfig {
   // Connection pool settings
   pooling: {
-    max: number;               // Maximum number of clients in the pool
+    max: number; // Maximum number of clients in the pool
     idleTimeoutMillis: number; // How long a client is allowed to remain idle before being closed
     connectionTimeoutMillis: number; // Maximum time to wait for a connection
-    maxUses: number;           // Maximum number of uses for a client before being recycled
+    maxUses: number; // Maximum number of uses for a client before being recycled
   };
-  
+
   // Retry settings
   retry: {
-    maxRetries: number;        // Maximum number of retry attempts
-    initialDelayMs: number;    // Initial delay before first retry
-    maxDelayMs: number;        // Maximum delay between retries
-    backoffFactor: number;     // Exponential backoff multiplier
+    maxRetries: number; // Maximum number of retry attempts
+    initialDelayMs: number; // Initial delay before first retry
+    maxDelayMs: number; // Maximum delay between retries
+    backoffFactor: number; // Exponential backoff multiplier
   };
-  
+
   // Query settings
   query: {
-    statementTimeout: number;  // SQL statement timeout in milliseconds
-    queryTimeout: number;      // Overall query timeout in milliseconds
+    statementTimeout: number; // SQL statement timeout in milliseconds
+    queryTimeout: number; // Overall query timeout in milliseconds
     heartbeatInterval: number; // How often to check connection health
   };
-  
+
   // Connection status thresholds
   thresholds: {
     maxConsecutiveFailures: number; // Number of failures before marking as unavailable
@@ -59,7 +59,7 @@ const productionConfig: NeonDbConfig = {
   thresholds: {
     maxConsecutiveFailures: 3,
     minSuccessesForRecovery: 2,
-  }
+  },
 };
 
 // Development configuration (optimized for batch processing)
@@ -84,7 +84,7 @@ const developmentConfig: NeonDbConfig = {
   thresholds: {
     maxConsecutiveFailures: 3,
     minSuccessesForRecovery: 2,
-  }
+  },
 };
 
 // Test configuration (optimized for automated testing)
@@ -92,7 +92,7 @@ const testConfig: NeonDbConfig = {
   pooling: {
     max: 5,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 30000, 
+    connectionTimeoutMillis: 30000,
     maxUses: 1000,
   },
   retry: {
@@ -109,19 +109,19 @@ const testConfig: NeonDbConfig = {
   thresholds: {
     maxConsecutiveFailures: 2,
     minSuccessesForRecovery: 1,
-  }
+  },
 };
 
 // Select configuration based on current environment
 function getDbConfig(): NeonDbConfig {
-  const env = process.env.NODE_ENV || 'development';
-  
+  const env = process.env.NODE_ENV || "development";
+
   switch (env) {
-    case 'production':
+    case "production":
       return productionConfig;
-    case 'test':
+    case "test":
       return testConfig;
-    case 'development':
+    case "development":
     default:
       return developmentConfig;
   }
@@ -132,12 +132,12 @@ export const dbConfig = getDbConfig();
 
 // Helper to get database URL with appropriate connection parameters
 export function getRailwayDatabaseUrl(): string {
-  const baseUrl = process.env.DATABASE_URL || '';
-  
+  const baseUrl = process.env.DATABASE_URL || "";
+
   if (!baseUrl) {
-    return '';
+    return "";
   }
-  
+
   // For Railway PostgreSQL, use the URL as-is - Railway handles SSL and other params
   return baseUrl;
 }
@@ -149,5 +149,8 @@ export const poolOptions = {
   idleTimeoutMillis: dbConfig.pooling.idleTimeoutMillis,
   connectionTimeoutMillis: dbConfig.pooling.connectionTimeoutMillis,
   maxUses: dbConfig.pooling.maxUses,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl:
+    process.env.NODE_ENV === "production"
+      ? { rejectUnauthorized: false }
+      : false,
 };

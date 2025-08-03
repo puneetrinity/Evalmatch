@@ -1,19 +1,22 @@
 /**
  * Batch Management Routes
- * 
+ *
  * Comprehensive server-side batch validation endpoints with ownership verification,
  * security features, and data integrity checks. These routes work with the batch
  * validation middleware to ensure secure and reliable batch management.
  */
 
-import express from 'express';
-import { z } from 'zod';
-import { getDatabase, executeQuery } from '../database/index.js';
-import { logger } from '../config/logger.js';
-import { validateBatchAccess, validateBatchOwnership, updateBatchAccess } from '../middleware/batch-validation.js';
-import rateLimit from 'express-rate-limit';
-import type { SessionId } from '@shared/api-contracts';
-
+import express from "express";
+import { z } from "zod";
+import { getDatabase, executeQuery } from "../database/index.js";
+import { logger } from "../config/logger.js";
+import {
+  validateBatchAccess,
+  validateBatchOwnership,
+  updateBatchAccess,
+} from "../middleware/batch-validation.js";
+import rateLimit from "express-rate-limit";
+import type { SessionId } from "@shared/api-contracts";
 
 const router = express.Router();
 
@@ -22,7 +25,7 @@ interface BatchStatus {
   batchId: string;
   sessionId: SessionId;
   userId?: string;
-  status: 'active' | 'orphaned' | 'expired' | 'corrupted';
+  status: "active" | "orphaned" | "expired" | "corrupted";
   resumeCount: number;
   createdAt: Date;
   lastAccessedAt: Date;
@@ -60,11 +63,19 @@ interface BatchDeletionResult {
 
 // Validation schemas
 const batchIdParamSchema = z.object({
-  batchId: z.string().min(1).max(100).regex(/^batch_[0-9]+_[a-z0-9]+$/, 'Invalid batch ID format'),
+  batchId: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(/^batch_[0-9]+_[a-z0-9]+$/, "Invalid batch ID format"),
 });
 
 const claimBatchSchema = z.object({
-  sessionId: z.string().min(1).max(100).regex(/^session_[0-9]+_[a-z0-9]+$/, 'Invalid session ID format'),
+  sessionId: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(/^session_[0-9]+_[a-z0-9]+$/, "Invalid session ID format"),
   userId: z.string().min(1).max(100).optional(),
   force: z.boolean().optional().default(false),
 });
@@ -73,7 +84,7 @@ const claimBatchSchema = z.object({
 const batchOperationsRateLimit = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 30, // 30 validation requests per minute
-  message: 'Too many batch operation requests. Please slow down.',
+  message: "Too many batch operation requests. Please slow down.",
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -81,7 +92,7 @@ const batchOperationsRateLimit = rateLimit({
 const batchClaimRateLimit = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
   max: 3, // Maximum 3 claim attempts per 5 minutes
-  message: 'Too many batch claim attempts. Please try again later.',
+  message: "Too many batch claim attempts. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -89,7 +100,7 @@ const batchClaimRateLimit = rateLimit({
 const batchDeleteRateLimit = rateLimit({
   windowMs: 2 * 60 * 1000, // 2 minutes
   max: 5, // Maximum 5 deletion attempts per 2 minutes
-  message: 'Too many batch deletion attempts. Please try again later.',
+  message: "Too many batch deletion attempts. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -99,36 +110,42 @@ const batchDeleteRateLimit = rateLimit({
  * Validate batch ownership and integrity
  */
 router.get(
-  '/:batchId/validate',
+  "/:batchId/validate",
   batchOperationsRateLimit,
-  validateBatchAccess('read'),
+  validateBatchAccess("read"),
   async (req: express.Request, res: express.Response) => {
     try {
       const { batchId } = batchIdParamSchema.parse(req.params);
-      const sessionId = req.headers['x-session-id'] as SessionId || req.query.sessionId as SessionId;
-      const userId = (req as any).user?.uid || req.query.userId as string;
-      
-      logger.info('Batch validation request:', {
-        batchId: batchId.substring(0, 20) + '...',
-        sessionId: sessionId?.substring(0, 20) + '...',
-        userId: ((req as any).user?.uid || userId)?.substring(0, 10) + '...' || 'anonymous',
+      const sessionId =
+        (req.headers["x-session-id"] as SessionId) ||
+        (req.query.sessionId as SessionId);
+      const userId = (req as any).user?.uid || (req.query.userId as string);
+
+      logger.info("Batch validation request:", {
+        batchId: batchId.substring(0, 20) + "...",
+        sessionId: sessionId?.substring(0, 20) + "...",
+        userId:
+          ((req as any).user?.uid || userId)?.substring(0, 10) + "..." ||
+          "anonymous",
         ip: req.ip,
       });
-      
+
       // Use the validation result from middleware
       const validation = req.batchValidation;
       if (!validation) {
-        throw new Error('Batch validation middleware not executed');
+        throw new Error("Batch validation middleware not executed");
       }
-      
+
       // Update batch access timestamp
       if (validation.valid) {
         await updateBatchAccess(batchId, sessionId);
       }
-      
+
       res.json({
         success: validation.valid,
-        message: validation.valid ? 'Batch validation successful' : 'Batch validation failed',
+        message: validation.valid
+          ? "Batch validation successful"
+          : "Batch validation failed",
         data: {
           batchId: validation.batchId,
           valid: validation.valid,
@@ -140,22 +157,21 @@ router.get(
           timestamp: new Date().toISOString(),
         },
       });
-      
     } catch (error) {
-      logger.error('Batch validation endpoint error:', {
+      logger.error("Batch validation endpoint error:", {
         error: error instanceof Error ? error.message : String(error),
         path: req.path,
         ip: req.ip,
       });
-      
+
       res.status(500).json({
         success: false,
-        message: 'Failed to validate batch',
-        code: 'VALIDATION_ERROR',
+        message: "Failed to validate batch",
+        code: "VALIDATION_ERROR",
         error: error instanceof Error ? error.message : String(error),
       });
     }
-  }
+  },
 );
 
 /**
@@ -163,27 +179,28 @@ router.get(
  * Get detailed batch status including analysis data
  */
 router.get(
-  '/:batchId/status',
+  "/:batchId/status",
   batchOperationsRateLimit,
-  validateBatchAccess('read'),
+  validateBatchAccess("read"),
   async (req: express.Request, res: express.Response) => {
     try {
       const { batchId } = batchIdParamSchema.parse(req.params);
       const validation = req.batchValidation;
-      
+
       if (!validation?.valid || !validation.ownership) {
         return res.status(403).json({
           success: false,
-          message: 'Cannot get status for invalid or unauthorized batch',
-          code: 'BATCH_ACCESS_DENIED',
+          message: "Cannot get status for invalid or unauthorized batch",
+          code: "BATCH_ACCESS_DENIED",
         });
       }
-      
-      logger.info('Batch status request:', {
-        batchId: batchId.substring(0, 20) + '...',
-        userId: validation.ownership.userId?.substring(0, 10) + '...' || 'anonymous',
+
+      logger.info("Batch status request:", {
+        batchId: batchId.substring(0, 20) + "...",
+        userId:
+          validation.ownership.userId?.substring(0, 10) + "..." || "anonymous",
       });
-      
+
       // Get analysis count for this batch
       const analysisQuery = `
         SELECT COUNT(*) as analysis_count
@@ -191,10 +208,12 @@ router.get(
         INNER JOIN resumes r ON ar.resume_id = r.id
         WHERE r.batch_id = $1
       `;
-      
+
       const analysisResults = await executeQuery(analysisQuery, [batchId]);
-      const analysisCount = parseInt((analysisResults[0] as any)?.analysis_count || '0');
-      
+      const analysisCount = parseInt(
+        (analysisResults[0] as any)?.analysis_count || "0",
+      );
+
       // Check for data corruption
       const corruptionQuery = `
         SELECT 
@@ -205,41 +224,41 @@ router.get(
         FROM resumes 
         WHERE batch_id = $1
       `;
-      
+
       const corruptionResults = await executeQuery(corruptionQuery, [batchId]);
       const corruptionData = corruptionResults[0] as any;
-      
+
       // Determine batch status
-      let status: BatchStatus['status'] = 'active';
+      let status: BatchStatus["status"] = "active";
       const warnings: string[] = [...validation.warnings];
-      
+
       if (validation.ownership.isOrphaned) {
-        status = 'orphaned';
-        warnings.push('Batch has been inactive for over 24 hours');
+        status = "orphaned";
+        warnings.push("Batch has been inactive for over 24 hours");
       }
-      
+
       if (!validation.ownership.isValid) {
-        status = 'expired';
-        warnings.push('Batch has exceeded maximum age limit');
+        status = "expired";
+        warnings.push("Batch has exceeded maximum age limit");
       }
-      
-      const dataCorrupted = 
-        corruptionData.empty_content_count > 0 || 
+
+      const dataCorrupted =
+        corruptionData.empty_content_count > 0 ||
         corruptionData.empty_filename_count > 0 ||
         !validation.ownership.metadataIntegrityCheck;
-      
+
       if (dataCorrupted) {
-        status = 'corrupted';
-        warnings.push('Data corruption detected in batch');
+        status = "corrupted";
+        warnings.push("Data corruption detected in batch");
       }
-      
+
       // Check if batch can be claimed (orphaned but not corrupted)
-      const canClaim = status === 'orphaned' && !dataCorrupted;
-      
+      const canClaim = status === "orphaned" && !dataCorrupted;
+
       // Calculate auto cleanup date (7 days from creation)
       const autoCleanupDate = new Date(validation.ownership.createdAt);
       autoCleanupDate.setDate(autoCleanupDate.getDate() + 7);
-      
+
       const batchStatus: BatchStatus = {
         batchId: validation.batchId,
         sessionId: validation.ownership.sessionId,
@@ -257,33 +276,32 @@ router.get(
         },
         warnings,
         canClaim,
-        autoCleanupDate: status !== 'active' ? autoCleanupDate : undefined,
+        autoCleanupDate: status !== "active" ? autoCleanupDate : undefined,
       };
-      
+
       // Update access timestamp
       await updateBatchAccess(batchId, validation.ownership.sessionId);
-      
+
       res.json({
         success: true,
-        message: 'Batch status retrieved successfully',
+        message: "Batch status retrieved successfully",
         data: batchStatus,
       });
-      
     } catch (error) {
-      logger.error('Batch status endpoint error:', {
+      logger.error("Batch status endpoint error:", {
         error: error instanceof Error ? error.message : String(error),
         path: req.path,
         ip: req.ip,
       });
-      
+
       res.status(500).json({
         success: false,
-        message: 'Failed to get batch status',
-        code: 'STATUS_ERROR',
+        message: "Failed to get batch status",
+        code: "STATUS_ERROR",
         error: error instanceof Error ? error.message : String(error),
       });
     }
-  }
+  },
 );
 
 /**
@@ -291,57 +309,61 @@ router.get(
  * Claim ownership of orphaned batch
  */
 router.post(
-  '/:batchId/claim',
+  "/:batchId/claim",
   batchClaimRateLimit,
   async (req: express.Request, res: express.Response) => {
     try {
       const { batchId } = batchIdParamSchema.parse(req.params);
       const { sessionId, userId, force } = claimBatchSchema.parse(req.body);
-      
-      logger.info('Batch claim attempt:', {
-        batchId: batchId.substring(0, 20) + '...',
-        newSessionId: sessionId.substring(0, 20) + '...',
-        userId: userId?.substring(0, 10) + '...' || 'anonymous',
+
+      logger.info("Batch claim attempt:", {
+        batchId: batchId.substring(0, 20) + "...",
+        newSessionId: sessionId.substring(0, 20) + "...",
+        userId: userId?.substring(0, 10) + "..." || "anonymous",
         force,
         ip: req.ip,
       });
-      
+
       // First, validate current batch state (without session ID check for claiming)
-      const currentOwnership = await validateBatchOwnership(batchId, sessionId as SessionId);
-      
+      const currentOwnership = await validateBatchOwnership(
+        batchId,
+        sessionId as SessionId,
+      );
+
       if (!currentOwnership.ownership) {
         return res.status(404).json({
           success: false,
-          message: 'Batch not found',
-          code: 'BATCH_NOT_FOUND',
+          message: "Batch not found",
+          code: "BATCH_NOT_FOUND",
         });
       }
-      
+
       // Check if batch can be claimed
       const canClaim = currentOwnership.ownership.isOrphaned || force;
-      
+
       if (!canClaim) {
         return res.status(403).json({
           success: false,
-          message: 'Batch cannot be claimed - not orphaned and force not specified',
-          code: 'BATCH_NOT_CLAIMABLE',
+          message:
+            "Batch cannot be claimed - not orphaned and force not specified",
+          code: "BATCH_NOT_CLAIMABLE",
           data: {
             isOrphaned: currentOwnership.ownership.isOrphaned,
             lastAccessedAt: currentOwnership.ownership.lastAccessedAt,
           },
         });
       }
-      
+
       // Security check - prevent claiming if there are too many security flags
       if (currentOwnership.securityFlags.length > 2) {
         return res.status(403).json({
           success: false,
-          message: 'Batch cannot be claimed due to security concerns',
-          code: 'SECURITY_CLAIM_DENIED',
+          message: "Batch cannot be claimed due to security concerns",
+          code: "SECURITY_CLAIM_DENIED",
           securityFlags: currentOwnership.securityFlags,
         });
       }
-      
+
       // Update batch ownership
       const updateQuery = `
         UPDATE resumes 
@@ -352,17 +374,21 @@ router.post(
         WHERE batch_id = $3
         RETURNING id, filename
       `;
-      
-      const updateResults = await executeQuery(updateQuery, [sessionId, userId || null, batchId]);
-      
+
+      const updateResults = await executeQuery(updateQuery, [
+        sessionId,
+        userId || null,
+        batchId,
+      ]);
+
       if (updateResults.length === 0) {
         return res.status(404).json({
           success: false,
-          message: 'No resumes found to claim',
-          code: 'NO_RESUMES_FOUND',
+          message: "No resumes found to claim",
+          code: "NO_RESUMES_FOUND",
         });
       }
-      
+
       // Also update any analysis results
       const analysisUpdateQuery = `
         UPDATE analysis_results 
@@ -371,9 +397,9 @@ router.post(
           SELECT id FROM resumes WHERE batch_id = $2
         )
       `;
-      
+
       await executeQuery(analysisUpdateQuery, [userId || null, batchId]);
-      
+
       const claimResult: BatchClaimResult = {
         success: true,
         message: `Successfully claimed batch with ${updateResults.length} resumes`,
@@ -382,34 +408,33 @@ router.post(
         resumeCount: updateResults.length,
         warnings: currentOwnership.warnings,
       };
-      
-      logger.info('Batch claimed successfully:', {
-        batchId: batchId.substring(0, 20) + '...',
+
+      logger.info("Batch claimed successfully:", {
+        batchId: batchId.substring(0, 20) + "...",
         resumeCount: updateResults.length,
-        newSessionId: sessionId.substring(0, 20) + '...',
+        newSessionId: sessionId.substring(0, 20) + "...",
       });
-      
+
       res.json({
         success: true,
-        message: 'Batch claimed successfully',
+        message: "Batch claimed successfully",
         data: claimResult,
       });
-      
     } catch (error) {
-      logger.error('Batch claim endpoint error:', {
+      logger.error("Batch claim endpoint error:", {
         error: error instanceof Error ? error.message : String(error),
         path: req.path,
         ip: req.ip,
       });
-      
+
       res.status(500).json({
         success: false,
-        message: 'Failed to claim batch',
-        code: 'CLAIM_ERROR',
+        message: "Failed to claim batch",
+        code: "CLAIM_ERROR",
         error: error instanceof Error ? error.message : String(error),
       });
     }
-  }
+  },
 );
 
 /**
@@ -417,32 +442,33 @@ router.post(
  * Delete batch and associated data
  */
 router.delete(
-  '/:batchId',
+  "/:batchId",
   batchDeleteRateLimit,
-  validateBatchAccess('delete'),
+  validateBatchAccess("delete"),
   async (req: express.Request, res: express.Response) => {
     try {
       const { batchId } = batchIdParamSchema.parse(req.params);
       const validation = req.batchValidation;
-      
+
       if (!validation?.valid || !validation.ownership) {
         return res.status(403).json({
           success: false,
-          message: 'Cannot delete invalid or unauthorized batch',
-          code: 'BATCH_ACCESS_DENIED',
+          message: "Cannot delete invalid or unauthorized batch",
+          code: "BATCH_ACCESS_DENIED",
         });
       }
-      
-      logger.info('Batch deletion request:', {
-        batchId: batchId.substring(0, 20) + '...',
-        userId: validation.ownership.userId?.substring(0, 10) + '...' || 'anonymous',
+
+      logger.info("Batch deletion request:", {
+        batchId: batchId.substring(0, 20) + "...",
+        userId:
+          validation.ownership.userId?.substring(0, 10) + "..." || "anonymous",
         resumeCount: validation.ownership.resumeCount,
         ip: req.ip,
       });
-      
+
       // Start transaction for safe deletion
       const db = getDatabase();
-      
+
       // Delete interview questions first (foreign key dependency)
       const deleteInterviewQuery = `
         DELETE FROM interview_questions 
@@ -450,8 +476,10 @@ router.delete(
           SELECT id FROM resumes WHERE batch_id = $1
         )
       `;
-      const interviewDeleteResult = await executeQuery(deleteInterviewQuery, [batchId]);
-      
+      const interviewDeleteResult = await executeQuery(deleteInterviewQuery, [
+        batchId,
+      ]);
+
       // Delete analysis results
       const deleteAnalysisQuery = `
         DELETE FROM analysis_results 
@@ -459,16 +487,20 @@ router.delete(
           SELECT id FROM resumes WHERE batch_id = $1
         )
       `;
-      const analysisDeleteResult = await executeQuery(deleteAnalysisQuery, [batchId]);
-      
+      const analysisDeleteResult = await executeQuery(deleteAnalysisQuery, [
+        batchId,
+      ]);
+
       // Delete resumes
       const deleteResumeQuery = `
         DELETE FROM resumes 
         WHERE batch_id = $1
         RETURNING filename
       `;
-      const resumeDeleteResult = await executeQuery(deleteResumeQuery, [batchId]);
-      
+      const resumeDeleteResult = await executeQuery(deleteResumeQuery, [
+        batchId,
+      ]);
+
       const deletionResult: BatchDeletionResult = {
         success: true,
         message: `Batch deleted successfully`,
@@ -479,33 +511,32 @@ router.delete(
         },
         warnings: validation.warnings,
       };
-      
-      logger.info('Batch deleted successfully:', {
-        batchId: batchId.substring(0, 20) + '...',
+
+      logger.info("Batch deleted successfully:", {
+        batchId: batchId.substring(0, 20) + "...",
         deletedItems: deletionResult.deletedItems,
       });
-      
+
       res.json({
         success: true,
-        message: 'Batch deleted successfully',
+        message: "Batch deleted successfully",
         data: deletionResult,
       });
-      
     } catch (error) {
-      logger.error('Batch deletion endpoint error:', {
+      logger.error("Batch deletion endpoint error:", {
         error: error instanceof Error ? error.message : String(error),
         path: req.path,
         ip: req.ip,
       });
-      
+
       res.status(500).json({
         success: false,
-        message: 'Failed to delete batch',
-        code: 'DELETION_ERROR',
+        message: "Failed to delete batch",
+        code: "DELETION_ERROR",
         error: error instanceof Error ? error.message : String(error),
       });
     }
-  }
+  },
 );
 
 /**
@@ -513,22 +544,22 @@ router.delete(
  * Get resumes in batch with validation
  */
 router.get(
-  '/:batchId/resumes',
+  "/:batchId/resumes",
   batchOperationsRateLimit,
-  validateBatchAccess('read'),
+  validateBatchAccess("read"),
   async (req: express.Request, res: express.Response) => {
     try {
       const { batchId } = batchIdParamSchema.parse(req.params);
       const validation = req.batchValidation;
-      
+
       if (!validation?.valid || !validation.ownership) {
         return res.status(403).json({
           success: false,
-          message: 'Cannot access resumes for invalid or unauthorized batch',
-          code: 'BATCH_ACCESS_DENIED',
+          message: "Cannot access resumes for invalid or unauthorized batch",
+          code: "BATCH_ACCESS_DENIED",
         });
       }
-      
+
       // Get resumes with analysis status
       const resumesQuery = `
         SELECT 
@@ -545,15 +576,15 @@ router.get(
         WHERE r.batch_id = $1
         ORDER BY r.created_at DESC
       `;
-      
+
       const resumes = await executeQuery(resumesQuery, [batchId]);
-      
+
       // Update access timestamp
       await updateBatchAccess(batchId, validation.ownership.sessionId);
-      
+
       res.json({
         success: true,
-        message: 'Batch resumes retrieved successfully',
+        message: "Batch resumes retrieved successfully",
         data: {
           batchId: validation.batchId,
           sessionId: validation.ownership.sessionId,
@@ -564,22 +595,21 @@ router.get(
           })),
         },
       });
-      
     } catch (error) {
-      logger.error('Batch resumes endpoint error:', {
+      logger.error("Batch resumes endpoint error:", {
         error: error instanceof Error ? error.message : String(error),
         path: req.path,
         ip: req.ip,
       });
-      
+
       res.status(500).json({
         success: false,
-        message: 'Failed to get batch resumes',
-        code: 'RESUMES_ERROR',
+        message: "Failed to get batch resumes",
+        code: "RESUMES_ERROR",
         error: error instanceof Error ? error.message : String(error),
       });
     }
-  }
+  },
 );
 
 /**
@@ -587,11 +617,11 @@ router.get(
  * Get batches that are candidates for cleanup (admin endpoint)
  */
 router.get(
-  '/cleanup-candidates',
+  "/cleanup-candidates",
   rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 10, // 10 requests per minute
-    message: 'Too many cleanup candidate requests. Please slow down.',
+    message: "Too many cleanup candidate requests. Please slow down.",
     standardHeaders: true,
     legacyHeaders: false,
   }),
@@ -599,10 +629,10 @@ router.get(
     try {
       // This would typically require admin authentication
       // For now, we'll implement basic IP-based rate limiting
-      
+
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - 7); // 7 days ago
-      
+
       const cleanupQuery = `
         SELECT 
           batch_id,
@@ -619,12 +649,12 @@ router.get(
         ORDER BY MAX(updated_at) ASC
         LIMIT 100
       `;
-      
+
       const candidates = await executeQuery(cleanupQuery, [cutoffDate]);
-      
+
       res.json({
         success: true,
-        message: 'Cleanup candidates retrieved successfully',
+        message: "Cleanup candidates retrieved successfully",
         data: {
           candidateCount: candidates.length,
           cutoffDate: cutoffDate.toISOString(),
@@ -639,22 +669,21 @@ router.get(
           })),
         },
       });
-      
     } catch (error) {
-      logger.error('Cleanup candidates endpoint error:', {
+      logger.error("Cleanup candidates endpoint error:", {
         error: error instanceof Error ? error.message : String(error),
         path: req.path,
         ip: req.ip,
       });
-      
+
       res.status(500).json({
         success: false,
-        message: 'Failed to get cleanup candidates',
-        code: 'CLEANUP_ERROR',
+        message: "Failed to get cleanup candidates",
+        code: "CLEANUP_ERROR",
         error: error instanceof Error ? error.message : String(error),
       });
     }
-  }
+  },
 );
 
 export default router;

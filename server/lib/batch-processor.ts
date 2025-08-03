@@ -1,7 +1,11 @@
-import { logger } from './logger';
-import { analyzeResumeParallel, analyzeJobDescription, analyzeMatch as analyzeMatchTiered } from './tiered-ai-provider';
-import { storage } from '../storage';
-import { UserTierInfo } from '@shared/user-tiers';
+import { logger } from "./logger";
+import {
+  analyzeResumeParallel,
+  analyzeJobDescription,
+  analyzeMatch as analyzeMatchTiered,
+} from "./tiered-ai-provider";
+import { storage } from "../storage";
+import { UserTierInfo } from "@shared/user-tiers";
 
 export interface BatchResumeInput {
   id: number;
@@ -40,33 +44,33 @@ interface MatchProcessResult {
  */
 export async function processBatchResumes(
   resumes: BatchResumeInput[],
-  userTier: UserTierInfo
+  userTier: UserTierInfo,
 ): Promise<BatchProcessResult> {
   const startTime = Date.now();
   const errors: Array<{ id: number; error: string }> = [];
   let processed = 0;
 
   // Extract resume IDs for logging
-  const resumeIds = resumes.map(r => r.id);
-  
+  const resumeIds = resumes.map((r) => r.id);
+
   try {
-    logger.info('Starting batch resume processing', {
+    logger.info("Starting batch resume processing", {
       resumeCount: resumes.length,
       resumeIds: resumeIds,
       userTier: {
         name: userTier.name,
         model: userTier.model,
-        maxConcurrency: userTier.maxConcurrency
+        maxConcurrency: userTier.maxConcurrency,
       },
-      startTime: new Date(startTime).toISOString()
+      startTime: new Date(startTime).toISOString(),
     });
 
-    logger.debug('Batch resume processing details', {
-      resumes: resumes.map(r => ({
+    logger.debug("Batch resume processing details", {
+      resumes: resumes.map((r) => ({
         id: r.id,
         filename: r.filename,
-        contentLength: r.content?.length || 0
-      }))
+        contentLength: r.content?.length || 0,
+      })),
     });
 
     // Process all resumes in parallel using Promise.all()
@@ -75,40 +79,44 @@ export async function processBatchResumes(
         logger.debug(`Starting analysis for resume ${resume.id}`, {
           resumeId: resume.id,
           filename: resume.filename,
-          contentLength: resume.content?.length || 0
+          contentLength: resume.content?.length || 0,
         });
-        
+
         // Analyze resume using optimized parallel extraction (22% token reduction)
         const analysisStartTime = Date.now();
         const analysis = await analyzeResumeParallel(resume.content, userTier);
         const analysisTime = Date.now() - analysisStartTime;
-        
+
         logger.debug(`Resume analysis completed for ${resume.id}`, {
           resumeId: resume.id,
           analysisTime,
           skillsExtracted: analysis.skills?.length || 0,
-          experienceYears: analysis.experienceYears || 0
+          experienceYears: analysis.experienceYears || 0,
         });
-        
+
         // Start database update asynchronously (don't wait for completion)
         logger.debug(`Starting database update for resume ${resume.id}`);
-        const dbUpdatePromise = storage.updateResumeAnalysis(resume.id, analysis);
-        
+        const dbUpdatePromise = storage.updateResumeAnalysis(
+          resume.id,
+          analysis,
+        );
+
         // Return immediately with analysis, database update happens in background
         // We store the promise to await all database operations later if needed
-        return { 
-          id: resume.id, 
-          success: true, 
+        return {
+          id: resume.id,
+          success: true,
           analysis,
-          dbUpdate: dbUpdatePromise 
+          dbUpdate: dbUpdatePromise,
         };
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         logger.error(`Error processing resume ${resume.id}`, {
           resumeId: resume.id,
           filename: resume.filename,
           error: errorMessage,
-          errorStack: error instanceof Error ? error.stack : undefined
+          errorStack: error instanceof Error ? error.stack : undefined,
         });
         errors.push({ id: resume.id, error: errorMessage });
         return { id: resume.id, success: false, error: errorMessage };
@@ -116,53 +124,59 @@ export async function processBatchResumes(
     });
 
     // Wait for all analyses to complete
-    logger.debug('Waiting for all resume analyses to complete');
+    logger.debug("Waiting for all resume analyses to complete");
     const results = await Promise.all(analysisPromises);
-    processed = results.filter(r => r.success).length;
-    const failed = results.filter(r => !r.success).length;
+    processed = results.filter((r) => r.success).length;
+    const failed = results.filter((r) => !r.success).length;
 
-    logger.info('Resume analyses completed', {
+    logger.info("Resume analyses completed", {
       total: results.length,
       successful: processed,
       failed: failed,
-      successRate: Math.round((processed / results.length) * 100)
+      successRate: Math.round((processed / results.length) * 100),
     });
 
     // Wait for all database updates to complete in background
     const dbUpdatePromises = results
-      .filter(r => r.success && r.dbUpdate)
-      .map(r => r.dbUpdate);
-    
+      .filter((r) => r.success && r.dbUpdate)
+      .map((r) => r.dbUpdate);
+
     if (dbUpdatePromises.length > 0) {
-      logger.debug(`Starting database updates for ${dbUpdatePromises.length} successful analyses`);
+      logger.debug(
+        `Starting database updates for ${dbUpdatePromises.length} successful analyses`,
+      );
       try {
         const dbResults = await Promise.allSettled(dbUpdatePromises);
-        const dbSuccessful = dbResults.filter(r => r.status === 'fulfilled').length;
-        const dbFailed = dbResults.filter(r => r.status === 'rejected').length;
-        
-        logger.info('Database updates completed', {
+        const dbSuccessful = dbResults.filter(
+          (r) => r.status === "fulfilled",
+        ).length;
+        const dbFailed = dbResults.filter(
+          (r) => r.status === "rejected",
+        ).length;
+
+        logger.info("Database updates completed", {
           total: dbUpdatePromises.length,
           successful: dbSuccessful,
-          failed: dbFailed
+          failed: dbFailed,
         });
-        
+
         if (dbFailed > 0) {
-          logger.warn('Some database updates failed', {
+          logger.warn("Some database updates failed", {
             failedCount: dbFailed,
             failures: dbResults
-              .filter(r => r.status === 'rejected')
-              .map(r => r.reason)
+              .filter((r) => r.status === "rejected")
+              .map((r) => r.reason),
           });
         }
       } catch (error) {
-        logger.warn('Database update error during Promise.allSettled:', error);
+        logger.warn("Database update error during Promise.allSettled:", error);
       }
     }
 
     const timeTaken = Date.now() - startTime;
     const avgTimePerResume = timeTaken / resumes.length;
-    
-    logger.info('Batch resume processing completed', {
+
+    logger.info("Batch resume processing completed", {
       totalResumes: resumes.length,
       successful: processed,
       failed: errors.length,
@@ -171,13 +185,13 @@ export async function processBatchResumes(
       avgTimePerResume: Math.round(avgTimePerResume),
       resumesPerSecond: Math.round((resumes.length / timeTaken) * 1000),
       userTier: userTier.name,
-      endTime: new Date().toISOString()
+      endTime: new Date().toISOString(),
     });
 
     if (errors.length > 0) {
-      logger.warn('Batch processing had errors', {
+      logger.warn("Batch processing had errors", {
         errorCount: errors.length,
-        errors: errors.map(e => ({ resumeId: e.id, error: e.error }))
+        errors: errors.map((e) => ({ resumeId: e.id, error: e.error })),
       });
     }
 
@@ -185,26 +199,31 @@ export async function processBatchResumes(
       success: errors.length === 0,
       processed,
       errors,
-      timeTaken
+      timeTaken,
     };
-
   } catch (error) {
     const timeTaken = Date.now() - startTime;
-    logger.error('Batch resume processing failed catastrophically', {
+    logger.error("Batch resume processing failed catastrophically", {
       resumeCount: resumes.length,
       resumeIds: resumeIds,
       processed: processed,
       timeTaken: timeTaken,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
       errorStack: error instanceof Error ? error.stack : undefined,
-      userTier: userTier.name
+      userTier: userTier.name,
     });
-    
+
     return {
       success: false,
       processed,
-      errors: [{ id: -1, error: error instanceof Error ? error.message : 'Batch processing failed' }],
-      timeTaken
+      errors: [
+        {
+          id: -1,
+          error:
+            error instanceof Error ? error.message : "Batch processing failed",
+        },
+      ],
+      timeTaken,
     };
   }
 }
@@ -216,7 +235,7 @@ export async function processBatchResumes(
 export async function processBatchMatches(
   resumes: BatchResumeInput[],
   jobs: BatchJobInput[],
-  userTier: UserTierInfo
+  userTier: UserTierInfo,
 ): Promise<BatchProcessResult> {
   const startTime = Date.now();
   const errors: Array<{ id: number; error: string }> = [];
@@ -224,11 +243,11 @@ export async function processBatchMatches(
   const totalMatches = resumes.length * jobs.length;
 
   // Extract IDs for logging
-  const resumeIds = resumes.map(r => r.id);
-  const jobIds = jobs.map(j => j.id);
+  const resumeIds = resumes.map((r) => r.id);
+  const jobIds = jobs.map((j) => j.id);
 
   try {
-    logger.info('Starting batch matching process', {
+    logger.info("Starting batch matching process", {
       resumeCount: resumes.length,
       jobCount: jobs.length,
       totalMatches: totalMatches,
@@ -237,54 +256,58 @@ export async function processBatchMatches(
       userTier: {
         name: userTier.name,
         model: userTier.model,
-        maxConcurrency: userTier.maxConcurrency
+        maxConcurrency: userTier.maxConcurrency,
       },
-      startTime: new Date(startTime).toISOString()
+      startTime: new Date(startTime).toISOString(),
     });
 
-    logger.debug('Batch matching details', {
-      resumes: resumes.map(r => ({
+    logger.debug("Batch matching details", {
+      resumes: resumes.map((r) => ({
         id: r.id,
         filename: r.filename,
-        contentLength: r.content?.length || 0
+        contentLength: r.content?.length || 0,
       })),
-      jobs: jobs.map(j => ({
+      jobs: jobs.map((j) => ({
         id: j.id,
         title: j.title,
-        descriptionLength: j.description?.length || 0
-      }))
+        descriptionLength: j.description?.length || 0,
+      })),
     });
 
     // First, analyze all jobs in parallel (if not already analyzed)
-    logger.info('Starting job description analyses', { jobCount: jobs.length });
+    logger.info("Starting job description analyses", { jobCount: jobs.length });
     const jobAnalysisStartTime = Date.now();
-    
+
     const jobAnalysisPromises = jobs.map(async (job) => {
       try {
         logger.debug(`Starting job analysis for ${job.id}`, {
           jobId: job.id,
           title: job.title,
-          descriptionLength: job.description?.length || 0
+          descriptionLength: job.description?.length || 0,
         });
-        
+
         const jobAnalysisTime = Date.now();
-        const analysis = await analyzeJobDescription(job.title, job.description, userTier);
+        const analysis = await analyzeJobDescription(
+          job.title,
+          job.description,
+          userTier,
+        );
         const analysisTime = Date.now() - jobAnalysisTime;
-        
+
         logger.debug(`Job analysis completed for ${job.id}`, {
           jobId: job.id,
           analysisTime,
           skillsRequired: analysis.requiredSkills?.length || 0,
-          experienceLevel: analysis.experienceLevel
+          experienceLevel: analysis.experienceLevel,
         });
-        
+
         return analysis;
       } catch (error) {
         logger.error(`Error analyzing job ${job.id}`, {
           jobId: job.id,
           title: job.title,
-          error: error instanceof Error ? error.message : 'Unknown error',
-          errorStack: error instanceof Error ? error.stack : undefined
+          error: error instanceof Error ? error.message : "Unknown error",
+          errorStack: error instanceof Error ? error.stack : undefined,
         });
         throw error;
       }
@@ -292,43 +315,43 @@ export async function processBatchMatches(
 
     const jobAnalyses = await Promise.all(jobAnalysisPromises);
     const jobAnalysisTime = Date.now() - jobAnalysisStartTime;
-    
-    logger.info('Job analyses completed', {
+
+    logger.info("Job analyses completed", {
       jobCount: jobs.length,
       totalTime: jobAnalysisTime,
-      avgTimePerJob: Math.round(jobAnalysisTime / jobs.length)
+      avgTimePerJob: Math.round(jobAnalysisTime / jobs.length),
     });
 
-    // Then analyze all resumes in parallel (if not already analyzed)  
-    logger.info('Starting resume analyses', { resumeCount: resumes.length });
+    // Then analyze all resumes in parallel (if not already analyzed)
+    logger.info("Starting resume analyses", { resumeCount: resumes.length });
     const resumeAnalysisStartTime = Date.now();
-    
+
     const resumeAnalysisPromises = resumes.map(async (resume) => {
       try {
         logger.debug(`Starting resume analysis for ${resume.id}`, {
           resumeId: resume.id,
           filename: resume.filename,
-          contentLength: resume.content?.length || 0
+          contentLength: resume.content?.length || 0,
         });
-        
+
         const resumeAnalysisTime = Date.now();
         const analysis = await analyzeResumeParallel(resume.content, userTier);
         const analysisTime = Date.now() - resumeAnalysisTime;
-        
+
         logger.debug(`Resume analysis completed for ${resume.id}`, {
           resumeId: resume.id,
           analysisTime,
           skillsExtracted: analysis.skills?.length || 0,
-          experienceYears: analysis.experienceYears || 0
+          experienceYears: analysis.experienceYears || 0,
         });
-        
+
         return analysis;
       } catch (error) {
         logger.error(`Error analyzing resume ${resume.id}`, {
           resumeId: resume.id,
           filename: resume.filename,
-          error: error instanceof Error ? error.message : 'Unknown error',
-          errorStack: error instanceof Error ? error.stack : undefined
+          error: error instanceof Error ? error.message : "Unknown error",
+          errorStack: error instanceof Error ? error.stack : undefined,
         });
         throw error;
       }
@@ -336,22 +359,22 @@ export async function processBatchMatches(
 
     const resumeAnalyses = await Promise.all(resumeAnalysisPromises);
     const resumeAnalysisTime = Date.now() - resumeAnalysisStartTime;
-    
-    logger.info('Resume analyses completed', {
+
+    logger.info("Resume analyses completed", {
       resumeCount: resumes.length,
       totalTime: resumeAnalysisTime,
-      avgTimePerResume: Math.round(resumeAnalysisTime / resumes.length)
+      avgTimePerResume: Math.round(resumeAnalysisTime / resumes.length),
     });
 
     // Finally, process all resume-job combinations in parallel
-    logger.info('Starting match analyses', {
+    logger.info("Starting match analyses", {
       totalMatches: totalMatches,
-      estimatedTime: 'Based on user tier and system load'
+      estimatedTime: "Based on user tier and system load",
     });
-    
+
     const matchStartTime = Date.now();
     const matchPromises: Promise<MatchProcessResult>[] = [];
-    
+
     for (let i = 0; i < resumes.length; i++) {
       for (let j = 0; j < jobs.length; j++) {
         const matchPromise = (async () => {
@@ -361,26 +384,26 @@ export async function processBatchMatches(
               resumeId: resumes[i].id,
               jobId: jobs[j].id,
               resumeFilename: resumes[i].filename,
-              jobTitle: jobs[j].title
+              jobTitle: jobs[j].title,
             });
-            
+
             const matchAnalysisTime = Date.now();
             const matchAnalysis = await analyzeMatchTiered(
               resumeAnalyses[i],
               jobAnalyses[j],
               userTier,
               resumes[i].content,
-              jobs[j].description
+              jobs[j].description,
             );
             const analysisTime = Date.now() - matchAnalysisTime;
-            
+
             logger.debug(`Match analysis completed ${matchId}`, {
               resumeId: resumes[i].id,
               jobId: jobs[j].id,
               matchPercentage: matchAnalysis.matchPercentage,
               matchedSkills: matchAnalysis.matchedSkills?.length || 0,
               missingSkills: matchAnalysis.missingSkills?.length || 0,
-              analysisTime
+              analysisTime,
             });
 
             // Store analysis result asynchronously (don't wait)
@@ -394,92 +417,105 @@ export async function processBatchMatches(
               missingSkills: matchAnalysis.missingSkills,
               candidateStrengths: matchAnalysis.candidateStrengths,
               candidateWeaknesses: matchAnalysis.candidateWeaknesses,
-              confidenceLevel: matchAnalysis.confidenceLevel || 'medium',
-              fairnessMetrics: matchAnalysis.fairnessMetrics
+              confidenceLevel: matchAnalysis.confidenceLevel || "medium",
+              fairnessMetrics: matchAnalysis.fairnessMetrics,
             });
 
-            return { 
-              resumeId: resumes[i].id, 
-              jobId: jobs[j].id, 
+            return {
+              resumeId: resumes[i].id,
+              jobId: jobs[j].id,
               success: true,
               dbStore: dbStorePromise,
-              matchId: matchId
+              matchId: matchId,
             } as MatchProcessResult;
           } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            const errorMessage =
+              error instanceof Error ? error.message : "Unknown error";
             logger.error(`Match analysis failed ${matchId}`, {
               resumeId: resumes[i].id,
               jobId: jobs[j].id,
               resumeFilename: resumes[i].filename,
               jobTitle: jobs[j].title,
               error: errorMessage,
-              errorStack: error instanceof Error ? error.stack : undefined
+              errorStack: error instanceof Error ? error.stack : undefined,
             });
-            
-            errors.push({ 
+
+            errors.push({
               id: resumes[i].id * 1000 + jobs[j].id, // Unique ID for match
-              error: errorMessage 
+              error: errorMessage,
             });
-            return { resumeId: resumes[i].id, jobId: jobs[j].id, success: false, matchId: matchId, error: errorMessage } as MatchProcessResult;
+            return {
+              resumeId: resumes[i].id,
+              jobId: jobs[j].id,
+              success: false,
+              matchId: matchId,
+              error: errorMessage,
+            } as MatchProcessResult;
           }
         })();
-        
+
         matchPromises.push(matchPromise);
       }
     }
 
     // Process all matches in parallel
-    logger.debug('Waiting for all match analyses to complete');
+    logger.debug("Waiting for all match analyses to complete");
     const matchResults = await Promise.all(matchPromises);
-    processed = matchResults.filter(r => r.success).length;
-    const failedMatches = matchResults.filter(r => !r.success).length;
+    processed = matchResults.filter((r) => r.success).length;
+    const failedMatches = matchResults.filter((r) => !r.success).length;
     const matchTime = Date.now() - matchStartTime;
 
-    logger.info('Match analyses completed', {
+    logger.info("Match analyses completed", {
       totalMatches: matchResults.length,
       successful: processed,
       failed: failedMatches,
       successRate: Math.round((processed / matchResults.length) * 100),
       totalTime: matchTime,
       avgTimePerMatch: Math.round(matchTime / matchResults.length),
-      matchesPerSecond: Math.round((matchResults.length / matchTime) * 1000)
+      matchesPerSecond: Math.round((matchResults.length / matchTime) * 1000),
     });
 
     // Wait for all database stores to complete in background
     const dbStorePromises = matchResults
-      .filter(r => r.success && r.dbStore)
-      .map(r => r.dbStore);
-    
+      .filter((r) => r.success && r.dbStore)
+      .map((r) => r.dbStore);
+
     if (dbStorePromises.length > 0) {
-      logger.debug(`Starting database stores for ${dbStorePromises.length} successful matches`);
+      logger.debug(
+        `Starting database stores for ${dbStorePromises.length} successful matches`,
+      );
       try {
         const dbResults = await Promise.allSettled(dbStorePromises);
-        const dbSuccessful = dbResults.filter(r => r.status === 'fulfilled').length;
-        const dbFailed = dbResults.filter(r => r.status === 'rejected').length;
-        
-        logger.info('Database stores completed', {
+        const dbSuccessful = dbResults.filter(
+          (r) => r.status === "fulfilled",
+        ).length;
+        const dbFailed = dbResults.filter(
+          (r) => r.status === "rejected",
+        ).length;
+
+        logger.info("Database stores completed", {
           total: dbStorePromises.length,
           successful: dbSuccessful,
-          failed: dbFailed
+          failed: dbFailed,
         });
-        
+
         if (dbFailed > 0) {
-          logger.warn('Some database stores failed', {
+          logger.warn("Some database stores failed", {
             failedCount: dbFailed,
             failures: dbResults
-              .filter(r => r.status === 'rejected')
-              .map(r => r.reason)
+              .filter((r) => r.status === "rejected")
+              .map((r) => r.reason),
           });
         }
       } catch (error) {
-        logger.warn('Database store error during Promise.allSettled:', error);
+        logger.warn("Database store error during Promise.allSettled:", error);
       }
     }
 
     const timeTaken = Date.now() - startTime;
     const avgTimePerMatch = timeTaken / totalMatches;
-    
-    logger.info('Batch matching process completed', {
+
+    logger.info("Batch matching process completed", {
       resumeCount: resumes.length,
       jobCount: jobs.length,
       totalMatches: totalMatches,
@@ -490,13 +526,13 @@ export async function processBatchMatches(
       avgTimePerMatch: Math.round(avgTimePerMatch),
       matchesPerSecond: Math.round((totalMatches / timeTaken) * 1000),
       userTier: userTier.name,
-      endTime: new Date().toISOString()
+      endTime: new Date().toISOString(),
     });
 
     if (errors.length > 0) {
-      logger.warn('Batch matching had errors', {
+      logger.warn("Batch matching had errors", {
         errorCount: errors.length,
-        errors: errors.map(e => ({ matchId: e.id, error: e.error }))
+        errors: errors.map((e) => ({ matchId: e.id, error: e.error })),
       });
     }
 
@@ -504,12 +540,11 @@ export async function processBatchMatches(
       success: errors.length === 0,
       processed,
       errors,
-      timeTaken
+      timeTaken,
     };
-
   } catch (error) {
     const timeTaken = Date.now() - startTime;
-    logger.error('Batch matching process failed catastrophically', {
+    logger.error("Batch matching process failed catastrophically", {
       resumeCount: resumes.length,
       jobCount: jobs.length,
       totalMatches: totalMatches,
@@ -517,16 +552,22 @@ export async function processBatchMatches(
       jobIds: jobIds,
       processed: processed,
       timeTaken: timeTaken,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
       errorStack: error instanceof Error ? error.stack : undefined,
-      userTier: userTier.name
+      userTier: userTier.name,
     });
-    
+
     return {
       success: false,
       processed,
-      errors: [{ id: -1, error: error instanceof Error ? error.message : 'Batch matching failed' }],
-      timeTaken
+      errors: [
+        {
+          id: -1,
+          error:
+            error instanceof Error ? error.message : "Batch matching failed",
+        },
+      ],
+      timeTaken,
     };
   }
 }
@@ -538,31 +579,34 @@ export async function processBatchMatches(
 export async function processSmartBatch<T, R>(
   items: T[],
   processor: (item: T) => Promise<R>,
-  maxConcurrency: number = 10
-): Promise<{ results: (R | undefined)[]; errors: { index: number; error: unknown }[] }> {
+  maxConcurrency: number = 10,
+): Promise<{
+  results: (R | undefined)[];
+  errors: { index: number; error: unknown }[];
+}> {
   const startTime = Date.now();
   const results: (R | undefined)[] = new Array(items.length);
   const errors: { index: number; error: unknown }[] = [];
   const totalChunks = Math.ceil(items.length / maxConcurrency);
 
-  logger.info('Starting smart batch processing', {
+  logger.info("Starting smart batch processing", {
     totalItems: items.length,
     maxConcurrency,
     totalChunks,
-    startTime: new Date(startTime).toISOString()
+    startTime: new Date(startTime).toISOString(),
   });
 
   // Process items in chunks to avoid overwhelming the system
   for (let i = 0; i < items.length; i += maxConcurrency) {
     const chunk = items.slice(i, i + maxConcurrency);
     const chunkNumber = Math.floor(i / maxConcurrency) + 1;
-    
+
     logger.debug(`Processing chunk ${chunkNumber}/${totalChunks}`, {
       chunkSize: chunk.length,
       itemsProcessed: i,
-      itemsRemaining: items.length - i - chunk.length
+      itemsRemaining: items.length - i - chunk.length,
     });
-    
+
     const chunkPromises = chunk.map(async (item, index) => {
       try {
         const result = await processor(item);
@@ -575,19 +619,19 @@ export async function processSmartBatch<T, R>(
     const chunkStartTime = Date.now();
     const chunkResults = await Promise.all(chunkPromises);
     const chunkTime = Date.now() - chunkStartTime;
-    
-    const chunkSuccessful = chunkResults.filter(r => r.success).length;
-    const chunkFailed = chunkResults.filter(r => !r.success).length;
-    
+
+    const chunkSuccessful = chunkResults.filter((r) => r.success).length;
+    const chunkFailed = chunkResults.filter((r) => !r.success).length;
+
     logger.debug(`Chunk ${chunkNumber} completed`, {
       chunkSize: chunk.length,
       successful: chunkSuccessful,
       failed: chunkFailed,
       chunkTime,
-      avgTimePerItem: Math.round(chunkTime / chunk.length)
+      avgTimePerItem: Math.round(chunkTime / chunk.length),
     });
-    
-    chunkResults.forEach(result => {
+
+    chunkResults.forEach((result) => {
       if (result.success) {
         results[result.index] = result.result;
       } else {
@@ -597,17 +641,19 @@ export async function processSmartBatch<T, R>(
   }
 
   const totalTime = Date.now() - startTime;
-  
-  logger.info('Smart batch processing completed', {
+
+  logger.info("Smart batch processing completed", {
     totalItems: items.length,
-    successful: results.filter(r => r !== undefined).length,
+    successful: results.filter((r) => r !== undefined).length,
     failed: errors.length,
-    successRate: Math.round((results.filter(r => r !== undefined).length / items.length) * 100),
+    successRate: Math.round(
+      (results.filter((r) => r !== undefined).length / items.length) * 100,
+    ),
     totalTime,
     avgTimePerItem: Math.round(totalTime / items.length),
     itemsPerSecond: Math.round((items.length / totalTime) * 1000),
     maxConcurrency,
-    chunksProcessed: totalChunks
+    chunksProcessed: totalChunks,
   });
 
   return { results, errors };

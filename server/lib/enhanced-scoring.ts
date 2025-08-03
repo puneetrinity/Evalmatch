@@ -1,7 +1,14 @@
-import { logger } from './logger';
-import { calculateSemanticSimilarity, cosineSimilarity, generateEmbedding } from './embeddings';
-import { normalizeSkillWithHierarchy, findRelatedSkills } from './skill-hierarchy';
-import stringSimilarity from 'string-similarity';
+import { logger } from "./logger";
+import {
+  calculateSemanticSimilarity,
+  cosineSimilarity,
+  generateEmbedding,
+} from "./embeddings";
+import {
+  normalizeSkillWithHierarchy,
+  findRelatedSkills,
+} from "./skill-hierarchy";
+import stringSimilarity from "string-similarity";
 
 // Type definitions for scoring system
 interface SkillBreakdown {
@@ -27,11 +34,11 @@ export interface ScoringWeights {
 }
 
 export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
-  skills: 0.45,      // 45% - Most important
-  experience: 0.25,  // 25% - Very important  
-  education: 0.15,   // 15% - Important
-  semantic: 0.10,    // 10% - Context understanding
-  cultural: 0.05     // 5% - Cultural fit
+  skills: 0.45, // 45% - Most important
+  experience: 0.25, // 25% - Very important
+  education: 0.15, // 15% - Important
+  semantic: 0.1, // 10% - Context understanding
+  cultural: 0.05, // 5% - Cultural fit
 };
 
 // Scoring rubrics for consistent evaluation
@@ -42,14 +49,14 @@ export const ENHANCED_SCORING_RUBRICS = {
     MODERATELY_RELATED: 70,
     WEAK_RELATED: 50,
     SEMANTIC_MATCH: 60,
-    NO_MATCH: 0
+    NO_MATCH: 0,
   },
   EXPERIENCE: {
     EXCEEDS_REQUIREMENT: 100,
     MEETS_REQUIREMENT: 90,
     CLOSE_TO_REQUIREMENT: 70,
     BELOW_REQUIREMENT: 40,
-    SIGNIFICANTLY_BELOW: 20
+    SIGNIFICANTLY_BELOW: 20,
   },
   EDUCATION: {
     ADVANCED_DEGREE: 100,
@@ -57,14 +64,14 @@ export const ENHANCED_SCORING_RUBRICS = {
     ASSOCIATE_DEGREE: 60,
     CERTIFICATION: 50,
     SELF_TAUGHT: 40,
-    NO_FORMAL: 20
+    NO_FORMAL: 20,
   },
   SEMANTIC: {
     HIGH_SIMILARITY: 100,
     MODERATE_SIMILARITY: 70,
     LOW_SIMILARITY: 40,
-    NO_SIMILARITY: 0
-  }
+    NO_SIMILARITY: 0,
+  },
 };
 
 export interface EnhancedMatchResult {
@@ -86,7 +93,7 @@ export interface EnhancedMatchResult {
     skill: string;
     required: boolean;
     matched: boolean;
-    matchType: 'exact' | 'related' | 'semantic' | 'none';
+    matchType: "exact" | "related" | "semantic" | "none";
     score: number;
     category?: string;
   }>;
@@ -97,14 +104,14 @@ export interface EnhancedMatchResult {
  */
 export async function matchSkillsEnhanced(
   resumeSkills: string[],
-  jobSkills: string[]
+  jobSkills: string[],
 ): Promise<{
   score: number;
   breakdown: Array<{
     skill: string;
     required: boolean;
     matched: boolean;
-    matchType: 'exact' | 'related' | 'semantic' | 'none';
+    matchType: "exact" | "related" | "semantic" | "none";
     score: number;
     category?: string;
   }>;
@@ -113,7 +120,7 @@ export async function matchSkillsEnhanced(
     skill: string;
     required: boolean;
     matched: boolean;
-    matchType: 'exact' | 'related' | 'semantic' | 'none';
+    matchType: "exact" | "related" | "semantic" | "none";
     score: number;
     category?: string;
   }> = [];
@@ -127,9 +134,9 @@ export async function matchSkillsEnhanced(
       const normalized = await normalizeSkillWithHierarchy(skill);
       return {
         original: skill,
-        ...normalized
+        ...normalized,
       };
-    })
+    }),
   );
 
   const normalizedJobSkills = await Promise.all(
@@ -137,9 +144,9 @@ export async function matchSkillsEnhanced(
       const normalized = await normalizeSkillWithHierarchy(skill);
       return {
         original: skill,
-        ...normalized
+        ...normalized,
       };
-    })
+    }),
   );
 
   // Match each required job skill
@@ -147,50 +154,55 @@ export async function matchSkillsEnhanced(
     maxPossibleScore += 100;
     let bestMatch: {
       matched: boolean;
-      matchType: 'exact' | 'related' | 'semantic' | 'none';
+      matchType: "exact" | "related" | "semantic" | "none";
       score: number;
       category?: string;
     } = {
       matched: false,
-      matchType: 'none',
+      matchType: "none",
       score: 0,
-      category: jobSkill.category
+      category: jobSkill.category,
     };
 
     // 1. Exact match
     const exactMatch = normalizedResumeSkills.find(
-      resumeSkill => resumeSkill.normalized.toLowerCase() === jobSkill.normalized.toLowerCase()
+      (resumeSkill) =>
+        resumeSkill.normalized.toLowerCase() ===
+        jobSkill.normalized.toLowerCase(),
     );
     if (exactMatch) {
       bestMatch = {
         matched: true,
-        matchType: 'exact',
+        matchType: "exact",
         score: ENHANCED_SCORING_RUBRICS.SKILL_MATCH.EXACT_MATCH,
-        category: jobSkill.category
+        category: jobSkill.category,
       };
     } else {
       // 2. Related skills match
       const relatedSkills = await findRelatedSkills(jobSkill.normalized, 10);
-      const relatedMatch = normalizedResumeSkills.find(resumeSkill =>
-        relatedSkills.some(related => 
-          related.skill.toLowerCase() === resumeSkill.normalized.toLowerCase() && 
-          related.similarity > 0.7
-        )
+      const relatedMatch = normalizedResumeSkills.find((resumeSkill) =>
+        relatedSkills.some(
+          (related) =>
+            related.skill.toLowerCase() ===
+              resumeSkill.normalized.toLowerCase() && related.similarity > 0.7,
+        ),
       );
 
       if (relatedMatch) {
-        const relation = relatedSkills.find(r => 
-          r.skill.toLowerCase() === relatedMatch.normalized.toLowerCase()
+        const relation = relatedSkills.find(
+          (r) =>
+            r.skill.toLowerCase() === relatedMatch.normalized.toLowerCase(),
         );
-        const score = relation!.similarity > 0.9 
-          ? ENHANCED_SCORING_RUBRICS.SKILL_MATCH.STRONG_RELATED
-          : ENHANCED_SCORING_RUBRICS.SKILL_MATCH.MODERATELY_RELATED;
-        
+        const score =
+          relation!.similarity > 0.9
+            ? ENHANCED_SCORING_RUBRICS.SKILL_MATCH.STRONG_RELATED
+            : ENHANCED_SCORING_RUBRICS.SKILL_MATCH.MODERATELY_RELATED;
+
         bestMatch = {
           matched: true,
-          matchType: 'related',
+          matchType: "related",
           score: score,
-          category: jobSkill.category
+          category: jobSkill.category,
         };
       } else {
         // 3. Semantic similarity fallback
@@ -198,20 +210,25 @@ export async function matchSkillsEnhanced(
         for (const resumeSkill of normalizedResumeSkills) {
           try {
             const jobEmbedding = await generateEmbedding(jobSkill.normalized);
-            const resumeEmbedding = await generateEmbedding(resumeSkill.normalized);
+            const resumeEmbedding = await generateEmbedding(
+              resumeSkill.normalized,
+            );
             const similarity = cosineSimilarity(jobEmbedding, resumeEmbedding);
-            
+
             if (similarity > bestSemanticScore && similarity > 0.6) {
               bestSemanticScore = similarity;
               bestMatch = {
                 matched: true,
-                matchType: 'semantic',
-                score: Math.round(similarity * ENHANCED_SCORING_RUBRICS.SKILL_MATCH.SEMANTIC_MATCH),
-                category: jobSkill.category
+                matchType: "semantic",
+                score: Math.round(
+                  similarity *
+                    ENHANCED_SCORING_RUBRICS.SKILL_MATCH.SEMANTIC_MATCH,
+                ),
+                category: jobSkill.category,
               };
             }
           } catch (error) {
-            logger.warn('Semantic similarity calculation failed:', error);
+            logger.warn("Semantic similarity calculation failed:", error);
           }
         }
       }
@@ -223,37 +240,42 @@ export async function matchSkillsEnhanced(
       matched: bestMatch.matched,
       matchType: bestMatch.matchType,
       score: bestMatch.score,
-      category: bestMatch.category
+      category: bestMatch.category,
     });
 
     totalScore += bestMatch.score;
   }
 
   // Add bonus for extra relevant skills
-  const unmatchedResumeSkills = normalizedResumeSkills.filter(resumeSkill =>
-    !normalizedJobSkills.some(jobSkill => 
-      jobSkill.normalized.toLowerCase() === resumeSkill.normalized.toLowerCase()
-    )
+  const unmatchedResumeSkills = normalizedResumeSkills.filter(
+    (resumeSkill) =>
+      !normalizedJobSkills.some(
+        (jobSkill) =>
+          jobSkill.normalized.toLowerCase() ===
+          resumeSkill.normalized.toLowerCase(),
+      ),
   );
 
-  for (const extraSkill of unmatchedResumeSkills.slice(0, 5)) { // Limit bonus skills
+  for (const extraSkill of unmatchedResumeSkills.slice(0, 5)) {
+    // Limit bonus skills
     skillBreakdown.push({
       skill: extraSkill.normalized,
       required: false,
       matched: true,
-      matchType: 'exact',
+      matchType: "exact",
       score: 10, // Bonus points
-      category: extraSkill.category
+      category: extraSkill.category,
     });
     totalScore += 10;
     maxPossibleScore += 10;
   }
 
-  const finalScore = maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0;
+  const finalScore =
+    maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0;
 
   return {
     score: Math.min(100, Math.max(0, finalScore)),
-    breakdown: skillBreakdown
+    breakdown: skillBreakdown,
   };
 }
 
@@ -262,7 +284,7 @@ export async function matchSkillsEnhanced(
  */
 export function scoreExperience(
   resumeExperience: string,
-  jobExperience: string
+  jobExperience: string,
 ): { score: number; explanation: string } {
   if (!resumeExperience || !jobExperience) {
     return { score: 50, explanation: "Experience information incomplete" };
@@ -277,24 +299,24 @@ export function scoreExperience(
 
   if (resumeYears >= 0 && requiredYears >= 0) {
     if (resumeYears >= requiredYears * 1.5) {
-      return { 
+      return {
         score: ENHANCED_SCORING_RUBRICS.EXPERIENCE.EXCEEDS_REQUIREMENT,
-        explanation: `Candidate has ${resumeYears} years vs ${requiredYears} required - exceeds expectations`
+        explanation: `Candidate has ${resumeYears} years vs ${requiredYears} required - exceeds expectations`,
       };
     } else if (resumeYears >= requiredYears) {
-      return { 
+      return {
         score: ENHANCED_SCORING_RUBRICS.EXPERIENCE.MEETS_REQUIREMENT,
-        explanation: `Candidate has ${resumeYears} years vs ${requiredYears} required - meets requirement`
+        explanation: `Candidate has ${resumeYears} years vs ${requiredYears} required - meets requirement`,
       };
     } else if (resumeYears >= requiredYears * 0.7) {
-      return { 
+      return {
         score: ENHANCED_SCORING_RUBRICS.EXPERIENCE.CLOSE_TO_REQUIREMENT,
-        explanation: `Candidate has ${resumeYears} years vs ${requiredYears} required - close to requirement`
+        explanation: `Candidate has ${resumeYears} years vs ${requiredYears} required - close to requirement`,
       };
     } else {
-      return { 
+      return {
         score: ENHANCED_SCORING_RUBRICS.EXPERIENCE.BELOW_REQUIREMENT,
-        explanation: `Candidate has ${resumeYears} years vs ${requiredYears} required - below requirement`
+        explanation: `Candidate has ${resumeYears} years vs ${requiredYears} required - below requirement`,
       };
     }
   }
@@ -305,7 +327,7 @@ export function scoreExperience(
 
   return {
     score: Math.max(20, Math.min(80, score)),
-    explanation: `Experience match based on description similarity: ${Math.round(similarity * 100)}%`
+    explanation: `Experience match based on description similarity: ${Math.round(similarity * 100)}%`,
   };
 }
 
@@ -314,7 +336,7 @@ export function scoreExperience(
  */
 export function scoreEducation(
   resumeEducation: string,
-  jobEducation?: string
+  jobEducation?: string,
 ): { score: number; explanation: string } {
   if (!resumeEducation) {
     return { score: 20, explanation: "No education information provided" };
@@ -323,40 +345,44 @@ export function scoreEducation(
   const education = resumeEducation.toLowerCase();
 
   // Check for degree levels
-  if (education.includes('phd') || education.includes('doctorate')) {
-    return { 
+  if (education.includes("phd") || education.includes("doctorate")) {
+    return {
       score: ENHANCED_SCORING_RUBRICS.EDUCATION.ADVANCED_DEGREE,
-      explanation: "PhD/Doctorate degree - highest education level"
+      explanation: "PhD/Doctorate degree - highest education level",
     };
   }
-  if (education.includes('master') || education.includes('mba')) {
-    return { 
+  if (education.includes("master") || education.includes("mba")) {
+    return {
       score: ENHANCED_SCORING_RUBRICS.EDUCATION.ADVANCED_DEGREE,
-      explanation: "Master's degree - advanced education level"
+      explanation: "Master's degree - advanced education level",
     };
   }
-  if (education.includes('bachelor') || education.includes('b.s') || education.includes('b.a')) {
-    return { 
+  if (
+    education.includes("bachelor") ||
+    education.includes("b.s") ||
+    education.includes("b.a")
+  ) {
+    return {
       score: ENHANCED_SCORING_RUBRICS.EDUCATION.BACHELOR_DEGREE,
-      explanation: "Bachelor's degree - standard education level"
+      explanation: "Bachelor's degree - standard education level",
     };
   }
-  if (education.includes('associate') || education.includes('diploma')) {
-    return { 
+  if (education.includes("associate") || education.includes("diploma")) {
+    return {
       score: ENHANCED_SCORING_RUBRICS.EDUCATION.ASSOCIATE_DEGREE,
-      explanation: "Associate degree/Diploma - foundational education"
+      explanation: "Associate degree/Diploma - foundational education",
     };
   }
-  if (education.includes('certification') || education.includes('certified')) {
-    return { 
+  if (education.includes("certification") || education.includes("certified")) {
+    return {
       score: ENHANCED_SCORING_RUBRICS.EDUCATION.CERTIFICATION,
-      explanation: "Professional certifications - specialized training"
+      explanation: "Professional certifications - specialized training",
     };
   }
 
-  return { 
+  return {
     score: ENHANCED_SCORING_RUBRICS.EDUCATION.SELF_TAUGHT,
-    explanation: "Alternative education/self-taught background"
+    explanation: "Alternative education/self-taught background",
   };
 }
 
@@ -375,24 +401,30 @@ export async function calculateEnhancedMatch(
     experience: string;
     description: string;
   },
-  weights: ScoringWeights = DEFAULT_SCORING_WEIGHTS
+  weights: ScoringWeights = DEFAULT_SCORING_WEIGHTS,
 ): Promise<EnhancedMatchResult> {
   try {
     // 1. Enhanced skill matching
-    const skillMatch = await matchSkillsEnhanced(resumeData.skills, jobData.skills);
-    
+    const skillMatch = await matchSkillsEnhanced(
+      resumeData.skills,
+      jobData.skills,
+    );
+
     // 2. Experience scoring
-    const experienceMatch = scoreExperience(resumeData.experience, jobData.experience);
-    
-    // 3. Education scoring  
+    const experienceMatch = scoreExperience(
+      resumeData.experience,
+      jobData.experience,
+    );
+
+    // 3. Education scoring
     const educationMatch = scoreEducation(resumeData.education);
-    
+
     // 4. Semantic similarity
     const semanticScore = await calculateSemanticSimilarity(
       resumeData.content,
-      jobData.description
+      jobData.description,
     );
-    
+
     // 5. Cultural fit (placeholder - could be enhanced with NLP)
     const culturalScore = 75; // Default moderate score
 
@@ -402,10 +434,10 @@ export async function calculateEnhancedMatch(
       experience: experienceMatch.score,
       education: educationMatch.score,
       semantic: semanticScore,
-      cultural: culturalScore
+      cultural: culturalScore,
     };
 
-    const totalScore = 
+    const totalScore =
       dimensionScores.skills * weights.skills +
       dimensionScores.experience * weights.experience +
       dimensionScores.education * weights.education +
@@ -418,23 +450,29 @@ export async function calculateEnhancedMatch(
       hasExperience: !!resumeData.experience,
       hasEducation: !!resumeData.education,
       contentLength: resumeData.content.length,
-      skillMatchQuality: skillMatch.breakdown.filter(s => s.matched).length / Math.max(skillMatch.breakdown.length, 1)
+      skillMatchQuality:
+        skillMatch.breakdown.filter((s) => s.matched).length /
+        Math.max(skillMatch.breakdown.length, 1),
     });
 
     // Generate explanations
-    const explanation = generateExplanation(skillMatch, experienceMatch, educationMatch, semanticScore);
+    const explanation = generateExplanation(
+      skillMatch,
+      experienceMatch,
+      educationMatch,
+      semanticScore,
+    );
 
     return {
       totalScore: Math.round(totalScore),
       dimensionScores,
       confidence,
       explanation,
-      skillBreakdown: skillMatch.breakdown
+      skillBreakdown: skillMatch.breakdown,
     };
-
   } catch (error) {
-    logger.error('Error in enhanced scoring calculation:', error);
-    
+    logger.error("Error in enhanced scoring calculation:", error);
+
     // Fallback scoring
     return {
       totalScore: 50,
@@ -443,15 +481,15 @@ export async function calculateEnhancedMatch(
         experience: 50,
         education: 50,
         semantic: 50,
-        cultural: 50
+        cultural: 50,
       },
       confidence: 0.3,
       explanation: {
         strengths: ["Resume analysis completed"],
         weaknesses: ["Enhanced scoring temporarily unavailable"],
-        recommendations: ["Please try again later"]
+        recommendations: ["Please try again later"],
       },
-      skillBreakdown: []
+      skillBreakdown: [],
     };
   }
 }
@@ -464,7 +502,7 @@ function extractYearsFromText(text: string): number {
     /(\d+)\+?\s*years?\s*(?:of\s*)?experience/i,
     /(\d+)\+?\s*years?\s*in/i,
     /(\d+)\+?\s*yrs?\s*(?:of\s*)?experience/i,
-    /experience:\s*(\d+)\+?\s*years?/i
+    /experience:\s*(\d+)\+?\s*years?/i,
   ];
 
   for (const pattern of patterns) {
@@ -507,7 +545,7 @@ function generateExplanation(
   skillMatch: { breakdown: SkillBreakdown[]; score: number },
   experienceMatch: { score: number; explanation: string },
   educationMatch: { score: number; explanation: string },
-  semanticScore: number
+  semanticScore: number,
 ): {
   strengths: string[];
   weaknesses: string[];
@@ -518,16 +556,27 @@ function generateExplanation(
   const recommendations: string[] = [];
 
   // Analyze skills
-  const matchedSkills = skillMatch.breakdown.filter((s: SkillBreakdown) => s.matched && s.required);
-  const missingSkills = skillMatch.breakdown.filter((s: SkillBreakdown) => !s.matched && s.required);
+  const matchedSkills = skillMatch.breakdown.filter(
+    (s: SkillBreakdown) => s.matched && s.required,
+  );
+  const missingSkills = skillMatch.breakdown.filter(
+    (s: SkillBreakdown) => !s.matched && s.required,
+  );
 
   if (matchedSkills.length > 0) {
-    strengths.push(`Strong skill alignment with ${matchedSkills.length} matching requirements`);
+    strengths.push(
+      `Strong skill alignment with ${matchedSkills.length} matching requirements`,
+    );
   }
-  
+
   if (missingSkills.length > 0) {
     weaknesses.push(`Missing ${missingSkills.length} required skills`);
-    recommendations.push(`Consider training in: ${missingSkills.slice(0, 3).map((s: SkillBreakdown) => s.skill).join(', ')}`);
+    recommendations.push(
+      `Consider training in: ${missingSkills
+        .slice(0, 3)
+        .map((s: SkillBreakdown) => s.skill)
+        .join(", ")}`,
+    );
   }
 
   // Analyze experience
@@ -535,7 +584,9 @@ function generateExplanation(
     strengths.push("Excellent experience alignment");
   } else if (experienceMatch.score < 50) {
     weaknesses.push("Experience level below requirements");
-    recommendations.push("Highlight relevant project experience and transferable skills");
+    recommendations.push(
+      "Highlight relevant project experience and transferable skills",
+    );
   }
 
   // Analyze semantic similarity

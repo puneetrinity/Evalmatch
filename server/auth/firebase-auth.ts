@@ -1,15 +1,15 @@
 /**
  * Firebase Authentication System
- * 
+ *
  * Unified, robust Firebase Admin SDK implementation with proper error handling,
  * graceful degradation, and comprehensive debugging capabilities.
  */
 
-import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
-import { getAuth, Auth } from 'firebase-admin/auth';
-import { config } from '../config/unified-config';
-import { logger } from '../config/logger';
-import { serverAuthLogger } from '../lib/auth-logger';
+import { initializeApp, getApps, cert, App } from "firebase-admin/app";
+import { getAuth, Auth } from "firebase-admin/auth";
+import { config } from "../config/unified-config";
+import { logger } from "../config/logger";
+import { serverAuthLogger } from "../lib/auth-logger";
 
 // Firebase Admin instances
 let adminApp: App | null = null;
@@ -39,8 +39,8 @@ const authStatus: AuthStatus = {
  */
 export async function initializeFirebaseAuth(): Promise<void> {
   try {
-    serverAuthLogger.info('Initializing Firebase Admin SDK', {
-      operation: 'firebase_init'
+    serverAuthLogger.info("Initializing Firebase Admin SDK", {
+      operation: "firebase_init",
     });
 
     // Check if already initialized
@@ -49,27 +49,35 @@ export async function initializeFirebaseAuth(): Promise<void> {
       adminAuth = getAuth(adminApp);
       authStatus.initialized = true;
       authStatus.projectId = config.firebase.projectId;
-      serverAuthLogger.debug('Firebase Admin SDK already initialized', {
-        operation: 'firebase_init',
-        success: true
+      serverAuthLogger.debug("Firebase Admin SDK already initialized", {
+        operation: "firebase_init",
+        success: true,
       });
       return;
     }
 
     // Validate configuration
     if (!config.firebase.configured) {
-      const error = 'Firebase not configured - missing FIREBASE_PROJECT_ID or FIREBASE_SERVICE_ACCOUNT_KEY';
+      const error =
+        "Firebase not configured - missing FIREBASE_PROJECT_ID or FIREBASE_SERVICE_ACCOUNT_KEY";
       authStatus.error = error;
-      
-      if (config.env === 'production') {
-        serverAuthLogger.error('Firebase configuration invalid', new Error(error), {
-          operation: 'firebase_init'
-        });
+
+      if (config.env === "production") {
+        serverAuthLogger.error(
+          "Firebase configuration invalid",
+          new Error(error),
+          {
+            operation: "firebase_init",
+          },
+        );
         throw new Error(error);
       } else {
-        serverAuthLogger.warn('Firebase not configured - running without auth in development', {
-          operation: 'firebase_init'
-        });
+        serverAuthLogger.warn(
+          "Firebase not configured - running without auth in development",
+          {
+            operation: "firebase_init",
+          },
+        );
         return;
       }
     }
@@ -79,7 +87,7 @@ export async function initializeFirebaseAuth(): Promise<void> {
     try {
       credentials = JSON.parse(config.firebase.serviceAccountKey!);
     } catch (e) {
-      const error = 'Invalid FIREBASE_SERVICE_ACCOUNT_KEY - not valid JSON';
+      const error = "Invalid FIREBASE_SERVICE_ACCOUNT_KEY - not valid JSON";
       authStatus.error = error;
       throw new Error(error);
     }
@@ -100,25 +108,30 @@ export async function initializeFirebaseAuth(): Promise<void> {
     authStatus.projectId = config.firebase.projectId;
     authStatus.error = null;
 
-    serverAuthLogger.info('Firebase Admin SDK initialized successfully', {
-      operation: 'firebase_init',
+    serverAuthLogger.info("Firebase Admin SDK initialized successfully", {
+      operation: "firebase_init",
       projectId: config.firebase.projectId || undefined,
-      success: true
+      success: true,
     });
-
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown Firebase initialization error';
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Unknown Firebase initialization error";
     authStatus.error = errorMessage;
-    serverAuthLogger.error('Firebase Admin SDK initialization failed', error, {
-      operation: 'firebase_init'
+    serverAuthLogger.error("Firebase Admin SDK initialization failed", error, {
+      operation: "firebase_init",
     });
 
-    if (config.env === 'production') {
+    if (config.env === "production") {
       throw error;
     } else {
-      serverAuthLogger.warn('Continuing without Firebase auth in development mode', {
-        operation: 'firebase_init'
-      });
+      serverAuthLogger.warn(
+        "Continuing without Firebase auth in development mode",
+        {
+          operation: "firebase_init",
+        },
+      );
     }
   }
 }
@@ -128,21 +141,23 @@ export async function initializeFirebaseAuth(): Promise<void> {
  */
 async function testFirebaseConnection(): Promise<void> {
   if (!adminAuth) {
-    throw new Error('Firebase Auth not initialized');
+    throw new Error("Firebase Auth not initialized");
   }
 
   try {
     // Try to list users (limit 1) as a connection test
     await adminAuth.listUsers(1);
-    serverAuthLogger.debug('Firebase connection test passed', {
-      operation: 'connection_test',
-      success: true
+    serverAuthLogger.debug("Firebase connection test passed", {
+      operation: "connection_test",
+      success: true,
     });
   } catch (error) {
-    serverAuthLogger.error('Firebase connection test failed', error, {
-      operation: 'connection_test'
+    serverAuthLogger.error("Firebase connection test failed", error, {
+      operation: "connection_test",
     });
-    throw new Error(`Firebase connection test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Firebase connection test failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
   }
 }
 
@@ -157,24 +172,27 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
   photoURL?: string;
 } | null> {
   if (!adminAuth || !authStatus.initialized) {
-    serverAuthLogger.warn('Firebase Auth not initialized - token verification failed', {
-      operation: 'verify_token'
-    });
+    serverAuthLogger.warn(
+      "Firebase Auth not initialized - token verification failed",
+      {
+        operation: "verify_token",
+      },
+    );
     return null;
   }
 
   try {
     authStatus.totalTokensVerified++;
-    
+
     const decodedToken = await adminAuth.verifyIdToken(idToken);
-    
+
     authStatus.lastVerification = new Date();
-    
-    serverAuthLogger.debug('Firebase token verified successfully', {
-      operation: 'verify_token',
+
+    serverAuthLogger.debug("Firebase token verified successfully", {
+      operation: "verify_token",
       uid: decodedToken.uid,
       email: decodedToken.email || undefined,
-      success: true
+      success: true,
     });
 
     return {
@@ -184,30 +202,29 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
       displayName: decodedToken.name,
       photoURL: decodedToken.picture,
     };
-
   } catch (error: any) {
     authStatus.failedVerifications++;
-    
+
     // Log different error types with appropriate levels
-    if (error.code === 'auth/id-token-expired') {
-      serverAuthLogger.debug('Token expired (normal occurrence)', {
-        operation: 'verify_token',
-        errorCode: error.code
+    if (error.code === "auth/id-token-expired") {
+      serverAuthLogger.debug("Token expired (normal occurrence)", {
+        operation: "verify_token",
+        errorCode: error.code,
       });
-    } else if (error.code === 'auth/id-token-revoked') {
-      serverAuthLogger.warn('Token revoked', {
-        operation: 'verify_token',
-        errorCode: error.code
+    } else if (error.code === "auth/id-token-revoked") {
+      serverAuthLogger.warn("Token revoked", {
+        operation: "verify_token",
+        errorCode: error.code,
       });
-    } else if (error.code === 'auth/invalid-id-token') {
-      serverAuthLogger.warn('Invalid token format', {
-        operation: 'verify_token',
-        errorCode: error.code
+    } else if (error.code === "auth/invalid-id-token") {
+      serverAuthLogger.warn("Invalid token format", {
+        operation: "verify_token",
+        errorCode: error.code,
       });
     } else {
-      serverAuthLogger.error('Token verification failed', error, {
-        operation: 'verify_token',
-        errorCode: error.code
+      serverAuthLogger.error("Token verification failed", error, {
+        operation: "verify_token",
+        errorCode: error.code,
       });
     }
 
@@ -220,10 +237,13 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
  */
 export async function getFirebaseUser(uid: string) {
   if (!adminAuth || !authStatus.initialized) {
-    serverAuthLogger.warn('Firebase Auth not initialized - user lookup failed', {
-      operation: 'get_user',
-      uid: uid
-    });
+    serverAuthLogger.warn(
+      "Firebase Auth not initialized - user lookup failed",
+      {
+        operation: "get_user",
+        uid: uid,
+      },
+    );
     return null;
   }
 
@@ -242,10 +262,10 @@ export async function getFirebaseUser(uid: string) {
       },
     };
   } catch (error: any) {
-    serverAuthLogger.error('Failed to get Firebase user', error, {
-      operation: 'get_user',
+    serverAuthLogger.error("Failed to get Firebase user", error, {
+      operation: "get_user",
       uid: uid,
-      errorCode: error.code
+      errorCode: error.code,
     });
     return null;
   }
@@ -267,9 +287,14 @@ export function getFirebaseAuthStatus(): AuthStatus & {
 } {
   return {
     ...authStatus,
-    verificationSuccessRate: authStatus.totalTokensVerified > 0
-      ? Math.round((authStatus.totalTokensVerified - authStatus.failedVerifications) / authStatus.totalTokensVerified * 100)
-      : 0,
+    verificationSuccessRate:
+      authStatus.totalTokensVerified > 0
+        ? Math.round(
+            ((authStatus.totalTokensVerified - authStatus.failedVerifications) /
+              authStatus.totalTokensVerified) *
+              100,
+          )
+        : 0,
     uptime: authStatus.lastVerification
       ? Math.floor((Date.now() - authStatus.lastVerification.getTime()) / 1000)
       : 0,
@@ -280,7 +305,7 @@ export function getFirebaseAuthStatus(): AuthStatus & {
  * Comprehensive Firebase configuration verification for debugging
  */
 export async function verifyFirebaseConfiguration(): Promise<{
-  status: 'success' | 'error' | 'not_configured';
+  status: "success" | "error" | "not_configured";
   details: {
     projectId?: string;
     serviceAccountConfigured: boolean;
@@ -293,54 +318,55 @@ export async function verifyFirebaseConfiguration(): Promise<{
     // Check basic configuration
     if (!config.firebase.configured) {
       return {
-        status: 'not_configured',
+        status: "not_configured",
         details: {
           serviceAccountConfigured: false,
           connectionTest: false,
           clientConfigured: !!config.firebase.clientConfig.apiKey,
         },
-        error: 'Firebase project ID or service account key not configured',
+        error: "Firebase project ID or service account key not configured",
       };
     }
 
     // Check if initialized
     if (!adminAuth) {
       return {
-        status: 'error',
+        status: "error",
         details: {
           projectId: config.firebase.projectId!,
           serviceAccountConfigured: true,
           connectionTest: false,
           clientConfigured: !!config.firebase.clientConfig.apiKey,
         },
-        error: 'Firebase Admin SDK not initialized',
+        error: "Firebase Admin SDK not initialized",
       };
     }
 
     // Test connection
-    const connectionTest = await testFirebaseConnection().then(() => true).catch(() => false);
+    const connectionTest = await testFirebaseConnection()
+      .then(() => true)
+      .catch(() => false);
 
     return {
-      status: connectionTest ? 'success' : 'error',
+      status: connectionTest ? "success" : "error",
       details: {
         projectId: config.firebase.projectId!,
         serviceAccountConfigured: true,
         connectionTest,
         clientConfigured: !!config.firebase.clientConfig.apiKey,
       },
-      error: connectionTest ? undefined : 'Connection test failed',
+      error: connectionTest ? undefined : "Connection test failed",
     };
-
   } catch (error) {
     return {
-      status: 'error',
+      status: "error",
       details: {
         projectId: config.firebase.projectId || undefined,
         serviceAccountConfigured: !!config.firebase.serviceAccountKey,
         connectionTest: false,
         clientConfigured: !!config.firebase.clientConfig.apiKey,
       },
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }

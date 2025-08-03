@@ -30,7 +30,7 @@ class AnalysisCache {
    */
   get<T>(key: string): T | undefined {
     const item = this.cache.get(key);
-    
+
     // Not in cache or expired
     if (!item || item.expiresAt < Date.now()) {
       if (item) {
@@ -39,7 +39,7 @@ class AnalysisCache {
       }
       return undefined;
     }
-    
+
     return item.data as T;
   }
 
@@ -78,16 +78,16 @@ class AnalysisCache {
   getStats(): { total: number; expired: number } {
     const now = Date.now();
     let expired = 0;
-    
+
     for (const item of this.cache.values()) {
       if (item.expiresAt < now) {
         expired++;
       }
     }
-    
+
     return {
       total: this.cache.size,
-      expired
+      expired,
     };
   }
 }
@@ -112,14 +112,20 @@ export function generateJobAnalysisKey(jobId: number): string {
 /**
  * Generate a cache key for match analysis
  */
-export function generateMatchAnalysisKey(resumeId: number, jobId: number): string {
+export function generateMatchAnalysisKey(
+  resumeId: number,
+  jobId: number,
+): string {
   return `match:${resumeId}:${jobId}`;
 }
 
 /**
  * Generate a cache key for interview questions
  */
-export function generateInterviewQuestionsKey(resumeId: number, jobId: number): string {
+export function generateInterviewQuestionsKey(
+  resumeId: number,
+  jobId: number,
+): string {
   return `questions:${resumeId}:${jobId}`;
 }
 
@@ -138,7 +144,7 @@ export function calculateHash(content: string): string {
   let hash = 0;
   for (let i = 0; i < content.length; i++) {
     const char = content.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32bit integer
   }
   return hash.toString(16);

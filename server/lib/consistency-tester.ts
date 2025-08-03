@@ -1,14 +1,18 @@
 /**
  * Consistency Testing Utility
- * 
+ *
  * This module provides tools to test and validate the consistency
  * of AI scoring across multiple runs with the same inputs.
  */
 
-import { logger } from './logger';
-import { validateScoreConsistency } from './consistent-scoring';
-import * as groq from './groq';
-import type { AnalyzeResumeResponse, AnalyzeJobDescriptionResponse, MatchAnalysisResponse } from '@shared/schema';
+import { logger } from "./logger";
+import { validateScoreConsistency } from "./consistent-scoring";
+import * as groq from "./groq";
+import type {
+  AnalyzeResumeResponse,
+  AnalyzeJobDescriptionResponse,
+  MatchAnalysisResponse,
+} from "@shared/schema";
 
 export interface ConsistencyTestResult {
   testId: string;
@@ -44,41 +48,41 @@ export class ConsistencyTester {
     resumeText: string,
     jobText: string,
     runs: number = 5,
-    testId?: string
+    testId?: string,
   ): Promise<ConsistencyTestResult> {
     const id = testId || `test_${Date.now()}`;
-    
+
     logger.info(`Starting consistency test: ${id} with ${runs} runs`);
 
     // First, analyze resume and job separately (these should also be consistent)
     const resumeAnalysis = await groq.analyzeResume(resumeText);
-    const jobAnalysis = await groq.analyzeJobDescription('Test Job', jobText);
+    const jobAnalysis = await groq.analyzeJobDescription("Test Job", jobText);
 
-    const results: ConsistencyTestResult['results'] = [];
+    const results: ConsistencyTestResult["results"] = [];
 
     // Run multiple analyses
     for (let i = 1; i <= runs; i++) {
       logger.debug(`Running consistency test ${id}, iteration ${i}/${runs}`);
-      
+
       try {
         const matchResult = await groq.analyzeMatch(
           resumeAnalysis,
           jobAnalysis,
           resumeText,
-          jobText
+          jobText,
         );
 
         results.push({
           run: i,
           matchPercentage: matchResult.matchPercentage || 0,
           matchedSkillsCount: matchResult.matchedSkills?.length || 0,
-          confidenceLevel: matchResult.confidenceLevel || 'unknown',
-          timestamp: new Date().toISOString()
+          confidenceLevel: matchResult.confidenceLevel || "unknown",
+          timestamp: new Date().toISOString(),
         });
 
         // Small delay to avoid overwhelming the API
         if (i < runs) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
       } catch (error) {
         logger.error(`Error in consistency test run ${i}`, error);
@@ -86,20 +90,23 @@ export class ConsistencyTester {
           run: i,
           matchPercentage: 0,
           matchedSkillsCount: 0,
-          confidenceLevel: 'error',
-          timestamp: new Date().toISOString()
+          confidenceLevel: "error",
+          timestamp: new Date().toISOString(),
         });
       }
     }
 
     // Analyze consistency
-    const scores = results.map(r => ({ matchPercentage: r.matchPercentage }));
+    const scores = results.map((r) => ({ matchPercentage: r.matchPercentage }));
     const consistency = validateScoreConsistency(scores);
 
-    const scoreValues = results.map(r => r.matchPercentage).filter(s => s > 0);
-    const averageScore = scoreValues.length > 0 
-      ? scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length 
-      : 0;
+    const scoreValues = results
+      .map((r) => r.matchPercentage)
+      .filter((s) => s > 0);
+    const averageScore =
+      scoreValues.length > 0
+        ? scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length
+        : 0;
     const minScore = Math.min(...scoreValues);
     const maxScore = Math.max(...scoreValues);
     const range = maxScore - minScore;
@@ -113,17 +120,17 @@ export class ConsistencyTester {
         averageScore,
         minScore,
         maxScore,
-        range
-      }
+        range,
+      },
     };
 
     this.testResults.set(id, testResult);
-    
+
     logger.info(`Consistency test ${id} completed`, {
       isConsistent: consistency.isConsistent,
       variance: consistency.variance.toFixed(2),
       averageScore: averageScore.toFixed(1),
-      range: range.toFixed(1)
+      range: range.toFixed(1),
     });
 
     return testResult;
@@ -148,7 +155,7 @@ export class ConsistencyTester {
    */
   clearResults(): void {
     this.testResults.clear();
-    logger.info('Consistency test results cleared');
+    logger.info("Consistency test results cleared");
   }
 
   /**
@@ -162,38 +169,49 @@ export class ConsistencyTester {
     recommendations: string[];
   } {
     const results = this.getAllResults();
-    
+
     if (results.length === 0) {
       return {
         totalTests: 0,
         consistentTests: 0,
         consistencyRate: 0,
         averageVariance: 0,
-        recommendations: ['No tests have been run yet']
+        recommendations: ["No tests have been run yet"],
       };
     }
 
-    const consistentTests = results.filter(r => r.analysis.isConsistent).length;
+    const consistentTests = results.filter(
+      (r) => r.analysis.isConsistent,
+    ).length;
     const consistencyRate = (consistentTests / results.length) * 100;
-    const averageVariance = results.reduce((sum, r) => sum + r.analysis.variance, 0) / results.length;
+    const averageVariance =
+      results.reduce((sum, r) => sum + r.analysis.variance, 0) / results.length;
 
     const recommendations: string[] = [];
-    
+
     if (consistencyRate < 80) {
-      recommendations.push('Consistency rate below 80%. Consider adjusting prompts or model parameters.');
+      recommendations.push(
+        "Consistency rate below 80%. Consider adjusting prompts or model parameters.",
+      );
     }
-    
+
     if (averageVariance > 10) {
-      recommendations.push('High average variance detected. Review scoring rubrics and normalization.');
+      recommendations.push(
+        "High average variance detected. Review scoring rubrics and normalization.",
+      );
     }
-    
-    const highRangeTests = results.filter(r => r.analysis.range > 15).length;
+
+    const highRangeTests = results.filter((r) => r.analysis.range > 15).length;
     if (highRangeTests > 0) {
-      recommendations.push(`${highRangeTests} tests showed high score range (>15 points). Check input quality.`);
+      recommendations.push(
+        `${highRangeTests} tests showed high score range (>15 points). Check input quality.`,
+      );
     }
 
     if (recommendations.length === 0) {
-      recommendations.push('Consistency metrics look good. Continue monitoring.');
+      recommendations.push(
+        "Consistency metrics look good. Continue monitoring.",
+      );
     }
 
     return {
@@ -201,7 +219,7 @@ export class ConsistencyTester {
       consistentTests,
       consistencyRate,
       averageVariance,
-      recommendations
+      recommendations,
     };
   }
 
@@ -221,26 +239,26 @@ export const consistencyTester = new ConsistencyTester();
 export async function quickConsistencyTest(
   resumeText: string,
   jobText: string,
-  runs: number = 3
+  runs: number = 3,
 ): Promise<boolean> {
-  logger.info('Running quick consistency test');
-  
+  logger.info("Running quick consistency test");
+
   const result = await consistencyTester.testMatchConsistency(
     resumeText,
     jobText,
     runs,
-    `quick_${Date.now()}`
+    `quick_${Date.now()}`,
   );
-  
+
   const isConsistent = result.analysis.isConsistent;
   const variance = result.analysis.variance;
-  
+
   console.log(`\n🧪 Quick Consistency Test Results:`);
   console.log(`✅ Consistent: ${isConsistent}`);
   console.log(`📊 Variance: ${variance.toFixed(2)}`);
   console.log(`📈 Average Score: ${result.analysis.averageScore.toFixed(1)}`);
   console.log(`📏 Range: ${result.analysis.range.toFixed(1)}`);
   console.log(`💡 ${result.analysis.recommendation}\n`);
-  
+
   return isConsistent;
 }

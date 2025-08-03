@@ -53,15 +53,15 @@ app.use((req, res, next) => {
 
 (async () => {
   // Register API routes
-  const server = await registerRoutes(app);
+  registerRoutes(app);
 
   // Global error handler
   app.use((err: Error | unknown, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    const status = (err as any)?.status || (err as any)?.statusCode || 500;
+    const message = err instanceof Error ? err.message : "Internal Server Error";
 
     res.status(status).json({ message });
-    console.error("Error:", err);
+    console.error("Error:", err instanceof Error ? err.message : String(err));
   });
 
   // Serve static files from the React app
@@ -76,10 +76,7 @@ app.use((req, res, next) => {
   // Determine port - use PORT environment variable if set (for Render)
   const port = process.env.PORT || 3000;
   
-  server.listen({
-    port: parseInt(port.toString()),
-    host: "0.0.0.0",
-  }, () => {
+  app.listen(parseInt(port.toString()), "0.0.0.0", () => {
     console.log(`Server running on port ${port} in production mode`);
   });
 })();

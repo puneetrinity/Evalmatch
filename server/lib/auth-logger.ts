@@ -1,14 +1,15 @@
 /**
  * Server-side Environment-aware Authentication Logging Utility
- * 
+ *
  * Provides safe logging for authentication operations that:
  * - Only logs debug info in development environments
  * - Never logs sensitive data like tokens, passwords, or full user objects
  * - Provides structured logging for debugging
  */
 
-const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
-const isProduction = process.env.NODE_ENV === 'production';
+const isDevelopment =
+  process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev";
+const isProduction = process.env.NODE_ENV === "production";
 
 interface LogContext {
   operation?: string;
@@ -21,16 +22,16 @@ interface LogContext {
 }
 
 class ServerAuthLogger {
-  private prefix = '[SERVER-AUTH]';
+  private prefix = "[SERVER-AUTH]";
 
   /**
    * Log authentication events in development only
    */
   debug(message: string, context?: LogContext): void {
     if (!isDevelopment) return;
-    
+
     const sanitizedContext = this.sanitizeContext(context);
-    console.log(`${this.prefix} ${message}`, sanitizedContext || '');
+    console.log(`${this.prefix} ${message}`, sanitizedContext || "");
   }
 
   /**
@@ -38,7 +39,7 @@ class ServerAuthLogger {
    */
   info(message: string, context?: LogContext): void {
     const sanitizedContext = this.sanitizeContext(context);
-    console.log(`${this.prefix} ${message}`, sanitizedContext || '');
+    console.log(`${this.prefix} ${message}`, sanitizedContext || "");
   }
 
   /**
@@ -47,18 +48,18 @@ class ServerAuthLogger {
   error(message: string, error?: any, context?: LogContext): void {
     const sanitizedContext = this.sanitizeContext(context);
     const sanitizedError = this.sanitizeError(error);
-    
+
     if (isDevelopment) {
       console.error(`${this.prefix} ERROR: ${message}`, {
         ...sanitizedContext,
-        error: sanitizedError
+        error: sanitizedError,
       });
     } else {
       // In production, only log the message and error code/type
       console.error(`${this.prefix} ${message}`, {
         errorCode: sanitizedError?.code,
         errorType: sanitizedError?.type,
-        operation: sanitizedContext?.operation
+        operation: sanitizedContext?.operation,
       });
     }
   }
@@ -68,13 +69,15 @@ class ServerAuthLogger {
    */
   warn(message: string, context?: LogContext): void {
     const sanitizedContext = this.sanitizeContext(context);
-    console.warn(`${this.prefix} ${message}`, sanitizedContext || '');
+    console.warn(`${this.prefix} ${message}`, sanitizedContext || "");
   }
 
   /**
    * Remove sensitive data from context
    */
-  private sanitizeContext(context?: LogContext): Partial<LogContext> | undefined {
+  private sanitizeContext(
+    context?: LogContext,
+  ): Partial<LogContext> | undefined {
     if (!context) return undefined;
 
     return {
@@ -84,20 +87,22 @@ class ServerAuthLogger {
       projectId: context.projectId,
       success: context.success,
       errorCode: context.errorCode,
-      errorType: context.errorType
+      errorType: context.errorType,
     };
   }
 
   /**
    * Remove sensitive data from errors
    */
-  private sanitizeError(error: any): { code?: string; type?: string; message?: string } | undefined {
+  private sanitizeError(
+    error: any,
+  ): { code?: string; type?: string; message?: string } | undefined {
     if (!error) return undefined;
 
     return {
       code: error.code,
       type: error.name || typeof error,
-      message: isDevelopment ? error.message : undefined
+      message: isDevelopment ? error.message : undefined,
     };
   }
 
@@ -105,7 +110,7 @@ class ServerAuthLogger {
    * Mask UID for logging (show first 4 and last 4 characters)
    */
   private maskUid(uid: string): string {
-    if (uid.length <= 8) return '****';
+    if (uid.length <= 8) return "****";
     return `${uid.substring(0, 4)}...${uid.substring(uid.length - 4)}`;
   }
 
@@ -113,13 +118,14 @@ class ServerAuthLogger {
    * Mask email for logging
    */
   private maskEmail(email: string): string {
-    const [localPart, domain] = email.split('@');
-    if (!domain) return '****';
-    
-    const maskedLocal = localPart.length > 2 
-      ? `${localPart[0]}***${localPart[localPart.length - 1]}`
-      : '****';
-    
+    const [localPart, domain] = email.split("@");
+    if (!domain) return "****";
+
+    const maskedLocal =
+      localPart.length > 2
+        ? `${localPart[0]}***${localPart[localPart.length - 1]}`
+        : "****";
+
     return `${maskedLocal}@${domain}`;
   }
 }

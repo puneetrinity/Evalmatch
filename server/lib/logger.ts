@@ -8,7 +8,7 @@ export enum LogLevel {
   INFO = 1,
   WARN = 2,
   ERROR = 3,
-  NONE = 4
+  NONE = 4,
 }
 
 class Logger {
@@ -16,58 +16,68 @@ class Logger {
   private isDevelopment: boolean;
 
   constructor() {
-    this.isDevelopment = process.env.NODE_ENV === 'development';
+    this.isDevelopment = process.env.NODE_ENV === "development";
     this.logLevel = this.getLogLevel();
   }
 
   private getLogLevel(): LogLevel {
     const envLevel = process.env.LOG_LEVEL?.toUpperCase();
     switch (envLevel) {
-      case 'DEBUG': return LogLevel.DEBUG;
-      case 'INFO': return LogLevel.INFO;
-      case 'WARN': return LogLevel.WARN;
-      case 'ERROR': return LogLevel.ERROR;
-      case 'NONE': return LogLevel.NONE;
-      default: return this.isDevelopment ? LogLevel.DEBUG : LogLevel.INFO;
+      case "DEBUG":
+        return LogLevel.DEBUG;
+      case "INFO":
+        return LogLevel.INFO;
+      case "WARN":
+        return LogLevel.WARN;
+      case "ERROR":
+        return LogLevel.ERROR;
+      case "NONE":
+        return LogLevel.NONE;
+      default:
+        return this.isDevelopment ? LogLevel.DEBUG : LogLevel.INFO;
     }
   }
 
-  private formatMessage(level: string, message: string, data?: unknown): string {
+  private formatMessage(
+    level: string,
+    message: string,
+    data?: unknown,
+  ): string {
     const timestamp = new Date().toISOString();
     let formattedMessage = `[${timestamp}] [${level}] ${message}`;
-    
+
     if (data !== undefined) {
-      if (typeof data === 'object') {
-        formattedMessage += ' ' + JSON.stringify(data, null, 2);
+      if (typeof data === "object") {
+        formattedMessage += " " + JSON.stringify(data, null, 2);
       } else {
-        formattedMessage += ' ' + data;
+        formattedMessage += " " + data;
       }
     }
-    
+
     return formattedMessage;
   }
 
   debug(message: string, data?: unknown): void {
     if (this.logLevel <= LogLevel.DEBUG) {
-      console.log(this.formatMessage('DEBUG', message, data));
+      console.log(this.formatMessage("DEBUG", message, data));
     }
   }
 
   info(message: string, data?: unknown): void {
     if (this.logLevel <= LogLevel.INFO) {
-      console.log(this.formatMessage('INFO', message, data));
+      console.log(this.formatMessage("INFO", message, data));
     }
   }
 
   warn(message: string, data?: unknown): void {
     if (this.logLevel <= LogLevel.WARN) {
-      console.warn(this.formatMessage('WARN', message, data));
+      console.warn(this.formatMessage("WARN", message, data));
     }
   }
 
   error(message: string, error?: Error | unknown): void {
     if (this.logLevel <= LogLevel.ERROR) {
-      console.error(this.formatMessage('ERROR', message));
+      console.error(this.formatMessage("ERROR", message));
       if (error) {
         console.error(error);
       }

@@ -2,7 +2,7 @@
  * Utility functions for handling resume upload sessions
  */
 
-import { randomUUID } from 'crypto';
+import { randomUUID } from "crypto";
 
 /**
  * Generate a new unique session ID
@@ -33,14 +33,14 @@ export function registerSession(sessionId: string): void {
 export function getActiveSessions(): string[] {
   // Clean up sessions older than 24 hours
   const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-  
+
   // Remove expired sessions
   for (const [sessionId, timestamp] of activeSessions.entries()) {
     if (timestamp < oneDayAgo) {
       activeSessions.delete(sessionId);
     }
   }
-  
+
   return Array.from(activeSessions.keys());
 }
 

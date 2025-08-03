@@ -1,16 +1,16 @@
-import pino from 'pino';
-import { Request, Response } from 'express';
+import pino from "pino";
+import { Request, Response } from "express";
 
 // Define environment enum locally to avoid circular dependency
 enum Environment {
-  Development = 'development',
-  Production = 'production',
-  Test = 'test'
+  Development = "development",
+  Production = "production",
+  Test = "test",
 }
 
 /**
  * Logger Configuration
- * 
+ *
  * This module configures Pino logger with appropriate settings for different environments.
  * In development, it uses pino-pretty for human-readable logs.
  * In production, it outputs JSON logs suitable for log aggregation services.
@@ -18,40 +18,40 @@ enum Environment {
 
 // Define log levels for different environments
 const logLevels = {
-  [Environment.Development]: 'debug',
-  [Environment.Test]: 'error',
-  [Environment.Production]: 'info'
+  [Environment.Development]: "debug",
+  [Environment.Test]: "error",
+  [Environment.Production]: "info",
 };
 
 // Base configuration for all environments
 const baseConfig = {
-  level: logLevels[process.env.NODE_ENV as Environment] || 'info',
+  level: logLevels[process.env.NODE_ENV as Environment] || "info",
   timestamp: true,
   redact: {
     paths: [
-      'req.headers.authorization',
-      'req.headers.cookie',
+      "req.headers.authorization",
+      "req.headers.cookie",
       'res.headers["set-cookie"]',
-      '*.password',
-      '*.apiKey',
-      '*.secret',
-      '*.credentials'
+      "*.password",
+      "*.apiKey",
+      "*.secret",
+      "*.credentials",
     ],
-    censor: '[REDACTED]'
-  }
+    censor: "[REDACTED]",
+  },
 };
 
 // Development-specific configuration with pretty printing
 const developmentConfig = {
   ...baseConfig,
   transport: {
-    target: 'pino-pretty',
+    target: "pino-pretty",
     options: {
       colorize: true,
-      translateTime: 'SYS:standard',
-      ignore: 'pid,hostname'
-    }
-  }
+      translateTime: "SYS:standard",
+      ignore: "pid,hostname",
+    },
+  },
 };
 
 // Production-specific configuration optimized for log aggregation
@@ -61,19 +61,20 @@ const productionConfig = {
   base: {
     env: process.env.NODE_ENV,
     version: process.env.npm_package_version,
-    nodeVersion: process.version
+    nodeVersion: process.version,
   },
   formatters: {
     level: (label: string) => {
       return { level: label };
-    }
-  }
+    },
+  },
 };
 
 // Select the appropriate configuration based on environment
-const config = process.env.NODE_ENV === Environment.Development 
-  ? developmentConfig 
-  : productionConfig;
+const config =
+  process.env.NODE_ENV === Environment.Development
+    ? developmentConfig
+    : productionConfig;
 
 // Create and export the logger instance
 export const logger = pino(config);
@@ -82,40 +83,43 @@ export const logger = pino(config);
 export const httpLoggerConfig = {
   // Use our configured logger instance
   logger,
-  
+
   // Auto-generate request IDs for tracing requests through logs
-  genReqId: (req: Request) => req.id || req.headers['x-request-id'] || pino.stdSerializers.req(req).id,
-  
+  genReqId: (req: Request) =>
+    String(req.id || req.headers["x-request-id"] || pino.stdSerializers.req(req).id || "unknown"),
+
   // Custom serializers for request/response objects
   serializers: {
     req: pino.stdSerializers.req,
     res: pino.stdSerializers.res,
-    err: pino.stdSerializers.err
+    err: pino.stdSerializers.err,
   },
-  
+
   // Customize log level based on response status
-  customLogLevel: (req: Request, res: Response, err: Error) => {
+  customLogLevel: (req: Request, res: Response, err?: Error) => {
     if (res.statusCode >= 500 || err) {
-      return 'error';
+      return "error";
     } else if (res.statusCode >= 400) {
-      return 'warn';
+      return "warn";
     }
-    return 'info';
+    return "info";
   },
-  
+
   // Skip noisy endpoints in production
   autoLogging: {
     ignore: (req: Request) => {
-      return process.env.NODE_ENV === Environment.Production && 
-             (req.url === '/api/health' || req.url.includes('/static/'));
-    }
+      return (
+        process.env.NODE_ENV === Environment.Production &&
+        (req.url === "/api/health" || req.url.includes("/static/"))
+      );
+    },
   },
-  
+
   // Add custom request properties
   customProps: (req: Request, res: Response) => {
     return {
       environment: process.env.NODE_ENV,
-      responseTime: res.responseTime
+      responseTime: res.responseTime,
     };
-  }
+  },
 };
