@@ -1,0 +1,114 @@
+name: Railway Deployment with Testing
+
+on:
+  push:
+    branches: [ main, development ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '20.19.0'
+
+jobs:
+  test-local:
+    runs-on: ubuntu-latest
+    name: Local Tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: |
+          npm ci --legacy-peer-deps
+          
+      - name: Run TypeScript check
+        run: npm run check
+        
+      - name: Run unit tests
+        run: npm test
+        
+      - name: Run integration tests (with memory optimization)
+        run: |
+          node --max-old-space-size=4096 --expose-gc npm run test:integration
+        env:
+          NODE_ENV: test
+          
+  deploy-railway:
+    needs: test-local
+    runs-on: ubuntu-latest
+    name: Deploy to Railway
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+        
+      - name: Deploy to Railway
+        run: railway up --service evalmatch-api
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          
+      - name: Wait for deployment
+        run: sleep 60
+        
+  test-railway:
+    needs: deploy-railway
+    runs-on: ubuntu-latest
+    name: Test Railway Deployment
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: Test Railway deployment
+        run: npm run test:railway
+        env:
+          RAILWAY_TEST_URL: ${{ secrets.RAILWAY_TEST_URL }}
+          NODE_ENV: test
+          
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: railway-test-results
+          path: |
+            railway-test-report.json
+            test-results/
+            
+  notify-status:
+    needs: [test-local, deploy-railway, test-railway]
+    runs-on: ubuntu-latest
+    name: Notify Deployment Status
+    if: always()
+    
+    steps:
+      - name: Notify success
+        if: ${{ needs.test-railway.result == 'success' }}
+        run: |
+          echo "✅ Railway deployment and testing completed successfully!"
+          
+      - name: Notify failure
+        if: ${{ needs.test-railway.result == 'failure' || needs.deploy-railway.result == 'failure' }}
+        run: |
+          echo "❌ Railway deployment or testing failed!"
+          exit 1

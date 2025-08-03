@@ -23,9 +23,13 @@
     "test:e2e": "jest --config jest.config.integration.mjs tests/e2e-workflow.test.ts",
     "test:all": "npm run test:integration && npm run test:schema && npm run test:e2e",
     "test:quick": "npm run test:integration",
+    "test:railway": "jest --config jest.config.integration.mjs tests/railway-deployment.test.js",
+    "test:railway:setup": "node scripts/railway-test-setup.js",
+    "test:railway:full": "npm run test:railway:setup && npm run test:railway",
     "validate:config": "node -e \"console.log('Config validation not implemented yet')\"",
     "validate:schema": "npm run test:schema",
     "predeploy": "npm run test:quick && npm run validate:schema",
+    "railway:test:predeploy": "npm run test:railway:full",
     "test:e2e:ui": "playwright test --ui",
     "db:push": "drizzle-kit push",
     "railway:deploy": "railway up"
