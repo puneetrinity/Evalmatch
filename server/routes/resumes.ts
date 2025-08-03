@@ -27,7 +27,7 @@ router.get("/", authenticateUser, async (req: Request, res: Response) => {
       success: true,
       data: {
         resumes: resumes || [],
-        count: resumes?.length || 0
+        totalCount: resumes?.length || 0
       },
       timestamp: new Date().toISOString()
     });

@@ -31,6 +31,18 @@ declare global {
  */
 export async function authenticateUser(req: Request, res: Response, next: NextFunction) {
   try {
+    // Auth bypass mode for testing
+    if (process.env.AUTH_BYPASS_MODE === 'true') {
+      logger.warn('Auth bypass mode enabled, creating mock user');
+      req.user = {
+        uid: 'test-user-123',
+        email: 'test@example.com',
+        emailVerified: true,
+        displayName: 'Test User',
+      };
+      return next();
+    }
+
     // In development mode, allow bypass if Firebase not configured
     if (config.env === 'development' && !isFirebaseAuthAvailable()) {
       logger.warn('Development mode: Firebase auth not available, creating mock user');
@@ -39,6 +51,18 @@ export async function authenticateUser(req: Request, res: Response, next: NextFu
         email: 'dev@example.com',
         emailVerified: true,
         displayName: 'Development User',
+      };
+      return next();
+    }
+
+    // Test environment bypass
+    if (config.env === 'test') {
+      logger.warn('Test mode: bypassing authentication');
+      req.user = {
+        uid: 'test-user-123',
+        email: 'test@example.com',
+        emailVerified: true,
+        displayName: 'Test User',
       };
       return next();
     }
