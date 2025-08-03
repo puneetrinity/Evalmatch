@@ -105,7 +105,14 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userCurrentId++;
-    const user = { ...insertUser, id };
+    const user: User = { 
+      ...insertUser, 
+      id,
+      password: insertUser.password ?? null,
+      email: insertUser.email ?? null,
+      createdAt: insertUser.createdAt ?? null,
+      updatedAt: insertUser.updatedAt ?? null
+    };
     this.users.set(id, user);
     return user;
   }
@@ -175,6 +182,7 @@ export class MemStorage implements IStorage {
       fileType: insertResume.fileType || null,
       skills: insertResume.skills || null,
       experience: insertResume.experience || null,
+      education: insertResume.education ?? null,
       embedding: insertResume.embedding || null,
       skillsEmbedding: insertResume.skillsEmbedding || null,
       userId: insertResume.userId || null,
@@ -280,7 +288,7 @@ export class MemStorage implements IStorage {
         benefits: [],
         qualifications: [],
         companyInfo: { name: "", size: "medium", industry: "" },
-        location: { type: "remote", city: "", country: "" }
+        location: "Remote"
       },
     };
     
@@ -304,7 +312,7 @@ export class MemStorage implements IStorage {
       benefits: [],
       qualifications: [],
       companyInfo: { name: "", size: "medium", industry: "" },
-      location: { type: "remote", city: "", country: "" }
+      location: "Remote"
     };
     const updatedJobDescription: JobDescription = {
       ...jobDescription,
@@ -346,12 +354,14 @@ export class MemStorage implements IStorage {
     // If batchId is provided, filter results to only include resumes from that batch
     if (batchId) {
       filteredResults = filteredResults.filter(result => {
+        if (result.resumeId === null) return false;
         const resume = this.resumesData.get(result.resumeId);
         return resume && resume.batchId === batchId;
       });
     } else if (sessionId) {
       // Fallback to sessionId filtering if no batchId provided
       filteredResults = filteredResults.filter(result => {
+        if (result.resumeId === null) return false;
         const resume = this.resumesData.get(result.resumeId);
         return resume && resume.sessionId === sessionId;
       });
@@ -360,7 +370,7 @@ export class MemStorage implements IStorage {
     // Add resume data to each result
     return filteredResults.map(result => ({
       ...result,
-      resume: this.resumesData.get(result.resumeId)
+      resume: result.resumeId !== null ? this.resumesData.get(result.resumeId) : undefined
     })) as AnalysisResult[];
   }
 
@@ -380,26 +390,31 @@ export class MemStorage implements IStorage {
     const id = this.analysisResultCurrentId++;
     const now = new Date();
     const analysisResult: AnalysisResult = {
-      ...insertAnalysisResult,
       id,
-      createdAt: now,
-      updatedAt: insertAnalysisResult.updatedAt || null,
-      analysis: insertAnalysisResult.analysis || null,
-      userId: insertAnalysisResult.userId || null,
-      resumeId: insertAnalysisResult.resumeId || null,
-      jobDescriptionId: insertAnalysisResult.jobDescriptionId || null,
-      matchPercentage: insertAnalysisResult.matchPercentage || null,
-      processingTime: insertAnalysisResult.processingTime || null,
-      matchedSkills: insertAnalysisResult.matchedSkills || null,
-      missingSkills: insertAnalysisResult.missingSkills || null,
-      candidateStrengths: insertAnalysisResult.candidateStrengths || null,
-      candidateWeaknesses: insertAnalysisResult.candidateWeaknesses || null,
-      recommendations: insertAnalysisResult.recommendations || null,
-      confidenceLevel: insertAnalysisResult.confidenceLevel || null,
-      scoringDimensions: insertAnalysisResult.scoringDimensions || null,
-      fairnessMetrics: insertAnalysisResult.fairnessMetrics || null,
-      biasFlags: insertAnalysisResult.biasFlags || null,
-      processingFlags: insertAnalysisResult.processingFlags || null,
+      createdAt: insertAnalysisResult.createdAt ?? now,
+      updatedAt: insertAnalysisResult.updatedAt ?? now,
+      userId: insertAnalysisResult.userId ?? null,
+      resumeId: insertAnalysisResult.resumeId ?? null,
+      jobDescriptionId: insertAnalysisResult.jobDescriptionId ?? null,
+      matchPercentage: insertAnalysisResult.matchPercentage ?? null,
+      matchedSkills: insertAnalysisResult.matchedSkills ?? null,
+      missingSkills: insertAnalysisResult.missingSkills ?? null,
+      analysis: insertAnalysisResult.analysis ?? {},
+      candidateStrengths: insertAnalysisResult.candidateStrengths ?? null,
+      candidateWeaknesses: insertAnalysisResult.candidateWeaknesses ?? null,
+      recommendations: insertAnalysisResult.recommendations ?? null,
+      confidenceLevel: insertAnalysisResult.confidenceLevel ?? null,
+      semanticSimilarity: insertAnalysisResult.semanticSimilarity ?? null,
+      skillsSimilarity: insertAnalysisResult.skillsSimilarity ?? null,
+      experienceSimilarity: insertAnalysisResult.experienceSimilarity ?? null,
+      educationSimilarity: insertAnalysisResult.educationSimilarity ?? null,
+      mlConfidenceScore: insertAnalysisResult.mlConfidenceScore ?? null,
+      scoringDimensions: insertAnalysisResult.scoringDimensions ?? null,
+      fairnessMetrics: insertAnalysisResult.fairnessMetrics ?? null,
+      processingTime: insertAnalysisResult.processingTime ?? null,
+      aiProvider: insertAnalysisResult.aiProvider ?? null,
+      modelVersion: insertAnalysisResult.modelVersion ?? null,
+      processingFlags: insertAnalysisResult.processingFlags ?? null,
     };
     this.analysisResultsData.set(id, analysisResult);
     return analysisResult;

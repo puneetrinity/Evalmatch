@@ -8,7 +8,7 @@ import { nanoid } from "nanoid";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Vite imports are dynamic to avoid runtime errors in production
-let viteLogger: { info: (msg: string) => void; error: (msg: string) => void; warn: (msg: string) => void } | undefined;
+let viteLogger: any;
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -33,18 +33,23 @@ export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
-    allowedHosts: true,
+    allowedHosts: ['localhost', '127.0.0.1'],
   };
 
   const vite = await createViteServer({
     ...viteConfig.default,
     configFile: false,
     customLogger: {
-      ...viteLogger,
-      error: (msg, options) => {
-        viteLogger.error(msg, options);
+      info: (msg: string) => viteLogger?.info(msg),
+      warn: (msg: string) => viteLogger?.warn(msg),
+      warnOnce: (msg: string) => viteLogger?.warnOnce?.(msg) || viteLogger?.warn(msg),
+      error: (msg: string) => {
+        viteLogger?.error(msg);
         process.exit(1);
       },
+      clearScreen: () => {},
+      hasErrorLogged: () => false,
+      hasWarned: false
     },
     server: serverOptions,
     appType: "custom",

@@ -5,6 +5,19 @@ import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import { logger } from './logger';
 
+// Extend the File interface to include security metadata
+declare global {
+  namespace Express {
+    namespace Multer {
+      interface File {
+        securityChecked?: boolean;
+        uploadedBy?: string;
+        uploadedAt?: string;
+      }
+    }
+  }
+}
+
 // Secure upload directory configuration
 const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
 const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png'];

@@ -25,6 +25,15 @@ export interface BatchProcessResult {
   timeTaken: number;
 }
 
+interface MatchProcessResult {
+  resumeId: number;
+  jobId: number;
+  success: boolean;
+  dbStore?: Promise<any>;
+  matchId: string;
+  error?: string;
+}
+
 /**
  * Process multiple resumes in parallel using Promise.all()
  * This is 5-10x faster than sequential processing
@@ -341,7 +350,7 @@ export async function processBatchMatches(
     });
     
     const matchStartTime = Date.now();
-    const matchPromises: Promise<unknown>[] = [];
+    const matchPromises: Promise<MatchProcessResult>[] = [];
     
     for (let i = 0; i < resumes.length; i++) {
       for (let j = 0; j < jobs.length; j++) {
@@ -395,7 +404,7 @@ export async function processBatchMatches(
               success: true,
               dbStore: dbStorePromise,
               matchId: matchId
-            };
+            } as MatchProcessResult;
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             logger.error(`Match analysis failed ${matchId}`, {
@@ -411,7 +420,7 @@ export async function processBatchMatches(
               id: resumes[i].id * 1000 + jobs[j].id, // Unique ID for match
               error: errorMessage 
             });
-            return { resumeId: resumes[i].id, jobId: jobs[j].id, success: false, matchId: matchId };
+            return { resumeId: resumes[i].id, jobId: jobs[j].id, success: false, matchId: matchId, error: errorMessage } as MatchProcessResult;
           }
         })();
         
@@ -526,14 +535,14 @@ export async function processBatchMatches(
  * Smart batch processor that optimizes batch sizes based on system resources
  * Prevents overwhelming the system while maximizing parallelization
  */
-export async function processSmartBatch<T>(
+export async function processSmartBatch<T, R>(
   items: T[],
-  processor: (item: T) => Promise<unknown>,
+  processor: (item: T) => Promise<R>,
   maxConcurrency: number = 10
-): Promise<{ results: unknown[]; errors: unknown[] }> {
+): Promise<{ results: (R | undefined)[]; errors: { index: number; error: unknown }[] }> {
   const startTime = Date.now();
-  const results: unknown[] = [];
-  const errors: unknown[] = [];
+  const results: (R | undefined)[] = new Array(items.length);
+  const errors: { index: number; error: unknown }[] = [];
   const totalChunks = Math.ceil(items.length / maxConcurrency);
 
   logger.info('Starting smart batch processing', {

@@ -27,7 +27,7 @@ const RETRY_OPTIONS = {
 export async function withRetry<T>(operation: () => Promise<T>, context: string): Promise<T> {
   // Wrap the operation with rate limiting
   return dbRateLimiter.execute(async () => {
-    let lastError: Error;
+    let lastError: Error = new Error('No error occurred');
     let delay = RETRY_OPTIONS.initialDelayMs;
     let timeoutRetryCount = 0;
     
@@ -41,7 +41,7 @@ export async function withRetry<T>(operation: () => Promise<T>, context: string)
         
         // Check error types to determine retry strategy
         const isNeonControlPlaneError = 
-          error?.code === 'XX000' || 
+          (error && typeof error === 'object' && 'code' in error && error.code === 'XX000') || 
           (typeof errorMessage === 'string' && 
             (errorMessage.includes('Control plane request failed') || 
              errorMessage.includes('Couldn\'t connect to compute node')));

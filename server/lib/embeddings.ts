@@ -1,14 +1,14 @@
-import { pipeline, Pipeline } from '@xenova/transformers';
+import { pipeline, FeatureExtractionPipeline } from '@xenova/transformers';
 import { logger } from './logger';
 
 // Global embedding pipeline
-let embeddingPipeline: Pipeline | null = null;
+let embeddingPipeline: FeatureExtractionPipeline | null = null;
 
 /**
  * Initialize the embedding pipeline
  * With 8GB RAM, we can use better models for higher accuracy
  */
-async function initializeEmbeddingPipeline(): Promise<Pipeline> {
+async function initializeEmbeddingPipeline(): Promise<FeatureExtractionPipeline> {
   if (!embeddingPipeline) {
     try {
       logger.info('Initializing sentence-transformers embedding pipeline');
@@ -20,18 +20,16 @@ async function initializeEmbeddingPipeline(): Promise<Pipeline> {
         'feature-extraction',
         modelName,
         { 
-          progress_callback: (progress: { status: string; progress: number }) => {
-            if (progress.status === 'downloading') {
+          progress_callback: (progress: any) => {
+            if (progress?.status === 'downloading' && typeof progress.progress === 'number') {
               logger.info(`Downloading embedding model (${modelName}): ${Math.round(progress.progress)}%`);
             }
           },
           // Optimize for Railway deployment
-          cache_dir: process.env.NODE_ENV === 'production' ? '/tmp/transformers_cache' : undefined,
-          // Use more RAM for better performance
-          device: 'cpu',
-          dtype: 'fp32' // Full precision with 8GB RAM
+          cache_dir: process.env.NODE_ENV === 'production' ? '/tmp/transformers_cache' : undefined
+          // dtype: 'fp32' // Full precision with 8GB RAM
         }
-      );
+      ) as FeatureExtractionPipeline;
       logger.info(`Embedding pipeline initialized successfully with model: ${modelName}`);
     } catch (error) {
       logger.error('Failed to initialize embedding pipeline:', error);
@@ -52,8 +50,8 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     const result = await pipeline(text, { pooling: 'mean', normalize: true });
     
     // Convert to regular array
-    if (result && result.data) {
-      return Array.from(result.data);
+    if (result && typeof result === 'object' && 'data' in result && result.data) {
+      return Array.from(result.data as ArrayLike<number>);
     } else {
       throw new Error('Invalid embedding result format');
     }
@@ -62,8 +60,8 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     
     // Fallback to OpenAI embeddings
     try {
-      const { openai } = await import('./openai');
-      return await openai.generateEmbedding(text);
+      const openaiModule = await import('./openai');
+      return await openaiModule.generateEmbedding(text);
     } catch (fallbackError) {
       logger.error('Both local and OpenAI embedding failed:', fallbackError);
       throw fallbackError;

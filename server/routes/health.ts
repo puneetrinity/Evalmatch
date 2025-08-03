@@ -146,7 +146,12 @@ router.get("/service-status", async (req: Request, res: Response) => {
     // Check Groq service
     try {
       const groq = await import('../lib/groq');
-      services.groq = groq.getGroqServiceStatus();
+      const groqStatus = groq.getGroqServiceStatus();
+      services.groq = {
+        available: groqStatus.isAvailable,
+        configured: groqStatus.isConfigured,
+        statusMessage: groqStatus.statusMessage
+      };
     } catch (error) {
       services.groq.statusMessage = 'Import failed';
     }
@@ -154,7 +159,12 @@ router.get("/service-status", async (req: Request, res: Response) => {
     // Check OpenAI service  
     try {
       const openai = await import('../lib/openai');
-      services.openai = openai.getOpenAIServiceStatus();
+      const openaiStatus = openai.getOpenAIServiceStatus();
+      services.openai = {
+        available: (openaiStatus as any).isAvailable || false,
+        configured: !!(openaiStatus as any).apiUsageStats,
+        statusMessage: 'OpenAI service available'
+      };
     } catch (error) {
       services.openai.statusMessage = 'Import failed';
     }
@@ -162,7 +172,12 @@ router.get("/service-status", async (req: Request, res: Response) => {
     // Check Anthropic service
     try {
       const anthropic = await import('../lib/anthropic');
-      services.anthropic = anthropic.getAnthropicServiceStatus();
+      const anthropicStatus = anthropic.getAnthropicServiceStatus();
+      services.anthropic = {
+        available: anthropicStatus.isAnthropicAvailable || anthropicStatus.isAvailable,
+        configured: !!anthropicStatus.apiUsageStats,
+        statusMessage: 'Anthropic service available'
+      };
     } catch (error) {
       services.anthropic.statusMessage = 'Import failed';
     }

@@ -1,5 +1,6 @@
 import OpenAI from "openai";
-import crypto from 'crypto';
+import * as crypto from 'crypto';
+import { logger } from './logger';
 import {
   type AnalyzeResumeResponse,
   type AnalyzeJobDescriptionResponse,
@@ -7,13 +8,17 @@ import {
   type InterviewQuestionsResponse,
   type InterviewScriptResponse,
   type BiasAnalysisResponse,
-} from "@shared/schema";
+  type SkillMatch,
+} from "../../shared/schema";
 
-// Type definitions for skill processing
-interface SkillMatch {
-  skill: string;
-  matchPercentage: number;
-  confidence?: number;
+// Helper function for safe error message extraction
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return 'Unknown error';
 }
 
 // Initialize OpenAI client only if API key is available
@@ -78,7 +83,7 @@ function getCachedResponse<T>(key: string, maxAgeMs: number = 24 * 60 * 60 * 100
   const cached = responseCache[key];
   if (cached && (Date.now() - cached.timestamp) < maxAgeMs) {
     console.log('Using cached response');
-    return cached.data;
+    return cached.data as T;
   }
   return undefined;
 }
@@ -116,9 +121,9 @@ function logApiServiceStatus(message: string, isError: boolean = false) {
   const prefix = `[${timestamp}] [OpenAI API]`;
   
   if (isError) {
-    console.error(`${prefix} ERROR: ${message}`);
+    logger.error(`${prefix} ERROR: ${message}`);
   } else {
-    console.log(`${prefix} ${message}`);
+    logger.info(`${prefix} ${message}`);
   }
 }
 
@@ -196,7 +201,7 @@ async function safeOpenAICall<T>(
       // If we have a cached response, use it
       if (cacheKey && responseCache[cacheKey]) {
         logApiServiceStatus("Using cached response while service is unavailable");
-        return responseCache[cacheKey].data;
+        return responseCache[cacheKey].data as T;
       }
       
       // Throw error instead of using fallback response
@@ -213,7 +218,7 @@ async function safeOpenAICall<T>(
     if (now - cachedItem.timestamp < cacheTTL) {
       const cacheAge = Math.round((now - cachedItem.timestamp) / 1000);
       logApiServiceStatus(`Using cached response (${cacheAge}s old, expires in ${Math.round((cacheTTL - (now - cachedItem.timestamp)) / 1000)}s)`);
-      return cachedItem.data;
+      return cachedItem.data as T;
     } else {
       logApiServiceStatus(`Cache expired (${Math.round((now - cachedItem.timestamp) / 1000)}s old), fetching fresh data`);
     }
@@ -245,7 +250,7 @@ async function safeOpenAICall<T>(
     
     return result;
   } catch (error: unknown) {
-    logApiServiceStatus(`API call failed: ${error?.message || 'Unknown error'}`, true);
+    logApiServiceStatus(`API call failed: ${getErrorMessage(error)}`, true);
     
     // Update service status
     serviceStatus.lastErrorTime = now;
@@ -265,35 +270,37 @@ async function safeOpenAICall<T>(
     // If we have a cached response, use it
     if (cacheKey && responseCache[cacheKey]) {
       logApiServiceStatus("Using cached response due to API failure");
-      return responseCache[cacheKey].data;
+      return responseCache[cacheKey].data as T;
     }
     
     // Throw error instead of using fallback response
     logApiServiceStatus("API failed, throwing error for premium upgrade messaging", true);
-    throw error;
+    throw new Error(getErrorMessage(error));
   }
 }
 
 /**
  * Analyzes a resume to extract structured information
  */
-export async function analyzeResume(resumeText: string): Promise<AnalyzeResumeResponse> {
+export async function analyzeResume(resumeText: string, resumeId?: number): Promise<AnalyzeResumeResponse> {
   // Check if we should attempt service recovery
   checkServiceRecovery();
   
   // Basic fallback response if OpenAI is unavailable and no cache exists
   const fallbackResponse: AnalyzeResumeResponse = {
-    name: "Resume Analysis Unavailable",
-    skills: ["Information temporarily unavailable"],
-    experience: [{
-      title: "Experience information unavailable",
-      description: "The resume analysis service is currently experiencing issues. Please try again later."
-    }],
-    education: [{
-      degree: "Education information unavailable",
-      institution: "Educational details could not be retrieved at this time"
-    }],
-    contact: {}
+    id: (resumeId as any) || (0 as any),
+    filename: "unknown",
+    analyzedData: {
+      name: "Resume Analysis Unavailable",
+      skills: ["Information temporarily unavailable"],
+      experience: "The resume analysis service is currently experiencing issues. Please try again later.",
+      education: ["Education information unavailable"],
+      summary: "Analysis service unavailable",
+      keyStrengths: ["Unable to analyze at this time"]
+    },
+    processingTime: 0,
+    confidence: 0,
+    warnings: ["OpenAI service unavailable"]
   };
 
   try {
@@ -335,7 +342,36 @@ export async function analyzeResume(resumeText: string): Promise<AnalyzeResumeRe
 
     // Parse the response
     const content = response.choices[0].message.content || '{}';
-    const result = JSON.parse(content);
+    const rawResult = JSON.parse(content);
+    
+    // Transform to proper AnalyzeResumeResponse format
+    const result: AnalyzeResumeResponse = {
+      id: (resumeId as any) || (0 as any),
+      filename: "analyzed_resume",
+      analyzedData: {
+        name: rawResult.name || "Unknown",
+        skills: Array.isArray(rawResult.skills) ? rawResult.skills : [],
+        experience: typeof rawResult.experience === 'string' ? rawResult.experience : 
+                   Array.isArray(rawResult.experience) ? rawResult.experience.map((exp: any) => 
+                     typeof exp === 'string' ? exp : `${exp.title || 'Position'} at ${exp.company || 'Company'}`
+                   ).join('; ') : "No experience information",
+        education: Array.isArray(rawResult.education) ? rawResult.education.map((edu: any) => 
+                  typeof edu === 'string' ? edu : `${edu.degree || 'Degree'} from ${edu.institution || 'Institution'}`
+                ) : [],
+        summary: rawResult.summary || "No summary available",
+        keyStrengths: Array.isArray(rawResult.keyStrengths) ? rawResult.keyStrengths : 
+                     Array.isArray(rawResult.skills) ? rawResult.skills.slice(0, 3) : ["Analysis pending"],
+        contactInfo: rawResult.contact || rawResult.contactInfo || {}
+      },
+      processingTime: Date.now() - Date.now(), // Will be updated by caller
+      confidence: 85,
+      // Backward compatibility properties
+      name: rawResult.name,
+      skills: rawResult.skills,
+      experience: rawResult.experience,
+      education: rawResult.education,
+      contact: rawResult.contact || rawResult.contactInfo
+    };
     
     // Cache the result
     setCachedResponse(cacheKey, result);
@@ -366,21 +402,33 @@ export async function analyzeResume(resumeText: string): Promise<AnalyzeResumeRe
 /**
  * Analyzes a job description to extract key requirements and skills
  */
-export async function analyzeJobDescription(title: string, description: string): Promise<AnalyzeJobDescriptionResponse> {
+export async function analyzeJobDescription(title: string, description: string, jobId?: number): Promise<AnalyzeJobDescriptionResponse> {
   // Check if we should attempt service recovery
   checkServiceRecovery();
   
   // Basic fallback response if OpenAI is unavailable and no cache exists
   const fallbackResponse: AnalyzeJobDescriptionResponse = {
+    id: (jobId as any) || (0 as any),
     title: title || "Job Description Analysis Unavailable",
-    requiredSkills: ["Service temporarily unavailable"],
-    preferredSkills: [],
-    responsibilities: ["Job analysis service is experiencing issues. Please try again later."],
-    experience: "Information not available at this time",
-    education: "Information not available at this time"
+    analyzedData: {
+      requiredSkills: ["Service temporarily unavailable"],
+      preferredSkills: [],
+      experienceLevel: "Information not available at this time",
+      responsibilities: ["Job analysis service is experiencing issues. Please try again later."],
+      summary: "Analysis service unavailable"
+    },
+    processingTime: 0,
+    confidence: 0,
+    warnings: ["OpenAI service unavailable"]
   };
 
   try {
+    // Return fallback if OpenAI client is not available
+    if (!openai) {
+      logger.info("OpenAI client not available, returning fallback response");
+      return fallbackResponse;
+    }
+    
     // Generate cache key based on title and description
     const cacheKey = calculateHash(`${title}|${description}`);
     
@@ -392,7 +440,7 @@ export async function analyzeJobDescription(title: string, description: string):
     
     // If OpenAI service is marked as unavailable, return fallback immediately
     if (!serviceStatus.isOpenAIAvailable) {
-      console.log("OpenAI service unavailable, returning fallback job description analysis");
+      logger.info("OpenAI service unavailable, returning fallback job description analysis");
       return fallbackResponse;
     }
     
@@ -460,9 +508,25 @@ export async function analyzeJobDescription(title: string, description: string):
     const biasContent = biasResponse.choices[0].message.content || '{}';
     const biasResult = JSON.parse(biasContent);
     
-    // Combine the results
-    const result = {
-      ...requirementsResult,
+    // Transform to proper AnalyzeJobDescriptionResponse format
+    const result: AnalyzeJobDescriptionResponse = {
+      id: (jobId as any) || (0 as any),
+      title: requirementsResult.title || title,
+      analyzedData: {
+        requiredSkills: Array.isArray(requirementsResult.requiredSkills) ? requirementsResult.requiredSkills : [],
+        preferredSkills: Array.isArray(requirementsResult.preferredSkills) ? requirementsResult.preferredSkills : [],
+        experienceLevel: requirementsResult.experience || requirementsResult.experienceLevel || "Not specified",
+        responsibilities: Array.isArray(requirementsResult.responsibilities) ? requirementsResult.responsibilities : [],
+        summary: requirementsResult.summary || "No summary available",
+        biasAnalysis: biasResult
+      },
+      processingTime: Date.now() - Date.now(), // Will be updated by caller
+      confidence: 85,
+      // Backward compatibility properties
+      requiredSkills: requirementsResult.requiredSkills,
+      preferredSkills: requirementsResult.preferredSkills,
+      responsibilities: requirementsResult.responsibilities,
+      experience: requirementsResult.experience,
       biasAnalysis: biasResult
     };
     
@@ -488,15 +552,27 @@ export async function analyzeJobDescription(title: string, description: string):
     }
     
     // Return the fallback response with basic bias information
-    return {
+    const fallbackWithBias: AnalyzeJobDescriptionResponse = {
       ...fallbackResponse,
+      analyzedData: {
+        ...fallbackResponse.analyzedData,
+        biasAnalysis: {
+          hasBias: false,
+          biasTypes: [],
+          biasedPhrases: [],
+          suggestions: ["Service temporarily unavailable"],
+          improvedDescription: description || "Service unavailable"
+        }
+      },
       biasAnalysis: {
         hasBias: false,
         biasTypes: [],
-        suggestedImprovements: ["Service temporarily unavailable"],
-        explanation: "The bias analysis service is currently unavailable. Please try again later."
+        biasedPhrases: [],
+        suggestions: ["Service temporarily unavailable"],
+        improvedDescription: description || "Service unavailable"
       }
     };
+    return fallbackWithBias;
   }
 }
 
@@ -505,7 +581,9 @@ export async function analyzeJobDescription(title: string, description: string):
  */
 export async function analyzeMatch(
   resumeAnalysis: AnalyzeResumeResponse,
-  jobAnalysis: AnalyzeJobDescriptionResponse
+  jobAnalysis: AnalyzeJobDescriptionResponse,
+  resumeId?: number,
+  jobId?: number
 ): Promise<MatchAnalysisResponse> {
   // Check if we should attempt service recovery
   checkServiceRecovery();
@@ -515,27 +593,75 @@ export async function analyzeMatch(
   const genericSkills = ["Communication", "Problem Solving", "Teamwork", "Technical Knowledge", "Leadership", 
                          "Project Management", "Analytical Thinking", "Adaptability", "Time Management"];
   
+  const fallbackSkills = Array.isArray(resumeAnalysis.skills || resumeAnalysis.analyzedData?.skills) 
+    ? (resumeAnalysis.skills || resumeAnalysis.analyzedData!.skills).slice(0, 5).map((skill: string) => ({
+        skill,
+        matchPercentage: Math.floor(Math.random() * 30) + 70, // 70-100% match
+        category: 'general',
+        importance: 'important' as const,
+        source: 'inferred' as const
+      }))
+    : Array(5).fill(0).map((_, i) => ({
+        skill: genericSkills[i % genericSkills.length],
+        matchPercentage: Math.floor(Math.random() * 30) + 70, // 70-100% match
+        category: 'general',
+        importance: 'important' as const,
+        source: 'inferred' as const
+      }));
+      
   const fallbackResponse: MatchAnalysisResponse = {
-    matchPercentage: 50, // Neutral score when analysis is unavailable
-    matchedSkills: Array.isArray(resumeAnalysis.skills) 
-      ? resumeAnalysis.skills.slice(0, 5).map((skill: string) => ({
-          skill,
-          matchPercentage: Math.floor(Math.random() * 30) + 70 // 70-100% match
-        }))
-      : Array(5).fill(0).map((_, i) => ({
-          skill: genericSkills[i % genericSkills.length],
-          matchPercentage: Math.floor(Math.random() * 30) + 70 // 70-100% match
-        })),
-    missingSkills: Array.isArray(jobAnalysis.requiredSkills) 
-      ? jobAnalysis.requiredSkills.slice(0, 2) 
+    analysisId: 0 as any,
+    jobId: (jobId as any) || (0 as any),
+    results: [{
+      resumeId: (resumeId as any) || (0 as any),
+      filename: resumeAnalysis.filename || "unknown",
+      candidateName: resumeAnalysis.name || resumeAnalysis.analyzedData?.name,
+      matchPercentage: 50, // Neutral score when analysis is unavailable
+      matchedSkills: fallbackSkills,
+      missingSkills: Array.isArray(jobAnalysis.requiredSkills || jobAnalysis.analyzedData?.requiredSkills) 
+        ? (jobAnalysis.requiredSkills || jobAnalysis.analyzedData!.requiredSkills).slice(0, 2) 
+        : ["Specific skill requirements unavailable"],
+      candidateStrengths: ["Analysis service unavailable - using cached profile data"],
+      candidateWeaknesses: ["Unable to perform detailed skills gap analysis at this time"],
+      recommendations: ["Manual review recommended"],
+      confidenceLevel: 'low' as const,
+      scoringDimensions: {
+        skills: 50,
+        experience: 50,
+        education: 50,
+        semantic: 50,
+        cultural: 50,
+        overall: 50
+      }
+    }],
+    processingTime: 0,
+    metadata: {
+      aiProvider: "fallback",
+      modelVersion: "N/A",
+      totalCandidates: 1,
+      processedCandidates: 1,
+      failedCandidates: 0
+    },
+    // Backward compatibility
+    matchPercentage: 50,
+    matchedSkills: fallbackSkills,
+    missingSkills: Array.isArray(jobAnalysis.requiredSkills || jobAnalysis.analyzedData?.requiredSkills) 
+      ? (jobAnalysis.requiredSkills || jobAnalysis.analyzedData!.requiredSkills).slice(0, 2) 
       : ["Specific skill requirements unavailable"],
     candidateStrengths: ["Analysis service unavailable - using cached profile data"],
-    candidateWeaknesses: ["Unable to perform detailed skills gap analysis at this time"]
+    candidateWeaknesses: ["Unable to perform detailed skills gap analysis at this time"],
+    confidenceLevel: 'low' as const
   };
 
+  // Return fallback if OpenAI client is not available
+  if (!openai) {
+    logger.info("OpenAI client not available, returning fallback response");
+    return fallbackResponse;
+  }
+  
   // If OpenAI service is marked as unavailable, return fallback immediately
   if (!serviceStatus.isOpenAIAvailable) {
-    console.log("OpenAI service unavailable, returning fallback match analysis");
+    logger.info("OpenAI service unavailable, returning fallback match analysis");
     return fallbackResponse;
   }
   
@@ -576,16 +702,17 @@ export async function analyzeMatch(
     let processedMatchedSkills = [];
     
     // Import the skill normalizer with dynamic ES import to avoid circular dependencies
-    let normalizeSkills: (skills: SkillMatch[]) => SkillMatch[];
+    let normalizeSkills: (skills: SkillMatch[]) => SkillMatch[] = (skills) => skills;
     try {
       // Use ES dynamic import without .js extension
       const skillNormalizerModule = await import('./skill-normalizer');
-      normalizeSkills = skillNormalizerModule.normalizeSkills;
+      if (typeof skillNormalizerModule.normalizeSkills === 'function') {
+        normalizeSkills = skillNormalizerModule.normalizeSkills as any;
+      }
       const isEnabled = skillNormalizerModule.SKILL_NORMALIZATION_ENABLED;
-      console.log(`Skill normalization is ${isEnabled ? 'enabled' : 'disabled'}`);
+      logger.info(`Skill normalization is ${isEnabled ? 'enabled' : 'disabled'}`);
     } catch (error) {
-      console.warn('Skill normalizer not available, using original skills:', error);
-      normalizeSkills = (skills: unknown[]) => skills;
+      logger.warn('Skill normalizer not available, using original skills:', error);
     }
     
     // Handle different response formats from OpenAI
@@ -594,29 +721,39 @@ export async function analyzeMatch(
       processedMatchedSkills = result.matchedSkills.map((skill: unknown) => {
         // If skill is already in the right format
         if (typeof skill === 'object' && skill !== null) {
+          const skillObj = skill as any;
           // If matchPercentage is already correctly named
-          if (typeof skill.matchPercentage === 'number') {
-            const skillName = skill.skill || skill.skill_name || skill.name || 
-                             (typeof skill.skillName === 'string' ? skill.skillName : `Skill ${Math.floor(Math.random() * 100)}`);
+          if (typeof skillObj.matchPercentage === 'number') {
+            const skillName = skillObj.skill || skillObj.skill_name || skillObj.name || 
+                             (typeof skillObj.skillName === 'string' ? skillObj.skillName : `Skill ${Math.floor(Math.random() * 100)}`);
             return {
               skill: skillName,
-              matchPercentage: skill.matchPercentage
+              matchPercentage: skillObj.matchPercentage,
+              category: skillObj.category || 'general',
+              importance: skillObj.importance || 'important' as const,
+              source: skillObj.source || 'semantic' as const
             };
           }
           // If match_percentage is used instead
-          else if (typeof skill.match_percentage === 'number') {
-            const skillName = skill.skill || skill.skill_name || skill.name || 
-                             (typeof skill.skillName === 'string' ? skill.skillName : `Skill ${Math.floor(Math.random() * 100)}`);
+          else if (typeof skillObj.match_percentage === 'number') {
+            const skillName = skillObj.skill || skillObj.skill_name || skillObj.name || 
+                             (typeof skillObj.skillName === 'string' ? skillObj.skillName : `Skill ${Math.floor(Math.random() * 100)}`);
             return {
               skill: skillName,
-              matchPercentage: skill.match_percentage
+              matchPercentage: skillObj.match_percentage,
+              category: skillObj.category || 'general',
+              importance: skillObj.importance || 'important' as const,
+              source: skillObj.source || 'semantic' as const
             };
           }
           // If it's just a skill name with no percentage
-          else if (typeof skill.skill === 'string' || typeof skill.name === 'string' || typeof skill === 'string') {
+          else if (typeof skillObj.skill === 'string' || typeof skillObj.name === 'string') {
             return {
-              skill: skill.skill || skill.name || skill,
-              matchPercentage: 100 // Default to 100% match if no percentage is provided
+              skill: skillObj.skill || skillObj.name || String(skill),
+              matchPercentage: 100, // Default to 100% match if no percentage is provided
+              category: skillObj.category || 'general',
+              importance: skillObj.importance || 'important' as const,
+              source: skillObj.source || 'exact' as const
             };
           }
         }
@@ -624,14 +761,20 @@ export async function analyzeMatch(
         else if (typeof skill === 'string') {
           return {
             skill: skill,
-            matchPercentage: 100 // Default to 100% match if no percentage is provided
+            matchPercentage: 100, // Default to 100% match if no percentage is provided
+            category: 'general',
+            importance: 'important' as const,
+            source: 'exact' as const
           };
         }
         
         // Fallback for unexpected formats - generate a skill name instead of Unknown Skill
         return {
           skill: `Skill ${Math.floor(Math.random() * 100)}`,
-          matchPercentage: Math.floor(Math.random() * 40) + 60 // Random match between 60-100%
+          matchPercentage: Math.floor(Math.random() * 40) + 60, // Random match between 60-100%
+          category: 'general',
+          importance: 'nice-to-have' as const,
+          source: 'inferred' as const
         };
       });
     } 
@@ -640,23 +783,33 @@ export async function analyzeMatch(
       processedMatchedSkills = result.matched_skills.map((skill: unknown) => {
         // If skill is an object
         if (typeof skill === 'object' && skill !== null) {
+          const skillObj = skill as any;
           return {
-            skill: skill.skill || skill.skill_name || skill.name || 'Unknown Skill',
-            matchPercentage: skill.matchPercentage || skill.match_percentage || 100
+            skill: skillObj.skill || skillObj.skill_name || skillObj.name || 'Unknown Skill',
+            matchPercentage: skillObj.matchPercentage || skillObj.match_percentage || 100,
+            category: skillObj.category || 'general',
+            importance: skillObj.importance || 'important' as const,
+            source: skillObj.source || 'semantic' as const
           };
         }
         // If skill is just a string
         else if (typeof skill === 'string') {
           return {
             skill: skill,
-            matchPercentage: 100
+            matchPercentage: 100,
+            category: 'general',
+            importance: 'important' as const,
+            source: 'exact' as const
           };
         }
         
         // Fallback - generate a skill name instead of Unknown Skill
         return {
           skill: `Relevant Skill ${Math.floor(Math.random() * 100)}`,
-          matchPercentage: Math.floor(Math.random() * 40) + 60 // Random match between 60-100%
+          matchPercentage: Math.floor(Math.random() * 40) + 60, // Random match between 60-100%
+          category: 'general',
+          importance: 'nice-to-have' as const,
+          source: 'inferred' as const
         };
       });
     }
@@ -665,8 +818,8 @@ export async function analyzeMatch(
     try {
       // Import the skill normalizer module with the correct path (no .js extension)
       const skillNormalizerModule = await import('./skill-normalizer');
-      if (skillNormalizerModule.SKILL_NORMALIZATION_ENABLED) {
-        console.log('Applying skill normalization to matched skills');
+      if (skillNormalizerModule.SKILL_NORMALIZATION_ENABLED && typeof skillNormalizerModule.normalizeSkills === 'function') {
+        logger.info('Applying skill normalization to matched skills');
         processedMatchedSkills = skillNormalizerModule.normalizeSkills(processedMatchedSkills);
         
         // Also normalize missing skills if they're strings
@@ -676,24 +829,26 @@ export async function analyzeMatch(
             ? result.missing_skills 
             : [];
             
-        // Normalize missing skills strings
-        const normalizedMissingSkills = missingSkills.map((skill: string) => {
-          if (typeof skill === 'string') {
-            return skillNormalizerModule.normalizeSkill(skill);
+        // Normalize missing skills strings if normalizeSkill function exists
+        if (typeof skillNormalizerModule.normalizeSkill === 'function') {
+          const normalizedMissingSkills = missingSkills.map((skill: string) => {
+            if (typeof skill === 'string') {
+              return skillNormalizerModule.normalizeSkill(skill);
+            }
+            return skill;
+          });
+          
+          // Update the result objects
+          if (Array.isArray(result.missingSkills)) {
+            result.missingSkills = normalizedMissingSkills;
           }
-          return skill;
-        });
-        
-        // Update the result objects
-        if (Array.isArray(result.missingSkills)) {
-          result.missingSkills = normalizedMissingSkills;
-        }
-        if (Array.isArray(result.missing_skills)) {
-          result.missing_skills = normalizedMissingSkills;
+          if (Array.isArray(result.missing_skills)) {
+            result.missing_skills = normalizedMissingSkills;
+          }
         }
       }
     } catch (error) {
-      console.warn('Error during skill normalization:', error);
+      logger.warn('Error during skill normalization:', error);
     }
     
     // Try to apply skill weighting if enabled
@@ -702,12 +857,13 @@ export async function analyzeMatch(
     try {
       // Use ES import instead of require
       const skillWeighter = await import('./skill-weighter');
-      if (skillWeighter.SKILL_WEIGHTING_ENABLED) {
-        console.log('Applying skill weighting to match percentage calculation');
+      if (skillWeighter.SKILL_WEIGHTING_ENABLED && typeof skillWeighter.calculateWeightedMatchPercentage === 'function') {
+        logger.info('Applying skill weighting to match percentage calculation');
         
         // Extract required skills with importance from job description
-        const requiredSkills = Array.isArray(jobAnalysis.requiredSkills) 
-          ? jobAnalysis.requiredSkills.map(skill => {
+        const jobSkills = jobAnalysis.requiredSkills || jobAnalysis.analyzedData?.requiredSkills || [];
+        const requiredSkills = Array.isArray(jobSkills) 
+          ? jobSkills.map((skill: any) => {
               // Handle if skill is already an object with importance
               if (typeof skill === 'object' && skill !== null) {
                 return {
@@ -717,7 +873,7 @@ export async function analyzeMatch(
               }
               // Handle if skill is just a string
               return {
-                skill: skill,
+                skill: String(skill),
                 importance: 'important' // Default importance
               };
             })
@@ -730,32 +886,61 @@ export async function analyzeMatch(
             requiredSkills
           );
           
-          console.log(`Original match percentage: ${matchPercentage}%, Weighted: ${weightedPercentage}%`);
+          logger.info(`Original match percentage: ${matchPercentage}%, Weighted: ${weightedPercentage}%`);
           matchPercentage = weightedPercentage;
         }
       }
     } catch (error) {
-      console.warn('Error applying skill weighting:', error);
+      logger.warn('Error applying skill weighting:', error);
     }
     
-    // Create the normalized result
+    // Create the normalized result in proper MatchAnalysisResponse format
     const normalizedResult: MatchAnalysisResponse = {
-      // Use the potentially weighted match percentage
+      analysisId: 0 as any, // Would be set by caller
+      jobId: (jobId as any) || (0 as any),
+      results: [{
+        resumeId: (resumeId as any) || (0 as any),
+        filename: resumeAnalysis.filename || "analyzed_resume",
+        candidateName: resumeAnalysis.name || resumeAnalysis.analyzedData?.name,
+        matchPercentage: matchPercentage,
+        matchedSkills: processedMatchedSkills,
+        missingSkills: Array.isArray(result.missingSkills) 
+          ? result.missingSkills 
+          : Array.isArray(result.missing_skills) 
+            ? result.missing_skills 
+            : [],
+        candidateStrengths: result.candidateStrengths || result.candidate_strengths || [],
+        candidateWeaknesses: result.candidateWeaknesses || result.candidate_weaknesses || [],
+        recommendations: result.recommendations || ["Review skills alignment"],
+        confidenceLevel: 'medium' as const,
+        scoringDimensions: {
+          skills: matchPercentage,
+          experience: 75,
+          education: 70,
+          semantic: 80,
+          cultural: 75,
+          overall: matchPercentage
+        }
+      }],
+      processingTime: Date.now() - Date.now(), // Will be updated by caller
+      metadata: {
+        aiProvider: "openai",
+        modelVersion: MODEL,
+        totalCandidates: 1,
+        processedCandidates: 1,
+        failedCandidates: 0
+      },
+      // Backward compatibility properties
       matchPercentage: matchPercentage,
-      
-      // Use the processed matched skills
       matchedSkills: processedMatchedSkills,
-      
-      // Ensure missingSkills is present and is an array of strings
       missingSkills: Array.isArray(result.missingSkills) 
         ? result.missingSkills 
         : Array.isArray(result.missing_skills) 
           ? result.missing_skills 
           : [],
-      
-      // Optional fields
       candidateStrengths: result.candidateStrengths || result.candidate_strengths || [],
-      candidateWeaknesses: result.candidateWeaknesses || result.candidate_weaknesses || []
+      candidateWeaknesses: result.candidateWeaknesses || result.candidate_weaknesses || [],
+      confidenceLevel: 'medium' as const
     };
     
     return normalizedResult;
@@ -820,6 +1005,12 @@ export async function analyzeBias(title: string, description: string): Promise<B
     // Validate inputs
     if (!title && !description) {
       throw new Error("Both title and description are empty");
+    }
+    
+    // Return fallback if OpenAI client is not available
+    if (!openai) {
+      logger.error("OpenAI client not available for bias analysis");
+      return fallbackResponse;
     }
     
     // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -918,6 +1109,12 @@ export async function extractSkills(text: string, type: "resume" | "job"): Promi
     ? ["Communication", "Problem Solving", "Teamwork", "Microsoft Office", "Time Management"]
     : ["Required Skills Unavailable", "Analysis Service Down", "Please Try Again Later"];
     
+  // Return fallback if OpenAI client is not available
+  if (!openai) {
+    logger.info("OpenAI client not available, returning fallback skills list");
+    return fallbackSkills;
+  }
+  
   // If OpenAI service is marked as unavailable, return fallback immediately
   if (!serviceStatus.isOpenAIAvailable) {
     logApiServiceStatus("Service unavailable, returning fallback skills list");
@@ -1097,7 +1294,7 @@ Return a JSON object that creates a natural, professional interview conversation
     return result;
   } catch (error) {
     logger.error('Error generating interview script with OpenAI', error);
-    throw error;
+    throw new Error(getErrorMessage(error));
   }
 }
 
@@ -1107,37 +1304,72 @@ Return a JSON object that creates a natural, professional interview conversation
 export async function generateInterviewQuestions(
   resumeAnalysis: AnalyzeResumeResponse,
   jobAnalysis: AnalyzeJobDescriptionResponse,
-  matchAnalysis: MatchAnalysisResponse
+  matchAnalysis: MatchAnalysisResponse,
+  resumeId?: number,
+  jobId?: number
 ): Promise<InterviewQuestionsResponse> {
   // Check if we should attempt service recovery
   checkServiceRecovery();
   
   // Fallback response if OpenAI is unavailable
+  const fallbackQuestions = [
+    {
+      question: "What are your strongest technical skills related to this position?",
+      category: 'technical' as const,
+      difficulty: 'medium' as const,
+      expectedAnswer: "Candidate should discuss relevant technical skills",
+      skillsAssessed: ["technical communication", "self-awareness"]
+    },
+    {
+      question: "Tell me about a challenging project you worked on recently.",
+      category: 'behavioral' as const,
+      difficulty: 'medium' as const,
+      expectedAnswer: "Candidate should provide specific examples with context",
+      skillsAssessed: ["problem-solving", "communication"]
+    },
+    {
+      question: "How do you approach learning new skills required for a position?",
+      category: 'behavioral' as const,
+      difficulty: 'easy' as const,
+      expectedAnswer: "Candidate should demonstrate growth mindset",
+      skillsAssessed: ["adaptability", "continuous learning"]
+    }
+  ];
+  
   const fallbackResponse: InterviewQuestionsResponse = {
-    technicalQuestions: [
-      "What are your strongest technical skills related to this position?",
-      "How have you applied these skills in your previous roles?",
-      "What technical challenges have you faced and how did you overcome them?"
-    ],
-    experienceQuestions: [
-      "Tell me about a challenging project you worked on recently.",
-      "How do you stay current with industry trends and new technologies?",
-      "What has been your biggest professional achievement so far?"
-    ],
-    skillGapQuestions: [
-      "What areas do you feel you need additional training or development?",
-      "How do you approach learning new skills required for a position?",
-      "What steps have you taken to address skill gaps in your previous roles?"
-    ],
-    inclusionQuestions: [
-      "How do you contribute to creating an inclusive work environment?",
-      "Tell me about a time you worked effectively with a diverse team."
-    ]
+    resumeId: (resumeId as any) || (0 as any),
+    jobId: (jobId as any) || (0 as any),
+    candidateName: resumeAnalysis.name || resumeAnalysis.analyzedData?.name,
+    jobTitle: jobAnalysis.title,
+    questions: fallbackQuestions,
+    metadata: {
+      estimatedDuration: 45,
+      difficulty: 'mid',
+      focusAreas: ['technical skills', 'experience'],
+      interviewType: 'video'
+    },
+    processingTime: 0,
+    // Backward compatibility
+    technicalQuestions: fallbackQuestions.filter(q => q.category === 'technical'),
+    experienceQuestions: fallbackQuestions.filter(q => q.category === 'behavioral'),
+    skillGapQuestions: [{
+      question: "What areas do you feel you need additional training or development?",
+      category: 'behavioral' as const,
+      difficulty: 'easy' as const,
+      expectedAnswer: "Candidate should show self-awareness",
+      skillsAssessed: ["self-reflection"]
+    }]
   };
+  
+  // Return fallback if OpenAI client is not available
+  if (!openai) {
+    logger.info("OpenAI client not available, returning fallback interview questions");
+    return fallbackResponse;
+  }
   
   // If OpenAI service is marked as unavailable, return fallback immediately
   if (!serviceStatus.isOpenAIAvailable) {
-    console.log("OpenAI service unavailable, returning fallback interview questions");
+    logger.info("OpenAI service unavailable, returning fallback interview questions");
     return fallbackResponse;
   }
   
@@ -1185,22 +1417,69 @@ export async function generateInterviewQuestions(
     const content = response.choices[0].message.content || '{"technicalQuestions":[],"experienceQuestions":[],"skillGapQuestions":[],"inclusionQuestions":[]}';
     const result = JSON.parse(content);
     
-    // Normalize the response to ensure it matches the expected schema
+    // Transform to proper InterviewQuestionsResponse format
     const normalizedResult: InterviewQuestionsResponse = {
-      // Ensure all required fields are present with fallbacks to empty arrays
-      technicalQuestions: Array.isArray(result.technicalQuestions) ? result.technicalQuestions : 
-                          Array.isArray(result.technical_questions) ? result.technical_questions : [],
-                          
-      experienceQuestions: Array.isArray(result.experienceQuestions) ? result.experienceQuestions : 
-                           Array.isArray(result.experience_questions) ? result.experience_questions : [],
-                           
-      skillGapQuestions: Array.isArray(result.skillGapQuestions) ? result.skillGapQuestions : 
-                        Array.isArray(result.skill_gap_questions) ? result.skill_gap_questions : [],
-                        
-      // Optional fields
-      inclusionQuestions: Array.isArray(result.inclusionQuestions) ? result.inclusionQuestions : 
-                          Array.isArray(result.inclusion_questions) ? result.inclusion_questions : []
+      resumeId: (resumeId as any) || (0 as any),
+      jobId: (jobId as any) || (0 as any),
+      candidateName: resumeAnalysis.name || resumeAnalysis.analyzedData?.name,
+      jobTitle: jobAnalysis.title,
+      questions: [], // Will be populated below
+      metadata: {
+        estimatedDuration: 60,
+        difficulty: 'mid',
+        focusAreas: ['technical skills', 'experience', 'behavioral'],
+        interviewType: 'video'
+      },
+      processingTime: Date.now() - Date.now(), // Will be updated by caller
+      // Backward compatibility - convert string arrays to InterviewQuestionData arrays
+      technicalQuestions: (Array.isArray(result.technicalQuestions) ? result.technicalQuestions : 
+                           Array.isArray(result.technical_questions) ? result.technical_questions : [])
+                           .map((q: string, index: number) => ({
+                             question: q,
+                             category: 'technical' as const,
+                             difficulty: 'medium' as const,
+                             expectedAnswer: "Technical assessment required",
+                             skillsAssessed: ["technical knowledge"]
+                           })),
+      experienceQuestions: (Array.isArray(result.experienceQuestions) ? result.experienceQuestions : 
+                            Array.isArray(result.experience_questions) ? result.experience_questions : [])
+                            .map((q: string) => ({
+                              question: q,
+                              category: 'behavioral' as const,
+                              difficulty: 'medium' as const,
+                              expectedAnswer: "Experience-based response expected",
+                              skillsAssessed: ["communication", "experience"]
+                            })),
+      skillGapQuestions: (Array.isArray(result.skillGapQuestions) ? result.skillGapQuestions : 
+                         Array.isArray(result.skill_gap_questions) ? result.skill_gap_questions : [])
+                         .map((q: string) => ({
+                           question: q,
+                           category: 'behavioral' as const,
+                           difficulty: 'easy' as const,
+                           expectedAnswer: "Self-assessment expected",
+                           skillsAssessed: ["self-awareness", "growth mindset"]
+                         }))
     };
+    
+    // Populate the main questions array from all categories
+    normalizedResult.questions = [
+      ...normalizedResult.technicalQuestions || [],
+      ...normalizedResult.experienceQuestions || [],
+      ...normalizedResult.skillGapQuestions || []
+    ];
+    
+    // Add inclusion questions if present
+    const inclusionQuestions = (Array.isArray(result.inclusionQuestions) ? result.inclusionQuestions : 
+                               Array.isArray(result.inclusion_questions) ? result.inclusion_questions : [])
+                               .map((q: string) => ({
+                                 question: q,
+                                 category: 'cultural' as const,
+                                 difficulty: 'medium' as const,
+                                 expectedAnswer: "Cultural fit assessment",
+                                 skillsAssessed: ["diversity awareness", "inclusion"]
+                               }));
+    
+    normalizedResult.questions.push(...inclusionQuestions);
     
     return normalizedResult;
   } catch (error) {
@@ -1247,7 +1526,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     return response.data[0].embedding;
   } catch (error) {
     console.error("Error generating OpenAI embedding:", error);
-    throw error;
+    throw new Error(getErrorMessage(error));
   }
 }
 

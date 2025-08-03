@@ -14,6 +14,7 @@ interface SkillBreakdown {
 interface MatchResult {
   breakdown: SkillBreakdown[];
   score?: number;
+  explanation?: string;
 }
 
 // Enhanced scoring weights - configurable per job
@@ -144,9 +145,14 @@ export async function matchSkillsEnhanced(
   // Match each required job skill
   for (const jobSkill of normalizedJobSkills) {
     maxPossibleScore += 100;
-    let bestMatch = {
+    let bestMatch: {
+      matched: boolean;
+      matchType: 'exact' | 'related' | 'semantic' | 'none';
+      score: number;
+      category?: string;
+    } = {
       matched: false,
-      matchType: 'none' as const,
+      matchType: 'none',
       score: 0,
       category: jobSkill.category
     };
@@ -498,9 +504,9 @@ function calculateConfidence(factors: {
  * Generate human-readable explanations
  */
 function generateExplanation(
-  skillMatch: MatchResult,
-  experienceMatch: MatchResult,
-  educationMatch: MatchResult,
+  skillMatch: { breakdown: SkillBreakdown[]; score: number },
+  experienceMatch: { score: number; explanation: string },
+  educationMatch: { score: number; explanation: string },
   semanticScore: number
 ): {
   strengths: string[];

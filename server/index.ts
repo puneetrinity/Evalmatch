@@ -5,6 +5,19 @@ dotenv.config();
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
+
+// Extend Express types
+declare global {
+  namespace Express {
+    interface Locals {
+      nonce?: string;
+    }
+    
+    interface Request {
+      id?: string;
+    }
+  }
+}
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
@@ -32,8 +45,8 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "https://fonts.googleapis.com", (req, res) => `'nonce-${res.locals.nonce}'`],
-      scriptSrc: ["'self'", "https://www.gstatic.com", "https://www.googleapis.com", (req, res) => `'nonce-${res.locals.nonce}'`],
+      styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "https://www.gstatic.com", "https://www.googleapis.com", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
       connectSrc: ["'self'", "https:", "wss:", "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],

@@ -8,8 +8,23 @@ import { pool } from './db';
  * 2. If the database connection is working (when configured)
  * 3. If the OpenAI API key is set (optional)
  */
+interface HealthCheckStatus {
+  status: string;
+  error?: string;
+}
+
+interface HealthCheck {
+  status: string;
+  timestamp: string;
+  checks: {
+    server: HealthCheckStatus;
+    database: HealthCheckStatus;
+    openai: HealthCheckStatus;
+  };
+}
+
 export async function healthCheck(req: Request, res: Response) {
-  const health = {
+  const health: HealthCheck = {
     status: 'UP',
     timestamp: new Date().toISOString(),
     checks: {

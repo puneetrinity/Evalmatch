@@ -96,8 +96,8 @@ ${resumeText}
 AI ANALYSIS RESULTS:
 - Skills identified: ${resumeAnalysis.skills?.join(', ') || 'None'}
 - Experience identified: ${resumeAnalysis.experience || 'Not specified'}
-- Match percentage: ${matchAnalysis.matchPercentage}%
-- Matched skills: ${matchAnalysis.matchedSkills?.map(s => s.skill).join(', ') || 'None'}
+- Match percentage: ${matchAnalysis.matchPercentage || 0}%
+- Matched skills: ${matchAnalysis.matchedSkills?.map(s => s?.skill || '').filter(Boolean).join(', ') || 'None'}
 - Missing skills: ${matchAnalysis.missingSkills?.join(', ') || 'None'}
 - Candidate strengths: ${matchAnalysis.candidateStrengths?.join(', ') || 'None identified'}
 - Candidate weaknesses: ${matchAnalysis.candidateWeaknesses?.join(', ') || 'None identified'}
@@ -184,11 +184,11 @@ ${resumeText}
 
 AI ANALYSIS RESULTS:
 - Name: ${resumeAnalysis.name || 'Not specified'}
-- Skills identified: ${resumeAnalysis.skills.join(', ')}
-- Experience identified: ${resumeAnalysis.experience.map(exp => `${exp.title} at ${exp.company || 'Company'}`).join('; ')}
-- Match percentage: ${matchAnalysis.matchPercentage}%
-- Matched skills: ${matchAnalysis.matchedSkills.map(s => s.skill).join(', ')}
-- Missing skills: ${matchAnalysis.missingSkills.join(', ')}
+- Skills identified: ${resumeAnalysis.skills?.join(', ') || 'None'}
+- Experience identified: ${resumeAnalysis.experience?.map(exp => `${exp?.title || exp?.position || 'Position'} at ${exp?.company || 'Company'}`).join('; ') || 'Not specified'}
+- Match percentage: ${matchAnalysis.matchPercentage || 0}%
+- Matched skills: ${matchAnalysis.matchedSkills?.map(s => s?.skill || '').filter(Boolean).join(', ') || 'None'}
+- Missing skills: ${matchAnalysis.missingSkills?.join(', ') || 'None'}
 - Candidate strengths: ${matchAnalysis.candidateStrengths?.join(', ') || 'None identified'}
 - Candidate weaknesses: ${matchAnalysis.candidateWeaknesses?.join(', ') || 'None identified'}
 
@@ -257,11 +257,11 @@ ${resumeText}
 
 AI ANALYSIS RESULTS:
 - Name: ${resumeAnalysis.name || 'Not specified'}
-- Skills identified: ${resumeAnalysis.skills.join(', ')}
-- Experience identified: ${resumeAnalysis.experience.map(exp => `${exp.title} at ${exp.company || 'Company'}`).join('; ')}
-- Match percentage: ${matchAnalysis.matchPercentage}%
-- Matched skills: ${matchAnalysis.matchedSkills.map(s => s.skill).join(', ')}
-- Missing skills: ${matchAnalysis.missingSkills.join(', ')}
+- Skills identified: ${resumeAnalysis.skills?.join(', ') || 'None'}
+- Experience identified: ${resumeAnalysis.experience?.map(exp => `${exp?.title || exp?.position || 'Position'} at ${exp?.company || 'Company'}`).join('; ') || 'Not specified'}
+- Match percentage: ${matchAnalysis.matchPercentage || 0}%
+- Matched skills: ${matchAnalysis.matchedSkills?.map(s => s?.skill || '').filter(Boolean).join(', ') || 'None'}
+- Missing skills: ${matchAnalysis.missingSkills?.join(', ') || 'None'}
 - Candidate strengths: ${matchAnalysis.candidateStrengths?.join(', ') || 'None identified'}
 - Candidate weaknesses: ${matchAnalysis.candidateWeaknesses?.join(', ') || 'None identified'}
 

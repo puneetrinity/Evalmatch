@@ -31,8 +31,12 @@ router.post("/", authenticateUser, async (req: Request, res: Response) => {
 
     // Create job description record
     const jobDescription = await storage.createJobDescription({
-      ...jobDescData,
-      userId,
+      title: jobDescData.title,
+      description: jobDescData.description,
+      userId: userId,
+      requirements: jobDescData.requirements || null,
+      skills: jobDescData.skills || null,
+      experience: jobDescData.experience || null
     });
 
     logger.info(`Job description created with ID ${jobDescription.id}`);
@@ -117,7 +121,9 @@ router.get("/", authenticateUser, async (req: Request, res: Response) => {
     
     logger.info(`Getting job descriptions for user ${userId}`, { limit, offset });
     
-    const jobDescriptions = await storage.getJobDescriptionsByUserId(userId, limit, offset);
+    const allJobDescriptions = await storage.getJobDescriptionsByUserId(userId);
+    // Apply pagination manually since the storage interface doesn't support it
+    const jobDescriptions = allJobDescriptions.slice(offset, offset + limit);
     
     res.json({
       status: "ok",

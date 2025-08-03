@@ -5,7 +5,7 @@
  */
 
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
+import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 import { logger } from './logger';
 import { serverAuthLogger } from './auth-logger';
 
@@ -58,13 +58,7 @@ try {
 export const adminAuth = adminApp ? getAuth(adminApp) : null;
 
 // Verify Firebase ID token
-export async function verifyFirebaseToken(idToken: string): Promise<{
-  uid: string;
-  email?: string;
-  emailVerified?: boolean;
-  displayName?: string;
-  photoURL?: string;
-} | null> {
+export async function verifyFirebaseToken(idToken: string): Promise<DecodedIdToken | null> {
   if (!adminAuth) {
     serverAuthLogger.error('Firebase Admin Auth not initialized', undefined, {
       operation: 'verify_token'
@@ -82,17 +76,11 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
       success: true
     });
 
-    return {
-      uid: decodedToken.uid,
-      email: decodedToken.email,
-      emailVerified: decodedToken.email_verified,
-      displayName: decodedToken.name,
-      photoURL: decodedToken.picture,
-    };
-  } catch (error) {
+    return decodedToken;
+  } catch (error: unknown) {
     serverAuthLogger.error('Firebase token verification failed', error, {
       operation: 'verify_token',
-      errorCode: error.code
+      errorCode: error instanceof Error && 'code' in error ? (error as any).code : 'unknown'
     });
     return null;
   }
@@ -121,11 +109,11 @@ export async function getFirebaseUser(uid: string) {
         lastSignInTime: userRecord.metadata.lastSignInTime,
       },
     };
-  } catch (error) {
+  } catch (error: unknown) {
     serverAuthLogger.error('Failed to get Firebase user', error, {
       operation: 'get_user',
       uid: uid,
-      errorCode: error.code
+      errorCode: error instanceof Error && 'code' in error ? (error as any).code : 'unknown'
     });
     return null;
   }

@@ -60,6 +60,14 @@ router.post("/debug/test-auth", async (req: Request, res: Response) => {
     try {
       const decodedToken = await verifyFirebaseToken(token);
       
+      if (!decodedToken) {
+        return res.status(401).json({
+          error: "Token verification failed",
+          message: "Invalid Firebase token",
+          tokenLength: token.length
+        });
+      }
+      
       res.json({
         status: "success",
         message: "Token verification successful",
@@ -82,8 +90,8 @@ router.post("/debug/test-auth", async (req: Request, res: Response) => {
       
       res.status(401).json({
         error: "Token verification failed",
-        message: tokenError.message || "Invalid Firebase token",
-        code: tokenError.code || "auth/invalid-token",
+        message: tokenError instanceof Error ? tokenError.message : "Invalid Firebase token",
+        code: (tokenError instanceof Error && 'code' in tokenError) ? (tokenError as any).code : "auth/invalid-token",
         tokenLength: token.length
       });
     }

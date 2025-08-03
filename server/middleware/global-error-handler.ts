@@ -264,7 +264,7 @@ function createErrorResponse(
  */
 export function globalErrorHandler(
   err: Error | AppError | unknown,
-  req: Request & { id?: string },
+  req: Request,
   res: Response,
   next: NextFunction
 ): void {

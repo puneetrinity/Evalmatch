@@ -168,10 +168,10 @@ router.post("/",
         fileSize: file.size,
         fileType: file.mimetype,
         content,
-        skills: analysis.skills || [],
-        experience: analysis.experience || "0 years", // JSON string
-        education: Array.isArray(analysis.education) ? analysis.education : [], // JSON array
-        analyzedData: analysis
+        skills: analysis.analyzedData?.skills || [],
+        experience: analysis.analyzedData?.experience || "0 years", // JSON string
+        education: analysis.analyzedData?.education || [], // JSON array
+        analyzedData: analysis.analyzedData
       };
 
       const resume = await storage.createResume(resumeData);
@@ -190,7 +190,7 @@ router.post("/",
           fileSize: resume.fileSize,
           fileType: resume.fileType,
           message: "Resume uploaded and analyzed successfully",
-          processingTime: Date.now() - new Date(resume.createdAt).getTime()
+          processingTime: Date.now() - (resume.createdAt ? new Date(resume.createdAt).getTime() : Date.now())
         },
         timestamp: new Date().toISOString()
       });
@@ -248,8 +248,10 @@ router.post("/batch",
       });
     }
 
+    const batchStartTime = Date.now();
+    // Generate unique batch ID for this upload
+    let batchId = req.body.batchId || req.headers['x-batch-id'] as string;
     try {
-      const batchStartTime = Date.now();
       logger.info('Starting batch resume upload processing', {
         userId,
         fileCount: files.length,
@@ -261,9 +263,6 @@ router.post("/batch",
         })),
         startTime: new Date(batchStartTime).toISOString()
       });
-
-      // Generate unique batch ID for this upload
-      let batchId = req.body.batchId || req.headers['x-batch-id'] as string;
       const batchIdProvided = !!batchId;
       
       if (!batchId) {
@@ -522,7 +521,7 @@ router.post("/batch",
       });
 
     } catch (error) {
-      const totalBatchTime = Date.now() - (batchStartTime || Date.now());
+      const totalBatchTime = Date.now() - batchStartTime;
       
       logger.error('Batch resume upload failed catastrophically', {
         userId,

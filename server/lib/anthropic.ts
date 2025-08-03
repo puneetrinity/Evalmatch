@@ -5,8 +5,12 @@ import {
   MatchAnalysisResponse, 
   InterviewQuestionsResponse,
   InterviewScriptResponse,
-  BiasAnalysisResponse 
-} from '@shared/schema';
+  BiasAnalysisResponse,
+  SkillMatch,
+  AnalyzedResumeData,
+  AnalyzedJobData,
+  InterviewQuestionData 
+} from '../../shared/schema';
 import { config } from '../config';
 
 // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
@@ -97,44 +101,39 @@ export async function analyzeResume(resumeText: string): Promise<AnalyzeResumeRe
   checkServiceRecovery();
   
   // Fallback response if Anthropic API is unavailable
-  const fallbackResponse: AnalyzeResumeResponse = {
-    id: 'fallback-resume' as any,
-    filename: 'fallback.pdf',
-    analyzedData: {
-      name: "Analysis temporarily unavailable",
-      skills: ["Communication", "Problem Solving", "Teamwork"],
-      experience: [
-        {
-          title: "Experience extraction temporarily unavailable",
-          company: "Please try again later",
-          duration: "",
-          description: ""
-        }
-      ],
-      education: [
-        {
-          degree: "Education extraction temporarily unavailable",
-          institution: "Please try again later",
-          year: ""
-        }
-      ],
-      contact: {
-        email: "",
-        phone: "",
-        location: ""
-      },
-      summary: "Analysis temporarily unavailable",
-      keyStrengths: ["Service temporarily unavailable"]
+  const fallbackAnalyzedData: AnalyzedResumeData = {
+    name: "Analysis temporarily unavailable",
+    skills: ["Communication", "Problem Solving", "Teamwork"],
+    experience: "",
+    education: ["Education extraction temporarily unavailable"],
+    summary: "Analysis temporarily unavailable",
+    keyStrengths: ["Service temporarily unavailable"],
+    contactInfo: {
+      email: "",
+      phone: "",
+      location: ""
     },
+    workExperience: [{
+      company: "Please try again later",
+      position: "Experience extraction temporarily unavailable", 
+      duration: "",
+      description: ""
+    }]
+  };
+
+  const fallbackResponse: AnalyzeResumeResponse = {
+    id: Date.now() as any,
+    filename: 'fallback.pdf',
+    analyzedData: fallbackAnalyzedData,
     processingTime: 0,
     confidence: 0,
     warnings: ["Service temporarily unavailable"],
-    // Convenience properties
-    name: "Analysis temporarily unavailable",
-    skills: ["Communication", "Problem Solving", "Teamwork"],
-    experience: [],
-    education: [],
-    contact: { email: "", phone: "", location: "" }
+    // Convenience properties for backward compatibility
+    name: fallbackAnalyzedData.name,
+    skills: fallbackAnalyzedData.skills,
+    experience: fallbackAnalyzedData.workExperience || [],
+    education: fallbackAnalyzedData.education.map(edu => ({ degree: edu, institution: "", year: "" })),
+    contact: fallbackAnalyzedData.contactInfo || { email: "", phone: "", location: "" }
   };
   
   // If Anthropic API is marked as unavailable, return fallback immediately
@@ -197,7 +196,11 @@ Format the response as valid JSON with the following structure:
     // Parse JSON response from Anthropic
     try {
       // Extract JSON from the response content
-      const responseText = response.content[0].text;
+      const contentBlock = response.content[0];
+      if (contentBlock.type !== 'text') {
+        throw new Error('Unexpected response type from Anthropic');
+      }
+      const responseText = contentBlock.text;
       const jsonMatch = responseText.match(/({[\s\S]*})/);
       const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
       
@@ -215,49 +218,50 @@ Format the response as valid JSON with the following structure:
       }
       
       // Return normalized response matching AnalyzeResumeResponse interface
-      const skills = Array.isArray(parsedResponse.skills) ? parsedResponse.skills : [];
-      const experience = Array.isArray(parsedResponse.experience) 
+      const skills: string[] = Array.isArray(parsedResponse.skills) ? parsedResponse.skills : [];
+      const workExperience = Array.isArray(parsedResponse.experience) 
         ? parsedResponse.experience.map((exp: any) => ({
-            title: exp.title || "",
-            company: exp.company || "",
-            duration: exp.duration || "",
-            description: exp.description || ""
+            company: exp?.company || "",
+            position: exp?.title || "",
+            duration: exp?.duration || "",
+            description: exp?.description || "",
+            technologies: exp?.technologies || []
           }))
         : [];
-      const education = Array.isArray(parsedResponse.education)
-        ? parsedResponse.education.map((edu: any) => ({
-            degree: edu.degree || "",
-            institution: edu.institution || "",
-            year: edu.year || ""
-          }))
+      const education: string[] = Array.isArray(parsedResponse.education)
+        ? parsedResponse.education.map((edu: any) => 
+            typeof edu === 'string' ? edu : (edu?.degree || edu?.institution || ""))
         : [];
-      const contact = {
+      const contactInfo = {
         email: parsedResponse.contact?.email || "",
         phone: parsedResponse.contact?.phone || "",
         location: parsedResponse.contact?.location || ""
       };
 
+      const analyzedData: AnalyzedResumeData = {
+        name: parsedResponse.name || "",
+        skills,
+        experience: workExperience.map((exp: any) => `${exp.position} at ${exp.company} (${exp.duration})`).join('; ') || "",
+        education,
+        summary: parsedResponse.summary || "",
+        keyStrengths: parsedResponse.keyStrengths || skills.slice(0, 3),
+        contactInfo,
+        workExperience
+      };
+      
       return {
-        id: 'anthropic-resume' as any,
+        id: Date.now() as any, // Generate a unique ID
         filename: 'resume.pdf',
-        analyzedData: {
-          name: parsedResponse.name || "",
-          skills,
-          experience,
-          education,
-          contact,
-          summary: parsedResponse.summary || "",
-          keyStrengths: parsedResponse.keyStrengths || skills.slice(0, 3)
-        },
+        analyzedData,
         processingTime: Date.now() - performance.now(),
         confidence: 0.8,
         warnings: [],
-        // Convenience properties
-        name: parsedResponse.name || "",
+        // Convenience properties for backward compatibility
+        name: analyzedData.name,
         skills,
-        experience,
-        education,
-        contact
+        experience: workExperience,
+        education: education.map(edu => ({ degree: edu, institution: "", year: "" })),
+        contact: contactInfo
       };
     } catch (parseError) {
       logApiServiceStatus(`Error parsing Anthropic response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`, true);
@@ -293,16 +297,49 @@ export async function analyzeMatch(
   // First, check if service is available (handled by the AI provider)
   if (!serviceStatus.isAnthropicAvailable) {
     checkServiceRecovery();
+    const fallbackMatchedSkills: SkillMatch[] = [
+      { skill: "Problem Solving", matchPercentage: 90, category: "soft", importance: "important" as const, source: "semantic" as const },
+      { skill: "Communication", matchPercentage: 85, category: "soft", importance: "critical" as const, source: "semantic" as const },
+      { skill: "Technical Knowledge", matchPercentage: 80, category: "technical", importance: "important" as const, source: "semantic" as const }
+    ];
     return {
+      analysisId: Date.now() as any,
+      jobId: Date.now() as any,
+      results: [{
+        resumeId: Date.now() as any,
+        filename: resumeAnalysis.filename || 'resume.pdf',
+        candidateName: resumeAnalysis.name,
+        matchPercentage: 60,
+        matchedSkills: fallbackMatchedSkills,
+        missingSkills: ["Leadership", "Project Management"],
+        candidateStrengths: ["Strong technical background", "Good communicator"],
+        candidateWeaknesses: ["Limited leadership experience", "Needs more project management skills"],
+        recommendations: [],
+        confidenceLevel: 'low' as const,
+        scoringDimensions: {
+          skills: 60,
+          experience: 60,
+          education: 60,
+          semantic: 60,
+          cultural: 60,
+          overall: 60
+        }
+      }],
+      processingTime: 0,
+      metadata: {
+        aiProvider: 'anthropic',
+        modelVersion: MODEL,
+        totalCandidates: 1,
+        processedCandidates: 1,
+        failedCandidates: 0
+      },
+      // Convenience properties for backward compatibility
       matchPercentage: 60,
-      matchedSkills: [
-        { skill: "Problem Solving", matchPercentage: 90, category: "soft", importance: "important" as const, source: "semantic" as const },
-        { skill: "Communication", matchPercentage: 85, category: "soft", importance: "critical" as const, source: "semantic" as const },
-        { skill: "Technical Knowledge", matchPercentage: 80, category: "technical", importance: "important" as const, source: "semantic" as const }
-      ],
+      matchedSkills: fallbackMatchedSkills,
       missingSkills: ["Leadership", "Project Management"],
       candidateStrengths: ["Strong technical background", "Good communicator"],
-      candidateWeaknesses: ["Limited leadership experience", "Needs more project management skills"]
+      candidateWeaknesses: ["Limited leadership experience", "Needs more project management skills"],
+      confidenceLevel: 'low' as const
     };
   }
 
@@ -310,18 +347,20 @@ export async function analyzeMatch(
     logApiServiceStatus("Performing match analysis with Anthropic Claude");
     
     // Prepare resume and job data for the prompt
-    const resumeSkills = resumeAnalysis.skills.join(", ");
+    const resumeSkills = resumeAnalysis.skills?.join(", ") || "";
     const jobSkills = Array.isArray(jobAnalysis.requiredSkills) 
       ? jobAnalysis.requiredSkills.join(", ") 
       : "Not specified";
     
     // Create a meaningful summary of resume experience
-    const resumeExperience = resumeAnalysis.experience.map(exp => 
-      `${exp.title} at ${exp.company || 'Unknown Company'}`).join("; ");
+    const resumeExperience = resumeAnalysis.experience?.map(exp => 
+      `${exp.title || exp.position || 'Position'} at ${exp.company || 'Unknown Company'}`).join("; ") || "";
     
     // Format education
-    const resumeEducation = resumeAnalysis.education.map(edu => 
-      `${edu.degree} from ${edu.institution}`).join("; ");
+    const resumeEducation = Array.isArray(resumeAnalysis.education) 
+      ? resumeAnalysis.education.map(edu => 
+          typeof edu === 'object' && edu !== null ? `${edu.degree || ''} from ${edu.institution || ''}` : String(edu)).join("; ")
+      : "Not specified";
     
     // Create prompt
     const prompt = `Please analyze how well this candidate's resume matches the job requirements.
@@ -335,8 +374,8 @@ RESUME INFORMATION:
 JOB REQUIREMENTS:
 - Title: ${jobAnalysis.title}
 - Required Skills: ${jobSkills}
-- Experience Required: ${jobAnalysis.experience || "Not specified"}
-- Education Required: ${jobAnalysis.education || "Not specified"}
+- Experience Required: ${jobAnalysis.experience || jobAnalysis.experienceLevel || "Not specified"}
+- Education Required: "Not specified"
 
 Analyze the match and provide:
 1. An overall match percentage (0-100)
@@ -372,7 +411,11 @@ Format your response as valid JSON with this structure:
     // Parse JSON response from Anthropic
     try {
       // Extract JSON from the response content
-      const responseText = response.content[0].text;
+      const contentBlock = response.content[0];
+      if (contentBlock.type !== 'text') {
+        throw new Error('Unexpected response type from Anthropic');
+      }
+      const responseText = contentBlock.text;
       const jsonMatch = responseText.match(/({[\s\S]*})/);
       const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
       
@@ -390,25 +433,105 @@ Format your response as valid JSON with this structure:
       }
       
       // Return normalized response
+      const normalizedMatchedSkills: SkillMatch[] = Array.isArray(parsedResponse.matchedSkills) 
+        ? parsedResponse.matchedSkills.map((skill: any) => ({
+            skill: skill.skill || skill,
+            matchPercentage: skill.matchPercentage || 75,
+            category: skill.category || "technical",
+            importance: skill.importance || "important" as const,
+            source: skill.source || "semantic" as const
+          }))
+        : [];
+
+      const matchPercentage = parsedResponse.matchPercentage || 0;
+      const missingSkills = Array.isArray(parsedResponse.missingSkills) ? parsedResponse.missingSkills : [];
+      const candidateStrengths = Array.isArray(parsedResponse.candidateStrengths) ? parsedResponse.candidateStrengths : [];
+      const candidateWeaknesses = Array.isArray(parsedResponse.candidateWeaknesses) ? parsedResponse.candidateWeaknesses : [];
+
       return {
-        matchPercentage: parsedResponse.matchPercentage || 0,
-        matchedSkills: Array.isArray(parsedResponse.matchedSkills) ? parsedResponse.matchedSkills : [],
-        missingSkills: Array.isArray(parsedResponse.missingSkills) ? parsedResponse.missingSkills : [],
-        candidateStrengths: Array.isArray(parsedResponse.candidateStrengths) ? parsedResponse.candidateStrengths : [],
-        candidateWeaknesses: Array.isArray(parsedResponse.candidateWeaknesses) ? parsedResponse.candidateWeaknesses : []
+        analysisId: Date.now() as any,
+        jobId: Date.now() as any,
+        results: [{
+          resumeId: Date.now() as any,
+          filename: resumeAnalysis.filename || 'resume.pdf',
+          candidateName: resumeAnalysis.name,
+          matchPercentage,
+          matchedSkills: normalizedMatchedSkills,
+          missingSkills,
+          candidateStrengths,
+          candidateWeaknesses,
+          recommendations: [],
+          confidenceLevel: 'medium' as const,
+          scoringDimensions: {
+            skills: matchPercentage,
+            experience: matchPercentage,
+            education: matchPercentage,
+            semantic: matchPercentage,
+            cultural: matchPercentage,
+            overall: matchPercentage
+          }
+        }],
+        processingTime: Date.now() - performance.now(),
+        metadata: {
+          aiProvider: 'anthropic',
+          modelVersion: MODEL,
+          totalCandidates: 1,
+          processedCandidates: 1,
+          failedCandidates: 0
+        },
+        // Convenience properties for backward compatibility
+        matchPercentage,
+        matchedSkills: normalizedMatchedSkills,
+        missingSkills,
+        candidateStrengths,
+        candidateWeaknesses,
+        confidenceLevel: 'medium' as const
       };
     } catch (parseError) {
       logApiServiceStatus(`Error parsing Anthropic response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`, true);
+      const parseErrorMatchedSkills: SkillMatch[] = [
+        { skill: "Problem Solving", matchPercentage: 90, category: "soft", importance: "important" as const, source: "semantic" as const },
+        { skill: "Communication", matchPercentage: 85, category: "soft", importance: "critical" as const, source: "semantic" as const },
+        { skill: "Technical Knowledge", matchPercentage: 80, category: "technical", importance: "important" as const, source: "semantic" as const }
+      ];
       return {
+        analysisId: Date.now() as any,
+        jobId: Date.now() as any,
+        results: [{
+          resumeId: Date.now() as any,
+          filename: resumeAnalysis.filename || 'resume.pdf',
+          candidateName: resumeAnalysis.name,
+          matchPercentage: 60,
+          matchedSkills: parseErrorMatchedSkills,
+          missingSkills: ["Leadership", "Project Management"],
+          candidateStrengths: ["Strong technical background", "Good communicator"],
+          candidateWeaknesses: ["Limited leadership experience", "Needs more project management skills"],
+          recommendations: [],
+          confidenceLevel: 'low' as const,
+          scoringDimensions: {
+            skills: 60,
+            experience: 60,
+            education: 60,
+            semantic: 60,
+            cultural: 60,
+            overall: 60
+          }
+        }],
+        processingTime: 0,
+        metadata: {
+          aiProvider: 'anthropic',
+          modelVersion: MODEL,
+          totalCandidates: 1,
+          processedCandidates: 1,
+          failedCandidates: 0
+        },
+        // Convenience properties for backward compatibility
         matchPercentage: 60,
-        matchedSkills: [
-          { skill: "Problem Solving", matchPercentage: 90, category: "soft", importance: "important" as const, source: "semantic" as const },
-          { skill: "Communication", matchPercentage: 85, category: "soft", importance: "critical" as const, source: "semantic" as const },
-          { skill: "Technical Knowledge", matchPercentage: 80, category: "technical", importance: "important" as const, source: "semantic" as const }
-        ],
+        matchedSkills: parseErrorMatchedSkills,
         missingSkills: ["Leadership", "Project Management"],
         candidateStrengths: ["Strong technical background", "Good communicator"],
-        candidateWeaknesses: ["Limited leadership experience", "Needs more project management skills"]
+        candidateWeaknesses: ["Limited leadership experience", "Needs more project management skills"],
+        confidenceLevel: 'low' as const
       };
     }
   } catch (error) {
@@ -427,16 +550,49 @@ Format your response as valid JSON with this structure:
     }
     
     // Return the fallback response
+    const finalFallbackMatchedSkills: SkillMatch[] = [
+      { skill: "Problem Solving", matchPercentage: 90, category: "soft", importance: "important" as const, source: "semantic" as const },
+      { skill: "Communication", matchPercentage: 85, category: "soft", importance: "critical" as const, source: "semantic" as const },
+      { skill: "Technical Knowledge", matchPercentage: 80, category: "technical", importance: "important" as const, source: "semantic" as const }
+    ];
     return {
+      analysisId: Date.now() as any,
+      jobId: Date.now() as any,
+      results: [{
+        resumeId: Date.now() as any,
+        filename: resumeAnalysis.filename || 'resume.pdf',
+        candidateName: resumeAnalysis.name,
+        matchPercentage: 60,
+        matchedSkills: finalFallbackMatchedSkills,
+        missingSkills: ["Leadership", "Project Management"],
+        candidateStrengths: ["Strong technical background", "Good communicator"],
+        candidateWeaknesses: ["Limited leadership experience", "Needs more project management skills"],
+        recommendations: [],
+        confidenceLevel: 'low' as const,
+        scoringDimensions: {
+          skills: 60,
+          experience: 60,
+          education: 60,
+          semantic: 60,
+          cultural: 60,
+          overall: 60
+        }
+      }],
+      processingTime: 0,
+      metadata: {
+        aiProvider: 'anthropic',
+        modelVersion: MODEL,
+        totalCandidates: 1,
+        processedCandidates: 1,
+        failedCandidates: 0
+      },
+      // Convenience properties for backward compatibility
       matchPercentage: 60,
-      matchedSkills: [
-        { skill: "Problem Solving", matchPercentage: 90, category: "soft", importance: "important" as const, source: "semantic" as const },
-        { skill: "Communication", matchPercentage: 85, category: "soft", importance: "critical" as const, source: "semantic" as const },
-        { skill: "Technical Knowledge", matchPercentage: 80, category: "technical", importance: "important" as const, source: "semantic" as const }
-      ],
+      matchedSkills: finalFallbackMatchedSkills,
       missingSkills: ["Leadership", "Project Management"],
       candidateStrengths: ["Strong technical background", "Good communicator"],
-      candidateWeaknesses: ["Limited leadership experience", "Needs more project management skills"]
+      candidateWeaknesses: ["Limited leadership experience", "Needs more project management skills"],
+      confidenceLevel: 'low' as const
     };
   }
 }
@@ -449,16 +605,32 @@ export async function analyzeJobDescription(title: string, description: string):
   checkServiceRecovery();
   
   // Fallback response if Anthropic API is unavailable
-  const fallbackResponse: AnalyzeJobDescriptionResponse = {
-    title: title || "Job Title Unavailable",
-    company: "Company information temporarily unavailable",
-    requirements: ["Job requirements extraction temporarily unavailable"],
-    qualifications: ["Job qualifications extraction temporarily unavailable"],
+  const fallbackAnalyzedData: AnalyzedJobData = {
+    requiredSkills: ["Required skills extraction temporarily unavailable"],
+    preferredSkills: [],
+    experienceLevel: "Seniority information unavailable",
     responsibilities: ["Job responsibilities extraction temporarily unavailable"],
-    skills: ["Required skills extraction temporarily unavailable"],
-    location: "Location information unavailable",
-    jobType: "Job type information unavailable",
-    seniority: "Seniority information unavailable"
+    summary: "Analysis temporarily unavailable",
+    location: "Location information unavailable"
+  };
+
+  const fallbackResponse: AnalyzeJobDescriptionResponse = {
+    id: Date.now() as any,
+    title: title || "Job Title Unavailable",
+    analyzedData: fallbackAnalyzedData,
+    processingTime: 0,
+    confidence: 0,
+    warnings: ["Service temporarily unavailable"],
+    // Convenience properties for backward compatibility
+    company: "Company information temporarily unavailable",
+    requiredSkills: fallbackAnalyzedData.requiredSkills,
+    preferredSkills: fallbackAnalyzedData.preferredSkills,
+    skills: fallbackAnalyzedData.requiredSkills,
+    experience: fallbackAnalyzedData.experienceLevel,
+    experienceLevel: fallbackAnalyzedData.experienceLevel,
+    responsibilities: fallbackAnalyzedData.responsibilities,
+    requirements: ["Job requirements extraction temporarily unavailable"],
+    summary: fallbackAnalyzedData.summary
   };
   
   // If Anthropic API is marked as unavailable, return fallback immediately
@@ -512,7 +684,11 @@ Format the response as valid JSON with the following structure:
     // Parse JSON response from Anthropic
     try {
       // Extract JSON from the response content
-      const responseText = response.content[0].text;
+      const contentBlock = response.content[0];
+      if (contentBlock.type !== 'text') {
+        throw new Error('Unexpected response type from Anthropic');
+      }
+      const responseText = contentBlock.text;
       const jsonMatch = responseText.match(/({[\s\S]*})/);
       const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
       
@@ -529,17 +705,39 @@ Format the response as valid JSON with the following structure:
         serviceStatus.apiUsageStats.estimatedCost += inputCost + outputCost;
       }
       
-      // Return normalized response
+      // Return normalized response matching AnalyzeJobDescriptionResponse interface
+      const requiredSkills = Array.isArray(parsedResponse.skills) ? parsedResponse.skills : [];
+      const responsibilities = Array.isArray(parsedResponse.responsibilities) ? parsedResponse.responsibilities : [];
+      const requirements = Array.isArray(parsedResponse.requirements) ? parsedResponse.requirements : [];
+      const qualifications = Array.isArray(parsedResponse.qualifications) ? parsedResponse.qualifications : [];
+
+      const analyzedData: AnalyzedJobData = {
+        requiredSkills,
+        preferredSkills: [], // Could be enhanced to extract from requirements
+        experienceLevel: parsedResponse.seniority || "",
+        responsibilities,
+        summary: `${parsedResponse.title || title} position requiring ${requiredSkills.slice(0, 3).join(', ')}`,
+        department: parsedResponse.department,
+        location: parsedResponse.location
+      };
+
       return {
+        id: Date.now() as any,
         title: parsedResponse.title || title || "",
+        analyzedData,
+        processingTime: Date.now() - performance.now(),
+        confidence: 0.8,
+        warnings: [],
+        // Convenience properties for backward compatibility
         company: parsedResponse.company || "",
-        location: parsedResponse.location || "",
-        jobType: parsedResponse.jobType || "",
-        seniority: parsedResponse.seniority || "",
-        skills: Array.isArray(parsedResponse.skills) ? parsedResponse.skills : [],
-        responsibilities: Array.isArray(parsedResponse.responsibilities) ? parsedResponse.responsibilities : [],
-        requirements: Array.isArray(parsedResponse.requirements) ? parsedResponse.requirements : [],
-        qualifications: Array.isArray(parsedResponse.qualifications) ? parsedResponse.qualifications : []
+        requiredSkills,
+        preferredSkills: analyzedData.preferredSkills,
+        skills: requiredSkills,
+        experience: parsedResponse.seniority || "",
+        experienceLevel: analyzedData.experienceLevel,
+        responsibilities,
+        requirements,
+        summary: analyzedData.summary
       };
     } catch (parseError) {
       logApiServiceStatus(`Error parsing Anthropic response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`, true);
@@ -644,7 +842,11 @@ Format your response as valid JSON with this structure:
     // Parse JSON response from Anthropic
     try {
       // Extract JSON from the response content
-      const responseText = response.content[0].text;
+      const contentBlock = response.content[0];
+      if (contentBlock.type !== 'text') {
+        throw new Error('Unexpected response type from Anthropic');
+      }
+      const responseText = contentBlock.text;
       const jsonMatch = responseText.match(/({[\s\S]*})/);
       const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
       
@@ -794,7 +996,8 @@ Return a JSON object with the complete interview flow including natural transiti
     logApiServiceStatus('Interview script generated successfully');
     return result;
   } catch (error: unknown) {
-    logApiServiceStatus(`Error generating interview script: ${error?.message || 'Unknown error'}`, true);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logApiServiceStatus(`Error generating interview script: ${errorMessage}`, true);
     
     // Update service status
     serviceStatus.lastErrorTime = Date.now();
@@ -828,26 +1031,41 @@ export async function generateInterviewQuestions(
   // First, check if service is available
   if (!serviceStatus.isAnthropicAvailable) {
     checkServiceRecovery();
+    const fallbackQuestions: InterviewQuestionData[] = [
+      {
+        question: "Can you explain how you would implement a secure authentication system?",
+        category: 'technical',
+        difficulty: 'medium',
+        expectedAnswer: "Should discuss concepts like JWT, OAuth, password hashing, etc.",
+        skillsAssessed: ['Security', 'Authentication', 'System Design'],
+        timeAllotted: 10
+      },
+      {
+        question: "Tell me about a challenging project you worked on and how you overcame obstacles.",
+        category: 'behavioral',
+        difficulty: 'medium',
+        expectedAnswer: "Should demonstrate problem-solving skills and resilience.",
+        skillsAssessed: ['Problem Solving', 'Communication', 'Project Management']
+      }
+    ];
+    
     return {
-      technicalQuestions: [
-        "Can you explain how you would implement a secure authentication system?",
-        "What design patterns have you used in your projects and why?",
-        "How would you optimize a slow database query?"
-      ],
-      experienceQuestions: [
-        "Tell me about a challenging project you worked on and how you overcame obstacles.",
-        "Describe a situation where you had to learn a new technology quickly.",
-        "How do you approach debugging complex issues?"
-      ],
-      skillGapQuestions: [
-        "Although you don't have experience with Docker, how would you approach learning it?",
-        "What strategies would you use to quickly become proficient in cloud technologies?",
-        "How have you successfully bridged skill gaps in the past?"
-      ],
-      inclusionQuestions: [
-        "How do you ensure that different perspectives are included in your team's decision-making?",
-        "Tell me about a time when diversity of thought led to a better outcome."
-      ]
+      resumeId: Date.now() as any,
+      jobId: Date.now() as any,
+      candidateName: resumeAnalysis.name,
+      jobTitle: jobAnalysis.title,
+      questions: fallbackQuestions,
+      metadata: {
+        estimatedDuration: 30,
+        difficulty: 'mid',
+        focusAreas: ['Technical Skills', 'Experience'],
+        interviewType: 'video'
+      },
+      processingTime: 0,
+      // Convenience properties for backward compatibility
+      technicalQuestions: fallbackQuestions.filter(q => q.category === 'technical'),
+      experienceQuestions: fallbackQuestions.filter(q => q.category === 'behavioral'),
+      skillGapQuestions: []
     };
   }
 
@@ -855,18 +1073,18 @@ export async function generateInterviewQuestions(
     logApiServiceStatus("Generating interview questions with Anthropic Claude");
     
     // Extract skills and experience information for the prompt
-    const candidateSkills = resumeAnalysis.skills.join(", ");
+    const candidateSkills = resumeAnalysis.skills?.join(", ") || "";
     const candidateExperience = resumeAnalysis.experience
-      .map(exp => `${exp.title} at ${exp.company || "Company"}`)
-      .join("; ");
+      ?.map(exp => `${exp.title || exp.position || 'Position'} at ${exp.company || "Company"}`)
+      .join("; ") || "";
     
-    const jobRequiredSkills = jobAnalysis.requiredSkills.join(", ");
+    const jobRequiredSkills = jobAnalysis.requiredSkills?.join(", ") || "";
     const jobPreferredSkills = jobAnalysis.preferredSkills?.join(", ") || "";
     
     const matchedSkillsList = matchAnalysis.matchedSkills
-      .map(skill => skill.skill)
-      .join(", ");
-    const missingSkillsList = matchAnalysis.missingSkills.join(", ");
+      ?.map(skill => skill.skill)
+      .join(", ") || "";
+    const missingSkillsList = matchAnalysis.missingSkills?.join(", ") || "";
     
     // Create prompt
     const prompt = `Generate interview questions for a candidate based on their resume and the job requirements.
@@ -914,7 +1132,11 @@ Format your response as valid JSON with this structure:
     // Parse JSON response from Anthropic
     try {
       // Extract JSON from the response content
-      const responseText = response.content[0].text;
+      const contentBlock = response.content[0];
+      if (contentBlock.type !== 'text') {
+        throw new Error('Unexpected response type from Anthropic');
+      }
+      const responseText = contentBlock.text;
       const jsonMatch = responseText.match(/({[\s\S]*})/);
       const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
       
@@ -931,39 +1153,84 @@ Format your response as valid JSON with this structure:
         serviceStatus.apiUsageStats.estimatedCost += inputCost + outputCost;
       }
       
+      // Convert string arrays to InterviewQuestionData objects
+      const createQuestionData = (question: string, category: InterviewQuestionData['category']): InterviewQuestionData => ({
+        question,
+        category,
+        difficulty: 'medium',
+        expectedAnswer: "Assess candidate's response based on relevance and depth.",
+        skillsAssessed: [],
+        timeAllotted: 5
+      });
+
+      const technicalQuestions = Array.isArray(parsedResponse.technicalQuestions) 
+        ? parsedResponse.technicalQuestions.map((q: string) => createQuestionData(q, 'technical'))
+        : [];
+      const experienceQuestions = Array.isArray(parsedResponse.experienceQuestions)
+        ? parsedResponse.experienceQuestions.map((q: string) => createQuestionData(q, 'behavioral'))
+        : [];
+      const skillGapQuestions = Array.isArray(parsedResponse.skillGapQuestions)
+        ? parsedResponse.skillGapQuestions.map((q: string) => createQuestionData(q, 'situational'))
+        : [];
+
+      const allQuestions = [...technicalQuestions, ...experienceQuestions, ...skillGapQuestions];
+
       // Return normalized response
       return {
-        technicalQuestions: Array.isArray(parsedResponse.technicalQuestions) ? 
-          parsedResponse.technicalQuestions : [],
-        experienceQuestions: Array.isArray(parsedResponse.experienceQuestions) ? 
-          parsedResponse.experienceQuestions : [],
-        skillGapQuestions: Array.isArray(parsedResponse.skillGapQuestions) ? 
-          parsedResponse.skillGapQuestions : [],
-        inclusionQuestions: Array.isArray(parsedResponse.inclusionQuestions) ? 
-          parsedResponse.inclusionQuestions : []
+        resumeId: Date.now() as any,
+        jobId: Date.now() as any,
+        candidateName: resumeAnalysis.name,
+        jobTitle: jobAnalysis.title,
+        questions: allQuestions,
+        metadata: {
+          estimatedDuration: allQuestions.length * 5,
+          difficulty: 'mid',
+          focusAreas: ['Technical Skills', 'Experience', 'Skill Development'],
+          interviewType: 'video'
+        },
+        processingTime: Date.now() - performance.now(),
+        // Convenience properties for backward compatibility
+        technicalQuestions,
+        experienceQuestions,
+        skillGapQuestions
       };
     } catch (parseError) {
       logApiServiceStatus(`Error parsing Anthropic response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`, true);
+      const parseErrorQuestions: InterviewQuestionData[] = [
+        {
+          question: "Can you explain how you would implement a secure authentication system?",
+          category: 'technical',
+          difficulty: 'medium',
+          expectedAnswer: "Should discuss concepts like JWT, OAuth, password hashing, etc.",
+          skillsAssessed: ['Security', 'Authentication', 'System Design'],
+          timeAllotted: 10
+        },
+        {
+          question: "Tell me about a challenging project you worked on and how you overcame obstacles.",
+          category: 'behavioral',
+          difficulty: 'medium',
+          expectedAnswer: "Should demonstrate problem-solving skills and resilience.",
+          skillsAssessed: ['Problem Solving', 'Communication', 'Project Management']
+        }
+      ];
+      
       return {
-        technicalQuestions: [
-          "Can you explain how you would implement a secure authentication system?",
-          "What design patterns have you used in your projects and why?",
-          "How would you optimize a slow database query?"
-        ],
-        experienceQuestions: [
-          "Tell me about a challenging project you worked on and how you overcame obstacles.",
-          "Describe a situation where you had to learn a new technology quickly.",
-          "How do you approach debugging complex issues?"
-        ],
-        skillGapQuestions: [
-          "Although you don't have experience with Docker, how would you approach learning it?",
-          "What strategies would you use to quickly become proficient in cloud technologies?",
-          "How have you successfully bridged skill gaps in the past?"
-        ],
-        inclusionQuestions: [
-          "How do you ensure that different perspectives are included in your team's decision-making?",
-          "Tell me about a time when diversity of thought led to a better outcome."
-        ]
+        resumeId: Date.now() as any,
+        jobId: Date.now() as any,
+        candidateName: resumeAnalysis.name,
+        jobTitle: jobAnalysis.title,
+        questions: parseErrorQuestions,
+        metadata: {
+          estimatedDuration: 30,
+          difficulty: 'mid',
+          focusAreas: ['Technical Skills', 'Experience'],
+          interviewType: 'video'
+        },
+        processingTime: 0,
+        // Convenience properties for backward compatibility
+        technicalQuestions: parseErrorQuestions.filter(q => q.category === 'technical'),
+        experienceQuestions: parseErrorQuestions.filter(q => q.category === 'behavioral'),
+        skillGapQuestions: []
       };
     }
   } catch (error) {
@@ -982,26 +1249,41 @@ Format your response as valid JSON with this structure:
     }
     
     // Return the fallback response
+    const finalFallbackQuestions: InterviewQuestionData[] = [
+      {
+        question: "Can you explain how you would implement a secure authentication system?",
+        category: 'technical',
+        difficulty: 'medium',
+        expectedAnswer: "Should discuss concepts like JWT, OAuth, password hashing, etc.",
+        skillsAssessed: ['Security', 'Authentication', 'System Design'],
+        timeAllotted: 10
+      },
+      {
+        question: "Tell me about a challenging project you worked on and how you overcame obstacles.",
+        category: 'behavioral',
+        difficulty: 'medium',
+        expectedAnswer: "Should demonstrate problem-solving skills and resilience.",
+        skillsAssessed: ['Problem Solving', 'Communication', 'Project Management']
+      }
+    ];
+    
     return {
-      technicalQuestions: [
-        "Can you explain how you would implement a secure authentication system?",
-        "What design patterns have you used in your projects and why?",
-        "How would you optimize a slow database query?"
-      ],
-      experienceQuestions: [
-        "Tell me about a challenging project you worked on and how you overcame obstacles.",
-        "Describe a situation where you had to learn a new technology quickly.",
-        "How do you approach debugging complex issues?"
-      ],
-      skillGapQuestions: [
-        "Although you don't have experience with Docker, how would you approach learning it?",
-        "What strategies would you use to quickly become proficient in cloud technologies?",
-        "How have you successfully bridged skill gaps in the past?"
-      ],
-      inclusionQuestions: [
-        "How do you ensure that different perspectives are included in your team's decision-making?",
-        "Tell me about a time when diversity of thought led to a better outcome."
-      ]
+      resumeId: Date.now() as any,
+      jobId: Date.now() as any,
+      candidateName: resumeAnalysis.name,
+      jobTitle: jobAnalysis.title,
+      questions: finalFallbackQuestions,
+      metadata: {
+        estimatedDuration: 30,
+        difficulty: 'mid',
+        focusAreas: ['Technical Skills', 'Experience'],
+        interviewType: 'video'
+      },
+      processingTime: 0,
+      // Convenience properties for backward compatibility
+      technicalQuestions: finalFallbackQuestions.filter(q => q.category === 'technical'),
+      experienceQuestions: finalFallbackQuestions.filter(q => q.category === 'behavioral'),
+      skillGapQuestions: []
     };
   }
 }
@@ -1053,7 +1335,11 @@ Format your response as:
     // Parse JSON response from Anthropic
     try {
       // Extract JSON from the response content
-      const responseText = response.content[0].text;
+      const contentBlock = response.content[0];
+      if (contentBlock.type !== 'text') {
+        throw new Error('Unexpected response type from Anthropic');
+      }
+      const responseText = contentBlock.text;
       const jsonMatch = responseText.match(/(\[[\s\S]*\])/);
       const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
       
@@ -1166,7 +1452,11 @@ Format your response as valid JSON with this structure:
     // Parse JSON response from Anthropic
     try {
       // Extract JSON from the response content
-      const responseText = response.content[0].text;
+      const contentBlock = response.content[0];
+      if (contentBlock.type !== 'text') {
+        throw new Error('Unexpected response type from Anthropic');
+      }
+      const responseText = contentBlock.text;
       const jsonMatch = responseText.match(/({[\s\S]*})/);
       const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
       

@@ -165,7 +165,7 @@ Job Description: ${jobDescription}`;
 }
 
 // Validation function for score consistency
-export function validateScoreConsistency(scores: number[]): {
+export function validateScoreConsistency(scores: Array<{ matchPercentage: number }> | number[]): {
   isConsistent: boolean;
   variance: number;
   recommendation: string;
@@ -174,7 +174,10 @@ export function validateScoreConsistency(scores: number[]): {
     return { isConsistent: true, variance: 0, recommendation: "Insufficient data" };
   }
   
-  const values = scores.map(s => s.matchPercentage || 0);
+  // Handle both array of objects and array of numbers
+  const values = scores.map(s => 
+    typeof s === 'number' ? s : (s?.matchPercentage || 0)
+  );
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
   const variance = values.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / values.length;
   const standardDeviation = Math.sqrt(variance);

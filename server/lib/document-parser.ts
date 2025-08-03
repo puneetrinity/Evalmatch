@@ -385,13 +385,13 @@ function postProcessResumeText(raw: string): string {
       // Clean up skills content
       let skillsContent = content
         .split(/[,;\n•]/)  // Split by common delimiters
-        .map(s => s.trim())
-        .filter(s => s.length > 0 && s.length < 50) // Remove empty/too long entries
-        .map(s => s.replace(/^[-•*]\s*/, '')) // Remove leading bullets
-        .filter(s => /^[A-Za-z]/.test(s)); // Must start with letter
+        .map((s: string) => s.trim())
+        .filter((s: string) => s.length > 0 && s.length < 50) // Remove empty/too long entries
+        .map((s: string) => s.replace(/^[-•*]\s*/, '')) // Remove leading bullets
+        .filter((s: string) => /^[A-Za-z]/.test(s)); // Must start with letter
       
       // Rejoin with consistent formatting
-      return `\n\n${header}\n${skillsContent.map(s => `• ${s}`).join('\n')}`;
+      return `\n\n${header}\n${skillsContent.map((s: string) => `• ${s}`).join('\n')}`;
     });
   }
   
@@ -522,7 +522,7 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
           textLength: 0,
           sampleText: '',
           success: false,
-          error: err
+          error: err instanceof Error ? err.message : String(err)
         });
       }
       
@@ -584,7 +584,7 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
             textLength: 0,
             sampleText: '',
             success: false,
-            error: err
+            error: err instanceof Error ? err.message : String(err)
           });
         }
       }
@@ -624,7 +624,7 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
             textLength: 0,
             sampleText: '',
             success: false,
-            error: err
+            error: err instanceof Error ? err.message : String(err)
           });
         }
       }
@@ -873,13 +873,14 @@ export async function extractTextFromDoc(buffer: Buffer): Promise<string> {
     
   } catch (error) {
     console.error('Error extracting text from DOC:', error);
-    throw new Error(`Failed to extract text from DOC file: ${error.message}. Please try converting to DOCX or PDF format.`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to extract text from DOC file: ${errorMessage}. Please try converting to DOCX or PDF format.`);
   }
 }
 
 /**
  * Parse a document file and extract its text
- * @param file Document file (Buffer)
+ * @param buffer Document file (Buffer)
  * @param mimeType File MIME type
  * @returns Extracted text
  */

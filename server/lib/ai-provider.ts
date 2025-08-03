@@ -8,8 +8,91 @@ import {
   AnalyzeJobDescriptionResponse, 
   MatchAnalysisResponse, 
   InterviewQuestionsResponse,
-  BiasAnalysisResponse 
+  BiasAnalysisResponse,
+  SkillMatch 
 } from '@shared/schema';
+
+// Define the individual match result type (extracted from MatchAnalysisResponse.results)
+type SingleMatchResult = {
+  matchPercentage: number;
+  matchedSkills: SkillMatch[];
+  missingSkills: string[];
+  candidateStrengths: string[];
+  candidateWeaknesses: string[];
+  recommendations: string[];
+  confidenceLevel: 'low' | 'medium' | 'high';
+  fairnessMetrics?: any;
+};
+
+// Helper function to convert MatchAnalysisResponse to SingleMatchResult
+function extractSingleResult(response: MatchAnalysisResponse): SingleMatchResult {
+  if (response.results && response.results.length > 0) {
+    const result = response.results[0];
+    return {
+      matchPercentage: result.matchPercentage,
+      matchedSkills: result.matchedSkills,
+      missingSkills: result.missingSkills,
+      candidateStrengths: result.candidateStrengths,
+      candidateWeaknesses: result.candidateWeaknesses,
+      recommendations: result.recommendations,
+      confidenceLevel: result.confidenceLevel,
+      fairnessMetrics: result.fairnessMetrics
+    };
+  }
+  // Fallback for empty results
+  return {
+    matchPercentage: 0,
+    matchedSkills: [],
+    missingSkills: [],
+    candidateStrengths: [],
+    candidateWeaknesses: [],
+    recommendations: [],
+    confidenceLevel: 'low',
+    fairnessMetrics: undefined
+  };
+}
+
+// Helper function to convert SingleMatchResult back to MatchAnalysisResponse format for legacy functions
+function createMatchAnalysisResponse(
+  singleResult: SingleMatchResult, 
+  resumeId: number = 0, 
+  jobId: number = 0,
+  filename: string = "unknown"
+): MatchAnalysisResponse {
+  return {
+    analysisId: 0 as any,
+    jobId: jobId as any,
+    results: [{
+      resumeId: resumeId as any,
+      filename: filename,
+      candidateName: undefined,
+      matchPercentage: singleResult.matchPercentage,
+      matchedSkills: singleResult.matchedSkills,
+      missingSkills: singleResult.missingSkills,
+      candidateStrengths: singleResult.candidateStrengths,
+      candidateWeaknesses: singleResult.candidateWeaknesses,
+      recommendations: singleResult.recommendations,
+      confidenceLevel: singleResult.confidenceLevel,
+      scoringDimensions: {
+        skills: 0,
+        experience: 0,
+        education: 0,
+        semantic: 0,
+        cultural: 0,
+        overall: singleResult.matchPercentage
+      },
+      fairnessMetrics: singleResult.fairnessMetrics
+    }],
+    processingTime: 0,
+    metadata: {
+      aiProvider: "aggregated",
+      modelVersion: "1.0",
+      totalCandidates: 1,
+      processedCandidates: 1,
+      failedCandidates: 0
+    }
+  };
+}
 import { calculateEnhancedMatch, DEFAULT_SCORING_WEIGHTS } from './enhanced-scoring';
 import { generateEmbedding, calculateSemanticSimilarity } from './embeddings';
 import { initializeSkillHierarchy } from './skill-hierarchy';
@@ -145,7 +228,7 @@ export async function analyzeMatch(
   jobAnalysis: AnalyzeJobDescriptionResponse,
   resumeText?: string,
   jobText?: string
-): Promise<MatchAnalysisResponse> {
+): Promise<SingleMatchResult> {
   try {
     // Use enhanced scoring if we have full text data
     if (resumeText && jobText) {
@@ -154,8 +237,12 @@ export async function analyzeMatch(
       const enhancedResult = await calculateEnhancedMatch(
         {
           skills: resumeAnalysis.skills || [],
-          experience: resumeAnalysis.experience || '',
-          education: resumeAnalysis.education || '',
+          experience: Array.isArray(resumeAnalysis.experience) 
+            ? resumeAnalysis.experience.join(', ') 
+            : resumeAnalysis.experience || resumeAnalysis.analyzedData?.experience || '',
+          education: Array.isArray(resumeAnalysis.education) 
+            ? resumeAnalysis.education.join(', ')
+            : resumeAnalysis.education || resumeAnalysis.analyzedData?.education?.join(', ') || '',
           content: resumeText
         },
         {
@@ -166,8 +253,8 @@ export async function analyzeMatch(
         DEFAULT_SCORING_WEIGHTS
       );
 
-      // Convert enhanced result to MatchAnalysisResponse format
-      const matchResult: MatchAnalysisResponse = {
+      // Convert enhanced result to SingleMatchResult format
+      const matchResult: SingleMatchResult = {
         matchPercentage: enhancedResult.totalScore,
         matchedSkills: enhancedResult.skillBreakdown
           .filter(s => s.matched)
@@ -191,10 +278,11 @@ export async function analyzeMatch(
       // Add fairness analysis if available
       if (resumeText) {
         try {
+          const tempMatchResponse = createMatchAnalysisResponse(matchResult, resumeAnalysis.id, jobAnalysis.id, resumeAnalysis.filename);
           const fairnessMetrics = await analyzeResumeFairness(
             resumeText,
             resumeAnalysis,
-            matchResult
+            tempMatchResponse
           );
           matchResult.fairnessMetrics = fairnessMetrics;
         } catch (error) {
@@ -206,28 +294,33 @@ export async function analyzeMatch(
     }
 
     // Fallback to traditional AI provider analysis
-    let matchResult: MatchAnalysisResponse;
+    let matchResult: SingleMatchResult;
     
     if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
-      matchResult = await groq.analyzeMatch(resumeAnalysis, jobAnalysis, resumeText, jobText);
+      const response = await groq.analyzeMatch(resumeAnalysis, jobAnalysis, resumeText, jobText);
+      matchResult = extractSingleResult(response);
     } else if (openai.getOpenAIServiceStatus().isAvailable) {
       logger.info('Groq unavailable, falling back to OpenAI for match analysis');
-      matchResult = await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
+      const response = await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
+      matchResult = extractSingleResult(response);
     } else if (isAnthropicConfigured && anthropic.getAnthropicServiceStatus().isAvailable) {
       logger.info('Groq and OpenAI unavailable, falling back to Anthropic for match analysis');
-      matchResult = await anthropic.analyzeMatch(resumeAnalysis, jobAnalysis);
+      const response = await anthropic.analyzeMatch(resumeAnalysis, jobAnalysis);
+      matchResult = extractSingleResult(response);
     } else {
       logger.warn('All AI providers unavailable, using built-in fallback for match analysis');
-      matchResult = await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
+      const response = await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
+      matchResult = extractSingleResult(response);
     }
     
     // Add fairness analysis if available
     if (resumeText) {
       try {
+        const tempMatchResponse = createMatchAnalysisResponse(matchResult, resumeAnalysis.id, jobAnalysis.id, resumeAnalysis.filename);
         const fairnessMetrics = await analyzeResumeFairness(
           resumeText,
           resumeAnalysis,
-          matchResult
+          tempMatchResponse
         );
         matchResult.fairnessMetrics = fairnessMetrics;
       } catch (error) {
@@ -241,7 +334,8 @@ export async function analyzeMatch(
     logger.error('Error in enhanced match analysis:', error);
     
     // Ultimate fallback
-    return await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
+    const response = await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
+    return extractSingleResult(response);
   }
 }
 
@@ -278,29 +372,37 @@ export async function analyzeBias(title: string, description: string): Promise<B
 export async function generateInterviewQuestions(
   resumeAnalysis: AnalyzeResumeResponse,
   jobAnalysis: AnalyzeJobDescriptionResponse,
-  matchAnalysis: MatchAnalysisResponse
+  matchAnalysis: SingleMatchResult
 ): Promise<InterviewQuestionsResponse> {
+  // Convert SingleMatchResult back to MatchAnalysisResponse for legacy compatibility
+  const matchResponse = createMatchAnalysisResponse(
+    matchAnalysis, 
+    resumeAnalysis.id || 0, 
+    jobAnalysis.id || 0, 
+    resumeAnalysis.filename
+  );
+
   // Check Groq availability first (primary provider)
   if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
-    return await groq.generateInterviewQuestions(resumeAnalysis, jobAnalysis, matchAnalysis);
+    return await groq.generateInterviewQuestions(resumeAnalysis, jobAnalysis, matchResponse);
   }
   
   // If Groq is unavailable, try OpenAI (secondary provider)
   if (openai.getOpenAIServiceStatus().isAvailable) {
     logger.info('Groq unavailable, falling back to OpenAI for interview questions generation');
-    return await openai.generateInterviewQuestions(resumeAnalysis, jobAnalysis, matchAnalysis);
+    return await openai.generateInterviewQuestions(resumeAnalysis, jobAnalysis, matchResponse);
   }
   
   // If both unavailable but Anthropic is configured and available, use Anthropic
   if (isAnthropicConfigured && anthropic.getAnthropicServiceStatus().isAvailable) {
     logger.info('Groq and OpenAI unavailable, falling back to Anthropic for interview questions generation');
     // Use our newly implemented Anthropic interview questions generation
-    return await anthropic.generateInterviewQuestions(resumeAnalysis, jobAnalysis, matchAnalysis);
+    return await anthropic.generateInterviewQuestions(resumeAnalysis, jobAnalysis, matchResponse);
   }
   
   // If all providers are unavailable, use OpenAI's fallback response
   logger.warn('All AI providers unavailable, using built-in fallback for interview questions generation');
-  return await openai.generateInterviewQuestions(resumeAnalysis, jobAnalysis, matchAnalysis);
+  return await openai.generateInterviewQuestions(resumeAnalysis, jobAnalysis, matchResponse);
 }
 
 /**

@@ -23,7 +23,9 @@ export function handleApiError(res: Response, error: unknown, options: ApiErrorO
   } = options;
   
   // Extract message from error object
-  let message = error?.message || 'An unexpected error occurred';
+  let message = error instanceof Error ? error.message : 
+                (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') ? 
+                error.message : 'An unexpected error occurred';
   
   // Check for database connection issues
   const isConnectionError = 

@@ -14,6 +14,7 @@ import { validateBatchAccess, validateBatchOwnership, updateBatchAccess } from '
 import rateLimit from 'express-rate-limit';
 import type { SessionId } from '@shared/api-contracts';
 
+
 const router = express.Router();
 
 // Enhanced batch status interface
@@ -105,12 +106,12 @@ router.get(
     try {
       const { batchId } = batchIdParamSchema.parse(req.params);
       const sessionId = req.headers['x-session-id'] as SessionId || req.query.sessionId as SessionId;
-      const userId = req.user?.id || req.query.userId as string;
+      const userId = req.user?.id || req.user?.uid || req.query.userId as string;
       
       logger.info('Batch validation request:', {
         batchId: batchId.substring(0, 20) + '...',
         sessionId: sessionId?.substring(0, 20) + '...',
-        userId: userId?.substring(0, 10) + '...' || 'anonymous',
+        userId: (req.user?.uid || req.user?.id || userId)?.substring(0, 10) + '...' || 'anonymous',
         ip: req.ip,
       });
       
@@ -142,7 +143,7 @@ router.get(
       
     } catch (error) {
       logger.error('Batch validation endpoint error:', {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         path: req.path,
         ip: req.ip,
       });
@@ -151,7 +152,7 @@ router.get(
         success: false,
         message: 'Failed to validate batch',
         code: 'VALIDATION_ERROR',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -192,7 +193,7 @@ router.get(
       `;
       
       const analysisResults = await executeQuery(analysisQuery, [batchId]);
-      const analysisCount = parseInt(analysisResults[0]?.analysis_count || '0');
+      const analysisCount = parseInt((analysisResults[0] as any)?.analysis_count || '0');
       
       // Check for data corruption
       const corruptionQuery = `
@@ -206,7 +207,7 @@ router.get(
       `;
       
       const corruptionResults = await executeQuery(corruptionQuery, [batchId]);
-      const corruptionData = corruptionResults[0];
+      const corruptionData = corruptionResults[0] as any;
       
       // Determine batch status
       let status: BatchStatus['status'] = 'active';
@@ -270,7 +271,7 @@ router.get(
       
     } catch (error) {
       logger.error('Batch status endpoint error:', {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         path: req.path,
         ip: req.ip,
       });
@@ -279,7 +280,7 @@ router.get(
         success: false,
         message: 'Failed to get batch status',
         code: 'STATUS_ERROR',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -306,7 +307,7 @@ router.post(
       });
       
       // First, validate current batch state (without session ID check for claiming)
-      const currentOwnership = await validateBatchOwnership(batchId, '' as SessionId);
+      const currentOwnership = await validateBatchOwnership(batchId, sessionId);
       
       if (!currentOwnership.ownership) {
         return res.status(404).json({
@@ -396,7 +397,7 @@ router.post(
       
     } catch (error) {
       logger.error('Batch claim endpoint error:', {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         path: req.path,
         ip: req.ip,
       });
@@ -405,7 +406,7 @@ router.post(
         success: false,
         message: 'Failed to claim batch',
         code: 'CLAIM_ERROR',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -492,7 +493,7 @@ router.delete(
       
     } catch (error) {
       logger.error('Batch deletion endpoint error:', {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         path: req.path,
         ip: req.ip,
       });
@@ -501,7 +502,7 @@ router.delete(
         success: false,
         message: 'Failed to delete batch',
         code: 'DELETION_ERROR',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -557,7 +558,7 @@ router.get(
           batchId: validation.batchId,
           sessionId: validation.ownership.sessionId,
           resumeCount: resumes.length,
-          resumes: resumes.map(resume => ({
+          resumes: resumes.map((resume: any) => ({
             ...resume,
             analyzedData: resume.analyzed_data, // Standardize field name
           })),
@@ -566,7 +567,7 @@ router.get(
       
     } catch (error) {
       logger.error('Batch resumes endpoint error:', {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         path: req.path,
         ip: req.ip,
       });
@@ -575,7 +576,7 @@ router.get(
         success: false,
         message: 'Failed to get batch resumes',
         code: 'RESUMES_ERROR',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -627,7 +628,7 @@ router.get(
         data: {
           candidateCount: candidates.length,
           cutoffDate: cutoffDate.toISOString(),
-          candidates: candidates.map(candidate => ({
+          candidates: candidates.map((candidate: any) => ({
             batchId: candidate.batch_id,
             sessionId: candidate.session_id,
             userId: candidate.user_id,
@@ -641,7 +642,7 @@ router.get(
       
     } catch (error) {
       logger.error('Cleanup candidates endpoint error:', {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         path: req.path,
         ip: req.ip,
       });
@@ -650,7 +651,7 @@ router.get(
         success: false,
         message: 'Failed to get cleanup candidates',
         code: 'CLEANUP_ERROR',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
