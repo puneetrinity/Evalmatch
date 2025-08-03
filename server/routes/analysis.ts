@@ -291,7 +291,7 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
         recommendations: [], // Add recommendations field
         confidenceLevel: r.match?.confidenceLevel || 'low',
         fairnessMetrics: r.match?.fairnessMetrics,
-        scoringDimensions: r.match?.scoringDimensions
+        scoringDimensions: r.match?.scoringDimensions || {}
       })),
       createdAt: new Date().toISOString(),
       processingTime: totalAnalysisTime
@@ -427,7 +427,7 @@ router.get("/analyze/:jobId", authenticateUser, async (req: Request, res: Respon
       recommendations: [], // Add recommendations field
       confidenceLevel: result.confidenceLevel || 'low',
       fairnessMetrics: result.fairnessMetrics,
-      scoringDimensions: result.scoringDimensions
+      scoringDimensions: result.scoringDimensions || {}
     }));
 
     // Sort by match percentage

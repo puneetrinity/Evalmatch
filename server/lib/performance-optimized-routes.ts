@@ -4,11 +4,12 @@
  */
 
 import { Request, Response } from 'express';
-import { processResumesBatch } from './batch-processor';
+// import { processResumesBatch } from './batch-processor';
 import { analysisCache, generateMatchAnalysisKey, generateBiasAnalysisKey } from './cache';
 import { analyzeMatch } from '../lib/ai-provider';
 import { IStorage } from '../storage';
-import { Resume, JobDescription } from '@shared/schema';
+import { Resume, JobDescription, AnalyzedResumeData, AnalyzedJobData } from '@shared/schema';
+import type { AnalyzeResumeResponse, AnalyzeJobDescriptionResponse } from '@shared/schema';
 
 /**
  * Optimized handler for analyzing multiple resumes against a job description
@@ -55,14 +56,16 @@ export async function handleBatchAnalyze(
     const analyzedResumes = resumes.filter(r => r.analyzedData);
     
     // Process resumes in efficient batches with caching
-    const batchResults = await processResumesBatch(
-      analyzedResumes,
-      jobDescription,
-      async (resume, jobDesc) => {
+    const batchResults = [];
+    const concurrency = 5;
+    
+    for (let i = 0; i < analyzedResumes.length; i += concurrency) {
+      const batch = analyzedResumes.slice(i, i + concurrency);
+      const batchPromises = batch.map(async (resume: Resume) => {
         try {
           // First check if we already have an analysis result stored
           const existingAnalysis = await storage.getAnalysisResultsByResumeId(resume.id)
-            .then(results => results.find(r => r.jobDescriptionId === jobDesc.id));
+            .then(results => results.find(r => r.jobDescriptionId === jobDescription.id));
           
           if (existingAnalysis) {
             return {
@@ -75,16 +78,41 @@ export async function handleBatchAnalyze(
           }
           
           // Compare the resume with the job description
-          const matchAnalysis = await analyzeMatch(
-            resume.analyzedData as AnalyzedResumeData | null,
-            jobDesc.analyzedData as AnalyzedJobData | null,
-            resume.content // Pass the resume text for fairness analysis
+          // Convert AnalyzedResumeData to AnalyzeResumeResponse format
+          const resumeAnalysis: AnalyzeResumeResponse = {
+            id: resume.id as any,
+            filename: resume.filename,
+            analyzedData: resume.analyzedData as AnalyzedResumeData,
+            processingTime: 0,
+            confidence: 0.8,
+            skills: (resume.analyzedData as AnalyzedResumeData)?.skills || [],
+            experience: [(resume.analyzedData as AnalyzedResumeData)?.experience || "0 years"]
+          };
+          
+          // Convert AnalyzedJobData to AnalyzeJobDescriptionResponse format
+          const jobAnalysis: AnalyzeJobDescriptionResponse = {
+            id: jobDescription.id as any,
+            title: jobDescription.title,
+            analyzedData: jobDescription.analyzedData as AnalyzedJobData,
+            processingTime: 0,
+            confidence: 0.8,
+            requiredSkills: (jobDescription.analyzedData as AnalyzedJobData)?.requiredSkills || [],
+            preferredSkills: (jobDescription.analyzedData as AnalyzedJobData)?.preferredSkills || [],
+            experienceLevel: (jobDescription.analyzedData as AnalyzedJobData)?.experienceLevel || "mid"
+          };
+          
+          const matchResult = await analyzeMatch(
+            resumeAnalysis,
+            jobAnalysis,
+            resume.content || undefined // Pass the resume text for fairness analysis
           );
+          
+          const matchAnalysis = (matchResult as any).match || matchResult;
 
           // Create analysis result
           const analysisResult = await storage.createAnalysisResult({
             resumeId: resume.id,
-            jobDescriptionId: jobDesc.id,
+            jobDescriptionId: jobDescription.id,
             matchPercentage: matchAnalysis.matchPercentage,
             matchedSkills: matchAnalysis.matchedSkills,
             missingSkills: matchAnalysis.missingSkills,
@@ -103,16 +131,18 @@ export async function handleBatchAnalyze(
           return {
             resumeId: resume.id,
             filename: resume.filename,
-            error: error.message,
+            error: error instanceof Error ? error.message : String(error),
           };
         }
-      },
-      { concurrency: 5, useCache: true }
-    );
+      });
+      
+      const batchResult = await Promise.all(batchPromises);
+      batchResults.push(...batchResult);
+    }
 
     // Sort results by match percentage (descending)
-    const analysisResults = batchResults.filter(r => !r.error);
-    analysisResults.sort((a, b) => 
+    const analysisResults = batchResults.filter((r: any) => !r.error);
+    analysisResults.sort((a: any, b: any) => 
       (b.match?.matchPercentage || 0) - (a.match?.matchPercentage || 0)
     );
 
@@ -192,11 +222,36 @@ export async function handleSpecificAnalyze(
       }
       
       // Compare the resume with the job description
-      const matchAnalysis = await analyzeMatch(
-        resume.analyzedData as AnalyzedResumeData | null,
-        jobDescription.analyzedData as AnalyzedJobData | null,
-        resume.content // Pass the resume text for fairness analysis
+      // Convert AnalyzedResumeData to AnalyzeResumeResponse format
+      const resumeAnalysis: AnalyzeResumeResponse = {
+        id: resume.id as any,
+        filename: resume.filename,
+        analyzedData: resume.analyzedData as AnalyzedResumeData,
+        processingTime: 0,
+        confidence: 0.8,
+        skills: (resume.analyzedData as AnalyzedResumeData)?.skills || [],
+        experience: [(resume.analyzedData as AnalyzedResumeData)?.experience || "0 years"]
+      };
+      
+      // Convert AnalyzedJobData to AnalyzeJobDescriptionResponse format
+      const jobAnalysis: AnalyzeJobDescriptionResponse = {
+        id: jobDescription.id as any,
+        title: jobDescription.title,
+        analyzedData: jobDescription.analyzedData as AnalyzedJobData,
+        processingTime: 0,
+        confidence: 0.8,
+        requiredSkills: (jobDescription.analyzedData as AnalyzedJobData)?.requiredSkills || [],
+        preferredSkills: (jobDescription.analyzedData as AnalyzedJobData)?.preferredSkills || [],
+        experienceLevel: (jobDescription.analyzedData as AnalyzedJobData)?.experienceLevel || "mid"
+      };
+      
+      const matchResult = await analyzeMatch(
+        resumeAnalysis,
+        jobAnalysis,
+        resume.content || undefined // Pass the resume text for fairness analysis
       );
+      
+      const matchAnalysis = (matchResult as any).match || (matchResult as any);
 
       // Create and store the result
       const analysisResult = await storage.createAnalysisResult({

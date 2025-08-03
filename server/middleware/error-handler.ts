@@ -274,7 +274,7 @@ function createEnhancedErrorContext(req: Request & { id?: string; startTime?: nu
   
   return {
     requestId: req.id || 'unknown',
-    userId: req.user?.id,
+    userId: req.user?.uid,
     sessionId: req.headers['x-session-id'] as string,
     batchId: req.params.batchId || req.body?.batchId || req.query?.batchId as string,
     operation: req.route?.path || req.path,

@@ -17,6 +17,7 @@ import {
   type InterviewScriptResponse,
   type BiasAnalysisResponse,
 } from "@shared/schema";
+import type { ResumeId, JobId } from "@shared/api-contracts";
 
 // Initialize Groq client only if API key is available
 const groq = process.env.GROQ_API_KEY ? new Groq({
@@ -126,7 +127,7 @@ function safeJsonParse<T>(jsonString: string, context: string): T {
   try {
     return JSON.parse(jsonString) as T;
   } catch (firstError) {
-    logger.warn(`First JSON parse attempt failed in ${context}:`, firstError.message);
+    logger.warn(`First JSON parse attempt failed in ${context}:`, firstError instanceof Error ? firstError.message : String(firstError));
     
     // Second attempt: try to extract and parse just the JSON part
     try {
@@ -148,7 +149,7 @@ function safeJsonParse<T>(jsonString: string, context: string): T {
       
       throw new Error('No valid JSON pattern found');
     } catch (secondError) {
-      logger.warn(`Second JSON parse attempt failed in ${context}:`, secondError.message);
+      logger.warn(`Second JSON parse attempt failed in ${context}:`, secondError instanceof Error ? secondError.message : String(secondError));
       
       // Third attempt: try to fix common issues and parse again
       try {
@@ -175,7 +176,7 @@ function safeJsonParse<T>(jsonString: string, context: string): T {
         return parsed as T;
       } catch (thirdError) {
         logger.error(`All JSON parse attempts failed in ${context}. Original response: ${jsonString.substring(0, 200)}...`);
-        throw new Error(`Failed to parse JSON in ${context}: ${firstError.message}. Response preview: ${jsonString.substring(0, 100)}...`);
+        throw new Error(`Failed to parse JSON in ${context}: ${firstError instanceof Error ? firstError.message : String(firstError)}. Response preview: ${jsonString.substring(0, 100)}...`);
       }
     }
   }
@@ -186,7 +187,7 @@ function getCachedResponse<T>(key: string): T | null {
   const cached = responseCache[key];
   if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
     logger.debug('Cache hit for Groq request');
-    return cached.data;
+    return cached.data as T;
   }
   return null;
 }
@@ -234,10 +235,10 @@ async function callGroqAPI(
   }
 
   try {
-    const requestParams: Record<string, unknown> = {
+    const requestParams = {
       messages: [
         {
-          role: "user",
+          role: "user" as const,
           content: prompt
         }
       ],
@@ -246,22 +247,18 @@ async function callGroqAPI(
       max_tokens: 4000,
       stream: false,
       top_p: 1.0,  // Deterministic sampling
+      ...(seed !== undefined ? { seed } : {})
     };
-    
-    // Add seed for deterministic results if provided
-    if (seed !== undefined) {
-      requestParams.seed = seed;
-    }
 
     const response = await groq.chat.completions.create(requestParams);
 
-    const content = response.choices[0]?.message?.content;
+    const content = ('choices' in response) ? response.choices[0]?.message?.content : null;
     if (!content) {
       throw new Error("No response content from Groq API");
     }
 
     // Update usage statistics
-    if (response.usage) {
+    if ('usage' in response && response.usage) {
       updateUsage(
         model,
         response.usage.prompt_tokens || 0,
@@ -324,13 +321,23 @@ export async function analyzeResumeParallel(resumeText: string): Promise<Analyze
     const timeTaken = Date.now() - startTime;
     
     // Combine results into expected format
+    const skillsArray = Array.isArray(skills) ? skills : [];
     const parsedResponse: AnalyzeResumeResponse = {
-      skills: skills || [],
-      experience: experience?.totalYears || "0 years",
-      education: education || [],
-      summary: experience?.summary || "Professional with diverse background",
-      strengths: skills?.slice(0, 3) || [],
-      jobTitles: experience?.jobTitles || []
+      id: 0 as ResumeId, // Will be set by caller
+      filename: 'resume.txt', // Will be set by caller
+      analyzedData: {
+        name: 'Unknown',
+        skills: skillsArray,
+        experience: experience?.totalYears || "0 years",
+        education: Array.isArray(education) ? education : [],
+        summary: experience?.summary || "Professional with diverse background",
+        keyStrengths: skillsArray.slice(0, 3),
+      },
+      processingTime: timeTaken,
+      confidence: 0.8,
+      // Convenience properties for backward compatibility
+      skills: skillsArray,
+      experience: [experience?.totalYears || "0 years"],
     };
     
     // Only cache if we have meaningful results (at least some skills)
@@ -382,7 +389,26 @@ Respond with only the JSON object, no additional text.`;
   try {
     const response = await callGroqAPI(prompt, MODELS.ANALYSIS);
     const cleanedResponse = stripMarkdownFromJSON(response);
-    const parsedResponse = JSON.parse(cleanedResponse) as AnalyzeResumeResponse;
+    const rawResponse = JSON.parse(cleanedResponse);
+    
+    // Convert raw response to proper AnalyzeResumeResponse format
+    const parsedResponse: AnalyzeResumeResponse = {
+      id: 0 as ResumeId, // Will be set by caller
+      filename: 'resume.txt', // Will be set by caller
+      analyzedData: {
+        name: 'Unknown',
+        skills: rawResponse.skills || [],
+        experience: rawResponse.experience || "0 years",
+        education: rawResponse.education || [],
+        summary: rawResponse.summary || "Professional with diverse background",
+        keyStrengths: rawResponse.strengths || [],
+      },
+      processingTime: 0,
+      confidence: 0.8,
+      // Convenience properties for backward compatibility
+      skills: rawResponse.skills || [],
+      experience: [rawResponse.experience || "0 years"],
+    };
     
     // Only cache if we have meaningful results (at least some skills)
     if (parsedResponse.skills && parsedResponse.skills.length > 0) {
@@ -428,7 +454,26 @@ Respond with only the JSON object, no additional text.`;
   try {
     const response = await callGroqAPI(prompt, MODELS.ANALYSIS);
     const cleanedResponse = stripMarkdownFromJSON(response);
-    const parsedResponse = JSON.parse(cleanedResponse) as AnalyzeJobDescriptionResponse;
+    const rawResponse = JSON.parse(cleanedResponse);
+    
+    // Convert raw response to proper AnalyzeJobDescriptionResponse format
+    const parsedResponse: AnalyzeJobDescriptionResponse = {
+      id: 0 as JobId, // Will be set by caller
+      title: title,
+      analyzedData: {
+        requiredSkills: rawResponse.requiredSkills || [],
+        preferredSkills: rawResponse.preferredSkills || [],
+        experienceLevel: rawResponse.experienceLevel || "mid",
+        responsibilities: rawResponse.responsibilities || [],
+        summary: rawResponse.summary || "Job opportunity",
+      },
+      processingTime: 0,
+      confidence: 0.8,
+      // Convenience properties for backward compatibility
+      requiredSkills: rawResponse.requiredSkills || [],
+      preferredSkills: rawResponse.preferredSkills || [],
+      experienceLevel: rawResponse.experienceLevel || "mid",
+    };
     
     setCachedResponse(cacheKey, parsedResponse);
     logger.info('Job description analyzed successfully with Groq');
@@ -455,7 +500,7 @@ export async function analyzeMatch(
   
   if (resumeText && jobText) {
     cacheKey = deterministicCache.generateKey(resumeText, jobText, 'match');
-    cached = deterministicCache.get(cacheKey);
+    cached = deterministicCache.get(cacheKey) as MatchAnalysisResponse | null;
     if (cached) {
       logger.debug('Using cached consistent match analysis');
       return cached;

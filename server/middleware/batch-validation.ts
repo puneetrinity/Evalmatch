@@ -15,6 +15,8 @@ import {
   enhancedErrorHandler,
   batchErrorHandler,
   asyncErrorHandler,
+} from './error-handler';
+import {
   createValidationError,
   createAuthError,
   createForbiddenError,
@@ -22,7 +24,7 @@ import {
   createDatabaseError,
   createError,
   AppError,
-} from './error-handler';
+} from './global-error-handler';
 
 // Enhanced batch validation types
 export interface BatchOwnership {
