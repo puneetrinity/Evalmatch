@@ -305,8 +305,60 @@ export class DatabaseStorage implements IStorage {
         resumeConditions.push(eq(resumes.sessionId, sessionId));
       }
       
-      const results = await db.select({
+      // First, get the most recent analysis result for each resume
+      // We use a subquery to find the latest createdAt for each resumeId
+      const latestAnalysisSubquery = db
+        .select({
+          resumeId: analysisResults.resumeId,
+          maxCreatedAt: db.selectDistinct({ max: analysisResults.createdAt }).from(analysisResults)
+        })
+        .from(analysisResults)
+        .where(and(
+          eq(analysisResults.jobDescriptionId, jobId),
+          eq(analysisResults.userId, userId)
+        ))
+        .groupBy(analysisResults.resumeId);
+      
+      // Build the main query with deduplication
+      let query = db.select({
         ...analysisResults,
+        resume: resumes
+      })
+        .from(analysisResults)
+        .leftJoin(resumes, eq(analysisResults.resumeId, resumes.id))
+        .where(and(
+          ...conditions,
+          ...(resumeConditions.length > 0 ? resumeConditions : [])
+        ));
+      
+      // Since we can't directly use the subquery in this context with Drizzle,
+      // we'll use a window function approach instead
+      const results = await db.select({
+        id: analysisResults.id,
+        userId: analysisResults.userId,
+        resumeId: analysisResults.resumeId,
+        jobDescriptionId: analysisResults.jobDescriptionId,
+        matchPercentage: analysisResults.matchPercentage,
+        matchedSkills: analysisResults.matchedSkills,
+        missingSkills: analysisResults.missingSkills,
+        analysis: analysisResults.analysis,
+        candidateStrengths: analysisResults.candidateStrengths,
+        candidateWeaknesses: analysisResults.candidateWeaknesses,
+        recommendations: analysisResults.recommendations,
+        confidenceLevel: analysisResults.confidenceLevel,
+        semanticSimilarity: analysisResults.semanticSimilarity,
+        skillsSimilarity: analysisResults.skillsSimilarity,
+        experienceSimilarity: analysisResults.experienceSimilarity,
+        educationSimilarity: analysisResults.educationSimilarity,
+        mlConfidenceScore: analysisResults.mlConfidenceScore,
+        scoringDimensions: analysisResults.scoringDimensions,
+        fairnessMetrics: analysisResults.fairnessMetrics,
+        processingTime: analysisResults.processingTime,
+        aiProvider: analysisResults.aiProvider,
+        modelVersion: analysisResults.modelVersion,
+        processingFlags: analysisResults.processingFlags,
+        createdAt: analysisResults.createdAt,
+        updatedAt: analysisResults.updatedAt,
         resume: resumes
       })
         .from(analysisResults)
@@ -317,8 +369,22 @@ export class DatabaseStorage implements IStorage {
         ))
         .orderBy(desc(analysisResults.createdAt));
       
+      // Deduplicate by keeping only the most recent analysis per resume
+      const deduplicatedResults = new Map<number, any>();
+      
+      for (const result of results) {
+        if (result.resumeId && (!deduplicatedResults.has(result.resumeId) || 
+            new Date(result.createdAt!) > new Date(deduplicatedResults.get(result.resumeId).createdAt!))) {
+          deduplicatedResults.set(result.resumeId, result);
+        }
+      }
+      
+      // Convert back to array and sort by creation date (most recent first)
+      const finalResults = Array.from(deduplicatedResults.values())
+        .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+      
       // Transform the results to match the expected AnalysisResult type
-      return results.map(result => ({
+      return finalResults.map(result => ({
         ...result,
         resume: result.resume || undefined
       })) as AnalysisResult[];

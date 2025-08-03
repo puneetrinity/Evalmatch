@@ -83,58 +83,156 @@ export default function UploadPage() {
     return newSessionId;
   }, []);
   
+  // Utility function to check if a batch ID has associated resumes
+  const checkBatchHasResumes = useCallback(async (batchId: string, sessionId: SessionId): Promise<boolean> => {
+    try {
+      console.log(`[BATCH VALIDATION] Checking if batch ${batchId} has resumes...`);
+      const response = await apiRequest("GET", `/api/resumes?sessionId=${sessionId}&batchId=${batchId}`);
+      const data = await response.json() as ApiResult<ResumeListResponse>;
+      
+      if (isApiSuccess(data) && isResumeListResponse(data.data)) {
+        const resumeCount = data.data.resumes?.length || 0;
+        console.log(`[BATCH VALIDATION] ✅ Batch ${batchId} has ${resumeCount} resumes`);
+        return resumeCount > 0;
+      }
+      
+      console.log(`[BATCH VALIDATION] ❌ Invalid response format for batch ${batchId}`);
+      return false;
+    } catch (error) {
+      console.log(`[BATCH VALIDATION] ❌ Error checking batch ${batchId}:`, error);
+      return false;
+    }
+  }, []);
+
+  // Enhanced batch validation with retry logic
+  const validateBatchIntegrity = useCallback(async (batchId: string, sessionId: SessionId, retries = 2): Promise<{ isValid: boolean; resumeCount: number; error?: string }> => {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        console.log(`[BATCH INTEGRITY] Attempt ${attempt}/${retries} - Validating batch ${batchId}...`);
+        
+        const response = await apiRequest("GET", `/api/resumes?sessionId=${sessionId}&batchId=${batchId}`);
+        const data = await response.json() as ApiResult<ResumeListResponse>;
+        
+        if (isApiSuccess(data) && isResumeListResponse(data.data)) {
+          const resumeCount = data.data.resumes?.length || 0;
+          console.log(`[BATCH INTEGRITY] ✅ Batch ${batchId} validated - ${resumeCount} resumes found`);
+          return { isValid: true, resumeCount };
+        }
+        
+        if (attempt === retries) {
+          const error = `Invalid response format: ${data.message || 'Unknown error'}`;
+          console.log(`[BATCH INTEGRITY] ❌ Final attempt failed for batch ${batchId}: ${error}`);
+          return { isValid: false, resumeCount: 0, error };
+        }
+        
+        console.log(`[BATCH INTEGRITY] ⚠️ Attempt ${attempt} failed, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+        
+      } catch (error) {
+        if (attempt === retries) {
+          const errorMsg = error instanceof Error ? error.message : 'Network error';
+          console.log(`[BATCH INTEGRITY] ❌ Final attempt failed for batch ${batchId}: ${errorMsg}`);
+          return { isValid: false, resumeCount: 0, error: errorMsg };
+        }
+        
+        console.log(`[BATCH INTEGRITY] ⚠️ Attempt ${attempt} failed with error, retrying...`, error);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    return { isValid: false, resumeCount: 0, error: 'Max retries exceeded' };
+  }, []);
+
   // Get or create a session ID when the component mounts
   useEffect(() => {
-    // Check if we already have a session ID in localStorage
-    const existingSessionId = localStorage.getItem('currentUploadSession');
-    const existingBatchId = localStorage.getItem('currentBatchId');
-    
-    if (existingSessionId) {
-      // Use existing session ID
-      setSessionId(existingSessionId as SessionId);
-      console.log(`Using existing upload session: ${existingSessionId}`);
+    const initializeSession = async () => {
+      console.log(`[SESSION INIT] Starting session initialization...`);
       
-      // Always create a new batch ID for each upload page visit
-      const newBatchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      setCurrentBatchId(newBatchId);
-      localStorage.setItem('currentBatchId', newBatchId);
-      console.log(`Created new batch for session: ${newBatchId} (replacing: ${existingBatchId || 'none'})`);
+      // Check if we already have a session ID in localStorage
+      const existingSessionId = localStorage.getItem('currentUploadSession');
+      const existingBatchId = localStorage.getItem('currentBatchId');
       
-      // Log if we're replacing an existing batch
-      if (existingBatchId) {
-        console.log(`Note: Previous batch ${existingBatchId} will no longer be used for new uploads`);
+      console.log(`[SESSION INIT] Found existing sessionId: ${existingSessionId || 'none'}, batchId: ${existingBatchId || 'none'}`);
+      
+      if (existingSessionId) {
+        // Use existing session ID
+        setSessionId(existingSessionId as SessionId);
+        console.log(`[SESSION INIT] Using existing upload session: ${existingSessionId}`);
+        
+        // Check if existing batch ID has resumes before creating a new one
+        if (existingBatchId) {
+          console.log(`[SESSION INIT] Checking if existing batch ${existingBatchId} has resumes...`);
+          const batchHasResumes = await checkBatchHasResumes(existingBatchId, existingSessionId as SessionId);
+          
+          if (batchHasResumes) {
+            // Keep existing batch ID since it has resumes
+            setCurrentBatchId(existingBatchId);
+            console.log(`[SESSION INIT] ✅ Preserving existing batch ${existingBatchId} (has resumes)`);
+          } else {
+            // Create new batch ID since existing one has no resumes
+            const newBatchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+            setCurrentBatchId(newBatchId);
+            localStorage.setItem('currentBatchId', newBatchId);
+            console.log(`[SESSION INIT] ✅ Created new batch ${newBatchId} (previous batch ${existingBatchId} had no resumes)`);
+          }
+        } else {
+          // No existing batch ID, create a new one
+          const newBatchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+          setCurrentBatchId(newBatchId);
+          localStorage.setItem('currentBatchId', newBatchId);
+          console.log(`[SESSION INIT] ✅ Created new batch ${newBatchId} (no previous batch)`);
+        }
+      } else {
+        // Generate a new random session ID if none exists
+        console.log(`[SESSION INIT] Creating new session...`);
+        createNewSession();
       }
-    } else {
-      // Generate a new random session ID if none exists
+    };
+    
+    initializeSession().catch(error => {
+      console.error(`[SESSION INIT] Error during session initialization:`, error);
+      // Fallback to creating new session
       createNewSession();
-    }
-  }, [createNewSession]);
+    });
+  }, [createNewSession, checkBatchHasResumes]);
   
-  // Fetch existing resumes for current session only
+  // Fetch existing resumes for current session and batch
   const { data: existingResumes, isLoading, error: resumeLoadError } = useQuery<ResumeListResponse>({
-    queryKey: ["/api/resumes", sessionId],
+    queryKey: ["/api/resumes", sessionId, currentBatchId],
     queryFn: async ({ queryKey }): Promise<ResumeListResponse> => {
       const endpoint = queryKey[0] as string;
       const currentSessionId = queryKey[1] as SessionId;
-      const response = await apiRequest("GET", `${endpoint}?sessionId=${currentSessionId}`);
+      const currentBatch = queryKey[2] as string;
+      
+      console.log(`[RESUMES FETCH] Fetching resumes for session: ${currentSessionId}, batch: ${currentBatch}`);
+      
+      const params = new URLSearchParams();
+      if (currentSessionId) params.append('sessionId', currentSessionId);
+      if (currentBatch) params.append('batchId', currentBatch);
+      
+      const url = `${endpoint}?${params.toString()}`;
+      const response = await apiRequest("GET", url);
       const data = await response.json() as ApiResult<ResumeListResponse>;
       
       if (isApiSuccess(data)) {
         if (isResumeListResponse(data.data)) {
+          console.log(`[RESUMES FETCH] ✅ Found ${data.data.resumes?.length || 0} resumes for batch ${currentBatch}`);
           return data.data;
         }
         throw new Error('Invalid resume list response format');
       }
       throw new Error(data.message || 'Failed to fetch resumes');
     },
-    enabled: !!sessionId, // Only enable the query when sessionId is available
+    enabled: !!sessionId && !!currentBatchId, // Only enable when both sessionId and batchId are available
     refetchOnWindowFocus: false,
     retry: 2,
   });
 
   // Add existing resumes to files list when data is loaded
   useEffect(() => {
-    if (existingResumes?.resumes && !files.length) {
+    if (existingResumes?.resumes && currentBatchId) {
+      console.log(`[FILES SYNC] Syncing ${existingResumes.resumes.length} existing resumes for batch ${currentBatchId}`);
+      
       const existingFiles: UploadedFile[] = existingResumes.resumes.map(resume => ({
         id: resume.id,
         name: resume.filename,
@@ -143,9 +241,40 @@ export default function UploadPage() {
         status: "success" as const,
         uploadedAt: resume.uploadedAt,
       }));
-      setFiles(existingFiles);
+      
+      // Only update files if they're different (to avoid infinite re-renders)
+      setFiles(prev => {
+        if (prev.length === existingFiles.length && 
+            prev.every((file, index) => file.id === existingFiles[index]?.id)) {
+          return prev; // No change needed
+        }
+        console.log(`[FILES SYNC] ✅ Updated files list with ${existingFiles.length} files`);
+        return existingFiles;
+      });
+    } else if (existingResumes?.resumes?.length === 0 && currentBatchId) {
+      console.log(`[FILES SYNC] No existing resumes found for batch ${currentBatchId}, clearing files list`);
+      setFiles([]);
     }
-  }, [existingResumes, files.length]);
+  }, [existingResumes, currentBatchId]);
+
+  // Ensure localStorage stays in sync with React state
+  useEffect(() => {
+    if (sessionId) {
+      const storedSessionId = localStorage.getItem('currentUploadSession');
+      if (storedSessionId !== sessionId) {
+        console.log(`[STATE SYNC] Syncing sessionId to localStorage: ${sessionId}`);
+        localStorage.setItem('currentUploadSession', sessionId);
+      }
+    }
+    
+    if (currentBatchId) {
+      const storedBatchId = localStorage.getItem('currentBatchId');
+      if (storedBatchId !== currentBatchId) {
+        console.log(`[STATE SYNC] Syncing batchId to localStorage: ${currentBatchId}`);
+        localStorage.setItem('currentBatchId', currentBatchId);
+      }
+    }
+  }, [sessionId, currentBatchId]);
 
   // Upload file mutation
   const uploadMutation = useMutation<UploadResponse, UploadError, File>({
@@ -170,6 +299,9 @@ export default function UploadPage() {
       // Include the current batch ID in the upload
       if (currentBatchId) {
         formData.append("batchId", currentBatchId);
+        console.log(`[UPLOAD] Uploading ${file.name} with batch ID: ${currentBatchId}`);
+      } else {
+        console.log(`[UPLOAD] ⚠️ Uploading ${file.name} without batch ID!`);
       }
       
       // Get auth token and add it to headers manually for FormData requests
@@ -207,7 +339,11 @@ export default function UploadPage() {
       throw error;
     },
     onSuccess: (data, variables) => {
-      console.log('onSuccess called with:', { data, variables });
+      console.log(`[UPLOAD SUCCESS] File ${variables.name} uploaded successfully:`, { 
+        data, 
+        currentBatchId,
+        sessionId 
+      });
       
       // Update file list with server-assigned ID
       setFiles(prev => 
@@ -222,9 +358,19 @@ export default function UploadPage() {
         title: "Upload successful",
         description: `${variables.name} has been uploaded successfully.`,
       });
+      
+      // Ensure localStorage is in sync with current state
+      if (currentBatchId) {
+        localStorage.setItem('currentBatchId', currentBatchId);
+        console.log(`[UPLOAD SUCCESS] Confirmed batch ID in localStorage: ${currentBatchId}`);
+      }
     },
     onError: (error, variables) => {
-      console.log('onError called with:', { error, variables });
+      console.log(`[UPLOAD ERROR] File ${variables.name} upload failed:`, { 
+        error, 
+        currentBatchId,
+        sessionId 
+      });
       
       // Update file status to error
       setFiles(prev => 
@@ -256,11 +402,13 @@ export default function UploadPage() {
   const handleFileSelect = useCallback((selectedFiles: FileList | null) => {
     if (!selectedFiles) return;
     
-    // Use the current batch ID for all uploads in this session
-    // Don't create a new batch ID here - it should only be created when starting a new session
+    console.log(`[FILE SELECTION] Starting file selection with batch: ${currentBatchId || 'none'}`);
+    
+    // Ensure we have a current batch ID for uploads
     if (!currentBatchId) {
+      console.log(`[FILE SELECTION] ❌ No current batch ID available, creating new batch...`);
       const newBatchId = createNewBatch();
-      console.log(`Created new batch for file selection: ${newBatchId}`);
+      console.log(`[FILE SELECTION] ✅ Created new batch for file selection: ${newBatchId}`);
     }
     
     // Check if adding these files would exceed the limit of 100
@@ -272,6 +420,8 @@ export default function UploadPage() {
       });
       return;
     }
+    
+    console.log(`[FILE SELECTION] Processing ${selectedFiles.length} files with batch: ${currentBatchId}`);
     
     // Process each file
     Array.from(selectedFiles).forEach(file => {
@@ -294,6 +444,8 @@ export default function UploadPage() {
         });
         return;
       }
+      
+      console.log(`[FILE SELECTION] Adding file ${file.name} to upload queue`);
       
       // Add file to list
       const newFile: UploadedFile = {
@@ -343,8 +495,10 @@ export default function UploadPage() {
     setFiles(prev => prev.filter(file => file.name !== fileName));
   };
 
-  // Go to next step
-  const handleContinue = () => {
+  // Go to next step with batch validation
+  const handleContinue = async () => {
+    console.log(`[CONTINUE] Starting continuation process...`);
+    
     // Check if at least one file was uploaded successfully
     const hasValidFiles = files.some(file => file.status === "success");
     
@@ -357,6 +511,36 @@ export default function UploadPage() {
       return;
     }
     
+    // Validate batch integrity before continuing
+    if (currentBatchId && sessionId) {
+      console.log(`[CONTINUE] Validating batch integrity for ${currentBatchId}...`);
+      
+      const validation = await validateBatchIntegrity(currentBatchId, sessionId);
+      
+      if (!validation.isValid) {
+        console.log(`[CONTINUE] ❌ Batch validation failed:`, validation.error);
+        toast({
+          title: "Batch validation failed",
+          description: `Unable to validate upload batch. ${validation.error || 'Please try refreshing the page.'}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (validation.resumeCount !== files.filter(f => f.status === "success").length) {
+        console.log(`[CONTINUE] ⚠️ Resume count mismatch - UI: ${files.filter(f => f.status === "success").length}, Server: ${validation.resumeCount}`);
+        toast({
+          title: "Resume count mismatch",
+          description: "The number of uploaded resumes doesn't match our records. Please refresh and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      console.log(`[CONTINUE] ✅ Batch validation successful - ${validation.resumeCount} resumes validated`);
+    }
+    
+    console.log(`[CONTINUE] Proceeding to job description page...`);
     setLocation("/job-description");
   };
 
@@ -379,7 +563,20 @@ export default function UploadPage() {
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20,6 9,17 4,12"></polyline>
                 </svg>
-                <span><strong>Current Batch:</strong> {currentBatchId.slice(-8)} - All uploads in this session will be analyzed together. Use "Reset Session" to start a new batch.</span>
+                <span><strong>Current Batch:</strong> {currentBatchId.slice(-8)} ({files.filter(f => f.status === "success").length} files) - All uploads in this session will be analyzed together. Use "Reset Session" to start a new batch.</span>
+              </p>
+            </div>
+          )}
+          
+          {!currentBatchId && (
+            <div className="mb-6 p-3 border border-amber-200 bg-amber-50 rounded-md text-sm text-amber-800">
+              <p className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <span><strong>Initializing batch...</strong> Please wait while we set up your upload session.</span>
               </p>
             </div>
           )}
@@ -428,9 +625,17 @@ export default function UploadPage() {
               <h3 className="text-lg font-semibold text-gray-900">Uploaded Resumes</h3>
               <Button 
                 onClick={() => {
+                  console.log(`[RESET SESSION] User initiated session reset`);
+                  console.log(`[RESET SESSION] Current state - sessionId: ${sessionId}, batchId: ${currentBatchId}`);
+                  
                   createNewSession();
                   setFiles([]);
+                  
+                  // Invalidate queries to refresh data
                   queryClient.invalidateQueries({ queryKey: ["/api/resumes"] });
+                  
+                  console.log(`[RESET SESSION] ✅ Session reset complete`);
+                  
                   toast({
                     title: "Session Reset",
                     description: "You've started a new upload session with a fresh batch.",
