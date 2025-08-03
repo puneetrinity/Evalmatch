@@ -77,7 +77,17 @@ const createMockOperation = (shouldSucceed = true, delay = 0) => {
 
 // ===== TEST SUITES =====
 
-describe.skip('Batch Error Handling', () => {
+// Skip this test suite if database is not available
+const skipDatabase = !(global as any).testUtils?.hasRealDatabase;
+const describeMethod = skipDatabase ? describe.skip : describe;
+
+describeMethod('Batch Error Handling', () => {
+  if (skipDatabase) {
+    it('should skip database-dependent tests', () => {
+      console.log('⏩ Skipping batch error handling tests - no database available');
+    });
+    return;
+  }
   beforeEach(() => {
     jest.clearAllMocks();
     jest.clearAllTimers();

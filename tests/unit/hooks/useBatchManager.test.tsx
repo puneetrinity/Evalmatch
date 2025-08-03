@@ -41,16 +41,18 @@ const createTestQueryClient = () => new QueryClient({
 });
 
 // Mock toast notifications
+const mockToast = jest.fn();
 jest.mock('@/hooks/use-toast', () => ({
   useToast: () => ({
-    toast: jest.fn(),
+    toast: mockToast,
   }),
-  toast: jest.fn(),
+  toast: mockToast,
 }));
 
 // Mock API requests
+const mockApiRequest = jest.fn();
 jest.mock('@/lib/queryClient', () => ({
-  apiRequest: jest.fn(),
+  apiRequest: mockApiRequest,
   queryClient: {
     invalidateQueries: jest.fn(),
   },
@@ -90,8 +92,7 @@ const createWrapper = () => {
   );
 };
 
-const mockApiRequest = apiRequest as jest.MockedFunction<typeof apiRequest>;
-const mockToast = toast as jest.MockedFunction<typeof toast>;
+// Mock functions are already defined above
 
 // Test data
 const mockSessionId: SessionId = 'session_test123' as SessionId;
@@ -477,7 +478,7 @@ describe('useBatchManager Hook', () => {
       });
 
       expect(result.current.error).toBeNull();
-      // expect(result.current.retryCount).toBe(0); // retryCount property not available
+      // retryCount property doesn't exist on the hook interface
     });
   });
 
@@ -867,7 +868,7 @@ describe('useBatchManager Hook', () => {
 
       expect(status.currentBatchId).toBe(result.current.currentBatchId);
       expect(status.sessionId).toBe(result.current.sessionId);
-      // expect(status.isValid).toBe(false); // No resumes yet - property may not exist
+      expect(status.isValid).toBe(false); // No resumes yet
       expect(status.canProceedToAnalysis).toBe(false);
     });
 
