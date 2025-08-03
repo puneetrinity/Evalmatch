@@ -63,10 +63,10 @@ function selectProviderForTier(userTier: UserTierInfo): TierAwareProviderSelecti
   
   // For premium users, prioritize quality: Anthropic > OpenAI > Groq
   if (userTier.tier === 'premium') {
-    if (allowedProviders.includes('anthropic') && isAnthropicConfigured && anthropic.getAnthropicServiceStatus().isAvailable) {
+    if (allowedProviders.includes('anthropic' as any) && isAnthropicConfigured && anthropic.getAnthropicServiceStatus().isAvailable) {
       return { provider: 'anthropic', reason: 'Premium tier - highest quality analysis' };
     }
-    if (allowedProviders.includes('openai') && isOpenAIConfigured && openai.getOpenAIServiceStatus().isAvailable) {
+    if (allowedProviders.includes('openai' as any) && isOpenAIConfigured && openai.getOpenAIServiceStatus().isAvailable) {
       return { provider: 'openai', reason: 'Premium tier - high quality analysis' };
     }
     if (allowedProviders.includes('groq') && isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {

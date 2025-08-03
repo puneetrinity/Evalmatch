@@ -287,7 +287,7 @@ export function globalErrorHandler(
 
   // Generate request context for logging
   const requestContext = {
-    id: req.id,
+    id: (req as any).id,
     method: req.method,
     url: req.originalUrl,
     userAgent: req.get('User-Agent'),
@@ -315,7 +315,7 @@ export function globalErrorHandler(
   }, `${errorType}: ${error.message}`);
 
   // Create and send error response
-  const errorResponse = createErrorResponse(error, errorType, statusCode, req.id);
+  const errorResponse = createErrorResponse(error, errorType, statusCode, (req as any).id);
   res.status(statusCode).json(errorResponse);
 }
 

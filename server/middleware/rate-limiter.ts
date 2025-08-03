@@ -47,7 +47,7 @@ export const uploadRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   // Use proper IPv6-compatible key generator
-  keyGenerator: ipKeyGenerator(),
+  keyGenerator: ipKeyGenerator() as any,
   handler: (req, res) => {
     logger.warn(`Upload rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({

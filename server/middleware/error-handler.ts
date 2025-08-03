@@ -537,7 +537,7 @@ export function enhancedErrorHandler(
 
     // Create enhanced response
     const includeMetadata = error.statusCode && error.statusCode >= 500;
-    const errorResponse = createEnhancedErrorResponse(error, context, includeMetadata);
+    const errorResponse = createEnhancedErrorResponse(error, context, includeMetadata ? true : false);
 
     // Set appropriate headers
     res.set({
@@ -679,11 +679,6 @@ export function healthCheckWithErrors(req: Request, res: Response) {
 export {
   errorMetrics,
   circuitBreaker,
-  EnhancedErrorContext,
-  EnhancedErrorResponse,
-  ErrorMetrics,
-  CircuitBreakerState,
-  RetryConfig,
 };
 
 // Re-export from global error handler for convenience

@@ -178,7 +178,7 @@ async function getBatchOwnership(batchId: string, sessionId?: SessionId): Promis
       return null; // Batch doesn't exist
     }
     
-    const batchData = resumeResults[0];
+    const batchData = resumeResults[0] as any;
     const now = new Date();
     const createdAt = new Date(batchData.earliest_created);
     const lastAccessedAt = new Date(batchData.latest_updated);
@@ -202,19 +202,19 @@ async function getBatchOwnership(batchId: string, sessionId?: SessionId): Promis
     `;
     
     const integrityResults = await executeQuery(integrityQuery, [safeBatchId]);
-    const integrityData = integrityResults[0];
+    const integrityData = integrityResults[0] as any;
     
     // Batch should have consistent session and user IDs
     const metadataIntegrityCheck = 
-      integrityData.session_count === 1 && 
-      integrityData.user_count <= 1 &&
-      integrityData.total_resumes > 0;
+      (integrityData as any).session_count === 1 && 
+      (integrityData as any).user_count <= 1 &&
+      (integrityData as any).total_resumes > 0;
     
     return {
       batchId: safeBatchId,
-      sessionId: batchData.session_id as SessionId,
-      userId: batchData.user_id || undefined,
-      resumeCount: parseInt(batchData.resume_count),
+      sessionId: (batchData as any).session_id as SessionId,
+      userId: (batchData as any).user_id || undefined,
+      resumeCount: parseInt((batchData as any).resume_count),
       createdAt,
       lastAccessedAt,
       isOrphaned,
@@ -398,7 +398,7 @@ export async function validateBatchOwnership(
     
   } catch (error) {
     // Enhanced error handling for validation failures
-    const validationError = error instanceof AppError ? error : createError(
+    const validationError = (error instanceof Error && (error as any).isOperational) ? error : createError(
       'Internal batch validation error occurred',
       500,
       'BATCH_VALIDATION_ERROR',
@@ -430,7 +430,7 @@ export async function validateBatchOwnership(
       ownership: null,
       errors: [
         'Internal validation error occurred',
-        ...(validationError.message ? [validationError.message] : []),
+        ...((validationError as any).message ? [(validationError as any).message] : []),
       ],
       warnings: [
         ...warnings,
@@ -523,7 +523,7 @@ export function validateBatchAccess(accessType: 'read' | 'write' | 'delete' | 'c
       // Extract batch and session IDs from request
       const batchId = req.params.batchId || req.body.batchId || req.query.batchId as string;
       const sessionId = req.headers['x-session-id'] as SessionId || req.body.sessionId || req.query.sessionId as SessionId;
-      const userId = req.user?.id || req.body.userId || req.query.userId;
+      const userId = (req as any).user?.uid || req.body.userId || req.query.userId;
       
       if (!batchId) {
         const validationError = createValidationError(
@@ -676,7 +676,7 @@ export async function updateBatchAccess(batchId: string, sessionId: SessionId): 
     );
     
     // Check if any rows were actually updated
-    if (result.rowCount === 0) {
+    if ((result as any).rowCount === 0) {
       logger.warn('No resumes updated for batch access timestamp:', {
         batchId: safeBatchId.substring(0, 20) + '...',
         sessionId: safeSessionId.substring(0, 20) + '...',
@@ -685,7 +685,7 @@ export async function updateBatchAccess(batchId: string, sessionId: SessionId): 
     } else {
       logger.debug('Updated batch access timestamp:', {
         batchId: safeBatchId.substring(0, 20) + '...',
-        resumesUpdated: result.rowCount,
+        resumesUpdated: (result as any).rowCount,
       });
     }
     
@@ -727,4 +727,4 @@ declare global {
   }
 }
 
-export { BatchValidationResult, BatchOwnership, BatchSecurityContext };
+// Export types are defined above in the file

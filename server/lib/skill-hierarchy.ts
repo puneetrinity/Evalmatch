@@ -167,7 +167,8 @@ export async function initializeSkillHierarchy(): Promise<void> {
             })
             .onConflictDoNothing();
         } catch (error: unknown) {
-          if (!error.message?.includes('duplicate') && !error.message?.includes('unique')) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (!errorMessage?.includes('duplicate') && !errorMessage?.includes('unique')) {
             throw error;
           }
         }
@@ -238,11 +239,11 @@ export async function normalizeSkillWithHierarchy(skill: string): Promise<{
 
     // 3. Try fuzzy string matching
     const allSkills = await db.select().from(skillsTable);
-    const skillNames = allSkills.map(s => s.name);
+    const skillNames = allSkills.map((s: any) => s.name);
     const fuzzyMatch = stringSimilarity.findBestMatch(skill, skillNames);
 
     if (fuzzyMatch.bestMatch.rating > 0.7) {
-      const matchedSkill = allSkills.find(s => s.name === fuzzyMatch.bestMatch.target);
+      const matchedSkill = allSkills.find((s: any) => s.name === fuzzyMatch.bestMatch.target);
       if (matchedSkill) {
         const category = await db.select()
           .from(skillCategories)

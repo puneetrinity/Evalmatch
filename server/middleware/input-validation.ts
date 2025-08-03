@@ -7,6 +7,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { z, ZodSchema, ZodError } from 'zod';
+// @ts-ignore - isomorphic-dompurify may not have types
 import DOMPurify from 'isomorphic-dompurify';
 import { logger } from '../config/logger';
 

@@ -209,11 +209,11 @@ export function normalizeSkills(skills: SkillInput[]): NormalizedSkill[] {
     }
     
     // If skill is an object with a skill_name property
-    if (typeof skill === 'object' && skill !== null && typeof skill.skill_name === 'string') {
+    if (typeof skill === 'object' && skill !== null && 'skill_name' in skill && typeof (skill as any).skill_name === 'string') {
       return {
         ...skill,
-        skill: normalizeSkill(skill.skill_name),
-        skill_name: normalizeSkill(skill.skill_name)
+        skill: normalizeSkill((skill as any).skill_name),
+        skill_name: normalizeSkill((skill as any).skill_name)
       };
     }
     

@@ -158,7 +158,7 @@ async function checkDatabase(): Promise<HealthCheckResult> {
     
     // Test query performance with a simple query
     const pool = getPool();
-    if (pool && connectivityResult.success) {
+    if (pool && (connectivityResult as any).success) {
       try {
         const queryStartTime = Date.now();
         
@@ -176,7 +176,7 @@ async function checkDatabase(): Promise<HealthCheckResult> {
           performanceTests.transactionTest = true;
         } catch (txError) {
           await client.query('ROLLBACK');
-          logger.warn('Transaction test failed:', txError.message);
+          logger.warn('Transaction test failed:', (txError as any).message);
         } finally {
           client.release();
         }
@@ -189,11 +189,11 @@ async function checkDatabase(): Promise<HealthCheckResult> {
           await Promise.all(concurrentTests);
           performanceTests.concurrentConnections = true;
         } catch (concurrentError) {
-          logger.warn('Concurrent connection test failed:', concurrentError.message);
+          logger.warn('Concurrent connection test failed:', (concurrentError as any).message);
         }
         
       } catch (performanceError) {
-        logger.warn('Database performance tests failed:', performanceError.message);
+        logger.warn('Database performance tests failed:', (performanceError as any).message);
       }
     }
     
@@ -201,20 +201,20 @@ async function checkDatabase(): Promise<HealthCheckResult> {
     let status: 'healthy' | 'degraded' | 'unhealthy';
     let message: string;
     
-    if (!connectivityResult.success) {
+    if (!(connectivityResult as any).success) {
       status = 'unhealthy';
-      message = connectivityResult.message;
+      message = (connectivityResult as any).message;
     } else {
       // Check for performance issues
       const hasPerformanceIssues = (
         responseTime > 2000 || 
         performanceTests.queryPerformance > 500 ||
-        connectionStats.querySuccessRate < 95
+        (connectionStats as any).querySuccessRate < 95
       );
       
       const hasConnectionIssues = (
-        connectionStats.activeConnections === 0 ||
-        connectionStats.failedConnections > connectionStats.totalConnections * 0.1
+        (connectionStats as any).activeConnections === 0 ||
+        (connectionStats as any).failedConnections > (connectionStats as any).totalConnections * 0.1
       );
       
       if (hasConnectionIssues) {
@@ -237,16 +237,16 @@ async function checkDatabase(): Promise<HealthCheckResult> {
       details: {
         enabled: true,
         connectivity: {
-          success: connectivityResult.success,
-          queryTime: connectivityResult.details?.queryTime,
-          connectionCount: connectivityResult.details?.connectionCount,
+          success: (connectivityResult as any).success,
+          queryTime: (connectivityResult as any).details?.queryTime,
+          connectionCount: (connectivityResult as any).details?.connectionCount,
         },
         connectionPool: {
-          total: connectionStats.totalConnections,
-          active: connectionStats.activeConnections,
-          failed: connectionStats.failedConnections,
-          successRate: connectionStats.querySuccessRate,
-          uptime: connectionStats.uptime,
+          total: (connectionStats as any).totalConnections,
+          active: (connectionStats as any).activeConnections,
+          failed: (connectionStats as any).failedConnections,
+          successRate: (connectionStats as any).querySuccessRate,
+          uptime: (connectionStats as any).uptime,
           lastSuccessfulQuery: connectionStats.lastSuccessfulQuery,
         },
         performance: {

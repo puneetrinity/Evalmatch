@@ -106,12 +106,12 @@ router.get(
     try {
       const { batchId } = batchIdParamSchema.parse(req.params);
       const sessionId = req.headers['x-session-id'] as SessionId || req.query.sessionId as SessionId;
-      const userId = req.user?.id || req.user?.uid || req.query.userId as string;
+      const userId = (req as any).user?.uid || req.query.userId as string;
       
       logger.info('Batch validation request:', {
         batchId: batchId.substring(0, 20) + '...',
         sessionId: sessionId?.substring(0, 20) + '...',
-        userId: (req.user?.uid || req.user?.id || userId)?.substring(0, 10) + '...' || 'anonymous',
+        userId: ((req as any).user?.uid || userId)?.substring(0, 10) + '...' || 'anonymous',
         ip: req.ip,
       });
       
@@ -307,7 +307,7 @@ router.post(
       });
       
       // First, validate current batch state (without session ID check for claiming)
-      const currentOwnership = await validateBatchOwnership(batchId, sessionId);
+      const currentOwnership = await validateBatchOwnership(batchId, sessionId as SessionId);
       
       if (!currentOwnership.ownership) {
         return res.status(404).json({
@@ -378,7 +378,7 @@ router.post(
         success: true,
         message: `Successfully claimed batch with ${updateResults.length} resumes`,
         batchId,
-        newSessionId: sessionId,
+        newSessionId: sessionId as SessionId,
         resumeCount: updateResults.length,
         warnings: currentOwnership.warnings,
       };
