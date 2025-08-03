@@ -1,6 +1,6 @@
 /**
- * Test Setup Configuration
- * Runs before all tests to set up environment
+ * Jest Browser Test Setup
+ * Configures browser environment for React component and client-side tests
  */
 
 import '@testing-library/jest-dom';
@@ -11,7 +11,7 @@ dotenv.config({ path: '.env.test' });
 
 // Set test environment
 process.env.NODE_ENV = 'test';
-process.env.AUTH_BYPASS_MODE = 'true'; // Skip authentication in tests
+process.env.AUTH_BYPASS_MODE = 'true';
 process.env.DISABLE_EXTERNAL_SERVICES = 'true';
 process.env.MOCK_AI_PROVIDERS = 'true';
 
@@ -79,22 +79,29 @@ const sessionStorageMock = {
 };
 Object.defineProperty(global, 'sessionStorage', { value: sessionStorageMock });
 
+// Mock IndexedDB
+const indexedDBMock = {
+  open: jest.fn(),
+  deleteDatabase: jest.fn(),
+  cmp: jest.fn(),
+};
+Object.defineProperty(global, 'indexedDB', { value: indexedDBMock });
+
+// Mock crypto.subtle for checksums
+Object.defineProperty(global.crypto, 'subtle', {
+  value: {
+    digest: jest.fn().mockResolvedValue(new ArrayBuffer(32)),
+  },
+});
+
 // Global test configuration
 beforeAll(async () => {
-  // Ensure database is available
-  if (!process.env.DATABASE_URL && !process.env.TEST_DATABASE_URL) {
-    console.warn('⚠️  No test database URL provided. Some tests may fail.');
-  }
-
-  console.log('🧪 Test environment initialized');
-  console.log(`   Database: ${process.env.TEST_DATABASE_URL ? 'Test DB' : 'Main DB'}`);
-  console.log(`   Auth bypass: ${process.env.AUTH_BYPASS_MODE}`);
+  console.log('🧪 Browser test environment initialized');
 });
 
-// Global test cleanup
 afterAll(async () => {
-  console.log('🧹 Test cleanup completed');
+  console.log('🧹 Browser test cleanup completed');
 });
 
-// Increase timeout for integration tests
+// Increase timeout for React tests
 jest.setTimeout(30000);
