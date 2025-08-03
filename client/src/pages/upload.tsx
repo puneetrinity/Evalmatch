@@ -94,16 +94,15 @@ export default function UploadPage() {
       setSessionId(existingSessionId as SessionId);
       console.log(`Using existing upload session: ${existingSessionId}`);
       
-      // Use existing batch ID or create new one
+      // Always create a new batch ID for each upload page visit
+      const newBatchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      setCurrentBatchId(newBatchId);
+      localStorage.setItem('currentBatchId', newBatchId);
+      console.log(`Created new batch for session: ${newBatchId} (replacing: ${existingBatchId || 'none'})`);
+      
+      // Log if we're replacing an existing batch
       if (existingBatchId) {
-        setCurrentBatchId(existingBatchId);
-        console.log(`Using existing batch: ${existingBatchId}`);
-      } else {
-        // Create new batch ID for existing session
-        const newBatchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-        setCurrentBatchId(newBatchId);
-        localStorage.setItem('currentBatchId', newBatchId);
-        console.log(`Created new batch for existing session: ${newBatchId}`);
+        console.log(`Note: Previous batch ${existingBatchId} will no longer be used for new uploads`);
       }
     } else {
       // Generate a new random session ID if none exists
