@@ -66,14 +66,17 @@ export default function InterviewPage() {
   const resumeId = match ? parseInt(routeParams.resumeId) : 0;
   const jobId = match ? parseInt(routeParams.jobId) : 0;
   
-  // Get the current session ID from localStorage
+  // Get the current session ID and batch ID from localStorage
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [batchId, setBatchId] = useState<string | null>(null);
   
-  // Load session ID from localStorage when component mounts
+  // Load session ID and batch ID from localStorage when component mounts
   useEffect(() => {
     const storedSessionId = localStorage.getItem('currentUploadSession');
+    const storedBatchId = localStorage.getItem('currentBatchId');
     setSessionId(storedSessionId);
-    console.log(`Loaded upload session for interview questions: ${storedSessionId}`);
+    setBatchId(storedBatchId);
+    console.log(`Loaded upload session for interview questions: ${storedSessionId}, batch: ${storedBatchId}`);
   }, []);
   
   // Fetch interview questions
@@ -82,10 +85,14 @@ export default function InterviewPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: [`/api/analysis/interview-questions/${resumeId}/${jobId}`, sessionId],
+    queryKey: [`/api/analysis/interview-questions/${resumeId}/${jobId}`, sessionId, batchId],
     queryFn: async ({ queryKey }) => {
-      const url = sessionId 
-        ? `${queryKey[0]}?sessionId=${encodeURIComponent(sessionId)}`
+      const params = new URLSearchParams();
+      if (sessionId) params.append('sessionId', sessionId);
+      if (batchId) params.append('batchId', batchId);
+      
+      const url = params.toString() 
+        ? `${queryKey[0]}?${params.toString()}`
         : String(queryKey[0]);
       
       console.log(`Fetching interview questions from: ${url}`);
@@ -98,7 +105,7 @@ export default function InterviewPage() {
       
       return response.json();
     },
-    enabled: !!resumeId && !!jobId,
+    enabled: !!resumeId && !!jobId && sessionId !== null, // Wait for sessionId to be loaded
   });
 
   // Fetch analysis data to get missing skills details with authentication
