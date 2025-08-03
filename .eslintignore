@@ -1,0 +1,45 @@
+# Build directories
+build/
+dist/
+node_modules/
+
+# Generated files
+*.d.ts
+vite.config.ts
+jest.config.*
+drizzle.config.ts
+
+# Environment files
+.env*
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Coverage
+coverage/
+
+# Cache
+.cache/
+.vite/
+
+# Temporary files
+.tmp/
+temp/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Monitoring and performance reports
+monitoring-logs/
+performance-reports/
+railway-test-report.json
+performance-results.json
