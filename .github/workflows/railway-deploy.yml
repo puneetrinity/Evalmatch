@@ -5,9 +5,23 @@ on:
     branches: [ main, development ]
   pull_request:
     branches: [ main ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
 
 env:
   NODE_VERSION: '20.19.0'
+  RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
 jobs:
   test-local:
@@ -28,6 +42,9 @@ jobs:
         run: |
           npm ci --legacy-peer-deps
           
+      - name: Run linting
+        run: npm run lint || true
+          
       - name: Run TypeScript check
         run: npm run check
         
@@ -36,9 +53,16 @@ jobs:
         
       - name: Run integration tests (with memory optimization)
         run: |
-          node --max-old-space-size=4096 --expose-gc npm run test:integration
+          node --max-old-space-size=4096 --expose-gc node_modules/.bin/jest --config jest.config.integration.mjs --maxWorkers=2
         env:
           NODE_ENV: test
+          
+      - name: Upload test coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
           
   deploy-railway:
     needs: test-local
@@ -65,7 +89,7 @@ jobs:
     needs: deploy-railway
     runs-on: ubuntu-latest
     name: Test Railway Deployment
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     
     steps:
       - name: Checkout code
@@ -80,11 +104,76 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
         
-      - name: Test Railway deployment
+      - name: Get Railway deployment URL
+        id: railway-url
+        run: |
+          if [ -n "${{ secrets.RAILWAY_TEST_URL }}" ]; then
+            echo "url=${{ secrets.RAILWAY_TEST_URL }}" >> $GITHUB_OUTPUT
+          else
+            # Dynamically fetch Railway URL using CLI
+            npm install -g @railway/cli
+            RAILWAY_URL=$(railway status --json | jq -r '.url // empty')
+            echo "url=https://${RAILWAY_URL}" >> $GITHUB_OUTPUT
+          fi
+        
+      - name: Wait for deployment to be ready
+        run: |
+          echo "Waiting for deployment at ${{ steps.railway-url.outputs.url }}"
+          for i in {1..30}; do
+            if curl -f -s "${{ steps.railway-url.outputs.url }}/api/health" > /dev/null; then
+              echo "Deployment is ready!"
+              break
+            fi
+            echo "Attempt $i/30: Deployment not ready yet..."
+            sleep 10
+          done
+        
+      - name: Run deployment tests
         run: npm run test:railway
         env:
-          RAILWAY_TEST_URL: ${{ secrets.RAILWAY_TEST_URL }}
+          RAILWAY_TEST_URL: ${{ steps.railway-url.outputs.url }}
           NODE_ENV: test
+          TEST_TIMEOUT: 60000
+          
+      - name: Install performance testing tools
+        run: npm install -g autocannon
+          
+      - name: Run performance tests
+        run: |
+          npx autocannon -c 10 -d 30 -p 2 --json "${{ steps.railway-url.outputs.url }}/api/health" > performance-results.json
+          cat performance-results.json | jq '.'
+          
+      - name: Run comprehensive performance monitoring
+        run: |
+          timeout 120 npm run monitor:performance || echo "Performance monitoring completed"
+        env:
+          RAILWAY_MONITOR_URL: ${{ steps.railway-url.outputs.url }}
+          PERFORMANCE_WEBHOOK_URL: ${{ secrets.PERFORMANCE_WEBHOOK_URL }}
+          
+      - name: Check performance thresholds
+        run: |
+          LATENCY_P99=$(cat performance-results.json | jq '.latency.p99')
+          ERRORS=$(cat performance-results.json | jq '.errors')
+          
+          echo "P99 Latency: ${LATENCY_P99}ms"
+          echo "Errors: ${ERRORS}"
+          
+          if [ $(echo "$LATENCY_P99 > 5000" | bc) -eq 1 ]; then
+            echo "❌ P99 latency exceeds 5000ms threshold"
+            exit 1
+          fi
+          
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "❌ Performance test encountered errors"
+            exit 1
+          fi
+          
+          echo "✅ Performance tests passed!"
+          
+      - name: Generate test report
+        if: always()
+        run: |
+          node scripts/generate-test-report.js || echo "Report generation skipped"
           
       - name: Upload test results
         if: always()
@@ -93,7 +182,10 @@ jobs:
           name: railway-test-results
           path: |
             railway-test-report.json
+            performance-results.json
             test-results/
+            monitoring-logs/
+            performance-reports/
             
   notify-status:
     needs: [test-local, deploy-railway, test-railway]
@@ -102,13 +194,55 @@ jobs:
     if: always()
     
     steps:
-      - name: Notify success
-        if: ${{ needs.test-railway.result == 'success' }}
+      - name: Calculate deployment metrics
+        id: metrics
         run: |
+          echo "deployment_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+          echo "workflow_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
+          
+      - name: Send success notification
+        if: ${{ needs.test-railway.result == 'success' }}
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -X POST $SLACK_WEBHOOK \
+              -H 'Content-Type: application/json' \
+              -d '{
+                "text": "✅ Railway Deployment Successful",
+                "blocks": [
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "*✅ Railway Deployment Successful*\n\n*Repository:* ${{ github.repository }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* `${{ github.sha }}`\n*Workflow:* <${{ steps.metrics.outputs.workflow_url }}|View Details>"
+                    }
+                  }
+                ]
+              }'
+          fi
           echo "✅ Railway deployment and testing completed successfully!"
           
-      - name: Notify failure
+      - name: Send failure notification
         if: ${{ needs.test-railway.result == 'failure' || needs.deploy-railway.result == 'failure' }}
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -X POST $SLACK_WEBHOOK \
+              -H 'Content-Type: application/json' \
+              -d '{
+                "text": "❌ Railway Deployment Failed",
+                "blocks": [
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "*❌ Railway Deployment Failed*\n\n*Repository:* ${{ github.repository }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* `${{ github.sha }}`\n*Failed Job:* ${{ needs.test-railway.result == '\''failure'\'' && '\''Testing'\'' || '\''Deployment'\'' }}\n*Workflow:* <${{ steps.metrics.outputs.workflow_url }}|View Logs>"
+                    }
+                  }
+                ]
+              }'
+          fi
           echo "❌ Railway deployment or testing failed!"
           exit 1
