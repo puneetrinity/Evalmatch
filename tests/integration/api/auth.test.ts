@@ -209,7 +209,8 @@ describe('Authentication and Authorization', () => {
     test('should validate user ownership in analysis operations', async () => {
       const testJob = await DatabaseTestHelper.createTestJobDescription({
         userId: testUser.uid,
-        title: 'Analysis Test Job'
+        title: 'Analysis Test Job',
+        description: 'Job description for analysis testing with proper authentication'
       });
 
       await DatabaseTestHelper.createTestResume({
@@ -537,7 +538,8 @@ describe('Authentication and Authorization', () => {
       // Create test data first
       const testJob = await DatabaseTestHelper.createTestJobDescription({
         userId: testUser.uid,
-        title: 'Brute Force Test'
+        title: 'Brute Force Test',
+        description: 'Test job description for brute force prevention testing'
       });
 
       // Try to access with many different invalid tokens

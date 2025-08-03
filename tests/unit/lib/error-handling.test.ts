@@ -56,12 +56,11 @@ Object.defineProperty(window, 'navigator', {
   writable: true,
 });
 
-Object.defineProperty(window, 'location', {
-  value: {
-    href: 'https://test.example.com/page',
-  },
-  writable: true,
-});
+// Mock window.location safely
+delete (window as any).location;
+(window as any).location = {
+  href: 'https://test.example.com/page',
+};
 
 // Mock console methods
 const originalConsole = { ...console };

@@ -23,21 +23,22 @@ import {
   progressiveRecovery,
   cancelRecovery,
 } from '@/lib/batch-recovery';
-import { BatchError } from '@/lib/batch-error-handling';
+import { BatchError, BatchErrorType } from '@/hooks/useBatchManager';
 import { 
   PersistedBatchState, 
   restoreBatchState,
   STORAGE_VERSION 
 } from '@/lib/batch-persistence';
+import type { SessionId } from '@shared/api-contracts';
 
 // Mock types that don't exist
 interface BatchState {
   currentBatchId: string | null;
-  sessionId: string | null;
+  sessionId: SessionId | null;
   status: string;
   resumeCount: number;
   isLoading: boolean;
-  error: any | null;
+  error: BatchError | null;
   lastValidated: Date | null;
   retryCount: number;
   ownership: any | null;
@@ -99,7 +100,7 @@ afterAll(() => {
 // ===== TEST DATA =====
 
 const mockBatchId = 'batch_test123';
-const mockSessionId = 'session_test456';
+const mockSessionId = 'session_test456' as SessionId;
 const mockUserId = 'user_test789';
 
 const mockBatchState: BatchState = {
@@ -535,7 +536,13 @@ describe('Batch Recovery System', () => {
     });
 
     it('should preserve errors during conflict resolution', async () => {
-      const localError = new Error('Local error');
+      const localError: BatchError = {
+        type: 'network_error',
+        message: 'Local error',
+        retryable: true,
+        suggestions: ['Check connection'],
+        timestamp: new Date()
+      };
       const conflictInfo: ConflictInfo = {
         type: 'data',
         localState: {

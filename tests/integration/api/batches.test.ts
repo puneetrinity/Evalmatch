@@ -376,7 +376,8 @@ describe('Batch Management API', () => {
       // Create analysis result associated with the batch
       const jobDescription = await DatabaseTestHelper.createTestJobDescription({
         userId: testUser.uid,
-        title: 'Test Job'
+        title: 'Test Job',
+        description: 'Test job description for batch analysis testing'
       });
 
       const resume = await DatabaseTestHelper.createTestResume({
@@ -610,7 +611,8 @@ describe('Batch Management API', () => {
       // Create analysis for one resume
       const jobDescription = await DatabaseTestHelper.createTestJobDescription({
         userId: testUser.uid,
-        title: 'Test Job'
+        title: 'Test Job',
+        description: 'Test job description for batch analysis testing'
       });
 
       await DatabaseTestHelper.createTestAnalysisResult({

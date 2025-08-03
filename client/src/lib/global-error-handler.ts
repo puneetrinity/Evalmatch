@@ -78,7 +78,7 @@ class GlobalErrorManager {
       const connection = (navigator as any).connection;
       
       const updateConnectionQuality = () => {
-        if (!this.state.isOnline) {
+        if (!this.state.isOnline || !navigator.onLine) {
           this.state.connectionQuality = 'offline';
         } else if (connection.effectiveType === '4g') {
           this.state.connectionQuality = 'excellent';

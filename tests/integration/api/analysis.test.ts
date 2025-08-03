@@ -716,7 +716,8 @@ describe('Analysis API', () => {
     test('should handle malformed request data', async () => {
       const job = await DatabaseTestHelper.createTestJobDescription({
         userId: testUser.uid,
-        title: 'Test Job'
+        title: 'Test Job',
+        description: 'Test job description for malformed data handling'
       });
 
       const response = await request(app)

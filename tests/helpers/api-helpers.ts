@@ -27,13 +27,15 @@ export interface TestUser {
 export interface TestResume {
   id?: number;
   userId: string;
-  sessionId: string;
-  batchId: string;
+  sessionId?: string;
+  batchId?: string;
   filename: string;
   content?: string;
   fileSize?: number;
   fileType?: string;
   skills?: string[];
+  experience?: string;
+  education?: string[];
   analyzedData?: any;
   createdAt?: string;
 }
@@ -46,6 +48,7 @@ export interface TestJobDescription {
   description: string;
   requirements?: string[];
   skills?: string[];
+  experience?: string;
   analyzedData?: any;
   createdAt?: string;
 }
@@ -59,6 +62,12 @@ export interface TestAnalysisResult {
   overallMatch?: number;
   skillsMatch?: any;
   matchPercentage?: number;
+  matchedSkills?: string[];
+  missingSkills?: string[];
+  candidateStrengths?: string[];
+  candidateWeaknesses?: string[];
+  confidenceLevel?: number;
+  analysis?: any;
   createdAt?: string;
 }
 
@@ -446,21 +455,23 @@ export class MockDatabase {
       content: 'Mock resume content',
       fileSize: 1024,
       fileType: 'application/pdf',
+      sessionId: resumeData.sessionId || `session_${Date.now()}_${this.nextId}`,
+      batchId: resumeData.batchId || `batch_${Date.now()}_${this.nextId}`,
       createdAt: new Date().toISOString(),
       ...resumeData,
     };
     this.resumes.set(resume.id!, resume);
     
     // Update batch resume count
-    if (resumeData.batchId) {
-      const batch = this.batches.get(resumeData.batchId);
+    if (resume.batchId) {
+      const batch = this.batches.get(resume.batchId);
       if (batch) {
         batch.resumeCount = (batch.resumeCount || 0) + 1;
       } else {
-        this.batches.set(resumeData.batchId, {
-          batchId: resumeData.batchId,
-          sessionId: resumeData.sessionId,
-          userId: resumeData.userId,
+        this.batches.set(resume.batchId, {
+          batchId: resume.batchId,
+          sessionId: resume.sessionId,
+          userId: resume.userId,
           resumeCount: 1,
           createdAt: new Date(),
           lastAccessedAt: new Date(),
