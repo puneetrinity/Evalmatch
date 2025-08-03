@@ -281,9 +281,17 @@ describe('ErrorBoundary Component', () => {
 
     it('should provide navigation options for page-level errors', async () => {
       const user = userEvent.setup();
-      const originalLocation = window.location;
-      delete (window as any).location;
-      window.location = { ...originalLocation, href: '' } as any;
+      const mockLocation = {
+        href: '',
+        assign: jest.fn(),
+        reload: jest.fn(),
+        replace: jest.fn(),
+      };
+      
+      Object.defineProperty(window, 'location', {
+        value: mockLocation,
+        writable: true,
+      });
 
       render(
         <ErrorBoundary level="page">
@@ -294,9 +302,7 @@ describe('ErrorBoundary Component', () => {
       const homeButton = screen.getByText('Go to Home');
       await user.click(homeButton);
 
-      expect(window.location.href).toBe('/');
-
-      window.location = originalLocation;
+      expect(mockLocation.href).toBe('/');
     });
 
     it('should handle props change recovery', () => {

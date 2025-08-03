@@ -26,6 +26,9 @@ export default {
   },
   extensionsToTreatAsEsm: ['.ts', '.tsx'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
+  transformIgnorePatterns: [
+    'node_modules/(?!(wouter)/)'
+  ],
   testTimeout: 30000,
   clearMocks: true,
   restoreMocks: true,

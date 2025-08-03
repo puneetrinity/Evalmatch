@@ -40,22 +40,20 @@ const createTestQueryClient = () => new QueryClient({
   },
 });
 
-// Mock toast notifications
-const mockToast = jest.fn();
-jest.mock('@/hooks/use-toast', () => ({
-  useToast: () => ({
-    toast: mockToast,
-  }),
-  toast: mockToast,
-}));
-
 // Mock API requests
-const mockApiRequest = jest.fn();
 jest.mock('@/lib/queryClient', () => ({
-  apiRequest: mockApiRequest,
+  apiRequest: jest.fn(),
   queryClient: {
     invalidateQueries: jest.fn(),
   },
+}));
+
+// Mock toast notifications
+jest.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({
+    toast: jest.fn(),
+  }),
+  toast: jest.fn(),
 }));
 
 // Mock localStorage
@@ -92,7 +90,8 @@ const createWrapper = () => {
   );
 };
 
-// Mock functions are already defined above
+const mockApiRequest = apiRequest as jest.MockedFunction<typeof apiRequest>;
+const mockToast = toast as jest.MockedFunction<typeof toast>;
 
 // Test data
 const mockSessionId: SessionId = 'session_test123' as SessionId;

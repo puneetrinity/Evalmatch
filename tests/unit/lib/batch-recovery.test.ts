@@ -32,10 +32,19 @@ import {
 
 // Mock types that don't exist
 interface BatchState {
-  currentBatchId: string;
-  sessionId: string;
+  currentBatchId: string | null;
+  sessionId: string | null;
   status: string;
   resumeCount: number;
+  isLoading: boolean;
+  error: any | null;
+  lastValidated: Date | null;
+  retryCount: number;
+  ownership: any | null;
+  securityFlags: string[];
+  canClaim: boolean;
+  isOrphaned: boolean;
+  serverValidated: boolean;
 }
 
 // Mock logger

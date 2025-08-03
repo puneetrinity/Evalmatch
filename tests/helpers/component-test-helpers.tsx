@@ -57,7 +57,7 @@ const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 // Mock console methods
-const mockConsole = {
+export const mockConsole = {
   log: jest.fn(),
   error: jest.fn(),
   warn: jest.fn(),
@@ -120,7 +120,7 @@ jest.mock('@/hooks/use-steps', () => ({
 }));
 
 // Mock auth context
-const mockAuthContext = {
+export const mockAuthContext = {
   user: null,
   isAuthenticated: false,
   loading: false,

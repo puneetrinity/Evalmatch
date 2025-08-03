@@ -11,6 +11,7 @@ export const TEST_CONFIG = {
   timeout: 30000,
   dbConnectionString: process.env.TEST_DATABASE_URL || 'sqlite::memory:',
   jwtSecret: 'test-jwt-secret-key',
+  maxFileSize: 10 * 1024 * 1024, // 10MB
 };
 
 // Test user interface
@@ -19,6 +20,7 @@ export interface TestUser {
   email: string;
   displayName: string;
   emailVerified: boolean;
+  firebaseToken?: string;
 }
 
 // Test resume interface
@@ -31,6 +33,8 @@ export interface TestResume {
   content?: string;
   fileSize?: number;
   fileType?: string;
+  skills?: string[];
+  analyzedData?: any;
   createdAt?: string;
 }
 
@@ -41,6 +45,8 @@ export interface TestJobDescription {
   title: string;
   description: string;
   requirements?: string[];
+  skills?: string[];
+  analyzedData?: any;
   createdAt?: string;
 }
 
@@ -52,6 +58,7 @@ export interface TestAnalysisResult {
   jobDescriptionId: number;
   overallMatch?: number;
   skillsMatch?: any;
+  matchPercentage?: number;
   createdAt?: string;
 }
 
@@ -232,9 +239,9 @@ export class ResponseValidator {
     }
   }
 
-  static validateBatchResponse(response: any, expectedBatchId: string) {
+  static validateBatchResponse(response: any, expectedBatchId?: string) {
     this.validateSuccessResponse(response);
-    if (response.body.data?.batchId !== expectedBatchId) {
+    if (expectedBatchId && response.body.data?.batchId !== expectedBatchId) {
       throw new Error(`Expected batchId ${expectedBatchId}, got ${response.body.data?.batchId}`);
     }
     if (response.body.data?.valid === undefined) {
@@ -256,6 +263,14 @@ export class ResponseValidator {
     if (!response.body.data?.metadata) {
       throw new Error('Expected metadata property in response data');
     }
+  }
+
+  static validateResumeResponse(response: any) {
+    this.validateSuccessResponse(response);
+  }
+
+  static validateJobResponse(response: any) {
+    this.validateSuccessResponse(response);
   }
 }
 
@@ -285,6 +300,25 @@ export class PerformanceTestHelper {
     
     console.log(`${requestCount} requests completed in ${totalDuration}ms (avg: ${averageDuration.toFixed(2)}ms)`);
     return { responses, totalDuration, averageDuration };
+  }
+
+  static async testConcurrentRequests(
+    requestFn: () => Promise<any>,
+    concurrencyLevel: number
+  ): Promise<any[]> {
+    const promises = Array(concurrencyLevel).fill(null).map(() => requestFn());
+    return Promise.all(promises);
+  }
+}
+
+// File testing utilities
+export class FileTestHelper {
+  static createTestFile(filename: string, size: number = 1024): Buffer {
+    return Buffer.alloc(size, 'test content');
+  }
+
+  static createLargeFile(size: number): Buffer {
+    return Buffer.alloc(size, 'x');
   }
 }
 
