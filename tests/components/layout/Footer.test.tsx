@@ -22,12 +22,12 @@ import {
   cleanupTest,
   testKeyboardNavigation,
   checkAriaAttributes,
-} from '@/tests/helpers/component-test-helpers';
+} from '../../helpers/component-test-helpers';
 
 // ===== MOCK SETUP =====
 
 // Mock Link component from wouter
-vi.mock('wouter', () => ({
+jest.mock('wouter', () => ({
   Link: ({ href, children, className }: any) => (
     <a href={href} className={className} data-testid="wouter-link">
       {children}
@@ -102,13 +102,13 @@ describe('Footer Component', () => {
     it('should handle year transitions correctly', () => {
       // Mock Date to return a specific year
       const mockDate = new Date('2025-01-01');
-      vi.spyOn(global, 'Date').mockImplementation(() => mockDate);
+      jest.spyOn(global, 'Date').mockImplementation(() => mockDate);
 
       render(<Footer />);
 
       expect(screen.getByText('© 2025 EvalMatchAI. All rights reserved.')).toBeInTheDocument();
 
-      vi.restoreAllMocks();
+      jest.restoreAllMocks();
     });
 
     it('should format copyright text correctly', () => {
@@ -121,13 +121,13 @@ describe('Footer Component', () => {
     it('should handle different years correctly', () => {
       // Test with year 2030
       const futureDate = new Date('2030-06-15');
-      vi.spyOn(global, 'Date').mockImplementation(() => futureDate);
+      jest.spyOn(global, 'Date').mockImplementation(() => futureDate);
 
       render(<Footer />);
 
       expect(screen.getByText('© 2030 EvalMatchAI. All rights reserved.')).toBeInTheDocument();
 
-      vi.restoreAllMocks();
+      jest.restoreAllMocks();
     });
   });
 
@@ -439,7 +439,7 @@ describe('Footer Component', () => {
     it('should handle Date constructor errors gracefully', () => {
       // Mock Date to throw an error
       const originalDate = global.Date;
-      global.Date = vi.fn(() => {
+      global.Date = jest.fn(() => {
         throw new Error('Date error');
       }) as any;
 
@@ -535,7 +535,7 @@ describe('Footer Component', () => {
     });
 
     it('should create Date object efficiently', () => {
-      const dateSpy = vi.spyOn(global, 'Date');
+      const dateSpy = jest.spyOn(global, 'Date');
 
       render(<Footer />);
 

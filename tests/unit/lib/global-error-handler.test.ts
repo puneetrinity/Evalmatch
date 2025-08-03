@@ -80,12 +80,11 @@ Object.defineProperty(navigator, 'connection', {
 });
 
 // Mock window location
-Object.defineProperty(window, 'location', {
-  value: {
-    reload: jest.fn(),
-  },
-  writable: true,
-});
+const mockReload = jest.fn();
+delete (window as any).location;
+(window as any).location = {
+  reload: mockReload,
+};
 
 // Mock caches API
 const mockCaches = {
@@ -877,7 +876,7 @@ describe('Global Error Handler', () => {
 
       refreshAction!.action();
 
-      expect(window.location.reload).toHaveBeenCalled();
+      expect(mockReload).toHaveBeenCalled();
     });
 
     it('should execute clear cache action correctly', async () => {
@@ -893,7 +892,7 @@ describe('Global Error Handler', () => {
       expect(mockCaches.delete).toHaveBeenCalledWith('cache1');
       expect(mockCaches.delete).toHaveBeenCalledWith('cache2');
       expect(mockStorage.clear).toHaveBeenCalledTimes(2); // localStorage + sessionStorage
-      expect(window.location.reload).toHaveBeenCalled();
+      expect(mockReload).toHaveBeenCalled();
     });
 
     it('should handle caches API not available', async () => {
@@ -905,7 +904,7 @@ describe('Global Error Handler', () => {
 
       await expect(clearCacheAction!.action()).resolves.not.toThrow();
 
-      expect(window.location.reload).toHaveBeenCalled();
+      expect(mockReload).toHaveBeenCalled();
 
       // Restore caches for other tests
       (window as any).caches = mockCaches;

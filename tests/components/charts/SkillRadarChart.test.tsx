@@ -21,12 +21,12 @@ import {
   setupTest,
   cleanupTest,
   checkAriaAttributes,
-} from '@/tests/helpers/component-test-helpers';
+} from '../../helpers/component-test-helpers';
 
 // ===== MOCK RECHARTS =====
 
 // Mock Recharts components
-vi.mock('recharts', () => ({
+jest.mock('recharts', () => ({
   Radar: ({ dataKey, stroke, fill, fillOpacity }: any) => (
     <g data-testid="radar" data-datakey={dataKey} data-stroke={stroke} data-fill={fill} data-fillopacity={fillOpacity}>
       <path d="M0,0 L100,100" />
@@ -57,8 +57,8 @@ vi.mock('recharts', () => ({
 }));
 
 // Mock mobile hook
-vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: vi.fn(() => false),
+jest.mock('@/hooks/use-mobile', () => ({
+  useIsMobile: jest.fn(() => false),
 }));
 
 // ===== TEST DATA =====
@@ -183,7 +183,7 @@ describe('SkillRadarChart Component', () => {
     });
 
     it('should filter out invalid data', () => {
-      render(<SkillRadarChart matchedSkills={invalidSkillsData} />);
+      render(<SkillRadarChart matchedSkills={invalidSkillsData as any} />);
 
       // Should render empty state since all data is invalid
       expect(screen.getByText('No skill data available')).toBeInTheDocument();
@@ -191,7 +191,7 @@ describe('SkillRadarChart Component', () => {
     });
 
     it('should handle mixed valid and invalid data', () => {
-      render(<SkillRadarChart matchedSkills={mixedValidInvalidData} />);
+      render(<SkillRadarChart matchedSkills={mixedValidInvalidData as any} />);
 
       const chart = screen.getByTestId('radar-chart');
       // Should only count valid items (3 out of 5)
@@ -471,7 +471,7 @@ describe('SkillRadarChart Component', () => {
     });
 
     it('should handle console logging gracefully', () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
       render(<SkillRadarChart matchedSkills={validSkillsData} />);
 

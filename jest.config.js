@@ -12,6 +12,7 @@ export default {
     '^@shared/(.*)$': '<rootDir>/shared/$1',
     '^@server/(.*)$': '<rootDir>/server/$1',
     '^@/(.*)$': '<rootDir>/client/src/$1',
+    '^@/tests/(.*)$': '<rootDir>/tests/$1',
   },
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {

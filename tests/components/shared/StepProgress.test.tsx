@@ -21,7 +21,7 @@ import {
   setupTest,
   cleanupTest,
   checkAriaAttributes,
-} from '@/tests/helpers/component-test-helpers';
+} from '../../helpers/component-test-helpers';
 
 // ===== TEST DATA =====
 

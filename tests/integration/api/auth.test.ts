@@ -13,7 +13,7 @@ import {
   TestSuiteHelper,
   TEST_CONFIG,
   TestUser
-} from '../helpers/api-helpers.js';
+} from '../../helpers/api-helpers';
 
 // Mock the server setup
 let app: Express;
@@ -423,12 +423,21 @@ describe('Authentication and Authorization', () => {
       ];
 
       for (const endpoint of testEndpoints) {
-        const response = await request(app)
-          [endpoint.method.toLowerCase() as keyof request.SuperTest<request.Test>](endpoint.path)
-          .set(MockAuth.generateAuthHeaders(testUser));
+        const method = endpoint.method.toLowerCase();
+        let response;
+        
+        if (method === 'get') {
+          response = await request(app).get(endpoint.path).set(MockAuth.generateAuthHeaders(testUser));
+        } else if (method === 'post') {
+          response = await request(app).post(endpoint.path).set(MockAuth.generateAuthHeaders(testUser));
+        } else if (method === 'put') {
+          response = await request(app).put(endpoint.path).set(MockAuth.generateAuthHeaders(testUser));
+        } else if (method === 'delete') {
+          response = await request(app).delete(endpoint.path).set(MockAuth.generateAuthHeaders(testUser));
+        }
 
-        expect([200, 404]).toContain(response.status);
-        expect(response.status).not.toBe(401);
+        expect([200, 404]).toContain(response?.status);
+        expect(response?.status).not.toBe(401);
       }
     });
   });

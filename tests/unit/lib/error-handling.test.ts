@@ -623,7 +623,11 @@ describe('Error Handling Utilities', () => {
       it('should convert 500 server errors', () => {
         const response = new Response('Internal Server Error', { 
           status: 500,
-          url: 'https://api.example.com/test',
+        });
+        // Mock the url property on the response
+        Object.defineProperty(response, 'url', {
+          value: 'https://api.example.com/test',
+          writable: true,
         });
         const error = convertHttpError(response) as NetworkError;
 

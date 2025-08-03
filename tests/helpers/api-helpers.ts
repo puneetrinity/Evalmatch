@@ -453,7 +453,6 @@ export class MockDatabase {
   static async createJobDescription(jobData: Omit<TestJobDescription, 'id'>): Promise<TestJobDescription> {
     const job: TestJobDescription = {
       id: this.nextId++,
-      description: 'Test job description',
       requirements: ['JavaScript', 'React'],
       createdAt: new Date().toISOString(),
       ...jobData,

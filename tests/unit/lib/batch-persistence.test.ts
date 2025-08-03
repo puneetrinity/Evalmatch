@@ -24,8 +24,13 @@ import {
   getStorageInfo,
   clearAllPersistedData,
 } from '@/lib/batch-persistence';
-import { BatchState } from '@/lib/batch-error-handling';
-import { logger } from '@/lib/error-handling';
+// Mock types that don't exist
+interface BatchState {
+  currentBatchId: string;
+  sessionId: string;
+  status: string;
+  resumeCount: number;
+}
 
 // ===== MOCKS =====
 
@@ -212,9 +217,9 @@ const setupMockIndexedDB = (shouldSucceed = true) => {
   };
 
   const mockRequest = {
-    onsuccess: null,
-    onerror: null,
-    onupgradeneeded: null,
+    onsuccess: null as any,
+    onerror: null as any,
+    onupgradeneeded: null as any,
     result: mockDB,
   };
 
@@ -373,9 +378,9 @@ describe('Batch Persistence System', () => {
 
     it('should handle IndexedDB connection errors', async () => {
       const mockRequest = {
-        onsuccess: null,
-        onerror: null,
-        onupgradeneeded: null,
+        onsuccess: null as any,
+        onerror: null as any,
+        onupgradeneeded: null as any,
         error: new Error('Connection failed'),
       };
 

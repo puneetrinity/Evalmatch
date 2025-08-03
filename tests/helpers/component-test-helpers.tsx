@@ -15,7 +15,7 @@ import { render, RenderOptions, RenderResult } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { Router } from 'wouter';
-import { vi, Mock, MockedFunction } from 'vitest';
+import { jest, Mock, MockedFunction } from '@jest/globals';
 
 // Types
 import type { SessionId, ResumeId, JobId, ApiResult } from '@shared/api-contracts';
@@ -24,12 +24,12 @@ import type { SessionId, ResumeId, JobId, ApiResult } from '@shared/api-contract
 
 // Mock localStorage
 const mockLocalStorage = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
   length: 0,
-  key: vi.fn(),
+  key: jest.fn(),
 };
 
 Object.defineProperty(window, 'localStorage', {
@@ -39,12 +39,12 @@ Object.defineProperty(window, 'localStorage', {
 
 // Mock sessionStorage
 const mockSessionStorage = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
   length: 0,
-  key: vi.fn(),
+  key: jest.fn(),
 };
 
 Object.defineProperty(window, 'sessionStorage', {
@@ -53,21 +53,21 @@ Object.defineProperty(window, 'sessionStorage', {
 });
 
 // Mock fetch for API requests
-const mockFetch = vi.fn();
+const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 // Mock console methods
 const mockConsole = {
-  log: vi.fn(),
-  error: vi.fn(),
-  warn: vi.fn(),
-  info: vi.fn(),
-  debug: vi.fn(),
+  log: jest.fn(),
+  error: jest.fn(),
+  warn: jest.fn(),
+  info: jest.fn(),
+  debug: jest.fn(),
 };
 
 // Mock toast notifications
-const mockToast = vi.fn();
-vi.mock('@/hooks/use-toast', () => ({
+const mockToast = jest.fn();
+jest.mock('@/hooks/use-toast', () => ({
   useToast: () => ({
     toast: mockToast,
   }),
@@ -76,17 +76,17 @@ vi.mock('@/hooks/use-toast', () => ({
 
 // Mock auth service
 const mockAuthService = {
-  getAuthToken: vi.fn().mockResolvedValue('mock-auth-token'),
-  getCurrentUser: vi.fn().mockResolvedValue(null),
-  signOut: vi.fn().mockResolvedValue(void 0),
+  getAuthToken: jest.fn().mockResolvedValue('mock-auth-token'),
+  getCurrentUser: jest.fn().mockResolvedValue(null),
+  signOut: jest.fn().mockResolvedValue(void 0),
 };
 
-vi.mock('@/lib/firebase', () => ({
+jest.mock('@/lib/firebase', () => ({
   authService: mockAuthService,
 }));
 
 // Mock file utils
-vi.mock('@/lib/file-utils', () => ({
+jest.mock('@/lib/file-utils', () => ({
   formatFileSize: (size: number) => `${Math.round(size / 1024)}KB`,
   getFileIcon: (type: string) => type.includes('pdf') ? 'fa-file-pdf' : 'fa-file',
   isFileAllowed: (file: File) => ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type),
@@ -96,7 +96,7 @@ vi.mock('@/lib/file-utils', () => ({
 }));
 
 // Mock useSteps hook
-vi.mock('@/hooks/use-steps', () => ({
+jest.mock('@/hooks/use-steps', () => ({
   useSteps: (steps: string[], initialStep = 0) => ({
     steps: steps.map((title, index) => ({
       id: `step-${index + 1}`,
@@ -113,9 +113,9 @@ vi.mock('@/hooks/use-steps', () => ({
     currentStepIndex: initialStep,
     isFirstStep: initialStep === 0,
     isLastStep: initialStep === steps.length - 1,
-    goToNextStep: vi.fn(),
-    goToPreviousStep: vi.fn(),
-    goToStep: vi.fn(),
+    goToNextStep: jest.fn(),
+    goToPreviousStep: jest.fn(),
+    goToStep: jest.fn(),
   }),
 }));
 
@@ -124,19 +124,19 @@ const mockAuthContext = {
   user: null,
   isAuthenticated: false,
   loading: false,
-  signIn: vi.fn(),
-  signOut: vi.fn(),
-  signUp: vi.fn(),
+  signIn: jest.fn(),
+  signOut: jest.fn(),
+  signUp: jest.fn(),
 };
 
-vi.mock('@/hooks/use-auth', () => ({
+jest.mock('@/hooks/use-auth', () => ({
   useAuth: () => mockAuthContext,
 }));
 
 // Mock location hook
-const mockLocation = ['/upload', vi.fn()];
-vi.mock('wouter', async () => {
-  const actual = await vi.importActual('wouter');
+const mockLocation = ['/upload', jest.fn()];
+jest.mock('wouter', async () => {
+  const actual = await jest.importActual('wouter');
   return {
     ...actual,
     useLocation: () => mockLocation,
@@ -566,7 +566,7 @@ export function simulateAuthError(): void {
  * Resets all mocks to their default state
  */
 export function resetAllMocks(): void {
-  vi.clearAllMocks();
+  jest.clearAllMocks();
   mockFetch.mockClear();
   clearMockLocalStorage();
   mockSessionStorage.getItem.mockReturnValue(null);
@@ -585,7 +585,7 @@ export function resetAllMocks(): void {
   
   // Reset location mock
   mockLocation[0] = '/upload';
-  mockLocation[1] = vi.fn();
+  mockLocation[1] = jest.fn();
 }
 
 /**

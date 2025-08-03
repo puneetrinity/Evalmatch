@@ -26,12 +26,12 @@ import {
   checkAriaAttributes,
   mockAuthContext,
   mockLocation,
-} from '@/tests/helpers/component-test-helpers';
+} from '../../helpers/component-test-helpers';
 
 // ===== MOCK SETUP =====
 
 // Mock Link component from wouter
-vi.mock('wouter', () => ({
+jest.mock('wouter', () => ({
   Link: ({ href, children, className }: any) => (
     <a href={href} className={className} data-testid="wouter-link">
       {children}
@@ -40,7 +40,7 @@ vi.mock('wouter', () => ({
 }));
 
 // Mock auth components
-vi.mock('@/components/auth', () => ({
+jest.mock('@/components/auth', () => ({
   UserMenu: () => <div data-testid="user-menu">User Menu</div>,
   AuthModal: ({ isOpen, onClose, defaultMode }: any) =>
     isOpen ? (
@@ -51,7 +51,7 @@ vi.mock('@/components/auth', () => ({
 }));
 
 // Mock onboarding components
-vi.mock('@/components/onboarding', () => ({
+jest.mock('@/components/onboarding', () => ({
   HelpCenter: ({ triggerButton }: any) => (
     <div data-testid="help-center">
       {triggerButton}
@@ -71,27 +71,27 @@ const mockUnauthenticatedState = {
   user: null,
   isAuthenticated: false,
   loading: false,
-  signIn: vi.fn(),
-  signOut: vi.fn(),
-  signUp: vi.fn(),
+  signIn: jest.fn(),
+  signOut: jest.fn(),
+  signUp: jest.fn(),
 };
 
 const mockAuthenticatedState = {
   user: mockUser,
   isAuthenticated: true,
   loading: false,
-  signIn: vi.fn(),
-  signOut: vi.fn(),
-  signUp: vi.fn(),
+  signIn: jest.fn(),
+  signOut: jest.fn(),
+  signUp: jest.fn(),
 };
 
 const mockLoadingState = {
   user: null,
   isAuthenticated: false,
   loading: true,
-  signIn: vi.fn(),
-  signOut: vi.fn(),
-  signUp: vi.fn(),
+  signIn: jest.fn(),
+  signOut: jest.fn(),
+  signUp: jest.fn(),
 };
 
 // ===== TEST SETUP =====

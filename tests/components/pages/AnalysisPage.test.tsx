@@ -36,7 +36,7 @@ import {
   mockToast,
   mockFetch,
   mockLocation,
-} from '@/tests/helpers/component-test-helpers';
+} from '../../helpers/component-test-helpers';
 
 // ===== TEST SETUP =====
 
@@ -385,7 +385,7 @@ describe('AnalysisPage Component', () => {
       const viewDetailsButton = screen.getByText('View Details');
       await user.click(viewDetailsButton);
 
-      await waitFor(() => {
+      await waitFor(async () => {
         const interviewButton = screen.getByText('Generate Interview Questions');
         await user.click(interviewButton);
       });

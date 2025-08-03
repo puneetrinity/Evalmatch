@@ -15,7 +15,7 @@ import {
   TEST_CONFIG,
   TestUser,
   TestJobDescription
-} from '../helpers/api-helpers.js';
+} from '../../helpers/api-helpers';
 
 // Mock the server setup
 let app: Express;

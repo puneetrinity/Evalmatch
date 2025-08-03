@@ -104,8 +104,7 @@ const mockResumeListResponse: ResumeListResponse = {
     { id: 1 as any, filename: 'resume1.pdf', fileSize: 1024, fileType: 'pdf', uploadedAt: '2023-01-01' },
     { id: 2 as any, filename: 'resume2.pdf', fileSize: 2048, fileType: 'pdf', uploadedAt: '2023-01-02' },
   ],
-  total: 2,
-  batchId: mockBatchId,
+  totalCount: 2,
   sessionId: mockSessionId,
 };
 
@@ -304,6 +303,7 @@ describe('useBatchManager Hook', () => {
             userAuthorized: true,
             dataConsistent: true,
           },
+          timestamp: new Date().toISOString(),
         },
         message: 'Validation successful',
       };
@@ -312,14 +312,14 @@ describe('useBatchManager Hook', () => {
         new Response(JSON.stringify(serverValidationResponse), { status: 200 })
       );
 
-      let validationResult: BatchValidationResult;
+      let validationResult: any;
       await act(async () => {
         validationResult = await result.current.validateBatch();
       });
 
       expect(validationResult!.valid).toBe(true);
       expect(result.current.serverValidated).toBe(true);
-      expect(result.current.ownership).toEqual(serverValidationResponse.data.ownership);
+      expect(result.current.ownership).toEqual(serverValidationResponse.data?.ownership);
     });
 
     it('should fallback to legacy validation when server validation fails', async () => {
@@ -343,7 +343,7 @@ describe('useBatchManager Hook', () => {
           )
         );
 
-      let validationResult: BatchValidationResult;
+      let validationResult: any;
       await act(async () => {
         validationResult = await result.current.validateBatch();
       });
@@ -366,7 +366,7 @@ describe('useBatchManager Hook', () => {
         () => new Promise(resolve => setTimeout(resolve, 200))
       );
 
-      let validationResult: BatchValidationResult;
+      let validationResult: any;
       await act(async () => {
         validationResult = await result.current.validateBatch();
       });
@@ -398,7 +398,7 @@ describe('useBatchManager Hook', () => {
           )
         );
 
-      let validationResult: BatchValidationResult;
+      let validationResult: any;
       await act(async () => {
         validationResult = await result.current.validateBatch();
       });
@@ -410,7 +410,7 @@ describe('useBatchManager Hook', () => {
     it('should handle validation without batch ID or session ID', async () => {
       const { result } = renderHook(() => useBatchManager(), { wrapper });
 
-      let validationResult: BatchValidationResult;
+      let validationResult: any;
       await act(async () => {
         validationResult = await result.current.validateBatch();
       });
@@ -795,7 +795,7 @@ describe('useBatchManager Hook', () => {
           ...mockResumeListResponse.resumes,
           { id: '3', filename: 'resume3.pdf', status: 'processed' },
         ],
-        total: 3,
+        totalCount: 3,
       };
 
       mockApiRequest.mockResolvedValueOnce(
@@ -992,7 +992,7 @@ describe('useBatchManager Hook', () => {
         )
       );
 
-      let validationResult: BatchValidationResult;
+      let validationResult: any;
       await act(async () => {
         validationResult = await result.current.validateBatch();
       });

@@ -11,13 +11,13 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 
 import { useSteps } from '@/hooks/use-steps';
 import {
   setupTest,
   cleanupTest,
-} from '@/tests/helpers/component-test-helpers';
+} from '../../helpers/component-test-helpers';
 
 // ===== TEST DATA =====
 

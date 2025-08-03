@@ -30,7 +30,7 @@ import {
   cleanupTest,
   mockConsole,
   mockToast,
-} from '@/tests/helpers/component-test-helpers';
+} from '../../helpers/component-test-helpers';
 
 // ===== TEST COMPONENTS =====
 
@@ -98,14 +98,14 @@ describe('ErrorBoundary Component', () => {
   beforeEach(() => {
     setupTest();
     // Suppress console errors in tests
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(console, 'group').mockImplementation(() => {});
-    vi.spyOn(console, 'groupEnd').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'group').mockImplementation(() => {});
+    jest.spyOn(console, 'groupEnd').mockImplementation(() => {});
   });
 
   afterEach(() => {
     cleanupTest();
-    vi.restoreAllMocks();
+    jest.restoreAllMocks();
   });
 
   // ===== BASIC ERROR BOUNDARY TESTS =====
@@ -188,7 +188,7 @@ describe('ErrorBoundary Component', () => {
     });
 
     it('should call custom error handler', () => {
-      const mockErrorHandler = vi.fn();
+      const mockErrorHandler = jest.fn();
 
       render(
         <ErrorBoundary onError={mockErrorHandler}>
@@ -261,7 +261,7 @@ describe('ErrorBoundary Component', () => {
 
     it('should provide page refresh option', async () => {
       const user = userEvent.setup();
-      const mockReload = vi.fn();
+      const mockReload = jest.fn();
       Object.defineProperty(window, 'location', {
         value: { reload: mockReload },
         writable: true,
@@ -389,7 +389,7 @@ describe('ErrorBoundary Component', () => {
 
     it('should provide error details copy functionality', async () => {
       const user = userEvent.setup();
-      const mockWriteText = vi.fn();
+      const mockWriteText = jest.fn();
       Object.defineProperty(navigator, 'clipboard', {
         value: { writeText: mockWriteText },
         writable: true,
@@ -702,7 +702,7 @@ describe('ErrorBoundary Component', () => {
       const user = userEvent.setup();
       
       // Mock localStorage to throw quota error
-      const mockSetItem = vi.fn(() => {
+      const mockSetItem = jest.fn(() => {
         throw new Error('Storage quota exceeded');
       });
       Object.defineProperty(window, 'localStorage', {

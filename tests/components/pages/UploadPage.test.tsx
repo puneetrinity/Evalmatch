@@ -38,7 +38,7 @@ import {
   mockToast,
   mockFetch,
   mockLocation,
-} from '@/tests/helpers/component-test-helpers';
+} from '../../helpers/component-test-helpers';
 
 // ===== TEST SETUP =====
 
