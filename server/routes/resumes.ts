@@ -29,11 +29,25 @@ router.get("/", authenticateUser, async (req: Request, res: Response) => {
       batchId,
     );
 
+    // Transform resume data to match API contract
+    const transformedResumes = (resumes || []).map(resume => ({
+      id: resume.id,
+      filename: resume.filename,
+      fileSize: resume.fileSize,
+      fileType: resume.fileType,
+      uploadedAt: resume.createdAt?.toISOString() || new Date().toISOString(),
+      analyzedData: resume.analyzedData ? {
+        skills: resume.analyzedData.skills || [],
+        experience: resume.analyzedData.experience || "0 years",
+        education: resume.analyzedData.education || [],
+      } : undefined,
+    }));
+
     res.json({
       success: true,
       data: {
-        resumes: resumes || [],
-        totalCount: resumes?.length || 0,
+        resumes: transformedResumes,
+        totalCount: transformedResumes.length,
       },
       timestamp: new Date().toISOString(),
     });
