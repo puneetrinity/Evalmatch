@@ -238,7 +238,7 @@ jobs:
                     "type": "section",
                     "text": {
                       "type": "mrkdwn",
-                      "text": "*❌ Railway Deployment Failed*\n\n*Repository:* ${{ github.repository }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* `${{ github.sha }}`\n*Failed Job:* ${{ needs.test-railway.result == '\''failure'\'' && '\''Testing'\'' || '\''Deployment'\'' }}\n*Workflow:* <${{ steps.metrics.outputs.workflow_url }}|View Logs>"
+                      "text": "*❌ Railway Deployment Failed*\n\n*Repository:* ${{ github.repository }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* `${{ github.sha }}`\n*Failed Job:* ${{ needs.test-railway.result == 'failure' && 'Testing' || 'Deployment' }}\n*Workflow:* <${{ steps.metrics.outputs.workflow_url }}|View Logs>"
                     }
                   }
                 ]
