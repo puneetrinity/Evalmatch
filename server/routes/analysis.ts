@@ -26,6 +26,7 @@ router.post("/analyze/:jobId", authenticateUser, async (req: Request, res: Respo
       });
     }
 
+    const analysisStartTime = Date.now(); // Add timing for overall analysis
     logger.info(`Starting analysis for job ${jobId}, user ${userId}${sessionId ? `, session ${sessionId}` : ''}${batchId ? `, batch ${batchId}` : ''}`);
 
     // Get job description
