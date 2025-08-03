@@ -18,9 +18,9 @@ describe('API Integration Tests', () => {
   let testResumeId: number;
 
   beforeAll(async () => {
-    // Import app after environment is set up
-    const appModule = await import('../server/index');
-    app = appModule.default || appModule.app;
+    // Import test app after environment is set up
+    const { createTestApp } = await import('./test-server');
+    app = await createTestApp();
   });
 
   afterAll(async () => {
@@ -28,9 +28,17 @@ describe('API Integration Tests', () => {
     if (testJobId) {
       await request(app)
         .delete(buildRoute(API_ROUTES.JOBS.DELETE, { id: testJobId }))
-        .expect(res => {
+        .catch(() => {
           // Don't fail if deletion fails - might already be cleaned up
         });
+    }
+    
+    // Clear test app and force garbage collection
+    const { clearTestApp } = await import('./test-server');
+    clearTestApp();
+    
+    if (global.gc) {
+      global.gc();
     }
   });
 

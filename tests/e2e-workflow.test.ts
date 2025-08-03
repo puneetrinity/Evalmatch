@@ -15,8 +15,8 @@ describe('End-to-End Workflow Tests', () => {
   };
 
   beforeAll(async () => {
-    const appModule = await import('../server/index');
-    app = appModule.default || appModule.app;
+    const { createTestApp } = await import('./test-server');
+    app = await createTestApp();
   });
 
   describe('Complete Job Analysis Workflow', () => {
@@ -334,6 +334,14 @@ PROJECTS
         .catch(() => {
           // Ignore cleanup errors
         });
+    }
+
+    // Clear test app and force garbage collection
+    const { clearTestApp } = await import('./test-server');
+    clearTestApp();
+    
+    if (global.gc) {
+      global.gc();
     }
 
     console.log(`✓ Test cleanup completed`);

@@ -510,6 +510,7 @@ async function logBatchAccess(context: BatchSecurityContext): Promise<void> {
  */
 export function validateBatchAccess(accessType: 'read' | 'write' | 'delete' | 'claim' = 'read') {
   return asyncErrorHandler(async (req: Request, res: Response, next: NextFunction) => {
+    try {
       // Apply rate limiting based on access type
       if (accessType === 'claim') {
         batchClaimRateLimit(req, res, () => {});

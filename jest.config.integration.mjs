@@ -8,7 +8,12 @@ export default {
   testEnvironment: 'node',
   transform: {
     '^.+\\.ts$': ['ts-jest', {
-      useESM: true
+      useESM: true,
+      tsconfig: {
+        types: ['jest', 'node'],
+        module: 'ESNext',
+        target: 'ESNext'
+      }
     }]
   },
   moduleNameMapper: {
@@ -24,11 +29,18 @@ export default {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup-node.ts'],
   testTimeout: 30000, // 30 seconds for integration tests
   maxWorkers: 1, // Run tests sequentially to avoid database conflicts
-  verbose: true,
+  verbose: false, // Reduce console output to save memory
   bail: 1, // Stop on first failure for faster feedback
+  
+  // Memory optimization settings
+  forceExit: true,
+  detectOpenHandles: true,
+  logHeapUsage: true,
+  workerIdleMemoryLimit: '512MB',
+  
   globals: {
     'ts-jest': {
       useESM: true
