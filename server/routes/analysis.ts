@@ -343,7 +343,11 @@ router.post(
           filename: r.filename,
           candidateName: r.candidateName,
           matchPercentage: r.match?.matchPercentage || 0,
-          matchedSkills: r.match?.matchedSkills || [],
+          matchedSkills: (r.match?.matchedSkills || []).map((skill: any) => 
+            typeof skill === 'string' 
+              ? { skill, matchPercentage: 85 } // Default match percentage for string skills
+              : skill
+          ),
           missingSkills: r.match?.missingSkills || [],
           candidateStrengths: r.match?.candidateStrengths || [],
           candidateWeaknesses: r.match?.candidateWeaknesses || [],
@@ -511,7 +515,11 @@ router.get(
           (result as any).resume?.filename?.replace(/\.[^/.]+$/, "") ||
           `Candidate ${result.resumeId}`,
         matchPercentage: result.matchPercentage,
-        matchedSkills: result.matchedSkills || [],
+        matchedSkills: (result.matchedSkills || []).map((skill: any) => 
+          typeof skill === 'string' 
+            ? { skill, matchPercentage: 85 } // Default match percentage for string skills
+            : skill
+        ),
         missingSkills: result.missingSkills || [],
         candidateStrengths: result.candidateStrengths || [],
         candidateWeaknesses: result.candidateWeaknesses || [],
