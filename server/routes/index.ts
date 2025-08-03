@@ -12,6 +12,7 @@ import analysisRoutes from './analysis';
 import adminRoutes from './admin';
 import debugRoutes from './debug';
 import dbCheckRoutes from './db-check';
+import batchRoutes from './batches';
 
 /**
  * Register all modular routes with the Express app
@@ -25,6 +26,9 @@ export function registerModularRoutes(app: Express): void {
   
   // Resume management routes
   app.use('/api/resumes', resumeRoutes);
+  
+  // Batch management routes
+  app.use('/api/batches', batchRoutes);
   
   // Job description management routes
   app.use('/api/job-descriptions', jobRoutes);
@@ -49,16 +53,17 @@ export function getRoutesSummary(): {
   estimatedRoutes: number;
 } {
   return {
-    totalModules: 7,
+    totalModules: 8,
     modules: [
       'health (5 routes)',
       'user (2 routes)', 
       'resumes (4 routes)',
+      'batches (6 routes)',
       'jobs (5 routes)',
       'analysis (6 routes)',
       'admin (5 routes)',
       'debug (6 routes)'
     ],
-    estimatedRoutes: 33 // Comprehensive debugging included
+    estimatedRoutes: 39 // Comprehensive debugging included + batch routes
   };
 }
