@@ -227,7 +227,7 @@ export default function AnalysisPage() {
       console.log(`Analysis data received, count: ${data.results?.length || 0} results`);
       return data as AnalysisResponse;
     },
-    enabled: !!jobId,
+    enabled: !!jobId && sessionId !== null && currentBatchId !== null, // Only fetch when we have all required IDs
     retry: 1
   });
   
