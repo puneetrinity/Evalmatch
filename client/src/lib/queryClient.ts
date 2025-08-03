@@ -12,6 +12,7 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  customHeaders?: Record<string, string>
 ): Promise<Response> {
   // Get auth token using simplified auth manager
   const token = await authManager.getAuthToken();
@@ -20,6 +21,7 @@ export async function apiRequest(
   const headers: Record<string, string> = {
     ...(data ? { "Content-Type": "application/json" } : {}),
     ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+    ...(customHeaders || {}),
   };
 
   const res = await fetch(url, {

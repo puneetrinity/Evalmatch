@@ -234,7 +234,7 @@ export function isRetryableError(error: AppError): boolean {
       return networkError.isTimeout || 
              networkError.isConnectionLost || 
              networkError.isServerUnavailable ||
-             (networkError.statusCode && networkError.statusCode >= 500);
+             (networkError.statusCode ? networkError.statusCode >= 500 : false);
     
     case ErrorCategory.SYSTEM:
       const systemError = error as SystemError;
@@ -569,29 +569,4 @@ export function showErrorToast(error: AppError, options: {
   });
 }
 
-// ===== EXPORT TYPES AND UTILITIES =====
-
-export type {
-  AppError,
-  NetworkError,
-  ValidationError,
-  BusinessLogicError,
-  SystemError,
-  SecurityError,
-  ErrorResponse,
-  RecoveryAction,
-  ErrorBoundaryState,
-  RetryConfig,
-  CircuitBreakerConfig,
-  CircuitBreakerStatus,
-  ErrorMetrics,
-  ErrorLogEntry,
-  ErrorContext,
-  BaseError,
-};
-
-export {
-  ErrorSeverity,
-  ErrorCategory,
-  CircuitBreakerState,
-};
+// ===== EXPORTS ALREADY HANDLED ABOVE =====

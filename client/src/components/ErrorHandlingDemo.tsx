@@ -53,6 +53,7 @@ import {
   BatchRetryManager,
   createBatchError,
   handleBatchError,
+  BatchCircuitBreakerState,
 } from '@/lib/batch-error-handling';
 
 import { 
@@ -190,7 +191,7 @@ const CircuitBreakerDemo: React.FC = () => {
     monitoringPeriod: 60000,
   }));
   
-  const [state, setState] = useState(circuitBreaker.getState());
+  const [state, setState] = useState<BatchCircuitBreakerState>(circuitBreaker.getState());
   const [operationCount, setOperationCount] = useState(0);
 
   const simulateOperation = async (shouldFail: boolean = false) => {
@@ -348,7 +349,7 @@ const RetryMechanismDemo: React.FC = () => {
           return `Operation succeeded on attempt ${attemptCount}`;
         },
         'demo-retry-operation',
-        { operationType: 'demo', attemptLimit: successOnAttempt }
+        { operationType: 'demo' }
       );
       
       setResult(`✅ ${result}`);

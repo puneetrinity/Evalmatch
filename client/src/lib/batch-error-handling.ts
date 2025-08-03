@@ -20,9 +20,20 @@ import {
   CircuitBreakerState,
 } from './error-handling';
 
+// ===== CIRCUIT BREAKER STATE INTERFACE =====
+
+export interface BatchCircuitBreakerState {
+  isOpen: boolean;
+  failureCount: number;
+  totalRequests: number;
+  successfulRequests: number;
+  lastFailureTime?: Date;
+  nextAttemptTime?: Date;
+}
+
 // ===== ENHANCED BATCH ERROR INTERFACE =====
 
-export interface BatchError extends AppError {
+export type BatchError = AppError & {
   batchContext?: {
     batchId?: string;
     sessionId?: string;
@@ -34,7 +45,7 @@ export interface BatchError extends AppError {
 // ===== CIRCUIT BREAKER IMPLEMENTATION =====
 
 export class BatchCircuitBreaker {
-  private state: CircuitBreakerState = {
+  private state: BatchCircuitBreakerState = {
     isOpen: false,
     failureCount: 0,
     totalRequests: 0,
@@ -122,7 +133,7 @@ export class BatchCircuitBreaker {
     }
   }
 
-  getState(): CircuitBreakerState {
+  getState(): BatchCircuitBreakerState {
     return {
       ...this.state,
       lastFailureTime: this.lastFailureTime,
@@ -408,12 +419,13 @@ export function handleBatchError(
   const { showToast = true, logLevel = 'error', includeContext = true } = context;
 
   // Log error with appropriate level
-  console[logLevel](`[BATCH ERROR] ${error.code}: ${error.message}`, {
-    category: error.category,
-    severity: error.severity,
-    retryable: error.retryable,
+  const appError = error as AppError;
+  console[logLevel](`[BATCH ERROR] ${appError.code}: ${appError.message}`, {
+    category: appError.category,
+    severity: appError.severity,
+    retryable: appError.retryable,
     ...(includeContext && { batchContext: error.batchContext }),
-    ...(includeContext && { context: error.context }),
+    ...(includeContext && { context: appError.context }),
   });
 
   // Show user-friendly notification

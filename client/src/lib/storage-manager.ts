@@ -8,11 +8,24 @@
 
 import type { SessionId } from '@shared/api-contracts';
 import type { 
-  BatchPersistenceState, 
-  IStorageManager,
-  StorageQuotas,
+  // BatchPersistenceState, // Not exported
+  // IStorageManager, // Not exported
+  // StorageQuotas, // Not exported
   PersistenceConfig 
 } from './batch-persistence';
+
+// Define missing types locally
+type BatchPersistenceState = any; // TODO: Define proper type
+interface IStorageManager {
+  get(key: string): Promise<any>;
+  set(key: string, value: any): Promise<void>;
+  remove(key: string): Promise<void>;
+  clear(): Promise<void>;
+}
+interface StorageQuotas {
+  maxSize: number;
+  warningThreshold: number;
+}
 import { apiRequest } from '@/lib/queryClient';
 
 // ===== TYPE DEFINITIONS =====

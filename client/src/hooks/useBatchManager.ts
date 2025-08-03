@@ -37,8 +37,8 @@ import type {
 import { isApiSuccess } from '@shared/api-contracts';
 import { isResumeListResponse } from '@shared/type-guards';
 import type {
-  BatchValidationResult,
-  BatchStatus,
+  BatchValidationResult as ServerBatchValidationResult,
+  BatchStatus as ServerBatchStatus,
   BatchOwnership,
   BatchOperationResponse,
   ValidateBatchResponse,
@@ -62,7 +62,7 @@ import {
 export interface BatchState {
   currentBatchId: string | null;
   sessionId: SessionId | null;
-  status: BatchStatus;
+  status: LocalBatchStatus;
   resumeCount: number;
   isLoading: boolean;
   error: BatchError | null;
@@ -76,7 +76,7 @@ export interface BatchState {
   serverValidated: boolean;
 }
 
-export type BatchStatus = 
+export type LocalBatchStatus = 
   | 'initializing'     // Setting up new batch
   | 'loading'          // Loading existing batch data
   | 'ready'            // Batch is ready for operations
@@ -111,7 +111,7 @@ export type BatchErrorType =
   | 'claim_failed'
   | 'delete_failed';
 
-export interface BatchValidationResult {
+export interface LocalBatchValidationResult {
   isValid: boolean;
   resumeCount: number;
   error?: string;
@@ -316,7 +316,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
   const validateBatchWithServer = useCallback(async (
     batchId: string,
     sessionId: SessionId
-  ): Promise<BatchValidationResult> => {
+  ): Promise<LocalBatchValidationResult> => {
     try {
       console.log(`[BATCH VALIDATION] Server validation for batch: ${batchId}`);
       
@@ -332,10 +332,15 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       const result = await response.json() as ValidateBatchResponse;
       
       if (result.success && result.data) {
-        const serverValidation: BatchValidationResult = {
+        const serverValidation: LocalBatchValidationResult = {
           isValid: result.data.valid,
           resumeCount: result.data.ownership?.resumeCount || 0,
-          details: result.data.integrityChecks,
+          details: {
+            sessionValid: result.data.integrityChecks.sessionMatches,
+            batchExists: result.data.integrityChecks.resumesExist,
+            resumesFound: result.data.integrityChecks.resumesExist,
+            integrityCheck: result.data.integrityChecks.dataConsistent,
+          },
           error: result.data.errors.length > 0 ? result.data.errors.join('; ') : undefined,
         };
         
@@ -374,7 +379,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
   const getBatchStatusFromServer = useCallback(async (
     batchId: string,
     sessionId: SessionId
-  ): Promise<BatchStatus | null> => {
+  ): Promise<LocalBatchStatus | null> => {
     try {
       console.log(`[BATCH STATUS] Getting server status for batch: ${batchId}`);
       
@@ -389,9 +394,15 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       
       const result = await response.json() as BatchStatusResponse;
       
-      if (result.success && result.data && isBatchStatus(result.data)) {
+      if (result.success && result.data) {
         console.log(`[BATCH STATUS] ✅ Server status retrieved for batch ${batchId}`);
-        return result.data;
+        // Convert server batch status to local status
+        const serverStatus = result.data.status;
+        const localStatus: LocalBatchStatus = serverStatus === 'active' ? 'ready' : 
+                                             serverStatus === 'orphaned' ? 'orphaned' :
+                                             serverStatus === 'expired' ? 'expired' :
+                                             serverStatus === 'corrupted' ? 'corrupted' : 'error';
+        return localStatus;
       } else {
         throw new Error(result.message || 'Failed to get batch status');
       }
@@ -432,7 +443,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
           sessionId: newSessionId,
           currentBatchId: batchId,
           resumeCount: result.data.resumeCount,
-          status: 'ready',
+          status: 'ready' as LocalBatchStatus,
           canClaim: false,
           isOrphaned: false,
           lastValidated: new Date(),
@@ -508,7 +519,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
     batchId: string, 
     sessionId: SessionId, 
     retries: number = fullConfig.maxRetries
-  ): Promise<BatchValidationResult> => {
+  ): Promise<LocalBatchValidationResult> => {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         console.log(`[BATCH VALIDATION] Attempt ${attempt}/${retries} - Validating batch ${batchId}`);
@@ -542,7 +553,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
           }
           
           if (attempt === retries) {
-            const error = `Invalid response format: ${data.message || 'Unknown error'}`;
+            const error = `Invalid response format: ${!data.success ? data.message : 'Unknown error'}`;
             console.log(`[BATCH VALIDATION] ❌ Final attempt failed for batch ${batchId}: ${error}`);
             return {
               isValid: false,
@@ -654,7 +665,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
 
   // ===== MUTATION HOOKS =====
 
-  const validationMutation = useMutation<BatchValidationResult, Error, { batchId: string; sessionId: SessionId }>({
+  const validationMutation = useMutation<LocalBatchValidationResult, Error, { batchId: string; sessionId: SessionId }>({
     mutationFn: async ({ batchId, sessionId }) => {
       updateState({ status: 'validating', isLoading: true });
       return await validateBatchIntegrity(batchId, sessionId);
@@ -731,7 +742,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
     updateState({
       currentBatchId: newBatchId,
       sessionId: currentSessionId,
-      status: 'ready',
+      status: 'ready' as LocalBatchStatus,
       resumeCount: 0,
       isLoading: false,
       error: null,
@@ -752,7 +763,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
     return newBatchId;
   }, [batchState.sessionId, toast]);
 
-  const validateBatch = useCallback(async (batchId?: string): Promise<BatchValidationResult> => {
+  const validateBatch = useCallback(async (batchId?: string): Promise<LocalBatchValidationResult> => {
     const targetBatchId = batchId || batchState.currentBatchId;
     const targetSessionId = batchState.sessionId;
     

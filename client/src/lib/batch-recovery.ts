@@ -3,7 +3,8 @@
  * Handles recovery workflows, conflict resolution, and progressive recovery
  */
 
-import { BatchState, BatchError, BatchErrorType } from './batch-error-handling';
+import { BatchError, createBatchError } from './batch-error-handling';
+import { BatchState, BatchErrorType } from '@/hooks/useBatchManager';
 import { 
   PersistedBatchState, 
   batchPersistenceManager, 
@@ -11,7 +12,7 @@ import {
   restoreBatchState,
   STORAGE_VERSION 
 } from './batch-persistence';
-import { logger } from './error-handling';
+// Note: logger doesn't exist, using console
 import { apiRequest } from '@/lib/queryClient';
 
 // Recovery configuration
@@ -112,11 +113,11 @@ export class BatchRecoveryManager {
     // Check if recovery is already in progress
     const existingRecovery = this.activeRecoveries.get(batchId);
     if (existingRecovery) {
-      logger.info('Recovery already in progress, waiting for completion', logContext);
+      console.log('Recovery already in progress, waiting for completion', logContext);
       return existingRecovery;
     }
 
-    logger.info('Starting batch recovery', logContext);
+    console.log('Starting batch recovery', logContext);
 
     // Create recovery promise
     const recoveryPromise = this.performRecovery(batchId, options, startTime);
@@ -124,7 +125,7 @@ export class BatchRecoveryManager {
 
     try {
       const result = await recoveryPromise;
-      logger.info('Batch recovery completed', {
+      console.log('Batch recovery completed', {
         ...logContext,
         status: result.status,
         duration: result.metadata.duration,
@@ -168,7 +169,7 @@ export class BatchRecoveryManager {
       }
 
       try {
-        logger.debug(`Attempting recovery from ${source}`, { batchId, source });
+        console.debug(`Attempting recovery from ${source}`, { batchId, source });
         attemptedSources.push(source);
 
         const result = await this.recoverFromSource(batchId, source, options);
@@ -209,7 +210,7 @@ export class BatchRecoveryManager {
         }
 
       } catch (error) {
-        logger.warn(`Recovery from ${source} failed`, { batchId, source, error });
+        console.warn(`Recovery from ${source} failed`, { batchId, source, error });
         lastError = error as Error;
         failedItems.push(source);
         warnings.push(`Failed to recover from ${source}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -267,7 +268,7 @@ export class BatchRecoveryManager {
       const persistedState = await restoreBatchState(batchId);
       return persistedState?.state || null;
     } catch (error) {
-      logger.warn('Storage recovery failed', { batchId, error });
+      console.warn('Storage recovery failed', { batchId, error });
       return null;
     }
   }
@@ -302,7 +303,7 @@ export class BatchRecoveryManager {
       return batchState;
 
     } catch (error) {
-      logger.warn('Server recovery failed', { batchId, error });
+      console.warn('Server recovery failed', { batchId, error });
       return null;
     }
   }
@@ -416,7 +417,7 @@ export class BatchRecoveryManager {
       }
     }
 
-    logger.info('Conflicts auto-resolved', {
+    console.log('Conflicts auto-resolved', {
       conflictFields: conflictInfo.conflictFields,
       resolutionStrategy: 'auto',
     });
@@ -447,7 +448,7 @@ export class BatchRecoveryManager {
     const failed: string[] = [];
     const warnings: string[] = [];
 
-    logger.info('Starting progressive recovery', { batchId, components });
+    console.log('Starting progressive recovery', { batchId, components });
 
     for (const component of components) {
       try {
@@ -480,13 +481,13 @@ export class BatchRecoveryManager {
             break;
         }
       } catch (error) {
-        logger.warn(`Failed to recover ${component}`, { batchId, component, error });
+        console.warn(`Failed to recover ${component}`, { batchId, component, error });
         failed.push(component);
         warnings.push(`Failed to recover ${component}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
 
-    logger.info('Progressive recovery completed', {
+    console.log('Progressive recovery completed', {
       batchId,
       recovered: Object.keys(recovered),
       failed,
@@ -508,7 +509,7 @@ export class BatchRecoveryManager {
         return data.resumes || null;
       }
     } catch (error) {
-      logger.warn('Failed to recover resumes from server', { batchId, error });
+      console.warn('Failed to recover resumes from server', { batchId, error });
     }
     return null;
   }
@@ -526,7 +527,7 @@ export class BatchRecoveryManager {
         return data.results?.length > 0 ? data : null;
       }
     } catch (error) {
-      logger.warn('Failed to recover analysis from server', { batchId, error });
+      console.warn('Failed to recover analysis from server', { batchId, error });
     }
     return null;
   }
@@ -543,7 +544,7 @@ export class BatchRecoveryManager {
         return data;
       }
     } catch (error) {
-      logger.warn('Failed to recover metadata from server', { batchId, error });
+      console.warn('Failed to recover metadata from server', { batchId, error });
     }
     return null;
   }
@@ -629,10 +630,11 @@ export class BatchRecoveryManager {
   ): RecoveryResult {
     return {
       status: 'failed',
-      errorDetails: new BatchError(
-        BatchErrorType.BUSINESS_LOGIC,
+      errorDetails: createBatchError(
+        'business_logic',
         error.message,
-        { originalError: error }
+        'RECOVERY_FAILED',
+        false // not retryable
       ),
       recoveredItems,
       failedItems,
@@ -674,7 +676,7 @@ export class BatchRecoveryManager {
     const recovery = this.activeRecoveries.get(batchId);
     if (recovery) {
       this.activeRecoveries.delete(batchId);
-      logger.info('Recovery cancelled', { batchId });
+      console.log('Recovery cancelled', { batchId });
       return true;
     }
     return false;

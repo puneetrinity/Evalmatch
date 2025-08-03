@@ -3,8 +3,9 @@
  * Handles multi-level storage, versioning, and data integrity
  */
 
-import { BatchState, BatchValidationResult } from './batch-error-handling';
-import { logger } from './error-handling';
+// Import from the correct locations
+import { BatchState, LocalBatchValidationResult } from '@/hooks/useBatchManager';
+// Note: logger doesn't exist, we'll use console for now
 
 // Storage version for migration support
 export const STORAGE_VERSION = '1.2.0';
@@ -82,7 +83,7 @@ export class LocalStorageProvider implements StorageProvider {
       const item = localStorage.getItem(key);
       return item ? JSON.parse(item) : null;
     } catch (error) {
-      logger.warn('LocalStorage get failed', { key, error });
+      console.warn('LocalStorage get failed', { key, error });
       return null;
     }
   }
@@ -91,7 +92,7 @@ export class LocalStorageProvider implements StorageProvider {
     try {
       localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
-      logger.error('LocalStorage set failed', { key, error });
+      console.error('LocalStorage set failed', { key, error });
       throw error;
     }
   }
@@ -100,7 +101,7 @@ export class LocalStorageProvider implements StorageProvider {
     try {
       localStorage.removeItem(key);
     } catch (error) {
-      logger.warn('LocalStorage remove failed', { key, error });
+      console.warn('LocalStorage remove failed', { key, error });
     }
   }
 
@@ -108,7 +109,7 @@ export class LocalStorageProvider implements StorageProvider {
     try {
       localStorage.clear();
     } catch (error) {
-      logger.warn('LocalStorage clear failed', { error });
+      console.warn('LocalStorage clear failed', { error });
     }
   }
 
@@ -162,7 +163,7 @@ export class IndexedDBProvider implements StorageProvider {
         request.onsuccess = () => resolve(request.result?.value || null);
       });
     } catch (error) {
-      logger.warn('IndexedDB get failed', { key, error });
+      console.warn('IndexedDB get failed', { key, error });
       return null;
     }
   }
@@ -186,7 +187,7 @@ export class IndexedDBProvider implements StorageProvider {
         request.onsuccess = () => resolve();
       });
     } catch (error) {
-      logger.error('IndexedDB set failed', { key, error });
+      console.error('IndexedDB set failed', { key, error });
       throw error;
     }
   }
@@ -203,7 +204,7 @@ export class IndexedDBProvider implements StorageProvider {
         request.onsuccess = () => resolve();
       });
     } catch (error) {
-      logger.warn('IndexedDB remove failed', { key, error });
+      console.warn('IndexedDB remove failed', { key, error });
     }
   }
 
@@ -219,7 +220,7 @@ export class IndexedDBProvider implements StorageProvider {
         request.onsuccess = () => resolve();
       });
     } catch (error) {
-      logger.warn('IndexedDB clear failed', { error });
+      console.warn('IndexedDB clear failed', { error });
     }
   }
 
@@ -259,7 +260,7 @@ export class BatchPersistenceManager {
       this.providers.push(indexedDB);
     }
 
-    logger.info('Storage providers initialized', {
+    console.log('Storage providers initialized', {
       providers: this.providers.map(p => p.name),
       primaryProvider: this.providers[0]?.name || 'none',
     });
@@ -268,7 +269,7 @@ export class BatchPersistenceManager {
   private checkCompressionSupport(): void {
     this.compressionSupported = typeof CompressionStream !== 'undefined';
     if (this.config.compressionEnabled && !this.compressionSupported) {
-      logger.warn('Compression requested but not supported, disabling');
+      console.warn('Compression requested but not supported, disabling');
       this.config.compressionEnabled = false;
     }
   }
@@ -333,7 +334,7 @@ export class BatchPersistenceManager {
         compressed: true,
       };
     } catch (error) {
-      logger.warn('Compression failed, using uncompressed data', { error });
+      console.warn('Compression failed, using uncompressed data', { error });
       return { data, compressed: false };
     }
   }
@@ -372,7 +373,7 @@ export class BatchPersistenceManager {
       const decompressedStr = new TextDecoder().decode(decompressed);
       return JSON.parse(decompressedStr);
     } catch (error) {
-      logger.error('Decompression failed', { error });
+      console.error('Decompression failed', { error });
       throw new Error('Failed to decompress batch state');
     }
   }
@@ -411,9 +412,9 @@ export class BatchPersistenceManager {
         try {
           const key = `${PERSISTENCE_KEY}_${batchId}`;
           await provider.set(key, persistedState);
-          logger.debug(`Batch state persisted to ${provider.name}`, { batchId, key });
+          console.debug(`Batch state persisted to ${provider.name}`, { batchId, key });
         } catch (error) {
-          logger.warn(`Failed to persist to ${provider.name}`, { batchId, error });
+          console.warn(`Failed to persist to ${provider.name}`, { batchId, error });
           throw error;
         }
       });
@@ -426,7 +427,7 @@ export class BatchPersistenceManager {
         throw new Error('Failed to persist to any storage provider');
       }
 
-      logger.info('Batch state persisted successfully', {
+      console.log('Batch state persisted successfully', {
         batchId,
         providers: successful,
         total: this.providers.length,
@@ -436,7 +437,7 @@ export class BatchPersistenceManager {
       await this.cleanupOldStates();
 
     } catch (error) {
-      logger.error('Failed to persist batch state', { batchId, sessionId, error });
+      console.error('Failed to persist batch state', { batchId, sessionId, error });
       throw error;
     }
   }
@@ -453,7 +454,7 @@ export class BatchPersistenceManager {
 
         // Validate version compatibility
         if (persistedState.version !== STORAGE_VERSION) {
-          logger.warn('Version mismatch, attempting migration', {
+          console.warn('Version mismatch, attempting migration', {
             batchId,
             storedVersion: persistedState.version,
             currentVersion: STORAGE_VERSION,
@@ -464,7 +465,7 @@ export class BatchPersistenceManager {
         // Validate age
         const age = Date.now() - persistedState.timestamp;
         if (age > MAX_STORAGE_AGE) {
-          logger.warn('Persisted state too old, removing', { batchId, age, maxAge: MAX_STORAGE_AGE });
+          console.warn('Persisted state too old, removing', { batchId, age, maxAge: MAX_STORAGE_AGE });
           await provider.remove(key);
           continue;
         }
@@ -478,7 +479,7 @@ export class BatchPersistenceManager {
         // Validate checksum
         const currentChecksum = await this.generateChecksum(decompressedState);
         if (currentChecksum !== persistedState.metadata.checksum) {
-          logger.error('Checksum mismatch, data may be corrupted', {
+          console.error('Checksum mismatch, data may be corrupted', {
             batchId,
             stored: persistedState.metadata.checksum,
             calculated: currentChecksum,
@@ -486,7 +487,7 @@ export class BatchPersistenceManager {
           continue;
         }
 
-        logger.info('Batch state restored successfully', {
+        console.log('Batch state restored successfully', {
           batchId,
           provider: provider.name,
           age: age / (60 * 1000), // minutes
@@ -498,12 +499,12 @@ export class BatchPersistenceManager {
         };
 
       } catch (error) {
-        logger.warn(`Failed to restore from ${provider.name}`, { batchId, error });
+        console.warn(`Failed to restore from ${provider.name}`, { batchId, error });
         continue;
       }
     }
 
-    logger.info('No valid persisted state found', { batchId });
+    console.log('No valid persisted state found', { batchId });
     return null;
   }
 
@@ -531,7 +532,7 @@ export class BatchPersistenceManager {
         }
         // TODO: Add IndexedDB scanning
       } catch (error) {
-        logger.warn(`Failed to list states from ${provider.name}`, { error });
+        console.warn(`Failed to list states from ${provider.name}`, { error });
       }
     }
 
@@ -545,14 +546,14 @@ export class BatchPersistenceManager {
     const removePromises = this.providers.map(async (provider) => {
       try {
         await provider.remove(key);
-        logger.debug(`Removed persisted state from ${provider.name}`, { batchId });
+        console.debug(`Removed persisted state from ${provider.name}`, { batchId });
       } catch (error) {
-        logger.warn(`Failed to remove from ${provider.name}`, { batchId, error });
+        console.warn(`Failed to remove from ${provider.name}`, { batchId, error });
       }
     });
 
     await Promise.allSettled(removePromises);
-    logger.info('Persisted state removal completed', { batchId });
+    console.log('Persisted state removal completed', { batchId });
   }
 
   // Cleanup old states
@@ -564,7 +565,7 @@ export class BatchPersistenceManager {
       const oldStates = states.filter(state => state.timestamp < cutoffTime);
       
       if (oldStates.length > 0) {
-        logger.info('Cleaning up old persisted states', {
+        console.log('Cleaning up old persisted states', {
           count: oldStates.length,
           cutoffDays: this.config.cleanupThresholdDays,
         });
@@ -577,7 +578,7 @@ export class BatchPersistenceManager {
       // Also enforce max states limit
       if (states.length > this.config.maxStates) {
         const excessStates = states.slice(this.config.maxStates);
-        logger.info('Cleaning up excess states', {
+        console.log('Cleaning up excess states', {
           excess: excessStates.length,
           maxStates: this.config.maxStates,
         });
@@ -588,7 +589,7 @@ export class BatchPersistenceManager {
       }
 
     } catch (error) {
-      logger.error('Failed to cleanup old states', { error });
+      console.error('Failed to cleanup old states', { error });
     }
   }
 
@@ -634,14 +635,14 @@ export class BatchPersistenceManager {
         } else {
           await provider.clear();
         }
-        logger.info(`Cleared all data from ${provider.name}`);
+        console.log(`Cleared all data from ${provider.name}`);
       } catch (error) {
-        logger.warn(`Failed to clear ${provider.name}`, { error });
+        console.warn(`Failed to clear ${provider.name}`, { error });
       }
     });
 
     await Promise.allSettled(clearPromises);
-    logger.info('All persisted data cleared');
+    console.log('All persisted data cleared');
   }
 }
 
