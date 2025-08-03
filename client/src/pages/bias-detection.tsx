@@ -18,6 +18,8 @@ type BiasAnalysisUI = {
   biasedPhrases: { phrase: string; reason: string }[];
   suggestions: string[];
   improvedDescription: string;
+  biasConfidenceScore: number;
+  fairnessAssessment: string;
 };
 
 // Define a more flexible type for bias analysis data that can handle both schemas
@@ -175,8 +177,8 @@ export default function BiasDetectionPage() {
           biasedPhrases: existingBiasAnalysis.biasedPhrases || [],
           suggestions: existingBiasAnalysis.suggestions || [],
           improvedDescription: existingBiasAnalysis.improvedDescription || jobData.description,
-          biasConfidenceScore: existingBiasAnalysis.biasConfidenceScore || 95,
-          fairnessAssessment: existingBiasAnalysis.fairnessAssessment || 'Analysis completed'
+          biasConfidenceScore: (existingBiasAnalysis as any).biasConfidenceScore || 95,
+          fairnessAssessment: (existingBiasAnalysis as any).fairnessAssessment || 'Analysis completed'
         });
         setHasAttemptedBiasAnalysis(true); // Prevent further attempts
         return;

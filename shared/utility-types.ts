@@ -332,14 +332,14 @@ export function createResumeId(value: number): ResumeId {
   if (!isPositiveNumber(value)) {
     throw new Error('ResumeId must be a positive number');
   }
-  return value as ResumeId;
+  return value as unknown as ResumeId;
 }
 
 export function createJobId(value: number): JobId {
   if (!isPositiveNumber(value)) {
     throw new Error('JobId must be a positive number');
   }
-  return value as JobId;
+  return value as unknown as JobId;
 }
 
 export function createEmailAddress(value: string): EmailAddress {
@@ -367,14 +367,14 @@ export function createScore(value: number): Score {
   if (!isPercentage(value)) {
     throw new Error('Score must be between 0 and 100');
   }
-  return value as Score;
+  return value as unknown as Score;
 }
 
 export function createFileSize(value: number): FileSize {
   if (!isNonNegativeNumber(value)) {
     throw new Error('File size must be non-negative');
   }
-  return value as FileSize;
+  return value as unknown as FileSize;
 }
 
 // Utility functions for working with branded types
@@ -429,7 +429,7 @@ export function chunk<T>(array: T[], size: PositiveInteger): T[][] {
 
 export function unique<T>(array: T[], keyFn?: (item: T) => string | number): T[] {
   if (!keyFn) {
-    return [...new Set(array)];
+    return Array.from(new Set(array));
   }
   
   const seen = new Set<string | number>();

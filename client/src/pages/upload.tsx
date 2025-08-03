@@ -17,7 +17,7 @@ import type {
   ResumeDetailsResponse,
   ApiResult
 } from "@shared/api-contracts";
-import { isApiSuccess } from "@shared/api-contracts";
+import { isApiSuccess, isApiError } from "@shared/api-contracts";
 import { isResumeListResponse } from "@shared/type-guards";
 
 // Enhanced type definitions
@@ -120,7 +120,7 @@ export default function UploadPage() {
         }
         
         if (attempt === retries) {
-          const error = `Invalid response format: ${data.message || 'Unknown error'}`;
+          const error = `Invalid response format: ${isApiError(data) ? data.message : 'Unknown error'}`;
           console.log(`[BATCH INTEGRITY] ❌ Final attempt failed for batch ${batchId}: ${error}`);
           return { isValid: false, resumeCount: 0, error };
         }

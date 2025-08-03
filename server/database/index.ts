@@ -181,7 +181,7 @@ export async function initializeDatabase(): Promise<void> {
     if (config.env === 'production') {
       logger.error('CRITICAL: Database connection failed in production environment');
       logger.error('Application cannot run safely without database connectivity');
-      throw new Error(`Database initialization failed in production: ${error.message}`);
+      throw new Error(`Database initialization failed in production: ${(error as Error).message}`);
     } else {
       // In development/test, we can be more permissive to aid development
       logger.warn('Database initialization failed in development - will throw error to maintain consistency');
@@ -470,19 +470,19 @@ export async function executeQuery<T = unknown>(query: string, params?: unknown[
     stats.failedQueries++;
     
     // Track timeout errors
-    if (error.message.includes('timeout')) {
+    if ((error as Error).message.includes('timeout')) {
       stats.queryTimeouts++;
       logger.warn(`Query timeout after ${queryTime}ms:`, { query: query.substring(0, 100) });
     }
     
     // Handle pool exhaustion
-    if (error.message.includes('pool') && error.message.includes('exhausted')) {
+    if ((error as Error).message.includes('pool') && (error as Error).message.includes('exhausted')) {
       stats.poolExhausted++;
       logger.error('Connection pool exhausted');
     }
     
-    handleConnectionError(error);
-    logger.error('Query execution failed:', { query: query.substring(0, 200), error: error.message, queryTime });
+    handleConnectionError(error as Error);
+    logger.error('Query execution failed:', { query: query.substring(0, 200), error: (error as Error).message, queryTime });
     throw error;
     
   } finally {
@@ -573,7 +573,7 @@ export async function testDatabaseConnection(): Promise<{
   } catch (error) {
     return {
       success: false,
-      message: `Database connection failed: ${error.message}`,
+      message: `Database connection failed: ${(error as Error).message}`,
     };
   }
 }
@@ -614,7 +614,7 @@ async function performHealthCheck(): Promise<void> {
   } catch (error) {
     stats.healthCheckFailures++;
     logger.warn('Health check failed:', error);
-    handleConnectionError(error);
+    handleConnectionError(error as Error);
   }
 }
 
@@ -778,7 +778,7 @@ export async function validateConnection(retries = 3): Promise<boolean> {
       checkCircuitBreaker();
       
       const result = await executeQuery('SELECT 1 as test, version() as pg_version');
-      if (result[0]?.test === 1) {
+      if ((result[0] as any)?.test === 1) {
         logger.debug(`Connection validation successful (attempt ${attempt})`);
         return true;
       }

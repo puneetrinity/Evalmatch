@@ -20,6 +20,10 @@ export interface PersistenceConfig {
   syncToServer: boolean;
   storageQuotaMB: number;
   cleanupThresholdDays: number;
+  enableLocalStorage: boolean;
+  enableIndexedDB: boolean;
+  enableServerPersistence: boolean;
+  enableCloudBackup: boolean;
 }
 
 // Default configuration
@@ -30,6 +34,10 @@ export const DEFAULT_PERSISTENCE_CONFIG: PersistenceConfig = {
   syncToServer: true,
   storageQuotaMB: 50,
   cleanupThresholdDays: 7,
+  enableLocalStorage: true,
+  enableIndexedDB: true,
+  enableServerPersistence: true,
+  enableCloudBackup: false,
 };
 
 // Persisted batch state structure
@@ -666,3 +674,46 @@ export const removePersistedState = (batchId: string) =>
 export const getStorageInfo = () => batchPersistenceManager.getStorageInfo();
 
 export const clearAllPersistedData = () => batchPersistenceManager.clearAllData();
+
+// Export interfaces for storage manager
+export interface IStorageManager {
+  isAvailable(): boolean;
+  get(key: string): Promise<any>;
+  set(key: string, value: any): Promise<void>;
+  remove(key: string): Promise<void>;
+  clear(): Promise<void>;
+  save(key: string, data: any): Promise<void>;
+  load(key: string): Promise<any>;
+  delete(key: string): Promise<void>;
+  list(): Promise<string[]>;
+  getQuota(): Promise<StorageQuotas>;
+  cleanup(): Promise<void>;
+}
+
+export interface StorageQuotas {
+  maxSize: number;
+  warningThreshold: number;
+  localStorage: number;
+  indexedDB: number;
+  warning: number;
+  critical: number;
+}
+
+export interface BatchPersistenceState {
+  version: string;
+  timestamp: number;
+  batchId: string;
+  sessionId: string;
+  userId?: string;
+  state: any;
+  metadata: {
+    userAgent: string;
+    url: string;
+    resumeCount: number;
+    lastActivity: number;
+    syncStatus: 'synced' | 'pending' | 'conflict' | 'failed';
+    checksum: string;
+  };
+  compressed?: boolean;
+  encrypted?: boolean;
+}

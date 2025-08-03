@@ -102,7 +102,7 @@ export async function initializeFirebaseAuth(): Promise<void> {
 
     serverAuthLogger.info('Firebase Admin SDK initialized successfully', {
       operation: 'firebase_init',
-      projectId: config.firebase.projectId,
+      projectId: config.firebase.projectId || undefined,
       success: true
     });
 

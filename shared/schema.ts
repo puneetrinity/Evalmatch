@@ -52,6 +52,28 @@ export interface SimpleBiasAnalysis {
   recommendations?: string[];
 }
 
+// Enhanced bias analysis data with confidence and fairness metrics
+export interface BiasAnalysisData {
+  hasBias: boolean;
+  biasTypes: string[];
+  biasedPhrases: Array<{
+    phrase: string;
+    reason: string;
+  }>;
+  suggestions: string[];
+  improvedDescription: string;
+  biasConfidenceScore: number;
+  fairnessAssessment: string;
+  overallScore?: number;
+  summary?: string;
+  biasIndicators?: Array<{
+    type: string;
+    text: string;
+    suggestion: string;
+  }>;
+  recommendations?: string[];
+}
+
 export interface AnalyzedJobData {
   requiredSkills: string[];
   preferredSkills: string[];

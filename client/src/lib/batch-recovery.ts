@@ -291,11 +291,11 @@ export class BatchRecoveryManager {
       
       // Convert server response to BatchState format
       const batchState: Partial<BatchState> = {
-        batchId: serverData.batchId,
+        currentBatchId: serverData.batchId,
         sessionId: serverData.sessionId || sessionId,
         status: 'ready', // Assume ready if server has data
         resumeCount: serverData.resumeCount || 0,
-        lastValidated: Date.now(),
+        lastValidated: new Date(),
         isLoading: false,
         error: null,
       };
@@ -363,9 +363,9 @@ export class BatchRecoveryManager {
       localState: {
         version: STORAGE_VERSION,
         timestamp: Date.now(),
-        batchId: existingData.batchId || '',
+        batchId: existingData.currentBatchId || '',
         sessionId: existingData.sessionId || '',
-        state: existingData,
+        state: existingData as BatchState,
         metadata: {
           userAgent: navigator.userAgent,
           url: window.location.href,
@@ -394,7 +394,10 @@ export class BatchRecoveryManager {
         case 'lastValidated':
         case 'resumeCount':
           // Use newer/higher values for these fields
-          resolved[field as keyof BatchState] = newData[field as keyof BatchState];
+          const value = newData[field as keyof BatchState];
+          if (value !== undefined && value !== null) {
+            (resolved as any)[field] = value;
+          }
           break;
         
         case 'status':
@@ -427,7 +430,7 @@ export class BatchRecoveryManager {
 
   // Check if state is complete enough to be usable
   private isCompleteState(state: Partial<BatchState>): state is BatchState {
-    const requiredFields: (keyof BatchState)[] = ['batchId', 'sessionId', 'status'];
+    const requiredFields: (keyof BatchState)[] = ['currentBatchId', 'sessionId', 'status'];
     return requiredFields.every(field => state[field] !== undefined);
   }
 

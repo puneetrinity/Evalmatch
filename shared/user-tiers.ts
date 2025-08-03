@@ -2,6 +2,9 @@ export type UserTier = 'freemium' | 'premium';
 
 export interface UserTierInfo {
   tier: UserTier;
+  name: string;
+  model: string;
+  maxConcurrency: number;
   dailyAnalysisLimit: number;
   usageCount: number;
   lastResetDate: string;
@@ -16,6 +19,9 @@ export interface UserTierInfo {
 
 export const TIER_LIMITS = {
   freemium: {
+    name: 'Freemium',
+    model: 'groq-llama3',
+    maxConcurrency: 2,
     dailyAnalysisLimit: 300, // Increased for testing (was 50)
     allowedProviders: ['groq'],
     features: {
@@ -27,6 +33,9 @@ export const TIER_LIMITS = {
     }
   },
   premium: {
+    name: 'Premium',
+    model: 'claude-3-sonnet',
+    maxConcurrency: 10,
     dailyAnalysisLimit: -1, // unlimited
     allowedProviders: ['groq', 'openai', 'anthropic'],
     features: {
@@ -42,6 +51,9 @@ export const TIER_LIMITS = {
 export function createDefaultUserTier(tier: UserTier = 'freemium'): UserTierInfo {
   return {
     tier,
+    name: TIER_LIMITS[tier].name,
+    model: TIER_LIMITS[tier].model,
+    maxConcurrency: TIER_LIMITS[tier].maxConcurrency,
     dailyAnalysisLimit: TIER_LIMITS[tier].dailyAnalysisLimit,
     usageCount: 0,
     lastResetDate: new Date().toISOString().split('T')[0],

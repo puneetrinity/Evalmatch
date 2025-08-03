@@ -8,24 +8,11 @@
 
 import type { SessionId } from '@shared/api-contracts';
 import type { 
-  // BatchPersistenceState, // Not exported
-  // IStorageManager, // Not exported
-  // StorageQuotas, // Not exported
+  BatchPersistenceState,
+  IStorageManager,
+  StorageQuotas,
   PersistenceConfig 
 } from './batch-persistence';
-
-// Define missing types locally
-type BatchPersistenceState = any; // TODO: Define proper type
-interface IStorageManager {
-  get(key: string): Promise<any>;
-  set(key: string, value: any): Promise<void>;
-  remove(key: string): Promise<void>;
-  clear(): Promise<void>;
-}
-interface StorageQuotas {
-  maxSize: number;
-  warningThreshold: number;
-}
 import { apiRequest } from '@/lib/queryClient';
 
 // ===== TYPE DEFINITIONS =====
@@ -97,6 +84,27 @@ class CloudStorageManager implements IStorageManager {
 
   constructor(config: CloudStorageConfig) {
     this.config = config;
+  }
+
+  isAvailable(): boolean {
+    return !!this.config.endpoint && !!this.config.bucket;
+  }
+
+  async get(key: string): Promise<any> {
+    return await this.load(key);
+  }
+
+  async set(key: string, value: any): Promise<void> {
+    return await this.save(key, value);
+  }
+
+  async remove(key: string): Promise<void> {
+    return await this.delete(key);
+  }
+
+  async clear(): Promise<void> {
+    const keys = await this.list();
+    await Promise.all(keys.map(key => this.delete(key)));
   }
 
   async save(key: string, data: BatchPersistenceState): Promise<void> {
@@ -223,39 +231,45 @@ class CloudStorageManager implements IStorageManager {
     }
   }
 
-  async getQuota(): Promise<StorageQuotas | null> {
+
+  async getQuota(): Promise<StorageQuotas> {
     try {
       const response = await fetch(`${this.config.endpoint}/quota`, {
         headers: {
           'Authorization': `Bearer ${this.config.apiKey}`,
-          'X-Bucket': this.config.bucket
+          'X-Bucket': this.config.bucket,
         },
         signal: AbortSignal.timeout(this.config.timeout)
       });
 
       if (!response.ok) {
-        return null;
+        throw new Error(`Cloud storage quota check failed: ${response.status}`);
       }
 
       const quota = await response.json();
       return {
-        localStorage: { used: 0, available: 0, limit: 0 },
-        indexedDB: { used: 0, available: 0, limit: 0 },
-        warning: quota.used > quota.limit * 0.8,
-        critical: quota.used > quota.limit * 0.95
+        maxSize: quota.limit || this.config.maxFileSize,
+        warningThreshold: quota.limit * 0.8,
+        localStorage: quota.used || 0,
+        indexedDB: 0,
+        warning: quota.used > quota.limit * 0.8 ? quota.limit * 0.8 : 0,
+        critical: quota.used > quota.limit * 0.95 ? quota.limit * 0.95 : 0
       };
     } catch {
-      return null;
+      return {
+        maxSize: this.config.maxFileSize,
+        warningThreshold: this.config.maxFileSize * 0.8,
+        localStorage: 0,
+        indexedDB: 0,
+        warning: 0,
+        critical: 0
+      };
     }
   }
 
   async cleanup(): Promise<void> {
     // Cloud storage cleanup is typically handled server-side
     console.log('[CLOUD_STORAGE] Cleanup requested (handled server-side)');
-  }
-
-  isAvailable(): boolean {
-    return !!this.config.endpoint && !!this.config.apiKey && navigator.onLine;
   }
 
   private async compress(data: any): Promise<any> {
@@ -290,6 +304,27 @@ class ServerStorageManager implements IStorageManager {
 
   constructor(baseUrl = '/api/batches') {
     this.baseUrl = baseUrl;
+  }
+
+  isAvailable(): boolean {
+    return navigator.onLine;
+  }
+
+  async get(key: string): Promise<any> {
+    return await this.load(key);
+  }
+
+  async set(key: string, value: any): Promise<void> {
+    return await this.save(key, value);
+  }
+
+  async remove(key: string): Promise<void> {
+    return await this.delete(key);
+  }
+
+  async clear(): Promise<void> {
+    const keys = await this.list();
+    await Promise.all(keys.map(key => this.delete(key)));
   }
 
   async save(key: string, data: BatchPersistenceState): Promise<void> {
@@ -367,21 +402,46 @@ class ServerStorageManager implements IStorageManager {
     }
   }
 
-  async getQuota(): Promise<StorageQuotas | null> {
-    return null; // Server quota is managed separately
+
+
+  async getQuota(): Promise<StorageQuotas> {
+    try {
+      const response = await apiRequest('GET', `${this.baseUrl}/quota`);
+      if (!response.ok) {
+        throw new Error(`Server quota check failed: ${response.status}`);
+      }
+      const result = await response.json();
+      const quota = result.data || {};
+      return {
+        maxSize: quota.maxSize || 100 * 1024 * 1024, // 100MB default
+        warningThreshold: quota.warningThreshold || 80 * 1024 * 1024,
+        localStorage: quota.used || 0,
+        indexedDB: 0,
+        warning: quota.warning || 0,
+        critical: quota.critical || 0
+      };
+    } catch {
+      return {
+        maxSize: 100 * 1024 * 1024,
+        warningThreshold: 80 * 1024 * 1024,
+        localStorage: 0,
+        indexedDB: 0,
+        warning: 0,
+        critical: 0
+      };
+    }
   }
 
   async cleanup(): Promise<void> {
     try {
-      await apiRequest('POST', `${this.baseUrl}/cleanup`);
+      const response = await apiRequest('POST', `${this.baseUrl}/cleanup`);
+      if (!response.ok) {
+        console.warn(`[SERVER_STORAGE] Cleanup failed: ${response.status}`);
+      }
       console.log('[SERVER_STORAGE] Cleanup completed');
     } catch (error) {
-      console.error(`[SERVER_STORAGE] Cleanup failed: ${error}`);
+      console.error('[SERVER_STORAGE] Cleanup failed:', error);
     }
-  }
-
-  isAvailable(): boolean {
-    return navigator.onLine;
   }
 
   private extractBatchIdFromKey(key: string): string | null {
@@ -403,6 +463,27 @@ class MemoryStorageManager implements IStorageManager {
     
     // Cleanup expired entries every 5 minutes
     setInterval(() => this.cleanup(), 5 * 60 * 1000);
+  }
+
+  isAvailable(): boolean {
+    return true;
+  }
+
+  async get(key: string): Promise<any> {
+    return await this.load(key);
+  }
+
+  async set(key: string, value: any): Promise<void> {
+    return await this.save(key, value);
+  }
+
+  async remove(key: string): Promise<void> {
+    return await this.delete(key);
+  }
+
+  async clear(): Promise<void> {
+    this.cache.clear();
+    console.log('[MEMORY_STORAGE] Cache cleared');
   }
 
   async save(key: string, data: BatchPersistenceState): Promise<void> {
@@ -465,15 +546,17 @@ class MemoryStorageManager implements IStorageManager {
     return validKeys;
   }
 
-  async getQuota(): Promise<StorageQuotas | null> {
+  async getQuota(): Promise<StorageQuotas> {
     const totalSize = Array.from(this.cache.values()).reduce((sum, entry) => sum + entry.size, 0);
     const maxMemory = this.maxSize * 1024 * 1024; // Estimate
 
     return {
-      localStorage: { used: 0, available: 0, limit: 0 },
-      indexedDB: { used: totalSize, available: maxMemory - totalSize, limit: maxMemory },
-      warning: totalSize > maxMemory * 0.8,
-      critical: totalSize > maxMemory * 0.95
+      maxSize: maxMemory,
+      warningThreshold: maxMemory * 0.8,
+      localStorage: 0, // Memory storage doesn't use localStorage
+      indexedDB: totalSize,
+      warning: totalSize > maxMemory * 0.8 ? maxMemory * 0.8 : 0,
+      critical: totalSize > maxMemory * 0.95 ? maxMemory * 0.95 : 0
     };
   }
 
@@ -494,9 +577,6 @@ class MemoryStorageManager implements IStorageManager {
     }
   }
 
-  isAvailable(): boolean {
-    return true;
-  }
 
   private evictLRU(): void {
     let oldestKey: string | null = null;
@@ -520,9 +600,9 @@ class MemoryStorageManager implements IStorageManager {
 
 export class UnifiedStorageManager {
   private storageManagers: Map<StorageType, IStorageManager> = new Map();
-  private strategy: StorageStrategy;
+  private strategy!: StorageStrategy;
   private health: Map<StorageType, StorageHealth> = new Map();
-  private metrics: StorageMetrics;
+  private metrics!: StorageMetrics;
   private healthCheckInterval: NodeJS.Timeout | null = null;
 
   constructor(
@@ -639,10 +719,12 @@ export class UnifiedStorageManager {
 
   async getStorageQuotas(): Promise<StorageQuotas> {
     const quotas: StorageQuotas = {
-      localStorage: { used: 0, available: 0, limit: 0 },
-      indexedDB: { used: 0, available: 0, limit: 0 },
-      warning: false,
-      critical: false
+      maxSize: 0,
+      warningThreshold: 0,
+      localStorage: 0,
+      indexedDB: 0,
+      warning: 0,
+      critical: 0
     };
 
     for (const [type, manager] of this.storageManagers.entries()) {
@@ -762,10 +844,12 @@ export class UnifiedStorageManager {
       },
       storageHealth: new Map(),
       quotaUsage: {
-        localStorage: { used: 0, available: 0, limit: 0 },
-        indexedDB: { used: 0, available: 0, limit: 0 },
-        warning: false,
-        critical: false
+        maxSize: 0,
+        warningThreshold: 0,
+        localStorage: 0,
+        indexedDB: 0,
+        warning: 0,
+        critical: 0
       },
       cacheMisses: 0,
       cacheHits: 0,
@@ -917,15 +1001,4 @@ export class UnifiedStorageManager {
 }
 
 // ===== EXPORTS =====
-
-export {
-  CloudStorageManager,
-  ServerStorageManager,
-  MemoryStorageManager,
-  StorageStrategy,
-  StorageRule,
-  StorageType,
-  StorageHealth,
-  StorageMetrics,
-  CloudStorageConfig
-};
+// Types and classes are exported at their definition sites

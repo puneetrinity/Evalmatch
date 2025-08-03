@@ -12,14 +12,14 @@ import * as schema from "@shared/schema";
 export const db = new Proxy({} as any, {
   get(target, prop) {
     const database = getDatabase();
-    return database[prop];
+    return (database as any)[prop as string];
   }
 });
 
 export const pool = new Proxy({} as any, {
   get(target, prop) {
     const poolInstance = getPool();
-    return poolInstance[prop];
+    return poolInstance ? (poolInstance as any)[prop as string] : undefined;
   }
 });
 

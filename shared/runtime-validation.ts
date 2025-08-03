@@ -210,7 +210,7 @@ export function validateWithSchema<T>(
         field: err.path.join('.'),
         message: err.message,
         code: err.code,
-        value: err.input,
+        value: 'input' in err ? err.input : undefined,
       }));
       
       return {
@@ -226,7 +226,7 @@ export function validateWithSchema<T>(
       success: false,
       errors: [{
         field: 'unknown',
-        message: errorContext ? `${errorContext}: ${error.message}` : error.message,
+        message: errorContext ? `${errorContext}: ${(error as Error).message}` : (error as Error).message,
         code: 'UNKNOWN_ERROR',
       }],
     };
@@ -252,7 +252,7 @@ export function validateRequest<T>(schema: z.ZodSchema<T>) {
       const message = result.errors?.map(e => `${e.field}: ${e.message}`).join(', ') || 'Validation failed';
       throw new Error(message);
     }
-    return result.data;
+    return result.data!;
   };
 }
 
@@ -263,7 +263,7 @@ export function validateResponse<T>(schema: z.ZodSchema<T>) {
       const message = result.errors?.map(e => `${e.field}: ${e.message}`).join(', ') || 'Response validation failed';
       throw new Error(message);
     }
-    return result.data;
+    return result.data!;
   };
 }
 
