@@ -1,7 +1,8 @@
 /**
  * Mock implementation of wouter router for tests
  */
-import React from 'react';
+import * as React from 'react';
+import { jest } from '@jest/globals';
 
 export const useLocation = jest.fn(() => ['/', jest.fn()]);
 export const useRoute = jest.fn(() => [false, {}]);

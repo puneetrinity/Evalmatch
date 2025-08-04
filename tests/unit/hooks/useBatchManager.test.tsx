@@ -16,6 +16,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { jest, describe, test, expect, beforeEach, afterEach, beforeAll, afterAll, it } from '@jest/globals';
 import { useBatchManager } from '@/hooks/useBatchManager';
 import type { SessionId, ApiResult, ResumeListResponse } from '@shared/api-contracts';
+import { createMockApiRequest, createMockToast, mockApiSuccess, mockApiError } from '../../helpers/mock-helpers';
 
 // Mock types that don't exist
 interface BatchValidationResult {
@@ -108,14 +109,14 @@ const createTestQueryClient = () => new QueryClient({
   },
 });
 
-// Mock API requests 
-const mockApiRequest = jest.fn();
+// Mock API requests with proper typing
+const mockApiRequest = createMockApiRequest();
 jest.mock('@/lib/queryClient', () => ({
   apiRequest: mockApiRequest,
 }));
 
 // Mock toast notifications
-const mockToast = jest.fn();
+const mockToast = createMockToast();
 jest.mock('@/hooks/use-toast', () => ({
   useToast: () => ({
     toast: mockToast,

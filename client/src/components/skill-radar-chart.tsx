@@ -15,6 +15,11 @@ export default function SkillRadarChart({ matchedSkills, height = 300 }: SkillRa
     // Log to help debug
     console.log('Skills data received by chart:', matchedSkills);
     
+    // Handle null/undefined matchedSkills
+    if (!matchedSkills || !Array.isArray(matchedSkills)) {
+      return [];
+    }
+    
     // Validate and normalize skills data
     const validSkills = matchedSkills.filter(item => {
       // Ensure we have both a skill name and percentage
@@ -22,7 +27,10 @@ export default function SkillRadarChart({ matchedSkills, height = 300 }: SkillRa
         typeof item === 'object' && 
         item !== null && 
         typeof item.skill === 'string' && 
-        typeof item.matchPercentage === 'number'
+        item.skill.trim() !== '' && // Filter out empty skill names
+        typeof item.matchPercentage === 'number' &&
+        !isNaN(item.matchPercentage) && // Filter out NaN values
+        isFinite(item.matchPercentage) // Filter out Infinity values
       );
     });
     
@@ -45,8 +53,8 @@ export default function SkillRadarChart({ matchedSkills, height = 300 }: SkillRa
     });
   }, [matchedSkills]);
   
-  // Don't render if no skills
-  if (!matchedSkills || matchedSkills.length === 0) {
+  // Don't render if no skills or no valid data
+  if (!matchedSkills || !Array.isArray(matchedSkills) || matchedSkills.length === 0 || chartData.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-gray-500">
         No skill data available

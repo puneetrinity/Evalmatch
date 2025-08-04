@@ -3,7 +3,7 @@ export default {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-  setupFiles: ['<rootDir>/tests/jest.setup.js'],
+  setupFiles: ['<rootDir>/tests/jest.setup.js', '<rootDir>/tests/helpers/jsdom-navigation-polyfill.js'],
   testMatch: [
     '**/tests/**/*.test.ts',
     '**/tests/**/*.test.tsx'

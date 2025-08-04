@@ -56,20 +56,18 @@ global.importMeta = {
     VITE_API_BASE_URL: process.env.VITE_API_BASE_URL,
     VITE_APP_ENV: 'test',
     NODE_ENV: 'test',
-    MODE: 'test'
+    MODE: 'test',
+    DEV: true,
+    PROD: false,
+    // Firebase environment variables
+    VITE_FIREBASE_API_KEY: 'test-api-key',
+    VITE_FIREBASE_AUTH_DOMAIN: 'test-auth-domain',
+    VITE_FIREBASE_PROJECT_ID: 'test-project-id',
+    VITE_FIREBASE_STORAGE_BUCKET: 'test-storage-bucket',
+    VITE_FIREBASE_MESSAGING_SENDER_ID: 'test-sender-id',
+    VITE_FIREBASE_APP_ID: 'test-app-id'
   }
 };
-
-// Define import.meta globally for modules that expect it
-Object.defineProperty(global, 'import', {
-  value: {
-    meta: {
-      env: global.importMeta.env
-    }
-  },
-  writable: false,
-  configurable: false
-});
 
 // Global test utilities
 global.testUtils = {
@@ -87,11 +85,24 @@ if (global.testUtils.mockDatabase) {
 // Note: Don't redefine location as JSDOM already provides it
 // Instead, enhance existing location object with missing methods
 if (typeof window !== 'undefined' && window.location) {
+  // Mock location methods with proper implementation
   if (typeof window.location.assign !== 'function') {
-    window.location.assign = jest.fn();
+    window.location.assign = jest.fn((url) => {
+      // Simulate navigation by updating href
+      Object.defineProperty(window.location, 'href', {
+        writable: true,
+        value: url
+      });
+    });
   }
   if (typeof window.location.replace !== 'function') {
-    window.location.replace = jest.fn();
+    window.location.replace = jest.fn((url) => {
+      // Simulate navigation by updating href
+      Object.defineProperty(window.location, 'href', {
+        writable: true,
+        value: url
+      });
+    });
   }
   if (typeof window.location.reload !== 'function') {
     window.location.reload = jest.fn();
