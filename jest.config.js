@@ -22,14 +22,7 @@ export default {
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
       useESM: true,
-      tsconfig: {
-        jsx: 'react-jsx',
-        esModuleInterop: true,
-        allowSyntheticDefaultImports: true,
-        module: 'ESNext',
-        moduleResolution: 'node',
-        target: 'ES2020'
-      }
+      tsconfig: './tsconfig.test.json'
     }]
   },
   extensionsToTreatAsEsm: ['.ts', '.tsx'],

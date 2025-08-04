@@ -6,9 +6,17 @@
  * - API functionality
  * - Performance validation
  * - Memory usage monitoring
+ * 
+ * @jest-environment node
  */
 
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
+
+// Ensure fetch is available in Node.js environment
+if (typeof fetch === 'undefined') {
+  const nodeFetch = require('node-fetch');
+  (global as any).fetch = nodeFetch.default || nodeFetch;
+}
 
 const RAILWAY_URL = process.env.RAILWAY_TEST_URL || 'http://localhost:8080';
 const TEST_TIMEOUT = 30000;
@@ -31,7 +39,12 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
   }
 }
 
-describe.skip('Railway Deployment Tests', () => {
+// Skip Railway tests if no URL is provided or if running in CI without explicit Railway testing
+const shouldSkipRailwayTests = !process.env.RAILWAY_TEST_URL && process.env.CI;
+
+const describeConditional = shouldSkipRailwayTests ? describe.skip : describe;
+
+describeConditional('Railway Deployment Tests', () => {
   let deploymentStartTime: number;
   
   beforeAll(async () => {

@@ -83,28 +83,32 @@ if (global.testUtils.mockDatabase) {
   console.log('🔌 Real database mode enabled for integration tests');
 }
 
-// Additional JSDOM polyfills for browser APIs
+// Additional JSDOM polyfills for browser APIs (only in browser/jsdom environment)
 // Note: Don't redefine location as JSDOM already provides it
 // Instead, enhance existing location object with missing methods
-if (typeof window.location.assign !== 'function') {
-  window.location.assign = jest.fn();
-}
-if (typeof window.location.replace !== 'function') {
-  window.location.replace = jest.fn();
-}
-if (typeof window.location.reload !== 'function') {
-  window.location.reload = jest.fn();
+if (typeof window !== 'undefined' && window.location) {
+  if (typeof window.location.assign !== 'function') {
+    window.location.assign = jest.fn();
+  }
+  if (typeof window.location.replace !== 'function') {
+    window.location.replace = jest.fn();
+  }
+  if (typeof window.location.reload !== 'function') {
+    window.location.reload = jest.fn();
+  }
 }
 
-// Mock navigation API
-Object.defineProperty(window, 'navigation', {
-  value: {
-    navigate: jest.fn(),
-    back: jest.fn(),
-    forward: jest.fn(),
-  },
-  writable: true,
-});
+// Mock navigation API (only in browser/jsdom environment)
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'navigation', {
+    value: {
+      navigate: jest.fn(),
+      back: jest.fn(),
+      forward: jest.fn(),
+    },
+    writable: true,
+  });
+}
 
 // Mock caches API
 Object.defineProperty(global, 'caches', {

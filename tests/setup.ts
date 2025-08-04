@@ -28,20 +28,22 @@ global.console = {
 // Mock fetch for tests
 global.fetch = jest.fn();
 
-// Mock window.matchMedia for React components
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: jest.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(), // deprecated
-    removeListener: jest.fn(), // deprecated
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
-  })),
-});
+// Mock window.matchMedia for React components (only in browser/jsdom environment)
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: jest.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(), // deprecated
+      removeListener: jest.fn(), // deprecated
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+}
 
 // Mock window.ResizeObserver
 global.ResizeObserver = jest.fn().mockImplementation(() => ({
@@ -57,7 +59,7 @@ global.IntersectionObserver = jest.fn().mockImplementation(() => ({
   disconnect: jest.fn(),
 }));
 
-// Mock localStorage
+// Mock localStorage (only in browser/jsdom environment)
 const localStorageMock = {
   getItem: jest.fn(),
   setItem: jest.fn(),
@@ -66,9 +68,11 @@ const localStorageMock = {
   length: 0,
   key: jest.fn(),
 };
-Object.defineProperty(global, 'localStorage', { value: localStorageMock });
+if (typeof window !== 'undefined') {
+  Object.defineProperty(global, 'localStorage', { value: localStorageMock });
+}
 
-// Mock sessionStorage
+// Mock sessionStorage (only in browser/jsdom environment)
 const sessionStorageMock = {
   getItem: jest.fn(),
   setItem: jest.fn(),
@@ -77,7 +81,9 @@ const sessionStorageMock = {
   length: 0,
   key: jest.fn(),
 };
-Object.defineProperty(global, 'sessionStorage', { value: sessionStorageMock });
+if (typeof window !== 'undefined') {
+  Object.defineProperty(global, 'sessionStorage', { value: sessionStorageMock });
+}
 
 // Global test configuration
 beforeAll(async () => {
@@ -109,17 +115,21 @@ beforeEach(() => {
     (global.console.warn as jest.MockedFunction<any>).mockClear();
   }
   
-  // Reset localStorage mock
-  localStorageMock.getItem.mockReturnValue(null);
-  localStorageMock.setItem.mockClear();
-  localStorageMock.removeItem.mockClear();
-  localStorageMock.clear.mockClear();
+  // Reset localStorage mock (only if in browser/jsdom environment)
+  if (typeof window !== 'undefined' && localStorageMock) {
+    localStorageMock.getItem.mockReturnValue(null);
+    localStorageMock.setItem.mockClear();
+    localStorageMock.removeItem.mockClear();
+    localStorageMock.clear.mockClear();
+  }
   
-  // Reset sessionStorage mock
-  sessionStorageMock.getItem.mockReturnValue(null);
-  sessionStorageMock.setItem.mockClear();
-  sessionStorageMock.removeItem.mockClear();
-  sessionStorageMock.clear.mockClear();
+  // Reset sessionStorage mock (only if in browser/jsdom environment)
+  if (typeof window !== 'undefined' && sessionStorageMock) {
+    sessionStorageMock.getItem.mockReturnValue(null);
+    sessionStorageMock.setItem.mockClear();
+    sessionStorageMock.removeItem.mockClear();
+    sessionStorageMock.clear.mockClear();
+  }
   
   // Reset fetch mock
   if (global.fetch && typeof global.fetch === 'function' && 'mockClear' in global.fetch) {

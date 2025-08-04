@@ -602,7 +602,7 @@ describe('Batch Recovery System', () => {
 
       expect(result.status).toBe('failed');
       expect(result.errorDetails).toBeTruthy();
-      expect(result.failedItems).toEqual(['localStorage', 'indexedDB', 'server']);
+      expect(result.failedItems || []).toEqual(['localStorage', 'indexedDB', 'server']);
     });
 
     it('should cancel recovery when requested', async () => {
@@ -1156,7 +1156,7 @@ describe('Batch Recovery System', () => {
       });
 
       expect(result.status).toBe('failed');
-      expect(result.failedItems).toContain('server');
+      expect(result.failedItems || []).toContain('server');
     });
 
     it('should handle malformed server responses', async () => {
@@ -1183,7 +1183,7 @@ describe('Batch Recovery System', () => {
       const result = await shortRetryManager.recoverBatchState(mockBatchId);
 
       expect(result.status).toBe('failed');
-      expect(result.failedItems.length).toBeGreaterThan(0);
+      expect((result.failedItems || []).length).toBeGreaterThan(0);
     });
   });
 });

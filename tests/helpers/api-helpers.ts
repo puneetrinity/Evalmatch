@@ -107,12 +107,15 @@ export class MockAuth {
     return {
       verify: jest.fn().mockImplementation((token: string): Promise<string | jwt.JwtPayload> => {
         try {
+          if (!token) {
+            return Promise.reject(new Error('No token provided'));
+          }
           const decoded = jwt.verify(token.replace('Bearer ', ''), TEST_CONFIG.jwtSecret);
-          return Promise.resolve(decoded);
+          return Promise.resolve(decoded as string | jwt.JwtPayload);
         } catch (error) {
           return Promise.reject(new Error('Invalid token'));
         }
-      }),
+      }) as any,
     };
   }
 }
@@ -226,6 +229,9 @@ export class DatabaseTestHelper {
 // Response validation utilities
 export class ResponseValidator {
   static validateSuccessResponse(response: any) {
+    if (!response) {
+      throw new Error('Response is null or undefined');
+    }
     if (response.status !== 200) {
       throw new Error(`Expected status 200, got ${response.status}`);
     }
