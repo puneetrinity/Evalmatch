@@ -92,27 +92,37 @@ export default function AnalysisPage() {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
-  // Get the current session ID and batch ID from localStorage
-  const [sessionId, setSessionId] = useState<SessionId | null>(null);
-  const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
-  
-  // Load session ID and batch ID from localStorage when component mounts
-  useEffect(() => {
-    console.log('=== LOADING LOCALSTORAGE VALUES ===');
+  // Initialize session ID and batch ID from localStorage synchronously
+  const [sessionId, setSessionId] = useState<SessionId | null>(() => {
+    console.log('=== LOADING LOCALSTORAGE VALUES SYNCHRONOUSLY ===');
     const storedSessionId = localStorage.getItem('currentUploadSession');
-    const storedBatchId = localStorage.getItem('currentBatchId');
-    
     console.log(`localStorage.getItem('currentUploadSession'): ${storedSessionId}`);
+    return storedSessionId as SessionId | null;
+  });
+  
+  const [currentBatchId, setCurrentBatchId] = useState<string | null>(() => {
+    const storedBatchId = localStorage.getItem('currentBatchId');
     console.log(`localStorage.getItem('currentBatchId'): ${storedBatchId}`);
-    
-    setSessionId(storedSessionId as SessionId | null);
-    setCurrentBatchId(storedBatchId);
-    
-    console.log(`State will be set to:
-      - sessionId: ${storedSessionId}
+    console.log(`Initial state will be set to:
+      - sessionId: ${localStorage.getItem('currentUploadSession')}
       - currentBatchId: ${storedBatchId}
     `);
-  }, []);
+    return storedBatchId;
+  });
+  
+  // Add a loading state to track when we're ready for auto-analysis
+  const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Mark as initialized after first render to ensure state is properly set
+  useEffect(() => {
+    console.log('=== MARKING COMPONENT AS INITIALIZED ===');
+    console.log(`Current state after initialization:
+      - sessionId: ${sessionId}
+      - currentBatchId: ${currentBatchId}
+      - jobId: ${jobId}
+    `);
+    setIsInitialized(true);
+  }, [sessionId, currentBatchId, jobId]);
   
   
   // Job data interface moved to top level with proper typing
@@ -249,7 +259,7 @@ export default function AnalysisPage() {
       console.log(`Analysis data received, count: ${data.results?.length || 0} results`);
       return data as AnalysisResponse;
     },
-    enabled: !!jobId && sessionId !== null && currentBatchId !== null, // Only fetch when we have all required IDs
+    enabled: !!jobId && sessionId !== null && currentBatchId !== null && isInitialized, // Only fetch when initialized and have all required IDs
     retry: 1
   });
   
@@ -269,6 +279,7 @@ export default function AnalysisPage() {
   useEffect(() => {
     console.log('=== AUTO ANALYSIS EFFECT TRIGGERED ===');
     console.log(`Conditions check:
+      - isInitialized: ${isInitialized}
       - isLoading: ${isLoading}
       - isError: ${isError}
       - analysisData?.results: ${analysisData?.results ? 'exists' : 'null'}
@@ -284,13 +295,15 @@ export default function AnalysisPage() {
     `);
     
     // Only run automatic analysis when:
-    // 1. Initial data loading is complete
-    // 2. There are no existing analysis results
-    // 3. We haven't attempted auto-analysis yet OR we're retrying after an error
-    // 4. We have sessionId, jobId, and currentBatchId
-    // 5. Not currently analyzing
-    // 6. Haven't exceeded max retries
-    const shouldAttemptAnalysis = !isLoading && 
+    // 1. Component is fully initialized with localStorage values
+    // 2. Initial data loading is complete
+    // 3. There are no existing analysis results
+    // 4. We haven't attempted auto-analysis yet OR we're retrying after an error
+    // 5. We have sessionId, jobId, and currentBatchId
+    // 6. Not currently analyzing
+    // 7. Haven't exceeded max retries
+    const shouldAttemptAnalysis = isInitialized &&
+        !isLoading && 
         !isError &&
         (!analysisData?.results || analysisData.results.length === 0) && 
         (!hasAttemptedAutoAnalysis || (analyzeMutation.isError && retryCount < MAX_RETRIES)) && 
@@ -324,6 +337,7 @@ export default function AnalysisPage() {
       console.log('❌ Auto-analysis conditions not met');
       
       // Log specific reasons why conditions aren't met
+      if (!isInitialized) console.log('  - Not yet initialized');
       if (isLoading) console.log('  - Still loading data');
       if (isError) console.log('  - Error state present');
       if (analysisData?.results && analysisData.results.length > 0) console.log('  - Analysis results already exist');
@@ -336,6 +350,7 @@ export default function AnalysisPage() {
       if (analyzeMutation.isPending) console.log('  - Mutation pending');
     }
   }, [
+    isInitialized,
     isLoading, 
     isError,
     analysisData?.results?.length, 

@@ -48,9 +48,10 @@ describe('AnalysisPage Component', () => {
     mockLocation[0] = `/analysis/${mockJobId}`;
     
     // Mock localStorage with session data
-    mockLocalStorage.getItem.mockImplementation((key: string) => {
-      if (key === 'currentUploadSession') return mockSessionId;
-      if (key === 'currentBatchId') return mockBatchId;
+    mockLocalStorage.getItem.mockImplementation((key: unknown) => {
+      const keyStr = key as string;
+      if (keyStr === 'currentUploadSession') return mockSessionId;
+      if (keyStr === 'currentBatchId') return mockBatchId;
       return null;
     });
   });
@@ -787,9 +788,10 @@ describe('AnalysisPage Component', () => {
 
     it('should handle session data synchronization', async () => {
       // Test with different session/batch combinations
-      mockLocalStorage.getItem.mockImplementation((key: string) => {
-        if (key === 'currentUploadSession') return 'different_session';
-        if (key === 'currentBatchId') return 'different_batch';
+      mockLocalStorage.getItem.mockImplementation((key: unknown) => {
+        const keyStr = key as string;
+        if (keyStr === 'currentUploadSession') return 'different_session';
+        if (keyStr === 'currentBatchId') return 'different_batch';
         return null;
       });
 
