@@ -80,9 +80,9 @@ jest.mock('@/hooks/use-toast', () => ({
 
 // Mock auth service
 const mockAuthService = {
-  getAuthToken: jest.fn().mockResolvedValue('mock-auth-token') as any,
-  getCurrentUser: jest.fn().mockResolvedValue(null) as any,
-  signOut: jest.fn().mockResolvedValue(void 0) as any,
+  getAuthToken: jest.fn(() => Promise.resolve('mock-auth-token')) as any,
+  getCurrentUser: jest.fn(() => Promise.resolve(null)) as any,
+  signOut: jest.fn(() => Promise.resolve(undefined)) as any,
 };
 
 jest.mock('@/lib/firebase', () => ({
@@ -140,7 +140,7 @@ jest.mock('@/hooks/use-auth', () => ({
 // Mock location hook
 const mockLocation = ['/upload', jest.fn()];
 jest.mock('wouter', async () => {
-  const actual = await jest.importActual('wouter') as any;
+  const actual = await jest.importActual<any>('wouter');
   return {
     ...actual,
     useLocation: () => mockLocation,

@@ -41,15 +41,6 @@ export default {
   clearMocks: true,
   restoreMocks: true,
   resetModules: true,
-  globals: {
-    'ts-jest': {
-      useESM: true,
-      tsconfig: {
-        module: 'ESNext',
-        target: 'ES2020'
-      }
-    }
-  },
   collectCoverageFrom: [
     'client/src/**/*.{ts,tsx}',
     'server/**/*.{ts,js}',

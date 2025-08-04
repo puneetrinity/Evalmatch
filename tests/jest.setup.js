@@ -84,23 +84,17 @@ if (global.testUtils.mockDatabase) {
 }
 
 // Additional JSDOM polyfills for browser APIs
-Object.defineProperty(window, 'location', {
-  value: {
-    href: 'http://localhost:3000',
-    origin: 'http://localhost:3000',
-    protocol: 'http:',
-    host: 'localhost:3000',
-    hostname: 'localhost',
-    port: '3000',
-    pathname: '/',
-    search: '',
-    hash: '',
-    assign: jest.fn(),
-    replace: jest.fn(),
-    reload: jest.fn(),
-  },
-  writable: true,
-});
+// Note: Don't redefine location as JSDOM already provides it
+// Instead, enhance existing location object with missing methods
+if (typeof window.location.assign !== 'function') {
+  window.location.assign = jest.fn();
+}
+if (typeof window.location.replace !== 'function') {
+  window.location.replace = jest.fn();
+}
+if (typeof window.location.reload !== 'function') {
+  window.location.reload = jest.fn();
+}
 
 // Mock navigation API
 Object.defineProperty(window, 'navigation', {
