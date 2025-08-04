@@ -438,7 +438,8 @@ describe('Batch Management API', () => {
       // Create related data
       const jobDescription = await DatabaseTestHelper.createTestJobDescription({
         userId: testUser.uid,
-        title: 'Delete Test Job'
+        title: 'Delete Test Job',
+        description: 'Test job description for batch deletion'
       });
 
       await DatabaseTestHelper.createTestAnalysisResult({

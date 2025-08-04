@@ -24,7 +24,7 @@ let testUser: TestUser;
 let anotherUser: TestUser;
 
 // Mock the database before importing server
-jest.mock('../../../server/database/index.js', () => ({
+jest.mock('../../../server/database/index.ts', () => ({
   getDatabase: jest.fn(() => ({
     query: jest.fn(),
   })),

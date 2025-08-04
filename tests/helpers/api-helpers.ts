@@ -105,7 +105,7 @@ export class MockAuth {
   static mockFirebaseAuth() {
     // Mock Firebase Auth for testing
     return {
-      verify: jest.fn().mockImplementation((token: string) => {
+      verify: jest.fn().mockImplementation((token: string): Promise<string | jwt.JwtPayload> => {
         try {
           const decoded = jwt.verify(token.replace('Bearer ', ''), TEST_CONFIG.jwtSecret);
           return Promise.resolve(decoded);
@@ -431,7 +431,7 @@ export class TestSuiteHelper {
     await DatabaseTestHelper.setupTestEnvironment();
     
     // Mock global fetch
-    global.fetch = jest.fn();
+    global.fetch = jest.fn() as any;
     
     // Mock console methods to reduce noise in tests
     jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -491,19 +491,19 @@ export class RateLimitTestHelper {
 // Error simulation utilities
 export class ErrorSimulator {
   static simulateNetworkError() {
-    return jest.fn().mockRejectedValue(new Error('Network connection failed'));
+    return jest.fn().mockRejectedValue(new Error('Network connection failed')) as any;
   }
 
   static simulateTimeoutError() {
-    return jest.fn().mockRejectedValue(new Error('Request timeout'));
+    return jest.fn().mockRejectedValue(new Error('Request timeout')) as any;
   }
 
   static simulateDatabaseError() {
-    return jest.fn().mockRejectedValue(new Error('Database connection failed'));
+    return jest.fn().mockRejectedValue(new Error('Database connection failed')) as any;
   }
 
   static simulateAuthError() {
-    return jest.fn().mockRejectedValue(new Error('Authentication failed'));
+    return jest.fn().mockRejectedValue(new Error('Authentication failed')) as any;
   }
 }
 

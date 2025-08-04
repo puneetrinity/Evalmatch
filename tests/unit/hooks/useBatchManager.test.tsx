@@ -14,12 +14,8 @@ import { renderHook, act } from '@testing-library/react';
 import { waitFor } from '@testing-library/dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { jest, describe, test, expect, beforeEach, afterEach, beforeAll, afterAll, it } from '@jest/globals';
-import { toast } from '../../../client/src/hooks/use-toast';
-import { useBatchManager } from '../../../client/src/hooks/useBatchManager';
-import type { SessionId, ApiResult, ResumeListResponse } from '../../../shared/api-contracts';
-
-// Mock API request function
-const apiRequest = jest.fn();
+import { useBatchManager } from '@/hooks/useBatchManager';
+import type { SessionId, ApiResult, ResumeListResponse } from '@shared/api-contracts';
 
 // Mock types that don't exist
 interface BatchValidationResult {
@@ -112,14 +108,19 @@ const createTestQueryClient = () => new QueryClient({
   },
 });
 
-// Mock API requests - using the jest.fn() defined above
+// Mock API requests 
+const mockApiRequest = jest.fn();
+jest.mock('@/lib/queryClient', () => ({
+  apiRequest: mockApiRequest,
+}));
 
 // Mock toast notifications
-jest.mock('../../../client/src/hooks/use-toast', () => ({
+const mockToast = jest.fn();
+jest.mock('@/hooks/use-toast', () => ({
   useToast: () => ({
-    toast: jest.fn(),
+    toast: mockToast,
   }),
-  toast: jest.fn(),
+  toast: mockToast,
 }));
 
 // Mock localStorage
@@ -156,8 +157,7 @@ const createWrapper = () => {
   );
 };
 
-const mockApiRequest = apiRequest as jest.MockedFunction<typeof apiRequest>;
-const mockToast = toast as jest.MockedFunction<typeof toast>;
+// mockApiRequest is already defined above
 
 // Test data
 const mockSessionId: SessionId = 'session_test123' as SessionId;
@@ -263,15 +263,14 @@ describe('useBatchManager Hook', () => {
       mockLocalStorage.getItem.mockReturnValue(JSON.stringify(persistedData));
 
       // Mock successful validation
-      mockApiRequest.mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            success: true,
-            data: mockResumeListResponse,
-          }),
-          { status: 200 }
-        )
-      );
+      mockApiRequest.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          success: true,
+          data: mockResumeListResponse,
+        }),
+      });
 
       const { result } = renderHook(
         () => useBatchManager({ autoRecover: true }), 
@@ -373,9 +372,11 @@ describe('useBatchManager Hook', () => {
         message: 'Validation successful',
       };
 
-      mockApiRequest.mockResolvedValueOnce(
-        new Response(JSON.stringify(serverValidationResponse), { status: 200 })
-      );
+      mockApiRequest.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(serverValidationResponse),
+      });
 
       let validationResult: any;
       await act(async () => {
@@ -396,17 +397,16 @@ describe('useBatchManager Hook', () => {
 
       // Mock server validation failure
       mockApiRequest
-        .mockRejectedValueOnce(new Error('Server unavailable'))
+        .mockRejectedValueOnce({ message: 'Server unavailable' })
         // Mock successful legacy validation
-        .mockResolvedValueOnce(
-          new Response(
-            JSON.stringify({
-              success: true,
-              data: mockResumeListResponse,
-            }),
-            { status: 200 }
-          )
-        );
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            success: true,
+            data: mockResumeListResponse,
+          }),
+        });
 
       let validationResult: any;
       await act(async () => {
@@ -452,16 +452,15 @@ describe('useBatchManager Hook', () => {
 
       // Mock first call fails, second succeeds
       mockApiRequest
-        .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce(
-          new Response(
-            JSON.stringify({
-              success: true,
-              data: mockResumeListResponse,
-            }),
-            { status: 200 }
-          )
-        );
+        .mockRejectedValueOnce({ message: 'Network error' })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            success: true,
+            data: mockResumeListResponse,
+          }),
+        });
 
       let validationResult: any;
       await act(async () => {
@@ -495,7 +494,7 @@ describe('useBatchManager Hook', () => {
         result.current.createNewBatch();
       });
 
-      mockApiRequest.mockRejectedValue(new Error('Network error'));
+      mockApiRequest.mockRejectedValue({ message: 'Network error' });
 
       await act(async () => {
         await result.current.validateBatch();
@@ -513,7 +512,7 @@ describe('useBatchManager Hook', () => {
         result.current.createNewBatch();
       });
 
-      mockApiRequest.mockRejectedValue(new Error('Batch not found'));
+      mockApiRequest.mockRejectedValue({ message: 'Batch not found' });
 
       await act(async () => {
         await result.current.validateBatch();
@@ -530,7 +529,7 @@ describe('useBatchManager Hook', () => {
         result.current.createNewBatch();
       });
 
-      mockApiRequest.mockRejectedValue(new Error('Test error'));
+      mockApiRequest.mockRejectedValue({ message: 'Test error' });
 
       await act(async () => {
         await result.current.validateBatch();
@@ -720,9 +719,11 @@ describe('useBatchManager Hook', () => {
         message: 'Batch is ready',
       };
 
-      mockApiRequest.mockResolvedValueOnce(
-        new Response(JSON.stringify(mockStatusResponse), { status: 200 })
-      );
+      mockApiRequest.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockStatusResponse),
+      });
 
       let status: any;
       await act(async () => {
@@ -758,9 +759,11 @@ describe('useBatchManager Hook', () => {
         message: 'Claim successful',
       };
 
-      mockApiRequest.mockResolvedValueOnce(
-        new Response(JSON.stringify(mockClaimResponse), { status: 200 })
-      );
+      mockApiRequest.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockClaimResponse),
+      });
 
       let claimResult: any;
       await act(async () => {
@@ -802,9 +805,11 @@ describe('useBatchManager Hook', () => {
         message: 'Delete successful',
       };
 
-      mockApiRequest.mockResolvedValueOnce(
-        new Response(JSON.stringify(mockDeleteResponse), { status: 200 })
-      );
+      mockApiRequest.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockDeleteResponse),
+      });
 
       let deleteResult: any;
       await act(async () => {
@@ -830,15 +835,14 @@ describe('useBatchManager Hook', () => {
         result.current.createNewBatch();
       });
 
-      mockApiRequest.mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            success: true,
-            data: mockResumeListResponse,
-          }),
-          { status: 200 }
-        )
-      );
+      mockApiRequest.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          success: true,
+          data: mockResumeListResponse,
+        }),
+      });
 
       await waitFor(() => {
         expect(result.current.resumesData).toBeTruthy();
@@ -863,15 +867,14 @@ describe('useBatchManager Hook', () => {
         totalCount: 3,
       };
 
-      mockApiRequest.mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            success: true,
-            data: updatedResponse,
-          }),
-          { status: 200 }
-        )
-      );
+      mockApiRequest.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          success: true,
+          data: updatedResponse,
+        }),
+      });
 
       await waitFor(() => {
         expect(result.current.resumeCount).toBe(3);
@@ -885,15 +888,14 @@ describe('useBatchManager Hook', () => {
         result.current.createNewBatch();
       });
 
-      mockApiRequest.mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            success: true,
-            data: mockResumeListResponse,
-          }),
-          { status: 200 }
-        )
-      );
+      mockApiRequest.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          success: true,
+          data: mockResumeListResponse,
+        }),
+      });
 
       await act(async () => {
         await result.current.refetchResumes();
@@ -977,15 +979,14 @@ describe('useBatchManager Hook', () => {
       });
 
       // Mock validation call
-      mockApiRequest.mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            success: true,
-            data: mockResumeListResponse,
-          }),
-          { status: 200 }
-        )
-      );
+      mockApiRequest.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          success: true,
+          data: mockResumeListResponse,
+        }),
+      });
 
       // Fast-forward time to trigger auto-validation
       act(() => {
@@ -1047,15 +1048,14 @@ describe('useBatchManager Hook', () => {
         result.current.createNewBatch();
       });
 
-      mockApiRequest.mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            success: true,
-            data: { invalid: 'format' }, // Invalid response format
-          }),
-          { status: 200 }
-        )
-      );
+      mockApiRequest.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          success: true,
+          data: { invalid: 'format' }, // Invalid response format
+        }),
+      });
 
       let validationResult: any;
       await act(async () => {
@@ -1075,15 +1075,14 @@ describe('useBatchManager Hook', () => {
 
       mockApiRequest.mockImplementation(
         () => new Promise(resolve => 
-          setTimeout(() => resolve(
-            new Response(
-              JSON.stringify({
-                success: true,
-                data: mockResumeListResponse,
-              }),
-              { status: 200 }
-            )
-          ), 100)
+          setTimeout(() => resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({
+              success: true,
+              data: mockResumeListResponse,
+            }),
+          }), 100)
         )
       );
 
@@ -1115,7 +1114,7 @@ describe('useBatchManager Hook', () => {
         value: false,
       });
 
-      mockApiRequest.mockRejectedValue(new Error('Network error'));
+      mockApiRequest.mockRejectedValue({ message: 'Network error' });
 
       await act(async () => {
         await result.current.validateBatch();

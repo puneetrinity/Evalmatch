@@ -515,7 +515,8 @@ describe('Job Description API', () => {
     test('should handle cascade deletion of related data', async () => {
       // Create related analysis results
       const resume = await DatabaseTestHelper.createTestResume({
-        userId: testUser.uid
+        userId: testUser.uid,
+        filename: 'test-resume.pdf'
       });
       
       await DatabaseTestHelper.createTestAnalysisResult({

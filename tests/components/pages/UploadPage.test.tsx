@@ -94,7 +94,7 @@ describe('UploadPage Component', () => {
 
     it('should show batch information when batch ID is available', async () => {
       // Mock existing batch
-      mockLocalStorage.getItem.mockImplementation((key: string) => {
+      (mockLocalStorage.getItem as any).mockImplementation((key: string) => {
         if (key === 'currentBatchId') return mockBatchId;
         if (key === 'currentUploadSession') return mockSessionId;
         return null;
@@ -138,7 +138,7 @@ describe('UploadPage Component', () => {
     });
 
     it('should use existing session if available', async () => {
-      mockLocalStorage.getItem.mockImplementation((key: string) => {
+      (mockLocalStorage.getItem as any).mockImplementation((key: string) => {
         if (key === 'currentUploadSession') return mockSessionId;
         if (key === 'currentBatchId') return mockBatchId;
         return null;
@@ -161,7 +161,7 @@ describe('UploadPage Component', () => {
     });
 
     it('should handle batch validation for existing batches', async () => {
-      mockLocalStorage.getItem.mockImplementation((key: string) => {
+      (mockLocalStorage.getItem as any).mockImplementation((key: string) => {
         if (key === 'currentUploadSession') return mockSessionId;
         if (key === 'currentBatchId') return mockBatchId;
         return null;
@@ -181,7 +181,7 @@ describe('UploadPage Component', () => {
     });
 
     it('should create new batch if existing batch is empty', async () => {
-      mockLocalStorage.getItem.mockImplementation((key: string) => {
+      (mockLocalStorage.getItem as any).mockImplementation((key: string) => {
         if (key === 'currentUploadSession') return mockSessionId;
         if (key === 'currentBatchId') return mockBatchId;
         return null;
@@ -330,7 +330,7 @@ describe('UploadPage Component', () => {
     });
 
     it('should display existing uploaded files', async () => {
-      mockLocalStorage.getItem.mockImplementation((key: string) => {
+      (mockLocalStorage.getItem as any).mockImplementation((key: string) => {
         if (key === 'currentUploadSession') return mockSessionId;
         if (key === 'currentBatchId') return mockBatchId;
         return null;
@@ -603,7 +603,7 @@ describe('UploadPage Component', () => {
     });
 
     it('should handle API errors during resume fetching', async () => {
-      mockLocalStorage.getItem.mockImplementation((key: string) => {
+      (mockLocalStorage.getItem as any).mockImplementation((key: string) => {
         if (key === 'currentUploadSession') return mockSessionId;
         if (key === 'currentBatchId') return mockBatchId;
         return null;
@@ -770,7 +770,7 @@ describe('UploadPage Component', () => {
 
     it('should handle session recovery workflow', async () => {
       // Start with existing session
-      mockLocalStorage.getItem.mockImplementation((key: string) => {
+      (mockLocalStorage.getItem as any).mockImplementation((key: string) => {
         if (key === 'currentUploadSession') return mockSessionId;
         if (key === 'currentBatchId') return mockBatchId;
         return null;

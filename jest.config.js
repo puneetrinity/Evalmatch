@@ -31,7 +31,7 @@ export default {
   extensionsToTreatAsEsm: ['.ts', '.tsx'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   transformIgnorePatterns: [
-    'node_modules/(?!(wouter|jose|jwks-rsa|@firebase)/)'
+    'node_modules/(?!(wouter|jose|jwks-rsa|@firebase|regexparam)/)'
   ],
   testTimeout: 30000,
   clearMocks: true,

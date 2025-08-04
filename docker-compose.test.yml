@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: evalmatch-tests
+    environment:
+      - NODE_ENV=test
+      - CI=true
+      # Test database configuration
+      - DATABASE_TYPE=sqlite
+      - DATABASE_URL=:memory:
+      # Disable external services for tests
+      - MOCK_FIREBASE=true
+      - MOCK_ANTHROPIC=true
+      - ANTHROPIC_API_KEY=test-key
+      # Test environment variables
+      - JWT_SECRET=test-jwt-secret
+      - SESSION_SECRET=test-session-secret
+    volumes:
+      # Mount source code for live updates during development
+      - ./client:/app/client
+      - ./server:/app/server
+      - ./shared:/app/shared
+      - ./tests:/app/tests
+      # Exclude node_modules
+      - /app/node_modules
+    command: npm test
+    
+  # Run specific test file
+  test-file:
+    extends: test
+    command: npm test -- --testPathPattern=
+    
+  # Run tests in watch mode for development
+  test-watch:
+    extends: test
+    command: npm test -- --watch
+    stdin_open: true
+    tty: true
+    
+  # Run tests with coverage
+  test-coverage:
+    extends: test
+    command: npm test -- --coverage
+    volumes:
+      - ./coverage:/app/coverage
+      
+  # Run only unit tests
+  test-unit:
+    extends: test
+    command: npm test -- --testPathPattern=unit
+    
+  # Run only integration tests  
+  test-integration:
+    extends: test
+    command: npm test -- --testPathPattern=integration

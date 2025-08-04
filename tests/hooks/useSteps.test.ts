@@ -17,7 +17,7 @@ import { useSteps } from '@/hooks/use-steps';
 import {
   setupTest,
   cleanupTest,
-} from '../../helpers/component-test-helpers';
+} from '../helpers/component-test-helpers';
 
 // ===== TEST DATA =====
 

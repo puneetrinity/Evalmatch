@@ -16,7 +16,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { Router } from 'wouter';
 import { jest } from '@jest/globals';
-import type { Mock, MockedFunction } from 'jest';
+// Mock function types
+type MockFunction = ReturnType<typeof jest.fn>;
 
 // Types
 import type { SessionId, ResumeId, JobId, ApiResult } from '@shared/api-contracts';
@@ -55,15 +56,17 @@ Object.defineProperty(window, 'sessionStorage', {
 
 // Mock fetch for API requests
 const mockFetch = jest.fn();
-global.fetch = mockFetch;
+global.fetch = mockFetch as any;
 
 // Mock console methods
-export const mockConsole = {
+const mockConsole = {
   log: jest.fn(),
   error: jest.fn(),
   warn: jest.fn(),
   info: jest.fn(),
   debug: jest.fn(),
+  group: jest.fn(),
+  groupEnd: jest.fn(),
 };
 
 // Mock toast notifications
@@ -77,9 +80,9 @@ jest.mock('@/hooks/use-toast', () => ({
 
 // Mock auth service
 const mockAuthService = {
-  getAuthToken: jest.fn().mockResolvedValue('mock-auth-token'),
-  getCurrentUser: jest.fn().mockResolvedValue(null),
-  signOut: jest.fn().mockResolvedValue(void 0),
+  getAuthToken: jest.fn().mockResolvedValue('mock-auth-token') as any,
+  getCurrentUser: jest.fn().mockResolvedValue(null) as any,
+  signOut: jest.fn().mockResolvedValue(void 0) as any,
 };
 
 jest.mock('@/lib/firebase', () => ({
@@ -121,8 +124,8 @@ jest.mock('@/hooks/use-steps', () => ({
 }));
 
 // Mock auth context
-export const mockAuthContext = {
-  user: null,
+const mockAuthContext = {
+  user: null as any,
   isAuthenticated: false,
   loading: false,
   signIn: jest.fn(),
@@ -137,12 +140,12 @@ jest.mock('@/hooks/use-auth', () => ({
 // Mock location hook
 const mockLocation = ['/upload', jest.fn()];
 jest.mock('wouter', async () => {
-  const actual = await jest.importActual('wouter');
+  const actual = await jest.importActual('wouter') as any;
   return {
     ...actual,
     useLocation: () => mockLocation,
     useRoute: (pattern: string) => {
-      const path = mockLocation[0];
+      const path = mockLocation[0] as string;
       const match = path.match(new RegExp(pattern.replace(/:\w+/g, '([^/]+)')));
       if (match) {
         const params: Record<string, string> = {};
@@ -189,7 +192,7 @@ export const mockTestFiles = {
 export const mockResumeList = {
   resumes: [
     {
-      id: '1' as ResumeId,
+      id: 1 as ResumeId,
       filename: 'john_doe_resume.pdf',
       fileSize: 245760,
       fileType: 'application/pdf',
@@ -197,7 +200,7 @@ export const mockResumeList = {
       uploadedAt: new Date().toISOString(),
     },
     {
-      id: '2' as ResumeId,
+      id: 2 as ResumeId,
       filename: 'jane_smith_resume.pdf',
       fileSize: 198432,
       fileType: 'application/pdf',
@@ -382,7 +385,7 @@ export function mockApiResponse<T>(
       () => new Promise(resolve => setTimeout(() => resolve(mockResponse), delay))
     );
   } else {
-    mockFetch.mockResolvedValueOnce(mockResponse);
+    (mockFetch as any).mockResolvedValueOnce(mockResponse);
   }
 }
 
@@ -404,7 +407,7 @@ export function mockApiError(message: string, code?: string, status = 400, delay
  * Mocks localStorage with initial data
  */
 export function mockLocalStorageData(data: Record<string, string>): void {
-  mockLocalStorage.getItem.mockImplementation((key: string) => data[key] || null);
+  (mockLocalStorage.getItem as any).mockImplementation((key: string) => data[key] || null);
 }
 
 /**
@@ -539,7 +542,7 @@ export function simulateNetworkError(delay = 0): void {
       () => new Promise((_, reject) => setTimeout(() => reject(error), delay))
     );
   } else {
-    mockFetch.mockRejectedValueOnce(error);
+    (mockFetch as any).mockRejectedValueOnce(error);
   }
 }
 
@@ -581,8 +584,8 @@ export function resetAllMocks(): void {
   mockToast.mockClear();
   
   // Reset auth mock
-  mockAuthService.getAuthToken.mockResolvedValue('mock-auth-token');
-  mockAuthService.getCurrentUser.mockResolvedValue(null);
+  (mockAuthService.getAuthToken as any).mockResolvedValue('mock-auth-token');
+  (mockAuthService.getCurrentUser as any).mockResolvedValue(null);
   
   // Reset location mock
   mockLocation[0] = '/upload';

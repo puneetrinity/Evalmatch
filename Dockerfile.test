@@ -1,0 +1,24 @@
+# Test-specific Dockerfile
+FROM node:20-alpine
+
+# Install dependencies needed for testing
+RUN apk add --no-cache python3 make g++ git
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies for testing)
+RUN npm ci
+
+# Copy the entire project
+COPY . .
+
+# Set test environment
+ENV NODE_ENV=test
+ENV CI=true
+
+# Run tests by default
+CMD ["npm", "test"]

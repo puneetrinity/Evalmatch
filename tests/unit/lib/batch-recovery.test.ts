@@ -100,12 +100,26 @@ jest.mock('../../../client/src/lib/error-handling', () => ({
 const restoreBatchState = jest.fn();
 const STORAGE_VERSION = '1.2.0';
 
-const mockApiRequest = apiRequest as jest.MockedFunction<typeof apiRequest>;
-const mockRestoreBatchState = restoreBatchState as jest.MockedFunction<typeof restoreBatchState>;
+// Default recovery configuration
+const DEFAULT_RECOVERY_CONFIG = {
+  timeout: 30000,
+  retryAttempts: 3,
+  retryDelay: 1000,
+  enableProgressiveRecovery: true,
+  enableConflictResolution: true,
+};
+
+const mockApiRequest = apiRequest as any;
+const mockRestoreBatchState = restoreBatchState as any;
 
 // Create mock implementations for the batch recovery system
 class MockBatchRecoveryManager implements BatchRecoveryManager {
   private activeRecoveries = new Map<string, Promise<RecoveryResult>>();
+  private config: any;
+
+  constructor(config: any = DEFAULT_RECOVERY_CONFIG) {
+    this.config = { ...DEFAULT_RECOVERY_CONFIG, ...config };
+  }
 
   async recoverBatchState(batchId: string, options: any = {}): Promise<RecoveryResult> {
     // Prevent duplicate recovery operations
@@ -145,7 +159,7 @@ class MockBatchRecoveryManager implements BatchRecoveryManager {
       if (persistedState) {
         return {
           status: 'success',
-          restoredState: persistedState.state,
+          restoredState: (persistedState as any).state,
           metadata: { source: 'localStorage', duration: Date.now() - startTime },
           recoveredItems: ['localStorage']
         };
@@ -158,9 +172,9 @@ class MockBatchRecoveryManager implements BatchRecoveryManager {
     if (options.sessionId || options.userId) {
       try {
         const response = await mockApiRequest('GET', `/api/batches/${batchId}/validate`);
-        const responseData = await response.json();
+        const responseData = await (response as any).json();
         
-        if (response.ok) {
+        if ((response as any).ok) {
           return {
             status: 'success',
             restoredState: responseData,
@@ -220,19 +234,19 @@ class MockBatchRecoveryManager implements BatchRecoveryManager {
 
   private async recoverResumes(batchId: string, options: any) {
     const response = await mockApiRequest('GET', `/api/resumes?batchId=${batchId}&sessionId=${options.sessionId || ''}`);
-    const data = await response.json();
+    const data = await (response as any).json();
     return data.resumes;
   }
 
   private async recoverAnalysis(batchId: string, options: any) {
     const response = await mockApiRequest('GET', `/api/analysis/analyze/1?batchId=${batchId}&sessionId=${options.sessionId || ''}`);
-    const data = await response.json();
+    const data = await (response as any).json();
     return data.results && data.results.length > 0 ? data : null;
   }
 
   private async recoverMetadata(batchId: string, options: any) {
     const response = await mockApiRequest('GET', `/api/batches/${batchId}/validate?sessionId=${options.sessionId || ''}`);
-    return await response.json();
+    return await (response as any).json();
   }
 
   cancelRecovery(batchId: string): boolean {
@@ -423,7 +437,7 @@ describe('Batch Recovery System', () => {
     let recoveryManager: BatchRecoveryManager;
 
     beforeEach(() => {
-      recoveryManager = new BatchRecoveryManager({
+      recoveryManager = new MockBatchRecoveryManager({
         maxRecoveryAttempts: 3,
         recoveryTimeoutMs: 10000,
         enableProgressiveRecovery: true,
@@ -434,7 +448,7 @@ describe('Batch Recovery System', () => {
     });
 
     it('should initialize with correct default configuration', () => {
-      const defaultManager = new BatchRecoveryManager();
+      const defaultManager = new MockBatchRecoveryManager();
       
       expect(defaultManager['config']).toEqual(DEFAULT_RECOVERY_CONFIG);
     });
@@ -626,7 +640,7 @@ describe('Batch Recovery System', () => {
     let recoveryManager: BatchRecoveryManager;
 
     beforeEach(() => {
-      recoveryManager = new BatchRecoveryManager();
+      recoveryManager = new MockBatchRecoveryManager();
     });
 
     it('should recover all components successfully', async () => {
@@ -696,7 +710,7 @@ describe('Batch Recovery System', () => {
     let recoveryManager: BatchRecoveryManager;
 
     beforeEach(() => {
-      recoveryManager = new BatchRecoveryManager();
+      recoveryManager = new MockBatchRecoveryManager();
     });
 
     it('should detect data conflicts correctly', () => {
@@ -796,7 +810,7 @@ describe('Batch Recovery System', () => {
     let recoveryManager: BatchRecoveryManager;
 
     beforeEach(() => {
-      recoveryManager = new BatchRecoveryManager();
+      recoveryManager = new MockBatchRecoveryManager();
     });
 
     it('should recover from localStorage/IndexedDB', async () => {
@@ -869,7 +883,7 @@ describe('Batch Recovery System', () => {
     let recoveryManager: BatchRecoveryManager;
 
     beforeEach(() => {
-      recoveryManager = new BatchRecoveryManager();
+      recoveryManager = new MockBatchRecoveryManager();
     });
 
     it('should recover resumes from server', async () => {
@@ -995,7 +1009,7 @@ describe('Batch Recovery System', () => {
     let recoveryManager: BatchRecoveryManager;
 
     beforeEach(() => {
-      recoveryManager = new BatchRecoveryManager({
+      recoveryManager = new MockBatchRecoveryManager({
         maxRecoveryAttempts: 2,
         recoveryTimeoutMs: 5000,
         enableProgressiveRecovery: true,
@@ -1111,7 +1125,7 @@ describe('Batch Recovery System', () => {
     let recoveryManager: BatchRecoveryManager;
 
     beforeEach(() => {
-      recoveryManager = new BatchRecoveryManager();
+      recoveryManager = new MockBatchRecoveryManager();
     });
 
     it('should handle corrupted persisted state', async () => {
@@ -1158,7 +1172,7 @@ describe('Batch Recovery System', () => {
     });
 
     it('should handle maximum retry exhaustion', async () => {
-      const shortRetryManager = new BatchRecoveryManager({
+      const shortRetryManager = new MockBatchRecoveryManager({
         maxRecoveryAttempts: 1,
         recoveryTimeoutMs: 10000,
       });
