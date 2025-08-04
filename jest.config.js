@@ -17,6 +17,7 @@ export default {
     '^firebase-admin$': '<rootDir>/tests/__mocks__/firebase-admin.ts',
     '^jose$': '<rootDir>/tests/__mocks__/jose.ts',
     '^jwks-rsa$': '<rootDir>/tests/__mocks__/jwks-rsa.ts',
+    '^wouter$': '<rootDir>/tests/__mocks__/wouter.ts',
   },
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
@@ -25,6 +26,9 @@ export default {
         jsx: 'react-jsx',
         esModuleInterop: true,
         allowSyntheticDefaultImports: true,
+        module: 'ESNext',
+        moduleResolution: 'node',
+        target: 'ES2020'
       }
     }]
   },
@@ -37,6 +41,15 @@ export default {
   clearMocks: true,
   restoreMocks: true,
   resetModules: true,
+  globals: {
+    'ts-jest': {
+      useESM: true,
+      tsconfig: {
+        module: 'ESNext',
+        target: 'ES2020'
+      }
+    }
+  },
   collectCoverageFrom: [
     'client/src/**/*.{ts,tsx}',
     'server/**/*.{ts,js}',

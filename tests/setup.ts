@@ -96,5 +96,41 @@ afterAll(async () => {
   console.log('🧹 Test cleanup completed');
 });
 
+// Better test isolation
+beforeEach(() => {
+  // Reset all mocks between tests
+  jest.clearAllMocks();
+  
+  // Reset console mock between tests
+  if (typeof global.console.error === 'function' && 'mockClear' in global.console.error) {
+    (global.console.error as jest.MockedFunction<any>).mockClear();
+  }
+  if (typeof global.console.warn === 'function' && 'mockClear' in global.console.warn) {
+    (global.console.warn as jest.MockedFunction<any>).mockClear();
+  }
+  
+  // Reset localStorage mock
+  localStorageMock.getItem.mockReturnValue(null);
+  localStorageMock.setItem.mockClear();
+  localStorageMock.removeItem.mockClear();
+  localStorageMock.clear.mockClear();
+  
+  // Reset sessionStorage mock
+  sessionStorageMock.getItem.mockReturnValue(null);
+  sessionStorageMock.setItem.mockClear();
+  sessionStorageMock.removeItem.mockClear();
+  sessionStorageMock.clear.mockClear();
+  
+  // Reset fetch mock
+  if (global.fetch && typeof global.fetch === 'function' && 'mockClear' in global.fetch) {
+    (global.fetch as jest.MockedFunction<any>).mockClear();
+  }
+});
+
+afterEach(() => {
+  // Additional cleanup after each test
+  jest.restoreAllMocks();
+});
+
 // Increase timeout for integration tests
 jest.setTimeout(30000);
