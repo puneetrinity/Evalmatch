@@ -139,29 +139,41 @@ jest.mock('@/hooks/use-auth', () => ({
 
 // Mock location hook
 const mockLocation = ['/upload', jest.fn()];
-jest.mock('wouter', async () => {
-  const actual = await jest.importActual<any>('wouter');
-  return {
-    ...actual,
-    useLocation: () => mockLocation,
-    useRoute: (pattern: string) => {
-      const path = mockLocation[0] as string;
-      const match = path.match(new RegExp(pattern.replace(/:\w+/g, '([^/]+)')));
-      if (match) {
-        const params: Record<string, string> = {};
-        const paramNames = pattern.match(/:(\w+)/g);
-        if (paramNames) {
-          paramNames.forEach((param, index) => {
-            const key = param.slice(1);
-            params[key] = match[index + 1];
-          });
-        }
-        return [true, params];
+jest.mock('wouter', () => ({
+  useLocation: () => mockLocation,
+  useRoute: (pattern: string) => {
+    const path = mockLocation[0] as string;
+    const match = path.match(new RegExp(pattern.replace(/:\w+/g, '([^/]+)')));
+    if (match) {
+      const params: Record<string, string> = {};
+      const paramNames = pattern.match(/:(\w+)/g);
+      if (paramNames) {
+        paramNames.forEach((param, index) => {
+          const key = param.slice(1);
+          params[key] = match[index + 1];
+        });
       }
-      return [false, {}];
-    },
-  };
-});
+      return [true, params];
+    }
+    return [false, {}];
+  },
+  Link: ({ href, children, className, ...props }: any) => (
+    <a href={href} className={className} data-testid="wouter-link" {...props}>
+      {children}
+    </a>
+  ),
+  Route: ({ path, component: Component, children, ...props }: any) => {
+    if (Component) {
+      return <Component {...props} />;
+    }
+    return typeof children === 'function' ? children(props) : children;
+  },
+  Router: ({ children }: any) => <div data-testid="wouter-router">{children}</div>,
+  Switch: ({ children }: any) => <div data-testid="wouter-switch">{children}</div>,
+  Redirect: ({ to, href, ...props }: any) => (
+    <div data-testid="wouter-redirect" data-to={to || href} {...props} />
+  ),
+}));
 
 // ===== TEST DATA =====
 
@@ -500,13 +512,17 @@ export async function testKeyboardNavigation(
   // Test Tab navigation
   for (let i = 0; i < focusableElements.length; i++) {
     await user.tab();
-    expect(document.activeElement).toBe(focusableElements[i]);
+    if (document.activeElement !== focusableElements[i]) {
+      throw new Error(`Tab navigation failed at element ${i}`);
+    }
   }
 
   // Test Shift+Tab navigation
   for (let i = focusableElements.length - 1; i >= 0; i--) {
     await user.tab({ shift: true });
-    expect(document.activeElement).toBe(focusableElements[i]);
+    if (document.activeElement !== focusableElements[i]) {
+      throw new Error(`Shift+Tab navigation failed at element ${i}`);
+    }
   }
 }
 
