@@ -216,8 +216,8 @@ export function generateErrorId(): string {
 export function createErrorContext(additionalData?: Record<string, unknown>): ErrorContext {
   return {
     timestamp: new Date(),
-    userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : undefined,
-    url: typeof window !== 'undefined' ? window.location.href : undefined,
+    userAgent: typeof window !== 'undefined' && window.navigator ? window.navigator.userAgent : undefined,
+    url: typeof window !== 'undefined' && window.location ? window.location.href : undefined,
     additionalData,
   };
 }
