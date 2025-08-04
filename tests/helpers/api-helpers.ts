@@ -105,12 +105,12 @@ export class MockAuth {
   static mockFirebaseAuth() {
     // Mock Firebase Auth for testing
     return {
-      verify: jest.fn().mockImplementation((token: string): Promise<string | jwt.JwtPayload> => {
+      verify: jest.fn().mockImplementation((token: unknown): Promise<string | jwt.JwtPayload> => {
         try {
           if (!token) {
             return Promise.reject(new Error('No token provided'));
           }
-          const decoded = jwt.verify(token.replace('Bearer ', ''), TEST_CONFIG.jwtSecret);
+          const decoded = jwt.verify(String(token).replace('Bearer ', ''), TEST_CONFIG.jwtSecret);
           return Promise.resolve(decoded as string | jwt.JwtPayload);
         } catch (error) {
           return Promise.reject(new Error('Invalid token'));
@@ -123,64 +123,75 @@ export class MockAuth {
 // Database test helper
 export class DatabaseTestHelper {
   static async setupTestEnvironment() {
-    initializeMockDatabase();
+    const { mockDatabase } = await import('./database-mock');
+    mockDatabase.reset();
     console.log('✅ Mock database environment set up');
   }
 
   static async teardownTestEnvironment() {
-    MockDatabase.reset();
+    const { mockDatabase } = await import('./database-mock');
+    mockDatabase.reset();
     console.log('✅ Mock database environment torn down');
   }
 
   static async cleanupTestData() {
-    MockDatabase.reset();
+    const { mockDatabase } = await import('./database-mock');
+    mockDatabase.reset();
     console.log('✅ Mock database data cleaned up');
   }
 
   static async createTestResume(data: Omit<TestResume, 'id' | 'createdAt'>): Promise<TestResume> {
-    const resume = await MockDatabase.createResume(data);
+    const { mockDatabase } = await import('./database-mock');
+    const resume = mockDatabase.createResume(data);
     console.log(`Created test resume: ${resume.filename} (ID: ${resume.id})`);
     return resume;
   }
 
   static async createTestJobDescription(data: Omit<TestJobDescription, 'id' | 'createdAt'>): Promise<TestJobDescription> {
-    const jobDescription = await MockDatabase.createJobDescription(data);
+    const { mockDatabase } = await import('./database-mock');
+    const jobDescription = mockDatabase.createJobDescription(data);
     console.log(`Created test job description: ${jobDescription.title} (ID: ${jobDescription.id})`);
     return jobDescription;
   }
 
   static async createTestAnalysisResult(data: Omit<TestAnalysisResult, 'id' | 'createdAt'>): Promise<TestAnalysisResult> {
-    const analysisResult = await MockDatabase.createAnalysisResult(data);
+    const { mockDatabase } = await import('./database-mock');
+    const analysisResult = mockDatabase.createAnalysisResult(data);
     console.log(`Created test analysis result (ID: ${analysisResult.id})`);
     return analysisResult;
   }
 
   static async findTestResume(batchId: string, filename: string): Promise<TestResume | null> {
-    const resumes = await MockDatabase.findResumesByBatch(batchId);
+    const { mockDatabase } = await import('./database-mock');
+    const resumes = mockDatabase.findResumesByBatch(batchId);
     const found = resumes.find(resume => resume.filename === filename);
     console.log(`Finding test resume: ${filename} in batch ${batchId} - ${found ? 'found' : 'not found'}`);
     return found || null;
   }
 
   static async createTestUser(userData: Partial<TestUser> = {}): Promise<TestUser> {
-    const user = await MockDatabase.createUser(userData);
+    const { mockDatabase } = await import('./database-mock');
+    const user = mockDatabase.createUser(userData);
     console.log(`Created test user: ${user.email} (ID: ${user.uid})`);
     return user;
   }
 
   static async findTestUser(uid: string): Promise<TestUser | null> {
-    return await MockDatabase.findUser(uid);
+    const { mockDatabase } = await import('./database-mock');
+    return mockDatabase.data.users.get(uid) || null;
   }
 
   static async seedTestData() {
     // Create some default test data
-    const testUser = await MockDatabase.createUser({
+    const { mockDatabase } = await import('./database-mock');
+    
+    const testUser = mockDatabase.createUser({
       uid: 'test_user_123',
       email: 'test@example.com',
       displayName: 'Test User',
     });
 
-    const testJob = await MockDatabase.createJobDescription({
+    const testJob = mockDatabase.createJobDescription({
       userId: testUser.uid,
       title: 'Senior Software Engineer',
       description: 'Looking for an experienced software engineer with React and Node.js skills',
@@ -190,7 +201,7 @@ export class DatabaseTestHelper {
     const batchId = `batch_${Date.now()}_test`;
     const sessionId = `session_${Date.now()}_test`;
 
-    const testResume1 = await MockDatabase.createResume({
+    const testResume1 = mockDatabase.createResume({
       userId: testUser.uid,
       sessionId,
       batchId,
@@ -198,7 +209,7 @@ export class DatabaseTestHelper {
       content: 'Senior Software Engineer with 5 years experience in React, Node.js, and TypeScript',
     });
 
-    const testResume2 = await MockDatabase.createResume({
+    const testResume2 = mockDatabase.createResume({
       userId: testUser.uid,
       sessionId,
       batchId,
@@ -206,12 +217,12 @@ export class DatabaseTestHelper {
       content: 'Full-stack developer with experience in JavaScript, Python, and React',
     });
 
-    await MockDatabase.createAnalysisResult({
+    mockDatabase.createAnalysisResult({
       userId: testUser.uid,
       resumeId: testResume1.id!,
       jobDescriptionId: testJob.id!,
-      overallMatch: 85,
-      skillsMatch: { React: 90, 'Node.js': 85, TypeScript: 80 },
+      matchPercentage: 85,
+      matchedSkills: ['React', 'Node.js', 'TypeScript'],
     });
 
     console.log('✅ Test data seeded successfully');
@@ -250,8 +261,8 @@ export class ResponseValidator {
     if (response.body?.success !== false) {
       throw new Error(`Expected success to be false, got ${response.body?.success}`);
     }
-    if (!response.body?.message) {
-      throw new Error('Expected message property in response body');
+    if (!response.body?.error && !response.body?.message) {
+      throw new Error('Expected error or message property in response body');
     }
   }
 
@@ -436,6 +447,10 @@ export class TestSuiteHelper {
   static async setupTestEnvironment() {
     await DatabaseTestHelper.setupTestEnvironment();
     
+    // Setup all mocks
+    const { setupServerMocks } = await import('./server-mock');
+    setupServerMocks();
+    
     // Mock global fetch
     global.fetch = jest.fn() as any;
     
@@ -447,6 +462,10 @@ export class TestSuiteHelper {
 
   static async teardownTestEnvironment() {
     await DatabaseTestHelper.teardownTestEnvironment();
+    
+    // Cleanup all mocks
+    const { cleanupServerMocks } = await import('./server-mock');
+    cleanupServerMocks();
     
     // Restore console methods
     jest.restoreAllMocks();
@@ -496,227 +515,27 @@ export class RateLimitTestHelper {
 
 // Error simulation utilities
 export class ErrorSimulator {
-  static simulateNetworkError() {
-    return jest.fn().mockRejectedValue(new Error('Network connection failed')) as any;
+  static simulateNetworkError(): jest.MockedFunction<() => Promise<never>> {
+    return jest.fn<() => Promise<never>>().mockRejectedValue(new Error('Network connection failed'));
   }
 
-  static simulateTimeoutError() {
-    return jest.fn().mockRejectedValue(new Error('Request timeout')) as any;
+  static simulateTimeoutError(): jest.MockedFunction<() => Promise<never>> {
+    return jest.fn<() => Promise<never>>().mockRejectedValue(new Error('Request timeout'));
   }
 
-  static simulateDatabaseError() {
-    return jest.fn().mockRejectedValue(new Error('Database connection failed')) as any;
+  static simulateDatabaseError(): jest.MockedFunction<() => Promise<never>> {
+    return jest.fn<() => Promise<never>>().mockRejectedValue(new Error('Database connection failed'));
   }
 
-  static simulateAuthError() {
-    return jest.fn().mockRejectedValue(new Error('Authentication failed')) as any;
-  }
-}
-
-// Mock Database Implementation
-export class MockDatabase {
-  private static users = new Map<string, any>();
-  private static resumes = new Map<number, any>();
-  private static jobDescriptions = new Map<number, any>();
-  private static analysisResults = new Map<number, any>();
-  private static batches = new Map<string, any>();
-  private static nextId = 1;
-
-  // Reset all data
-  static reset() {
-    this.users.clear();
-    this.resumes.clear();
-    this.jobDescriptions.clear();
-    this.analysisResults.clear();
-    this.batches.clear();
-    this.nextId = 1;
-  }
-
-  // User operations
-  static async createUser(userData: Partial<TestUser>): Promise<TestUser> {
-    const user: TestUser = {
-      uid: userData.uid || `user_${this.nextId++}`,
-      email: userData.email || `test${this.nextId}@example.com`,
-      displayName: userData.displayName || `Test User ${this.nextId}`,
-      emailVerified: userData.emailVerified ?? true,
-    };
-    this.users.set(user.uid, user);
-    return user;
-  }
-
-  static async findUser(uid: string): Promise<TestUser | null> {
-    return this.users.get(uid) || null;
-  }
-
-  // Resume operations
-  static async createResume(resumeData: Omit<TestResume, 'id'>): Promise<TestResume> {
-    const resume: TestResume = {
-      id: this.nextId++,
-      content: 'Mock resume content',
-      fileSize: 1024,
-      fileType: 'application/pdf',
-      sessionId: resumeData.sessionId || `session_${Date.now()}_${this.nextId}`,
-      batchId: resumeData.batchId || `batch_${Date.now()}_${this.nextId}`,
-      createdAt: new Date().toISOString(),
-      ...resumeData,
-    };
-    this.resumes.set(resume.id!, resume);
-    
-    // Update batch resume count
-    if (resume.batchId) {
-      const batch = this.batches.get(resume.batchId);
-      if (batch) {
-        batch.resumeCount = (batch.resumeCount || 0) + 1;
-      } else {
-        this.batches.set(resume.batchId, {
-          batchId: resume.batchId,
-          sessionId: resume.sessionId,
-          userId: resume.userId,
-          resumeCount: 1,
-          createdAt: new Date(),
-          lastAccessedAt: new Date(),
-        });
-      }
-    }
-    
-    return resume;
-  }
-
-  static async findResume(id: number): Promise<TestResume | null> {
-    return this.resumes.get(id) || null;
-  }
-
-  static async findResumesByBatch(batchId: string): Promise<TestResume[]> {
-    return Array.from(this.resumes.values()).filter(resume => resume.batchId === batchId);
-  }
-
-  static async findResumesByUser(userId: string): Promise<TestResume[]> {
-    return Array.from(this.resumes.values()).filter(resume => resume.userId === userId);
-  }
-
-  // Job description operations
-  static async createJobDescription(jobData: Omit<TestJobDescription, 'id'>): Promise<TestJobDescription> {
-    const job: TestJobDescription = {
-      id: this.nextId++,
-      requirements: ['JavaScript', 'React'],
-      createdAt: new Date().toISOString(),
-      ...jobData,
-    };
-    this.jobDescriptions.set(job.id!, job);
-    return job;
-  }
-
-  static async findJobDescription(id: number): Promise<TestJobDescription | null> {
-    return this.jobDescriptions.get(id) || null;
-  }
-
-  // Analysis result operations
-  static async createAnalysisResult(analysisData: Omit<TestAnalysisResult, 'id'>): Promise<TestAnalysisResult> {
-    const analysis: TestAnalysisResult = {
-      id: this.nextId++,
-      overallMatch: Math.floor(Math.random() * 100),
-      skillsMatch: { JavaScript: 90, React: 85 },
-      createdAt: new Date().toISOString(),
-      ...analysisData,
-    };
-    this.analysisResults.set(analysis.id!, analysis);
-    return analysis;
-  }
-
-  static async findAnalysisResult(id: number): Promise<TestAnalysisResult | null> {
-    return this.analysisResults.get(id) || null;
-  }
-
-  static async findAnalysisResultsByResume(resumeId: number): Promise<TestAnalysisResult[]> {
-    return Array.from(this.analysisResults.values()).filter(result => result.resumeId === resumeId);
-  }
-
-  // Batch operations
-  static async findBatch(batchId: string): Promise<any | null> {
-    return this.batches.get(batchId) || null;
-  }
-
-  static async updateBatchAccess(batchId: string): Promise<void> {
-    const batch = this.batches.get(batchId);
-    if (batch) {
-      batch.lastAccessedAt = new Date();
-    }
-  }
-
-  static async deleteBatch(batchId: string): Promise<{ resumes: number; analysisResults: number; interviewQuestions: number }> {
-    const resumes = Array.from(this.resumes.values()).filter(resume => resume.batchId === batchId);
-    const resumeIds = resumes.map(r => r.id!);
-    const analysisResults = Array.from(this.analysisResults.values()).filter(result => 
-      resumeIds.includes(result.resumeId)
-    );
-
-    // Delete resumes
-    resumes.forEach(resume => this.resumes.delete(resume.id!));
-    
-    // Delete analysis results
-    analysisResults.forEach(result => this.analysisResults.delete(result.id!));
-    
-    // Delete batch
-    this.batches.delete(batchId);
-
-    return {
-      resumes: resumes.length,
-      analysisResults: analysisResults.length,
-      interviewQuestions: 0,
-    };
-  }
-
-  // Query execution mock
-  static async executeQuery<T = unknown>(query: string, params?: unknown[]): Promise<T[]> {
-    console.log(`Mock query: ${query.substring(0, 100)}...`);
-    
-    // Simple query parsing for common operations
-    if (query.toLowerCase().includes('select 1')) {
-      return [{ test: 1 } as T];
-    }
-    
-    if (query.toLowerCase().includes('users')) {
-      return Array.from(this.users.values()) as T[];
-    }
-    
-    if (query.toLowerCase().includes('resumes')) {
-      return Array.from(this.resumes.values()) as T[];
-    }
-    
-    if (query.toLowerCase().includes('job_descriptions')) {
-      return Array.from(this.jobDescriptions.values()) as T[];
-    }
-    
-    return [] as T[];
-  }
-
-  // Connection testing
-  static async testConnection(): Promise<boolean> {
-    return true;
-  }
-
-  static async testDatabaseConnection(): Promise<{
-    success: boolean;
-    message: string;
-    details?: any;
-  }> {
-    return {
-      success: true,
-      message: 'Mock database connection successful',
-      details: {
-        connectionCount: 1,
-        queryTime: 5,
-      },
-    };
+  static simulateAuthError(): jest.MockedFunction<() => Promise<never>> {
+    return jest.fn<() => Promise<never>>().mockRejectedValue(new Error('Authentication failed'));
   }
 }
 
 // Database test helper functions
 export const initializeMockDatabase = () => {
-  MockDatabase.reset();
-  
-  // Initialize mock database without using jest.doMock
-  // The database mocking will be handled in individual test files
+  // Legacy function - now handled by the new mocking system
+  console.log('✅ Legacy mock database function called - using new system');
 };
 
 // Mock middleware for testing
