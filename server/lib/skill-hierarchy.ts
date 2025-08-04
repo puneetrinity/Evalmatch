@@ -252,6 +252,17 @@ export async function normalizeSkillWithHierarchy(skill: string): Promise<{
 
     // 3. Try fuzzy string matching
     const allSkills = await db.select().from(skillsTable);
+    
+    // If skills database is empty or has issues, return original skill
+    if (!allSkills || allSkills.length === 0) {
+      logger.warn("Skills database is empty or unavailable, returning original skill without normalization");
+      return {
+        normalized: skill,
+        confidence: 0.5,
+        method: "fuzzy",
+      };
+    }
+    
     const skillNames = allSkills.map((s: any) => s.name);
     const fuzzyMatch = stringSimilarity.findBestMatch(skill, skillNames);
 

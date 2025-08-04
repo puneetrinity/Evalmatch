@@ -1061,15 +1061,23 @@ async function normalizeExtractedSkills(
 ): Promise<string[]> {
   const normalizedSkills: string[] = [];
   const seenSkills = new Set<string>();
+  const MAX_NORMALIZED_SKILLS = 50;
 
   for (const skill of extractedSkills) {
     try {
+      // Skip if we already have enough skills
+      if (normalizedSkills.length >= MAX_NORMALIZED_SKILLS) {
+        logger.debug(`Reached max skills limit (${MAX_NORMALIZED_SKILLS}), skipping remaining`);
+        break;
+      }
+
       const normalized = await normalizeSkillWithHierarchy(skill);
 
       // Only include high-confidence matches and avoid duplicates
       if (
         normalized.confidence >= 0.7 &&
-        !seenSkills.has(normalized.normalized.toLowerCase())
+        !seenSkills.has(normalized.normalized.toLowerCase()) &&
+        normalized.normalized.length <= 50 // Ensure normalized skill isn't too long
       ) {
         normalizedSkills.push(normalized.normalized);
         seenSkills.add(normalized.normalized.toLowerCase());
@@ -1082,7 +1090,10 @@ async function normalizeExtractedSkills(
         const originalTrimmed = skill.trim();
         if (
           originalTrimmed.length > 2 &&
-          !seenSkills.has(originalTrimmed.toLowerCase())
+          originalTrimmed.length <= 50 &&
+          !seenSkills.has(originalTrimmed.toLowerCase()) &&
+          !originalTrimmed.includes("Softmax") && // Additional validation
+          !originalTrimmed.includes("Gradient")
         ) {
           normalizedSkills.push(originalTrimmed);
           seenSkills.add(originalTrimmed.toLowerCase());
@@ -1097,7 +1108,10 @@ async function normalizeExtractedSkills(
       const originalTrimmed = skill.trim();
       if (
         originalTrimmed.length > 2 &&
-        !seenSkills.has(originalTrimmed.toLowerCase())
+        originalTrimmed.length <= 50 &&
+        !seenSkills.has(originalTrimmed.toLowerCase()) &&
+        !originalTrimmed.includes("Softmax") &&
+        !originalTrimmed.includes("Gradient")
       ) {
         normalizedSkills.push(originalTrimmed);
         seenSkills.add(originalTrimmed.toLowerCase());
@@ -1153,8 +1167,65 @@ Respond with only the JSON array, no additional text.`;
       throw new Error("Response is not a valid JSON array");
     }
 
+    // Filter out invalid/nonsensical skills before normalization
+    const validSkills = extractedSkills.filter((skill) => {
+      if (typeof skill !== "string" || !skill.trim()) return false;
+      
+      const trimmedSkill = skill.trim();
+      
+      // Filter out overly long skills (likely hallucinations)
+      if (trimmedSkill.length > 50) {
+        logger.debug(`Filtered out long skill: "${trimmedSkill.substring(0, 50)}..."`);
+        return false;
+      }
+      
+      // Filter out repetitive patterns that indicate AI hallucination
+      if (trimmedSkill.includes("Softmax with Gradient") || 
+          trimmedSkill.includes("and Direction and Sign and Magnitude") ||
+          trimmedSkill.includes("and Magnitude and Sign") ||
+          trimmedSkill.match(/(\w+\s+){5,}and\s+/)) { // Repetitive "X and Y and Z" patterns
+        logger.debug(`Filtered out repetitive pattern: "${trimmedSkill.substring(0, 50)}..."`);
+        return false;
+      }
+      
+      // Filter out skills that are just repetitive words
+      const words = trimmedSkill.split(/\s+/);
+      if (words.length > 8) {
+        logger.debug(`Filtered out long multi-word skill: "${trimmedSkill}"`);
+        return false; // Skills shouldn't be this long
+      }
+      
+      // Filter out skills with excessive repetition of the same word
+      const wordCounts = words.reduce((acc, word) => {
+        const normalizedWord = word.toLowerCase();
+        acc[normalizedWord] = (acc[normalizedWord] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      const maxWordCount = Math.max(...Object.values(wordCounts));
+      if (maxWordCount > 3) {
+        logger.debug(`Filtered out skill with repeated words: "${trimmedSkill}"`);
+        return false; // Same word repeated more than 3 times
+      }
+      
+      return true;
+    });
+
+    // Limit total skills to a reasonable number
+    const MAX_SKILLS = 50;
+    if (validSkills.length > MAX_SKILLS) {
+      logger.warn(
+        `Limiting skills from ${validSkills.length} to ${MAX_SKILLS} items`
+      );
+      validSkills.length = MAX_SKILLS; // Truncate array
+    }
+
+    logger.info(
+      `Filtered ${extractedSkills.length} raw skills to ${validSkills.length} valid skills`,
+    );
+
     // NEW: Use dynamic skills database to normalize and enhance extracted skills
-    const normalizedSkills = await normalizeExtractedSkills(extractedSkills);
+    const normalizedSkills = await normalizeExtractedSkills(validSkills);
 
     setCachedResponse(cacheKey, normalizedSkills);
     logger.info(
