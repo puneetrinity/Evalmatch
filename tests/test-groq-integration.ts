@@ -41,7 +41,7 @@ class TestRunner {
         this.passed++;
       } catch (error) {
         console.log(`❌ ${name}`);
-        console.log(`   Error: ${error.message}\n`);
+        console.log(`   Error: ${(error as Error).message}\n`);
         this.failed++;
       }
     }

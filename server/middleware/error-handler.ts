@@ -16,7 +16,7 @@ import { config } from "../config/unified-config";
 import type { ValidationError } from "@shared/utility-types";
 import {
   globalErrorHandler,
-  AppError,
+  type AppError,
   createError,
   createValidationError,
   createAuthError,
@@ -737,7 +737,7 @@ export { errorMetrics, circuitBreaker };
 // Re-export from global error handler for convenience
 export {
   globalErrorHandler,
-  AppError,
+  type AppError,
   createError,
   createValidationError,
   createAuthError,

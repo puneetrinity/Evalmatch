@@ -55,6 +55,34 @@ router.post("/", authenticateUser, async (req: Request, res: Response) => {
       // Update job description with analysis
       await storage.updateJobDescriptionAnalysis(jobDescription.id, analysis);
 
+      // Generate embeddings for the job description
+      try {
+        const { generateEmbedding } = await import("../lib/embeddings");
+        
+        // Generate embedding for full job description
+        const contentEmbedding = await generateEmbedding(jobDescription.description);
+        
+        // Generate embedding for requirements if available
+        let requirementsEmbedding: number[] | null = null;
+        if (analysis.requirements && analysis.requirements.length > 0) {
+          const requirementsText = analysis.requirements.join(", ");
+          requirementsEmbedding = await generateEmbedding(requirementsText);
+        }
+        
+        // Update job description with embeddings
+        await storage.updateJobDescriptionEmbeddings(jobDescription.id, contentEmbedding, requirementsEmbedding);
+        
+        logger.info(`Generated and stored embeddings for job description ${jobDescription.id}`, {
+          contentEmbeddingDims: contentEmbedding?.length || 0,
+          requirementsEmbeddingDims: requirementsEmbedding?.length || 0,
+        });
+        
+      } catch (embeddingError) {
+        logger.warn(`Failed to generate embeddings for job description ${jobDescription.id}:`, {
+          error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
+        });
+      }
+
       logger.info(
         `Job description ${jobDescription.id} analyzed successfully`,
         {
@@ -242,6 +270,34 @@ router.patch("/:id", authenticateUser, async (req: Request, res: Response) => {
         );
 
         await storage.updateJobDescriptionAnalysis(jobId, analysis);
+
+        // Generate embeddings for the updated job description
+        try {
+          const { generateEmbedding } = await import("../lib/embeddings");
+          
+          // Generate embedding for full job description
+          const contentEmbedding = await generateEmbedding(updatedJob.description);
+          
+          // Generate embedding for requirements if available
+          let requirementsEmbedding: number[] | null = null;
+          if (analysis.requirements && analysis.requirements.length > 0) {
+            const requirementsText = analysis.requirements.join(", ");
+            requirementsEmbedding = await generateEmbedding(requirementsText);
+          }
+          
+          // Update job description with embeddings
+          await storage.updateJobDescriptionEmbeddings(jobId, contentEmbedding, requirementsEmbedding);
+          
+          logger.info(`Generated embeddings for updated job description ${jobId}`, {
+            contentEmbeddingDims: contentEmbedding?.length || 0,
+            requirementsEmbeddingDims: requirementsEmbedding?.length || 0,
+          });
+          
+        } catch (embeddingError) {
+          logger.warn(`Failed to generate embeddings for updated job description ${jobId}:`, {
+            error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
+          });
+        }
 
         logger.info(`Job description ${jobId} re-analyzed after update`);
       } catch (analysisError) {

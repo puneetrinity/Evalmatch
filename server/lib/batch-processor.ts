@@ -94,12 +94,55 @@ export async function processBatchResumes(
           experienceYears: analysis.experienceYears || 0,
         });
 
+        // Generate embeddings for the resume
+        let contentEmbedding: number[] | null = null;
+        let skillsEmbedding: number[] | null = null;
+
+        try {
+          const { generateEmbedding } = await import("./embeddings");
+          
+          // Generate embedding for full resume content
+          const embeddingStartTime = Date.now();
+          contentEmbedding = await generateEmbedding(resume.content);
+          
+          // Generate embedding for skills if available
+          if (analysis.analyzedData?.skills && analysis.analyzedData.skills.length > 0) {
+            const skillsText = analysis.analyzedData.skills.join(", ");
+            skillsEmbedding = await generateEmbedding(skillsText);
+          }
+          
+          const embeddingTime = Date.now() - embeddingStartTime;
+          logger.debug(`Embeddings generated for resume ${resume.id}`, {
+            resumeId: resume.id,
+            embeddingTime,
+            contentEmbeddingDims: contentEmbedding?.length || 0,
+            skillsEmbeddingDims: skillsEmbedding?.length || 0,
+          });
+        } catch (embeddingError) {
+          logger.warn(`Failed to generate embeddings for resume ${resume.id}:`, {
+            resumeId: resume.id,
+            error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
+          });
+        }
+
         // Start database update asynchronously (don't wait for completion)
         logger.debug(`Starting database update for resume ${resume.id}`);
-        const dbUpdatePromise = storage.updateResumeAnalysis(
-          resume.id,
-          analysis,
-        );
+        
+        // Update the resume with embeddings via storage layer
+        const dbUpdatePromise = (async () => {
+          // First update the analysis
+          await storage.updateResumeAnalysis(resume.id, analysis);
+          
+          // Then update the embeddings if we have them
+          if (contentEmbedding || skillsEmbedding) {
+            await storage.updateResumeEmbeddings(resume.id, contentEmbedding, skillsEmbedding);
+            logger.debug(`Updated embeddings for resume ${resume.id}`, {
+              resumeId: resume.id,
+              hasContentEmbedding: !!contentEmbedding,
+              hasSkillsEmbedding: !!skillsEmbedding,
+            });
+          }
+        })();
 
         // Return immediately with analysis, database update happens in background
         // We store the promise to await all database operations later if needed

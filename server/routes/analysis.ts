@@ -157,28 +157,49 @@ router.post(
               });
           }
 
-          // Perform matching analysis
-          logger.debug("Starting match analysis", {
+          // Perform hybrid matching analysis
+          logger.debug("Starting hybrid match analysis", {
             resumeId: resume.id,
             jobId: jobId,
+            hasContent: !!(resume.content && jobDescription.description),
           });
 
           const matchAnalysisStartTime = Date.now();
-          const matchAnalysis = await analyzeMatch(
+          
+          // Use the new hybrid analyzer
+          const { analyzeMatchHybrid } = await import("../lib/hybrid-match-analyzer");
+          const hybridResult = await analyzeMatchHybrid(
             resumeAnalysis as any,
             jobAnalysis as any,
             userTierInfo,
             resume.content || "",
             jobDescription.description,
           );
+          
+          // Convert hybrid result to expected format for backward compatibility
+          const matchAnalysis = {
+            matchPercentage: hybridResult.matchPercentage,
+            matchedSkills: hybridResult.matchedSkills,
+            missingSkills: hybridResult.missingSkills,
+            candidateStrengths: hybridResult.candidateStrengths,
+            candidateWeaknesses: hybridResult.candidateWeaknesses,
+            confidenceLevel: hybridResult.confidenceLevel,
+            fairnessMetrics: hybridResult.fairnessMetrics,
+            scoringDimensions: hybridResult.scoringDimensions,
+            analysisMethod: hybridResult.analysisMethod,
+            confidence: hybridResult.confidence,
+          };
+          
           const matchAnalysisTime = Date.now() - matchAnalysisStartTime;
 
-          logger.debug("Match analysis completed", {
+          logger.debug("Hybrid match analysis completed", {
             resumeId: resume.id,
             jobId: jobId,
             matchPercentage: matchAnalysis.matchPercentage,
             matchedSkills: matchAnalysis.matchedSkills?.length || 0,
             missingSkills: matchAnalysis.missingSkills?.length || 0,
+            analysisMethod: matchAnalysis.analysisMethod,
+            confidence: matchAnalysis.confidence,
             analysisTime: matchAnalysisTime,
           });
 
@@ -729,14 +750,24 @@ router.post(
       }
 
       if (!matchAnalysis) {
-        const { analyzeMatch } = await import("../lib/tiered-ai-provider");
-        matchAnalysis = await analyzeMatch(
+        // Use hybrid analyzer for interview questions as well
+        const { analyzeMatchHybrid } = await import("../lib/hybrid-match-analyzer");
+        const hybridResult = await analyzeMatchHybrid(
           resumeAnalysis as any,
           jobAnalysis as any,
           userTierInfo,
           resume.content || "",
           jobDescription.description,
         );
+        
+        // Convert to expected format
+        matchAnalysis = {
+          matchPercentage: hybridResult.matchPercentage,
+          matchedSkills: hybridResult.matchedSkills,
+          missingSkills: hybridResult.missingSkills,
+          candidateStrengths: hybridResult.candidateStrengths,
+          candidateWeaknesses: hybridResult.candidateWeaknesses,
+        };
       }
 
       // Generate interview questions

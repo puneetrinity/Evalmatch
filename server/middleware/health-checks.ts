@@ -333,6 +333,7 @@ async function checkMemoryUsage(): Promise<HealthCheckResult> {
     const expectedHeapLimitMB = systemMemoryGB >= 8 ? 7168 : Math.min(7168, mbTotal * 0.8); // Use 80% of system memory if less than 8GB
     const nodeOptionsApplied = heapLimitMB > 2000; // Much higher than default ~1.7GB
     const nodeOptionsWorking = heapLimitMB >= Math.min(expectedHeapLimitMB * 0.7, 4000); // Accept at least 4GB or 70% of expected
+    const nodeOptionsCorrect = nodeOptionsWorking;
 
     let status: "healthy" | "degraded" | "unhealthy" = "healthy";
     let message = `Memory: ${mbUsed}/${mbTotal}MB (${usagePercent}%), Limit: ${heapLimitMB}MB`;

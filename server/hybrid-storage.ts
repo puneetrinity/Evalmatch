@@ -467,4 +467,39 @@ export class HybridStorage implements IStorage {
       queuedWritesCount: dbHealth.queuedWrites.length,
     };
   }
+  
+  // Missing embedding methods required by IStorage interface
+  async updateResumeEmbeddings(id: number, embedding: number[] | null, skillsEmbedding: number[] | null): Promise<Resume> {
+    if (dbHealth.isAvailable) {
+      try {
+        return await this.dbStorage.updateResumeEmbeddings(id, embedding, skillsEmbedding);
+      } catch (error) {
+        console.warn('Database updateResumeEmbeddings failed, falling back to memory storage', error);
+        dbHealth.failedOperations++;
+        if (dbHealth.failedOperations >= 3) {
+          dbHealth.isAvailable = false;
+        }
+      }
+    }
+    
+    // Fallback to memory storage
+    return await this.memStorage.updateResumeEmbeddings(id, embedding, skillsEmbedding);
+  }
+  
+  async updateJobDescriptionEmbeddings(id: number, embedding: number[] | null, requirementsEmbedding: number[] | null): Promise<JobDescription> {
+    if (dbHealth.isAvailable) {
+      try {
+        return await this.dbStorage.updateJobDescriptionEmbeddings(id, embedding, requirementsEmbedding);
+      } catch (error) {
+        console.warn('Database updateJobDescriptionEmbeddings failed, falling back to memory storage', error);
+        dbHealth.failedOperations++;
+        if (dbHealth.failedOperations >= 3) {
+          dbHealth.isAvailable = false;
+        }
+      }
+    }
+    
+    // Fallback to memory storage  
+    return await this.memStorage.updateJobDescriptionEmbeddings(id, embedding, requirementsEmbedding);
+  }
 }

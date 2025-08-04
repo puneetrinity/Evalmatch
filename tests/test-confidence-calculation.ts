@@ -95,7 +95,7 @@ function runConfidenceTests(): void {
         failed++;
       }
     } catch (error) {
-      console.log(`❌ ${testCase.name} - Error: ${error.message}\n`);
+      console.log(`❌ ${testCase.name} - Error: ${(error as Error).message}\n`);
       failed++;
     }
   }
@@ -125,7 +125,7 @@ function testEdgeCases(): void {
       const result = calculateConfidenceLevel(edge.resume, edge.job, edge.skills);
       console.log(`✅ ${edge.name}: ${result}`);
     } catch (error) {
-      console.log(`❌ ${edge.name}: Error - ${error.message}`);
+      console.log(`❌ ${edge.name}: Error - ${(error as Error).message}`);
     }
   }
 }

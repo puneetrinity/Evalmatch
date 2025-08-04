@@ -8,24 +8,18 @@ import { InsertUser, InsertResume, InsertJobDescription, InsertAnalysisResult, I
 // Test Users
 export const testUsers: InsertUser[] = [
   {
-    uid: 'test-user-1',
     username: 'testuser1',
     email: 'test1@example.com',
-    displayName: 'Test User 1',
     createdAt: new Date('2024-01-01'),
   },
   {
-    uid: 'test-user-2', 
     username: 'testuser2',
     email: 'test2@example.com',
-    displayName: 'Test User 2',
     createdAt: new Date('2024-01-02'),
   },
   {
-    uid: 'test-hr-manager',
     username: 'hrmanager',
     email: 'hr@company.com',
-    displayName: 'HR Manager',
     createdAt: new Date('2024-01-03'),
   }
 ];
@@ -133,25 +127,22 @@ export const createTestResumes = (userId: string, sessionId: string, batchId: st
     sessionId,
     batchId,
     filename: 'john_doe_resume.pdf',
-    originalFilename: 'John Doe - Software Engineer Resume.pdf',
     fileSize: 245760, // ~240KB
     fileType: 'application/pdf',
     content: testResumeContent.softwareEngineer,
-    extractedText: testResumeContent.softwareEngineer,
     analyzedData: {
+      name: 'John Doe',
       skills: ['JavaScript', 'TypeScript', 'React', 'Node.js', 'PostgreSQL', 'Docker', 'AWS'],
       experience: '6 years',
-      education: 'Bachelor of Science in Computer Science',
+      education: ['Bachelor of Science in Computer Science'],
       summary: 'Experienced software engineer with full-stack development expertise',
-      certifications: [],
+      keyStrengths: ['Full-stack development', 'Team leadership', 'Microservices'],
       contactInfo: {
         email: 'john.doe@email.com',
-        phone: '(555) 123-4567',
-        name: 'John Doe'
-      }
+        phone: '(555) 123-4567'
+      },
+      certifications: []
     },
-    processingStatus: 'completed',
-    uploadedAt: new Date().toISOString(),
     createdAt: new Date(),
   },
   {
@@ -159,25 +150,22 @@ export const createTestResumes = (userId: string, sessionId: string, batchId: st
     sessionId,
     batchId,
     filename: 'jane_smith_resume.pdf',
-    originalFilename: 'Jane Smith - Data Scientist.pdf',
     fileSize: 198432, // ~194KB
     fileType: 'application/pdf',
     content: testResumeContent.dataScientist,
-    extractedText: testResumeContent.dataScientist,
     analyzedData: {
+      name: 'Jane Smith',
       skills: ['Python', 'R', 'SQL', 'TensorFlow', 'PyTorch', 'Apache Spark', 'Tableau'],
       experience: '5 years',
-      education: 'Master of Science in Data Science',
+      education: ['Master of Science in Data Science'],
       summary: 'Data scientist with machine learning and big data expertise',
-      certifications: [],
+      keyStrengths: ['Machine learning', 'Big data processing', 'Statistical analysis'],
       contactInfo: {
         email: 'jane.smith@email.com',
-        phone: '(555) 987-6543',
-        name: 'Jane Smith'
-      }
+        phone: '(555) 987-6543'
+      },
+      certifications: []
     },
-    processingStatus: 'completed',
-    uploadedAt: new Date().toISOString(),
     createdAt: new Date(),
   },
   {
@@ -185,25 +173,26 @@ export const createTestResumes = (userId: string, sessionId: string, batchId: st
     sessionId,
     batchId,
     filename: 'mike_johnson_resume.pdf',
-    originalFilename: 'Mike Johnson - Project Manager.pdf',
     fileSize: 187392, // ~183KB
     fileType: 'application/pdf',
     content: testResumeContent.projectManager,
-    extractedText: testResumeContent.projectManager,
     analyzedData: {
+      name: 'Mike Johnson',
       skills: ['Project Management', 'Agile', 'Scrum', 'JIRA', 'Leadership', 'Budget Management'],
       experience: '7 years',
-      education: 'MBA in Project Management',
+      education: ['MBA in Project Management'],
       summary: 'Experienced project manager with Agile and enterprise project expertise',
-      certifications: ['PMP', 'CSM', 'PMI-ACP'],
+      keyStrengths: ['Project leadership', 'Agile methodologies', 'Stakeholder management'],
       contactInfo: {
         email: 'mike.johnson@email.com',
-        phone: '(555) 456-7890',
-        name: 'Mike Johnson'
-      }
+        phone: '(555) 456-7890'
+      },
+      certifications: [
+        { name: 'PMP', issuer: 'PMI' },
+        { name: 'CSM', issuer: 'Scrum Alliance' },
+        { name: 'PMI-ACP', issuer: 'PMI' }
+      ]
     },
-    processingStatus: 'completed',
-    uploadedAt: new Date().toISOString(),
     createdAt: new Date(),
   }
 ];
@@ -239,12 +228,6 @@ export const testJobDescriptions: Omit<InsertJobDescription, 'id' | 'userId'>[] 
 
       We offer competitive compensation, comprehensive benefits, and a collaborative work environment.
     `,
-    company: 'TechCorp Inc',
-    location: 'San Francisco, CA',
-    employmentType: 'full-time',
-    experienceLevel: 'senior',
-    salaryRange: '$140,000 - $180,000',
-    isRemote: true,
     analyzedData: {
       requiredSkills: ['JavaScript', 'TypeScript', 'React', 'Node.js', 'PostgreSQL', 'AWS'],
       preferredSkills: ['Docker', 'Kubernetes', 'GraphQL', 'DevOps', 'Microservices'],
@@ -288,12 +271,6 @@ export const testJobDescriptions: Omit<InsertJobDescription, 'id' | 'userId'>[] 
 
       Competitive package including equity, comprehensive benefits, and learning budget.
     `,
-    company: 'DataCorp',
-    location: 'New York, NY',
-    employmentType: 'full-time',
-    experienceLevel: 'manager',
-    salaryRange: '$180,000 - $250,000',
-    isRemote: false,
     analyzedData: {
       requiredSkills: ['Python', 'SQL', 'TensorFlow', 'PyTorch', 'Apache Spark', 'AWS', 'Leadership'],
       preferredSkills: ['MLOps', 'Deep Learning', 'NLP', 'A/B Testing', 'PhD'],
@@ -336,12 +313,6 @@ export const testJobDescriptions: Omit<InsertJobDescription, 'id' | 'userId'>[] 
 
       Great opportunity for career growth with mentorship and learning resources.
     `,
-    company: 'StartupXYZ',
-    location: 'Austin, TX',
-    employmentType: 'full-time',
-    experienceLevel: 'junior',
-    salaryRange: '$70,000 - $90,000',
-    isRemote: true,
     analyzedData: {
       requiredSkills: ['JavaScript', 'HTML5', 'CSS3', 'React', 'Git'],
       preferredSkills: ['TypeScript', 'Jest', 'Testing', 'Design Systems'],
@@ -370,11 +341,11 @@ export const createTestAnalysisResults = (
     jobDescriptionId,
     matchPercentage: 87,
     matchedSkills: [
-      { skill: 'JavaScript', matchPercentage: 95 },
-      { skill: 'TypeScript', matchPercentage: 90 },
-      { skill: 'React', matchPercentage: 92 },
-      { skill: 'Node.js', matchPercentage: 88 },
-      { skill: 'PostgreSQL', matchPercentage: 85 }
+      { skill: 'JavaScript', matchPercentage: 95, category: 'programming', importance: 'critical', source: 'exact' },
+      { skill: 'TypeScript', matchPercentage: 90, category: 'programming', importance: 'critical', source: 'exact' },
+      { skill: 'React', matchPercentage: 92, category: 'frontend', importance: 'critical', source: 'exact' },
+      { skill: 'Node.js', matchPercentage: 88, category: 'backend', importance: 'critical', source: 'exact' },
+      { skill: 'PostgreSQL', matchPercentage: 85, category: 'database', importance: 'important', source: 'exact' }
     ],
     missingSkills: ['GraphQL', 'Kubernetes'],
     analysis: {
@@ -412,8 +383,8 @@ export const createTestAnalysisResults = (
     jobDescriptionId,
     matchPercentage: 43,
     matchedSkills: [
-      { skill: 'SQL', matchPercentage: 85 },
-      { skill: 'Python', matchPercentage: 90 }
+      { skill: 'SQL', matchPercentage: 85, category: 'database', importance: 'important', source: 'exact' },
+      { skill: 'Python', matchPercentage: 90, category: 'programming', importance: 'important', source: 'exact' }
     ],
     missingSkills: ['JavaScript', 'TypeScript', 'React', 'Node.js', 'PostgreSQL'],
     analysis: {
@@ -451,8 +422,8 @@ export const createTestAnalysisResults = (
     jobDescriptionId,
     matchPercentage: 25,
     matchedSkills: [
-      { skill: 'Leadership', matchPercentage: 95 },
-      { skill: 'Agile', matchPercentage: 88 }
+      { skill: 'Leadership', matchPercentage: 95, category: 'soft-skills', importance: 'important', source: 'exact' },
+      { skill: 'Agile', matchPercentage: 88, category: 'methodology', importance: 'important', source: 'exact' }
     ],
     missingSkills: ['JavaScript', 'TypeScript', 'React', 'Node.js', 'PostgreSQL', 'AWS'],
     analysis: {
@@ -502,35 +473,35 @@ export const createTestInterviewQuestions = (
       question: 'Can you walk me through how you would design a scalable microservices architecture for a high-traffic web application?',
       difficulty: 'medium',
       expectedAnswer: 'Should cover service decomposition, communication patterns, data management, and deployment strategies',
-      tags: ['architecture', 'microservices', 'scalability']
+      skillsAssessed: ['System Design', 'Microservices', 'Architecture'],
     },
     {
-      category: 'experience',
+      category: 'behavioral',
       question: 'Tell me about a time when you had to optimize database performance. What was your approach and what were the results?',
       difficulty: 'medium',
       expectedAnswer: 'Should demonstrate database optimization experience, methodology, and measurable results',
-      tags: ['database', 'performance', 'optimization']
+      skillsAssessed: ['Database Optimization', 'Problem Solving', 'Performance Analysis'],
     },
     {
       category: 'technical',
       question: 'How would you implement error handling and retry logic in a distributed system?',
       difficulty: 'hard',
       expectedAnswer: 'Should cover circuit breakers, exponential backoff, idempotency, and monitoring',
-      tags: ['error handling', 'distributed systems', 'reliability']
+      skillsAssessed: ['Distributed Systems', 'Error Handling', 'System Reliability'],
     },
     {
-      category: 'skill-gap',
+      category: 'technical',
       question: 'We use GraphQL extensively. How would you approach learning it, and how does it compare to REST?',
       difficulty: 'easy',
       expectedAnswer: 'Should show learning approach and basic understanding of GraphQL vs REST differences',
-      tags: ['GraphQL', 'learning', 'API design']
+      skillsAssessed: ['GraphQL', 'API Design', 'Learning Ability'],
     },
     {
-      category: 'inclusion',
+      category: 'cultural',
       question: 'How do you ensure code quality and knowledge sharing when working with developers of different experience levels?',
       difficulty: 'easy',
       expectedAnswer: 'Should demonstrate mentoring approach, code review practices, and inclusive team culture',
-      tags: ['mentoring', 'code quality', 'teamwork']
+      skillsAssessed: ['Mentorship', 'Code Quality', 'Team Collaboration'],
     }
   ],
   createdAt: new Date(),
@@ -602,8 +573,8 @@ export const mockAIResponses = {
   matchAnalysis: {
     matchPercentage: 85,
     matchedSkills: [
-      { skill: 'JavaScript', matchPercentage: 95 },
-      { skill: 'React', matchPercentage: 90 }
+      { skill: 'JavaScript', matchPercentage: 95, category: 'programming', importance: 'critical', source: 'exact' },
+      { skill: 'React', matchPercentage: 90, category: 'frontend', importance: 'critical', source: 'exact' }
     ],
     missingSkills: ['Docker', 'AWS'],
     candidateStrengths: ['Strong technical skills', 'Relevant experience'],

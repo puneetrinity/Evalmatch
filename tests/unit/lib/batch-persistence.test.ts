@@ -26,7 +26,7 @@ import {
   clearAllPersistedData,
 } from '../../../client/src/lib/batch-persistence';
 import type { SessionId } from '../../../shared/api-contracts';
-import { BatchError, BatchErrorType } from '../../../client/src/hooks/useBatchManager';
+import { BatchError, BatchErrorType, LocalBatchStatus } from '../../../client/src/hooks/useBatchManager';
 
 // Mock logger
 const logger = {
@@ -40,7 +40,7 @@ const logger = {
 interface BatchState {
   currentBatchId: string | null;
   sessionId: SessionId | null;
-  status: string;
+  status: LocalBatchStatus;
   resumeCount: number;
   isLoading: boolean;
   error: BatchError | null;
@@ -203,7 +203,7 @@ const setupMockCrypto = () => {
   const mockHashArray = new Uint8Array(mockHashBuffer);
   mockHashArray.fill(42); // Fill with a known value
 
-  mockCrypto.subtle.digest.mockResolvedValue(mockHashBuffer);
+  (mockCrypto.subtle.digest as any).mockResolvedValue(mockHashBuffer);
 };
 
 const setupMockIndexedDB = (shouldSucceed = true) => {
@@ -351,7 +351,7 @@ describe('Batch Persistence System', () => {
       // Mock Blob constructor
       global.Blob = jest.fn().mockImplementation((data) => ({
         size: JSON.stringify(data).length,
-      }));
+      })) as any;
 
       const size = provider.getSize();
 
@@ -445,7 +445,7 @@ describe('Batch Persistence System', () => {
     });
 
     it('should get storage size using navigator.storage', async () => {
-      mockNavigatorStorage.estimate.mockResolvedValue({
+      (mockNavigatorStorage.estimate as any).mockResolvedValue({
         usage: 1024 * 1024, // 1MB
       });
 
@@ -492,7 +492,7 @@ describe('Batch Persistence System', () => {
     });
 
     it('should fall back to simple hash when crypto is unavailable', async () => {
-      mockCrypto.subtle.digest.mockRejectedValue(new Error('Crypto unavailable'));
+      (mockCrypto.subtle.digest as jest.MockedFunction<any>).mockRejectedValue(new Error('Crypto unavailable'));
 
       const checksum = await (manager as any).generateChecksum(mockBatchState);
 
@@ -525,7 +525,7 @@ describe('Batch Persistence System', () => {
       // Mock TextDecoder
       global.TextDecoder = jest.fn().mockImplementation(() => ({
         decode: jest.fn().mockReturnValue(originalData),
-      }));
+      })) as any;
 
       const result = await (manager as any).decompressData(compressedData, true);
 
@@ -654,10 +654,10 @@ describe('Batch Persistence System', () => {
       mockLocalStorage.length = 2;
 
       mockLocalStorage.getItem.mockImplementation((key) => {
-        if (key.includes('batch1')) {
+        if (String(key).includes('batch1')) {
           return JSON.stringify({ ...mockPersistedState, batchId: 'batch1' });
         }
-        if (key.includes('batch2')) {
+        if (String(key).includes('batch2')) {
           return JSON.stringify({ ...mockPersistedState, batchId: 'batch2' });
         }
         return null;
@@ -830,7 +830,7 @@ describe('Batch Persistence System', () => {
       expect(mockLocalStorage.setItem).toHaveBeenCalled();
 
       // Setup restoration
-      const persistedData = JSON.parse(mockLocalStorage.setItem.mock.calls[0][1]);
+      const persistedData = JSON.parse(mockLocalStorage.setItem.mock.calls[0][1] as string);
       mockLocalStorage.getItem.mockReturnValue(JSON.stringify(persistedData));
 
       // Restore state
@@ -948,7 +948,7 @@ describe('Batch Persistence System', () => {
     });
 
     it('should handle checksum generation failures', async () => {
-      mockCrypto.subtle.digest.mockRejectedValue(new Error('Crypto not available'));
+      (mockCrypto.subtle.digest as any).mockRejectedValue(new Error('Crypto not available'));
 
       // Should fall back to simple hash
       await manager.persistBatchState('fallback_batch', 'fallback_session' as any, mockBatchState);

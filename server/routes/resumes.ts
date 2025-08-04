@@ -186,6 +186,38 @@ router.post(
       );
       const analysis = await analyzeResumeParallel(content, userTierInfo);
 
+      // Generate embeddings for the resume content and skills
+      let contentEmbedding: number[] | null = null;
+      let skillsEmbedding: number[] | null = null;
+
+      try {
+        const { generateEmbedding } = await import("../lib/embeddings");
+        
+        // Generate embedding for full resume content
+        contentEmbedding = await generateEmbedding(content);
+        logger.info(`Generated content embedding (${contentEmbedding.length} dimensions)`, {
+          userId,
+          filename: file.originalname,
+        });
+
+        // Generate embedding for skills if available
+        if (analysis.analyzedData?.skills && analysis.analyzedData.skills.length > 0) {
+          const skillsText = analysis.analyzedData.skills.join(", ");
+          skillsEmbedding = await generateEmbedding(skillsText);
+          logger.info(`Generated skills embedding (${skillsEmbedding.length} dimensions)`, {
+            userId,
+            filename: file.originalname,
+            skillsCount: analysis.analyzedData.skills.length,
+          });
+        }
+      } catch (embeddingError) {
+        logger.warn("Failed to generate embeddings, resume will be stored without embeddings:", {
+          userId,
+          filename: file.originalname,
+          error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
+        });
+      }
+
       // Create resume record
       const resumeData = {
         userId,
@@ -199,6 +231,8 @@ router.post(
         experience: analysis.analyzedData?.experience || "0 years", // JSON string
         education: analysis.analyzedData?.education || [], // JSON array
         analyzedData: analysis.analyzedData,
+        embedding: contentEmbedding,
+        skillsEmbedding: skillsEmbedding,
       };
 
       const resume = await storage.createResume(resumeData);

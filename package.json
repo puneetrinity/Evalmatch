@@ -22,7 +22,7 @@
     "test": "jest",
     "test:integration": "jest --config jest.config.integration.mjs tests/api-integration.test.ts",
     "test:schema": "jest --config jest.config.integration.mjs tests/schema-validation.test.ts",
-    "test:e2e": "jest --config jest.config.integration.mjs tests/e2e-workflow.test.ts",
+    "test:e2e": "jest tests/e2e-workflow.test.ts --no-coverage --runInBand --verbose --detectOpenHandles --forceExit",
     "test:all": "npm run test:integration && npm run test:schema && npm run test:e2e",
     "test:quick": "npm run test:integration",
     "test:railway": "jest --config jest.config.integration.mjs tests/railway-deployment.test.ts",

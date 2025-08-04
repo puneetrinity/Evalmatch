@@ -58,7 +58,7 @@ export async function createTestApp(): Promise<express.Application> {
 
   // Initialize health checks
   try {
-    await initializeHealthChecks(app);
+    initializeHealthChecks();
   } catch (error) {
     console.warn('Health checks initialization failed in tests:', error);
   }

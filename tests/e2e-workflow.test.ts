@@ -15,8 +15,8 @@ describe('End-to-End Workflow Tests', () => {
   };
 
   beforeAll(async () => {
-    const { createTestApp } = await import('./test-server');
-    app = await createTestApp();
+    const { createSimpleTestApp } = await import('./simple-test-server');
+    app = await createSimpleTestApp();
   });
 
   describe('Complete Job Analysis Workflow', () => {
@@ -130,7 +130,10 @@ PROJECTS
 
       const response = await request(app)
         .post(API_ROUTES.RESUMES.UPLOAD)
-        .attach('file', Buffer.from(resumeContent), 'sarah-johnson-resume.txt')
+        .send({
+          filename: 'sarah-johnson-resume.txt',
+          content: resumeContent
+        })
         .expect(200);
 
       expect(response.body.status).toBe('success');
@@ -296,7 +299,10 @@ PROJECTS
     test('Should handle malformed resume upload gracefully', async () => {
       const response = await request(app)
         .post(API_ROUTES.RESUMES.UPLOAD)
-        .attach('resume', Buffer.from(''), 'empty-resume.txt')
+        .send({
+          filename: 'empty-resume.txt',
+          content: ''
+        })
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
@@ -337,8 +343,8 @@ PROJECTS
     }
 
     // Clear test app and force garbage collection
-    const { clearTestApp } = await import('./test-server');
-    clearTestApp();
+    const { clearSimpleTestApp } = await import('./simple-test-server');
+    clearSimpleTestApp();
     
     if (global.gc) {
       global.gc();

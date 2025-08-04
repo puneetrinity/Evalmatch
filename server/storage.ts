@@ -23,6 +23,7 @@ export interface IStorage {
   getResumesByUserId(userId: string, sessionId?: string, batchId?: string): Promise<Resume[]>;
   createResume(resume: InsertResume): Promise<Resume>;
   updateResumeAnalysis(id: number, analysis: AnalyzeResumeResponse): Promise<Resume>;
+  updateResumeEmbeddings(id: number, embedding: number[] | null, skillsEmbedding: number[] | null): Promise<Resume>;
   
   // Job description methods
   getJobDescription(id: number): Promise<JobDescription | undefined>;
@@ -33,6 +34,7 @@ export interface IStorage {
   updateJobDescription(id: number, updates: Partial<JobDescription>): Promise<JobDescription>;
   updateJobDescriptionAnalysis(id: number, analysis: AnalyzeJobDescriptionResponse): Promise<JobDescription>;
   updateJobDescriptionBiasAnalysis(id: number, biasAnalysis: SimpleBiasAnalysis): Promise<JobDescription>;
+  updateJobDescriptionEmbeddings(id: number, embedding: number[] | null, requirementsEmbedding: number[] | null): Promise<JobDescription>;
   deleteJobDescription(id: number): Promise<void>;
   
   // Analysis results methods
@@ -214,6 +216,23 @@ export class MemStorage implements IStorage {
     return updatedResume;
   }
 
+  async updateResumeEmbeddings(id: number, embedding: number[] | null, skillsEmbedding: number[] | null): Promise<Resume> {
+    const resume = await this.getResume(id);
+    if (!resume) {
+      throw new Error(`Resume with ID ${id} not found`);
+    }
+    
+    const updatedResume: Resume = {
+      ...resume,
+      embedding,
+      skillsEmbedding,
+      updatedAt: new Date(),
+    };
+    
+    this.resumesData.set(id, updatedResume);
+    return updatedResume;
+  }
+
   // Job description methods
   async getJobDescription(id: number): Promise<JobDescription | undefined> {
     return this.jobDescriptionsData.get(id);
@@ -320,6 +339,23 @@ export class MemStorage implements IStorage {
         ...currentAnalyzedData,
         biasAnalysis: biasAnalysis,
       },
+    };
+    
+    this.jobDescriptionsData.set(id, updatedJobDescription);
+    return updatedJobDescription;
+  }
+
+  async updateJobDescriptionEmbeddings(id: number, embedding: number[] | null, requirementsEmbedding: number[] | null): Promise<JobDescription> {
+    const jobDescription = await this.getJobDescription(id);
+    if (!jobDescription) {
+      throw new Error(`Job description with ID ${id} not found`);
+    }
+    
+    const updatedJobDescription: JobDescription = {
+      ...jobDescription,
+      embedding,
+      requirementsEmbedding,
+      updatedAt: new Date(),
     };
     
     this.jobDescriptionsData.set(id, updatedJobDescription);

@@ -8,6 +8,7 @@ import {
   normalizeSkillWithHierarchy,
   findRelatedSkills,
 } from "./skill-hierarchy";
+import { scoreExperienceEnhanced } from "./enhanced-experience-matching";
 import stringSimilarity from "string-similarity";
 
 // Type definitions for scoring system
@@ -34,11 +35,11 @@ export interface ScoringWeights {
 }
 
 export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
-  skills: 0.45, // 45% - Most important
-  experience: 0.25, // 25% - Very important
-  education: 0.15, // 15% - Important
-  semantic: 0.1, // 10% - Context understanding
-  cultural: 0.05, // 5% - Cultural fit
+  skills: 0.50, // 50% - Most important (increased from 45%)
+  experience: 0.30, // 30% - Very important (increased from 25%)
+  education: 0.15, // 15% - Important (unchanged)
+  semantic: 0.05, // 5% - Context understanding (decreased from 10%)
+  cultural: 0.0, // 0% - Removed cultural assessment
 };
 
 // Scoring rubrics for consistent evaluation
@@ -81,7 +82,7 @@ export interface EnhancedMatchResult {
     experience: number;
     education: number;
     semantic: number;
-    cultural: number;
+    cultural: number; // Keep interface for compatibility but always 0
   };
   confidence: number;
   explanation: {
@@ -410,8 +411,8 @@ export async function calculateEnhancedMatch(
       jobData.skills,
     );
 
-    // 2. Experience scoring
-    const experienceMatch = scoreExperience(
+    // 2. Enhanced experience scoring
+    const experienceMatch = await scoreExperienceEnhanced(
       resumeData.experience,
       jobData.experience,
     );
@@ -425,8 +426,8 @@ export async function calculateEnhancedMatch(
       jobData.description,
     );
 
-    // 5. Cultural fit (placeholder - could be enhanced with NLP)
-    const culturalScore = 75; // Default moderate score
+    // 5. Cultural fit - REMOVED (no cultural assessment)
+    const culturalScore = 0; // Cultural assessment removed
 
     // Calculate weighted total
     const dimensionScores = {
@@ -481,7 +482,7 @@ export async function calculateEnhancedMatch(
         experience: 50,
         education: 50,
         semantic: 50,
-        cultural: 50,
+        cultural: 0, // Cultural assessment removed
       },
       confidence: 0.3,
       explanation: {

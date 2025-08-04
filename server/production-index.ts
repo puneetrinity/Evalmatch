@@ -1,7 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
 import { fileURLToPath } from 'url';
-import { registerRoutes } from "./routes.js";
+import { registerRoutes } from "./routes";
 
 // For ES modules in Node.js
 const __filename = fileURLToPath(import.meta.url);

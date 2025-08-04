@@ -7,8 +7,8 @@
 
 import { Request, Response, NextFunction } from "express";
 import { z } from "zod";
-import { getDatabase, executeQuery } from "../database/index.js";
-import { logger } from "../config/logger.js";
+import { getDatabase, executeQuery } from "../database/index";
+import { logger } from "../config/logger";
 import rateLimit from "express-rate-limit";
 import type { SessionId } from "@shared/api-contracts";
 import {

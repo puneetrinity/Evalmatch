@@ -513,4 +513,41 @@ export class DatabaseStorage implements IStorage {
       questions,
     };
   }
+  
+  // Missing embedding methods required by IStorage interface
+  async updateResumeEmbeddings(id: number, embedding: number[] | null, skillsEmbedding: number[] | null): Promise<Resume> {
+    return withRetry(async () => {
+      const [updatedResume] = await db.update(resumes)
+        .set({
+          embedding,
+          skillsEmbedding
+        })
+        .where(eq(resumes.id, id))
+        .returning();
+      
+      if (!updatedResume) {
+        throw new Error(`Resume with ID ${id} not found`);
+      }
+      
+      return updatedResume;
+    }, `updateResumeEmbeddings(${id})`);
+  }
+  
+  async updateJobDescriptionEmbeddings(id: number, embedding: number[] | null, requirementsEmbedding: number[] | null): Promise<JobDescription> {
+    return withRetry(async () => {
+      const [updatedJobDescription] = await db.update(jobDescriptions)
+        .set({
+          embedding,
+          requirementsEmbedding
+        })
+        .where(eq(jobDescriptions.id, id))
+        .returning();
+      
+      if (!updatedJobDescription) {
+        throw new Error(`Job description with ID ${id} not found`);
+      }
+      
+      return updatedJobDescription;
+    }, `updateJobDescriptionEmbeddings(${id})`);
+  }
 }

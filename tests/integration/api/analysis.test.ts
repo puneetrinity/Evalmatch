@@ -24,11 +24,12 @@ let testUser: TestUser;
 let anotherUser: TestUser;
 
 beforeAll(async () => {
-  // Import and setup server
-  const { default: expressApp } = await import('../../../server/index');
-  app = expressApp;
-  
+  // Setup test environment and mocks first
   await TestSuiteHelper.setupTestEnvironment();
+  
+  // Use mock server instead of real server
+  const { createMockServer } = await import('../../helpers/server-mock');
+  app = createMockServer();
 }, TEST_CONFIG.timeout);
 
 afterAll(async () => {
