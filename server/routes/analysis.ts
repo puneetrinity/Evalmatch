@@ -336,9 +336,11 @@ router.post(
       });
 
       res.json({
-        analysisId,
-        jobId: jobId,
-        results: results.map((r) => ({
+        success: true,
+        data: {
+          analysisId,
+          jobId: jobId,
+          results: results.map((r) => ({
           resumeId: r.resumeId,
           filename: r.filename,
           candidateName: r.candidateName,
@@ -356,8 +358,10 @@ router.post(
           fairnessMetrics: r.match?.fairnessMetrics,
           scoringDimensions: (r.match as any)?.scoringDimensions || {},
         })),
-        createdAt: new Date().toISOString(),
-        processingTime: totalAnalysisTime,
+          createdAt: new Date().toISOString(),
+          processingTime: totalAnalysisTime,
+        },
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       logger.error("Analysis request failed catastrophically", {
@@ -368,14 +372,18 @@ router.post(
         resumeIds: req.body.resumeIds || null,
         error: error instanceof Error ? error.message : "Unknown error",
         errorStack: error instanceof Error ? error.stack : undefined,
+        errorType: error?.constructor?.name || 'UnknownError',
       });
 
+      // Return a proper API error response
       res.status(500).json({
+        success: false,
         error: "Analysis failed",
         message:
           error instanceof Error
             ? error.message
             : "Unknown error occurred during analysis",
+        timestamp: new Date().toISOString(),
       });
     }
   },

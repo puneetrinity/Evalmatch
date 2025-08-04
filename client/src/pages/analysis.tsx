@@ -155,16 +155,38 @@ export default function AnalysisPage() {
       if (currentSessionId) requestBody.sessionId = currentSessionId;
       if (currentBatchIdValue) requestBody.batchId = currentBatchIdValue;
       
+      console.log(`Making POST request to: /api/analysis/analyze/${jobId}`, requestBody);
+      
       const response = await apiRequest("POST", `/api/analysis/analyze/${jobId}`, requestBody);
+      console.log('Raw response status:', response.status, 'OK:', response.ok);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Analysis request failed with status:', response.status, 'Response:', errorText);
+        throw new Error(`Analysis request failed (${response.status}): ${errorText}`);
+      }
+      
       const result = await response.json() as ApiResult<AnalysisData>;
+      console.log('Parsed response result:', JSON.stringify(result, null, 2));
       
       if (isApiSuccess(result)) {
+        console.log('Response marked as success, checking analysis response format...');
         if (isAnalysisResponse(result.data)) {
+          console.log('Analysis response format is valid!');
           return result.data;
         }
+        console.error('Invalid analysis response format. Expected fields:', {
+          hasAnalysisId: 'analysisId' in result.data,
+          hasJobId: 'jobId' in result.data,
+          hasResults: 'results' in result.data,
+          hasCreatedAt: 'createdAt' in result.data,
+          hasProcessingTime: 'processingTime' in result.data,
+          actualKeys: Object.keys(result.data)
+        });
         throw new Error('Invalid analysis response format');
       }
       
+      console.error('API response indicates failure:', result);
       throw new Error(result.message || "Analysis failed");
     },
     onSuccess: (data) => {
