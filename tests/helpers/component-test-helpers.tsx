@@ -15,7 +15,8 @@ import { render, RenderOptions, RenderResult } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { Router } from 'wouter';
-import { jest, Mock, MockedFunction } from '@jest/globals';
+import { jest } from '@jest/globals';
+import type { Mock, MockedFunction } from 'jest';
 
 // Types
 import type { SessionId, ResumeId, JobId, ApiResult } from '@shared/api-contracts';

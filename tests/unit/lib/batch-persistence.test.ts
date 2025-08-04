@@ -23,15 +23,26 @@ import {
   removePersistedState,
   getStorageInfo,
   clearAllPersistedData,
-} from '@/lib/batch-persistence';
+} from '../../../client/src/lib/batch-persistence';
+import type { SessionId } from '../../../shared/api-contracts';
+import { BatchError, BatchErrorType } from '../../../client/src/hooks/useBatchManager';
+
+// Mock logger
+const logger = {
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn(),
+};
+
 // Mock types that don't exist
 interface BatchState {
   currentBatchId: string | null;
-  sessionId: string | null;
+  sessionId: SessionId | null;
   status: string;
   resumeCount: number;
   isLoading: boolean;
-  error: any | null;
+  error: BatchError | null;
   lastValidated: Date | null;
   retryCount: number;
   ownership: any | null;
@@ -44,7 +55,7 @@ interface BatchState {
 // ===== MOCKS =====
 
 // Mock logger
-jest.mock('@/lib/error-handling', () => ({
+jest.mock('../../../client/src/lib/error-handling', () => ({
   logger: {
     info: jest.fn(),
     warn: jest.fn(),
@@ -152,7 +163,7 @@ Object.defineProperty(navigator, 'userAgent', {
 
 const mockBatchState: BatchState = {
   currentBatchId: 'batch_test123',
-  sessionId: 'session_test456' as any,
+  sessionId: 'session_test456' as SessionId,
   status: 'ready',
   resumeCount: 5,
   isLoading: false,

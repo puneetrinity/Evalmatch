@@ -1,0 +1,2680 @@
+rest-express@1.0.0 test
+> jest
+FAIL tests/integration/api/batches.test.ts
+  ● Test suite failed to run
+    tests/integration/api/batches.test.ts:439:80 - error TS2345: Argument of type '{ userId: string; title: string; }' is not assignable to parameter of type 'Omit<TestJobDescription, "id" | "createdAt">'.
+      Property 'description' is missing in type '{ userId: string; title: string; }' but required in type 'Omit<TestJobDescription, "id" | "createdAt">'.
+    439       const jobDescription = await DatabaseTestHelper.createTestJobDescription({
+                                                                                       ~
+    440         userId: testUser.uid,
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    441         title: 'Delete Test Job'
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    442       });
+        ~~~~~~~
+      tests/helpers/api-helpers.ts:48:3
+        48   description: string;
+             ~~~~~~~~~~~
+        'description' is declared here.
+FAIL tests/unit/lib/batch-recovery.test.ts
+  ● Test suite failed to run
+    tests/unit/lib/batch-recovery.test.ts:128:3 - error TS2322: Type 'BatchState' is not assignable to type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'status' are incompatible.
+        Type 'string' is not assignable to type 'LocalBatchStatus'.
+    128   state: mockBatchState,
+          ~~~~~
+      client/src/lib/batch-persistence.ts:50:3
+        50   state: BatchState;
+             ~~~~~
+        The expected type comes from property 'state' which is declared here on type 'PersistedBatchState'
+    tests/unit/lib/batch-recovery.test.ts:280:47 - error TS2345: Argument of type '{ state: { resumeCount: number; currentBatchId: string | null; sessionId: SessionId | null; status: string; isLoading: boolean; error: BatchError | null; lastValidated: Date | null; ... 5 more ...; serverValidated: boolean; }; ... 7 more ...; encrypted?: boolean; }' is not assignable to parameter of type 'PersistedBatchState | Promise<PersistedBatchState | null> | null'.
+      Type '{ state: { resumeCount: number; currentBatchId: string | null; sessionId: SessionId | null; status: string; isLoading: boolean; error: BatchError | null; lastValidated: Date | null; ... 5 more ...; serverValidated: boolean; }; ... 7 more ...; encrypted?: boolean; }' is not assignable to type 'PersistedBatchState'.
+        The types of 'state.status' are incompatible between these types.
+          Type 'string' is not assignable to type 'LocalBatchStatus'.
+    280       mockRestoreBatchState.mockResolvedValue(partialPersistedState);
+                                                      ~~~~~~~~~~~~~~~~~~~~~
+    tests/unit/lib/batch-recovery.test.ts:298:9 - error TS2322: Type '{ resumeCount: number; currentBatchId: string | null; sessionId: SessionId | null; status: string; isLoading: boolean; error: BatchError | null; lastValidated: Date | null; retryCount: number; ... 4 more ...; serverValidated: boolean; }' is not assignable to type 'BatchState'.
+      Types of property 'status' are incompatible.
+        Type 'string' is not assignable to type 'LocalBatchStatus'.
+    298         state: localState,
+                ~~~~~
+    tests/unit/lib/batch-recovery.test.ts:323:9 - error TS2322: Type '{ resumeCount: number; currentBatchId: string | null; sessionId: SessionId | null; status: string; isLoading: boolean; error: BatchError | null; lastValidated: Date | null; retryCount: number; ... 4 more ...; serverValidated: boolean; }' is not assignable to type 'BatchState'.
+      Types of property 'status' are incompatible.
+        Type 'string' is not assignable to type 'LocalBatchStatus'.
+    323         state: localState,
+                ~~~~~
+    tests/unit/lib/batch-recovery.test.ts:550:11 - error TS2322: Type '{ error: BatchError; currentBatchId: string | null; sessionId: SessionId | null; status: string; resumeCount: number; isLoading: boolean; lastValidated: Date | null; ... 5 more ...; serverValidated: boolean; }' is not assignable to type 'BatchState'.
+      Types of property 'status' are incompatible.
+        Type 'string' is not assignable to type 'LocalBatchStatus'.
+    550           state: { ...mockBatchState, error: localError },
+                  ~~~~~
+      client/src/lib/batch-persistence.ts:50:3
+        50   state: BatchState;
+             ~~~~~
+        The expected type comes from property 'state' which is declared here on type 'PersistedBatchState'
+    tests/unit/lib/batch-recovery.test.ts:901:47 - error TS2345: Argument of type '{ state: BatchState; version: string; timestamp: number; batchId: string; sessionId: string; userId?: string; metadata: { userAgent: string; url: string; resumeCount: number; lastActivity: number; syncStatus: "synced" | "pending" | "conflict" | "failed"; checksum: string; }; compressed?: boolean; encrypted?: boolean...' is not assignable to parameter of type 'PersistedBatchState | Promise<PersistedBatchState | null> | null'.
+      Type '{ state: BatchState; version: string; timestamp: number; batchId: string; sessionId: string; userId?: string; metadata: { userAgent: string; url: string; resumeCount: number; lastActivity: number; syncStatus: "synced" | "pending" | "conflict" | "failed"; checksum: string; }; compressed?: boolean; encrypted?: boolean...' is not assignable to type 'PersistedBatchState'.
+        The types of 'state.status' are incompatible between these types.
+          Type 'string' is not assignable to type 'LocalBatchStatus'.
+    901       mockRestoreBatchState.mockResolvedValue(corruptedState);
+                                                      ~~~~~~~~~~~~~~
+FAIL tests/unit/lib/global-error-handler.test.ts (37.902 s)
+  ● Console
+    console.log
+      🔧 Mock database mode enabled for tests
+      at Object.<anonymous> (tests/jest.setup.js:51:11)
+    console.log
+      [dotenv@17.2.1] injecting env (10) from .env.test -- tip: ⚙️  write to custom object with { processEnv: myObject }
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+    console.error
+      Error: Not implemented: navigation (except hash changes)
+          at module.exports (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+          at navigateFetch (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+          at exports.navigate (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+          at LocationImpl._locationObjectNavigate (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:30:5)
+          at LocationImpl._locationObjectSetterNavigate (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:24:17)
+          at LocationImpl.set href [as href] (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:46:10)
+          at Location.set href [as href] (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/generated/Location.js:125:37)
+          at Reflect.set (<anonymous>)
+          at Window.set location [as location] (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/browser/Window.js:424:15)
+          at Object.<anonymous> (/home/runner/work/Evalmatch/Evalmatch/tests/unit/lib/global-error-handler.test.ts:85:25)
+          at Runtime._execModule (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-runtime/build/index.js:1439:24)
+          at Runtime._loadModule (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-runtime/build/index.js:1022:12)
+          at Runtime.requireModule (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-runtime/build/index.js:882:12)
+          at jestAdapter (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:77:13)
+          at processTicksAndRejections (node:internal/process/task_queues:95:5)
+          at runTestInternal (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-runner/build/runTest.js:367:16)
+          at runTest (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-runner/build/runTest.js:444:34)
+          at Object.worker (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-runner/build/testWorker.js:106:12) {
+        type: 'not implemented'
+      }
+      36 |     return;
+      37 |   }
+    > 38 |   originalConsoleError.apply(console, args);
+         |                        ^
+      39 | };
+      40 |
+      41 | // Database mocking setup - Skip module mocking in setup, handle it in individual tests
+      at console.Object.<anonymous>.console.error (tests/jest.setup.js:38:24)
+      at VirtualConsole.<anonymous> (node_modules/@jest/environment-jsdom-abstract/build/index.js:78:23)
+      at module.exports (node_modules/jsdom/lib/jsdom/browser/not-implemented.js:12:26)
+      at navigateFetch (node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+      at exports.navigate (node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+      at LocationImpl._locationObjectNavigate (node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:30:5)
+      at LocationImpl._locationObjectSetterNavigate (node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:24:17)
+      at LocationImpl.set href [as href] (node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:46:10)
+      at Location.set href [as href] (node_modules/jsdom/lib/jsdom/living/generated/Location.js:125:37)
+          at Reflect.set (<anonymous>)
+      at Window.set location [as location] (node_modules/jsdom/lib/jsdom/browser/Window.js:424:15)
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:85:25)
+    console.error
+      Error: Not implemented: navigation (except hash changes)
+          at module.exports (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+          at navigateFetch (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+          at exports.navigate (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+          at LocationImpl.reload (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:225:5)
+          at Location.reload (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/generated/Location.js:102:36)
+          at Object.action (/home/runner/work/Evalmatch/Evalmatch/client/src/lib/global-error-handler.ts:448:37)
+          at Object.<anonymous> (/home/runner/work/Evalmatch/Evalmatch/tests/unit/lib/global-error-handler.test.ts:877:22)
+          at Promise.then.completed (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-circus/build/utils.js:298:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-circus/build/utils.js:231:10)
+          at _callCircusTest (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-circus/build/run.js:316:40)
+          at processTicksAndRejections (node:internal/process/task_queues:95:5)
+          at _runTest (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-circus/build/run.js:252:3)
+          at _runTestsForDescribeBlock (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-circus/build/run.js:126:9)
+          at _runTestsForDescribeBlock (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-circus/build/run.js:121:9)
+          at _runTestsForDescribeBlock (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-circus/build/run.js:121:9)
+          at run (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-circus/build/run.js:71:3)
+          at runAndTransformResultsToJestFormat (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+          at jestAdapter (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)
+          at runTestInternal (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-runner/build/runTest.js:367:16)
+          at runTest (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-runner/build/runTest.js:444:34)
+          at Object.worker (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-runner/build/testWorker.js:106:12) {
+        type: 'not implemented'
+      }
+      36 |     return;
+      37 |   }
+    > 38 |   originalConsoleError.apply(console, args);
+         |                        ^
+      39 | };
+      40 |
+      41 | // Database mocking setup - Skip module mocking in setup, handle it in individual tests
+      at console.Object.<anonymous>.console.error (tests/jest.setup.js:38:24)
+      at VirtualConsole.<anonymous> (node_modules/@jest/environment-jsdom-abstract/build/index.js:78:23)
+      at module.exports (node_modules/jsdom/lib/jsdom/browser/not-implemented.js:12:26)
+      at navigateFetch (node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+      at exports.navigate (node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+      at LocationImpl.reload (node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:225:5)
+      at Location.reload (node_modules/jsdom/lib/jsdom/living/generated/Location.js:102:36)
+      at Object.action (client/src/lib/global-error-handler.ts:448:37)
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:877:22)
+    console.error
+      Error: Not implemented: navigation (except hash changes)
+          at module.exports (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+          at navigateFetch (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+          at exports.navigate (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+          at LocationImpl.reload (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:225:5)
+          at Location.reload (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/generated/Location.js:102:36)
+          at /home/runner/work/Evalmatch/Evalmatch/client/src/lib/global-error-handler.ts:467:25
+          at Generator.next (<anonymous>)
+          at fulfilled (/home/runner/work/Evalmatch/Evalmatch/client/src/lib/global-error-handler.ts:11:58)
+          at processTicksAndRejections (node:internal/process/task_queues:95:5) {
+        type: 'not implemented'
+      }
+      36 |     return;
+      37 |   }
+    > 38 |   originalConsoleError.apply(console, args);
+         |                        ^
+      39 | };
+      40 |
+      41 | // Database mocking setup - Skip module mocking in setup, handle it in individual tests
+      at console.Object.<anonymous>.console.error (tests/jest.setup.js:38:24)
+      at VirtualConsole.<anonymous> (node_modules/@jest/environment-jsdom-abstract/build/index.js:78:23)
+      at module.exports (node_modules/jsdom/lib/jsdom/browser/not-implemented.js:12:26)
+      at navigateFetch (node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+      at exports.navigate (node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+      at LocationImpl.reload (node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:225:5)
+      at Location.reload (node_modules/jsdom/lib/jsdom/living/generated/Location.js:102:36)
+      at client/src/lib/global-error-handler.ts:467:25
+      at fulfilled (client/src/lib/global-error-handler.ts:11:58)
+    console.error
+      Error: Not implemented: navigation (except hash changes)
+          at module.exports (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+          at navigateFetch (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+          at exports.navigate (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+          at LocationImpl.reload (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:225:5)
+          at Location.reload (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/generated/Location.js:102:36)
+          at /home/runner/work/Evalmatch/Evalmatch/client/src/lib/global-error-handler.ts:467:25
+          at Generator.next (<anonymous>)
+          at fulfilled (/home/runner/work/Evalmatch/Evalmatch/client/src/lib/global-error-handler.ts:11:58)
+          at processTicksAndRejections (node:internal/process/task_queues:95:5) {
+        type: 'not implemented'
+      }
+      36 |     return;
+      37 |   }
+    > 38 |   originalConsoleError.apply(console, args);
+         |                        ^
+      39 | };
+      40 |
+      41 | // Database mocking setup - Skip module mocking in setup, handle it in individual tests
+      at console.Object.<anonymous>.console.error (tests/jest.setup.js:38:24)
+      at VirtualConsole.<anonymous> (node_modules/@jest/environment-jsdom-abstract/build/index.js:78:23)
+      at module.exports (node_modules/jsdom/lib/jsdom/browser/not-implemented.js:12:26)
+      at navigateFetch (node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+      at exports.navigate (node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+      at LocationImpl.reload (node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:225:5)
+      at Location.reload (node_modules/jsdom/lib/jsdom/living/generated/Location.js:102:36)
+      at client/src/lib/global-error-handler.ts:467:25
+      at fulfilled (client/src/lib/global-error-handler.ts:11:58)
+  ● Global Error Handler › Error Handling › should handle offline network errors differently
+    expect(received).toBe(expected) // Object.is equality
+    Expected: "You are currently offline"
+    Received: "Network connection failed"
+      329 |       const result = errorManager.handleError(networkError);
+      330 |
+    > 331 |       expect(result.message).toBe('You are currently offline');
+          |                              ^
+      332 |       expect(result.code).toBe('OFFLINE_ERROR');
+      333 |       expect(result.userFriendlyMessage).toContain('You are offline');
+      334 |     });
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:331:30)
+  ● Global Error Handler › Error Handling › should show toast notifications by default
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+    Expected: {"attempts": 0, "category": "system", "cause": undefined, "code": "SYSTEM_001", "componentName": "TestComponent", "context": {"additionalData": undefined, "timestamp": 2025-08-03T19:02:19.768Z, "url": "http://localhost/", "userAgent": "Mozilla/5.0 (linux) AppleWebKit/537.36 (KHTML, like Gecko) jsdom/26.1.0"}, "id": "err_1754247739768_mq3uy9my0", "isTransient": true, "maxRetries": 3, "message": "System error occurred", "resourceType": undefined, "retryable": true, "severity": "high", "suggestedActions": ["Try again in a few moments", "Refresh the page", "Contact support if the issue persists"], "systemLoad": undefined, "userFriendlyMessage": "A system error occurred. Please try again later."}
+    Number of calls: 0
+      339 |       errorManager.handleError(error);
+      340 |
+    > 341 |       expect(mockShowErrorToast).toHaveBeenCalledWith(error);
+          |                                  ^
+      342 |     });
+      343 |
+      344 |     it('should skip toast when disabled', () => {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:341:34)
+  ● Global Error Handler › Toast Notification Logic › should show toasts for medium severity errors
+    expect(jest.fn()).toHaveBeenCalled()
+    Expected number of calls: >= 1
+    Received number of calls:    0
+      435 |       errorManager.handleError(mediumError);
+      436 |
+    > 437 |       expect(mockShowErrorToast).toHaveBeenCalled();
+          |                                  ^
+      438 |     });
+      439 |
+      440 |     it('should always show toasts for critical errors', () => {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:437:34)
+  ● Global Error Handler › Toast Notification Logic › should limit toasts when error rate is high
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+    Expected number of calls: 5
+    Received number of calls: 0
+      466 |       }
+      467 |
+    > 468 |       expect(mockShowErrorToast).toHaveBeenCalledTimes(5); // Should stop showing medium errors
+          |                                  ^
+      469 |     });
+      470 |
+      471 |     it('should still show critical errors even at high error rate', () => {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:468:34)
+  ● Global Error Handler › Toast Notification Logic › should not show duplicate toasts for similar errors
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+    Expected number of calls: 1
+    Received number of calls: 0
+      501 |       errorManager.handleError(error2);
+      502 |
+    > 503 |       expect(mockShowErrorToast).toHaveBeenCalledTimes(1);
+          |                                  ^
+      504 |     });
+      505 |
+      506 |     it('should show toasts for similar errors after time delay', () => {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:503:34)
+  ● Global Error Handler › Toast Notification Logic › should show toasts for similar errors after time delay
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+    Expected number of calls: 2
+    Received number of calls: 0
+      522 |       errorManager.handleError(error2);
+      523 |
+    > 524 |       expect(mockShowErrorToast).toHaveBeenCalledTimes(2);
+          |                                  ^
+      525 |     });
+      526 |   });
+      527 |
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:524:34)
+  ● Global Error Handler › React Hooks › useGlobalErrors › should clear errors when requested
+    expect(received).toBe(expected) // Object.is equality
+    Expected: 1
+    Received: 2
+      721 |         });
+      722 |
+    > 723 |         expect(result.current.errorCount).toBe(1);
+          |                                           ^
+      724 |
+      725 |         act(() => {
+      726 |           result.current.clearErrors();
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:723:43)
+  ● Global Error Handler › React Hooks › useGlobalErrors › should handle errors through hook
+    expect(received).toBe(expected) // Object.is equality
+    Expected: 1
+    Received: 3
+      737 |         });
+      738 |
+    > 739 |         expect(result.current.errorCount).toBe(1);
+          |                                           ^
+      740 |         expect(result.current.lastError?.message).toBe('Hook error');
+      741 |       });
+      742 |     });
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:739:43)
+  ● Global Error Handler › React Hooks › useConnectionStatus › should update when connection changes
+    expect(received).toBe(expected) // Object.is equality
+    Expected: false
+    Received: true
+      758 |         });
+      759 |
+    > 760 |         expect(result.current.isOnline).toBe(false);
+          |                                         ^
+      761 |         expect(result.current.connectionQuality).toBe('offline');
+      762 |         expect(result.current.isGoodConnection).toBe(false);
+      763 |       });
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:760:41)
+  ● Global Error Handler › React Hooks › useConnectionStatus › should identify good connections correctly
+    expect(received).toBe(expected) // Object.is equality
+    Expected: false
+    Received: true
+      782 |           triggerConnectionChange('2g');
+      783 |         });
+    > 784 |         expect(result.current.isGoodConnection).toBe(false);
+          |                                                 ^
+      785 |       });
+      786 |     });
+      787 |   });
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:784:49)
+  ● Global Error Handler › Utility Functions › should handle global errors with helper function
+    expect(received).toEqual(expected) // deep equality
+    Expected: {"customData": "test"}
+    Received: undefined
+      795 |
+      796 |       expect(result).toBe(error);
+    > 797 |       expect(result.context.additionalData).toEqual({ customData: 'test' });
+          |                                             ^
+      798 |     });
+      799 |
+      800 |     it('should report errors without showing toast', () => {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:797:45)
+  ● Global Error Handler › Utility Functions › should create error boundary handler
+    expect(received).toHaveLength(expected)
+    Expected length: 1
+    Received length: 6
+    Received array:  [{"attempts": 0, "category": "system", "cause": undefined, "code": "REACT_ERROR_BOUNDARY", "componentName": "ErrorBoundary", "context": {"additionalData": {"componentStack": "Component stack trace", "stack": "Error: React error
+      807 |     it('should create error boundary handler', () => {
+      808 |       const handler = createErrorBoundaryHandler();
+    > 809 |       const error = new Error('React error');
+          |                     ^
+      810 |       const errorInfo = { componentStack: 'Component stack trace' };
+      811 |
+      812 |       handler(error, errorInfo);
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:809:21)
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:815:28)
+  ● Global Error Handler › Recovery Actions › should execute refresh action correctly
+    expect(jest.fn()).toHaveBeenCalled()
+    Expected number of calls: >= 1
+    Received number of calls:    0
+      877 |       refreshAction!.action();
+      878 |
+    > 879 |       expect(mockReload).toHaveBeenCalled();
+          |                          ^
+      880 |     });
+      881 |
+      882 |     it('should execute clear cache action correctly', async () => {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:879:26)
+  ● Global Error Handler › Recovery Actions › should execute clear cache action correctly
+    expect(jest.fn()).toHaveBeenCalled()
+    Expected number of calls: >= 1
+    Received number of calls:    0
+      893 |       expect(mockCaches.delete).toHaveBeenCalledWith('cache2');
+      894 |       expect(mockStorage.clear).toHaveBeenCalledTimes(2); // localStorage + sessionStorage
+    > 895 |       expect(mockReload).toHaveBeenCalled();
+          |                          ^
+      896 |     });
+      897 |
+      898 |     it('should handle caches API not available', async () => {
+      at tests/unit/lib/global-error-handler.test.ts:895:26
+      at fulfilled (tests/unit/lib/global-error-handler.test.ts:16:58)
+  ● Global Error Handler › Recovery Actions › should handle caches API not available
+    expect(jest.fn()).toHaveBeenCalled()
+    Expected number of calls: >= 1
+    Received number of calls:    0
+      905 |       await expect(clearCacheAction!.action()).resolves.not.toThrow();
+      906 |
+    > 907 |       expect(mockReload).toHaveBeenCalled();
+          |                          ^
+      908 |
+      909 |       // Restore caches for other tests
+      910 |       (window as any).caches = mockCaches;
+      at tests/unit/lib/global-error-handler.test.ts:907:26
+      at fulfilled (tests/unit/lib/global-error-handler.test.ts:16:58)
+  ● Global Error Handler › Integration Tests › should handle complete error workflow
+    expect(received).toBe(expected) // Object.is equality
+    Expected: 0
+    Received: 6
+      917 |     it('should handle complete error workflow', () => {
+      918 |       // Start with no errors
+    > 919 |       expect(globalErrorManager.getState().errorCount).toBe(0);
+          |                                                        ^
+      920 |
+      921 |       // Trigger unhandled error
+      922 |       const errorEvent = {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:919:56)
+  ● Global Error Handler › Integration Tests › should handle network state changes affecting error handling
+    expect(received).toBe(expected) // Object.is equality
+    Expected: "OFFLINE_ERROR"
+    Received: "NETWORK_001"
+      963 |       globalErrorManager.handleError(anotherNetworkError);
+      964 |
+    > 965 |       expect(globalErrorManager.getState().lastError?.code).toBe('OFFLINE_ERROR');
+          |                                                             ^
+      966 |     });
+      967 |
+      968 |     it('should maintain error rate across multiple errors', () => {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:965:61)
+  ● Global Error Handler › Integration Tests › should maintain error rate across multiple errors
+    expect(received).toBe(expected) // Object.is equality
+    Expected: 3
+    Received: 11
+      974 |
+      975 |       const state = globalErrorManager.getState();
+    > 976 |       expect(state.errorCount).toBe(3);
+          |                                ^
+      977 |       expect(state.errorRate).toBe(3); // All within 1-minute window
+      978 |     });
+      979 |
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:976:32)
+  ● Global Error Handler › Integration Tests › should handle hook integration with real state changes
+    expect(received).toBe(expected) // Object.is equality
+    Expected: 0
+    Received: 11
+      982 |
+      983 |       // Initial state
+    > 984 |       expect(result.current.errorCount).toBe(0);
+          |                                         ^
+      985 |
+      986 |       // Add error through global manager
+      987 |       act(() => {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:984:41)
+FAIL tests/unit/lib/error-handling.test.ts (5.646 s)
+  ● Console
+    console.log
+      🔧 Mock database mode enabled for tests
+      at Object.<anonymous> (tests/jest.setup.js:51:11)
+    console.log
+      [dotenv@17.2.1] injecting env (10) from .env.test -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+    console.error
+      Error: Not implemented: navigation (except hash changes)
+          at module.exports (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+          at navigateFetch (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+          at exports.navigate (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+          at LocationImpl._locationObjectNavigate (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:30:5)
+          at LocationImpl._locationObjectSetterNavigate (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:24:17)
+          at LocationImpl.set href [as href] (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:46:10)
+          at Location.set href [as href] (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/living/generated/Location.js:125:37)
+          at Reflect.set (<anonymous>)
+          at Window.set location [as location] (/home/runner/work/Evalmatch/Evalmatch/node_modules/jsdom/lib/jsdom/browser/Window.js:424:15)
+          at Object.<anonymous> (/home/runner/work/Evalmatch/Evalmatch/tests/unit/lib/error-handling.test.ts:61:25)
+          at Runtime._execModule (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-runtime/build/index.js:1439:24)
+          at Runtime._loadModule (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-runtime/build/index.js:1022:12)
+          at Runtime.requireModule (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-runtime/build/index.js:882:12)
+          at jestAdapter (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:77:13)
+          at processTicksAndRejections (node:internal/process/task_queues:95:5)
+          at runTestInternal (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-runner/build/runTest.js:367:16)
+          at runTest (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-runner/build/runTest.js:444:34)
+          at Object.worker (/home/runner/work/Evalmatch/Evalmatch/node_modules/jest-runner/build/testWorker.js:106:12) {
+        type: 'not implemented'
+      }
+      36 |     return;
+      37 |   }
+    > 38 |   originalConsoleError.apply(console, args);
+         |                        ^
+      39 | };
+      40 |
+      41 | // Database mocking setup - Skip module mocking in setup, handle it in individual tests
+      at console.Object.<anonymous>.console.error (tests/jest.setup.js:38:24)
+      at VirtualConsole.<anonymous> (node_modules/@jest/environment-jsdom-abstract/build/index.js:78:23)
+      at module.exports (node_modules/jsdom/lib/jsdom/browser/not-implemented.js:12:26)
+      at navigateFetch (node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+      at exports.navigate (node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+      at LocationImpl._locationObjectNavigate (node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:30:5)
+      at LocationImpl._locationObjectSetterNavigate (node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:24:17)
+      at LocationImpl.set href [as href] (node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:46:10)
+      at Location.set href [as href] (node_modules/jsdom/lib/jsdom/living/generated/Location.js:125:37)
+          at Reflect.set (<anonymous>)
+      at Window.set location [as location] (node_modules/jsdom/lib/jsdom/browser/Window.js:424:15)
+      at Object.<anonymous> (tests/unit/lib/error-handling.test.ts:61:25)
+  ● Error Handling Utilities › Utility Functions › createErrorContext › should create context with environment data
+    expect(received).toBe(expected) // Object.is equality
+    Expected: "https://test.example.com/page"
+    Received: "http://localhost/"
+      135 |         expect(context.timestamp).toBeInstanceOf(Date);
+      136 |         expect(context.userAgent).toBe('Test User Agent');
+    > 137 |         expect(context.url).toBe('https://test.example.com/page');
+          |                             ^
+      138 |       });
+      139 |
+      140 |       it('should include additional data when provided', () => {
+      at Object.<anonymous> (tests/unit/lib/error-handling.test.ts:137:29)
+  ● Error Handling Utilities › Utility Functions › createErrorContext › should handle undefined window gracefully
+    expect(received).toBeUndefined()
+    Received: "Test User Agent"
+      152 |
+      153 |         expect(context.timestamp).toBeInstanceOf(Date);
+    > 154 |         expect(context.userAgent).toBeUndefined();
+          |                                   ^
+      155 |         expect(context.url).toBeUndefined();
+      156 |
+      157 |         global.window = originalWindow;
+      at Object.<anonymous> (tests/unit/lib/error-handling.test.ts:154:35)
+  ● Error Handling Utilities › Retry Logic › isRetryableError › should handle special business logic errors
+    expect(received).toBe(expected) // Object.is equality
+    Expected: true
+    Received: false
+      261 |         });
+      262 |
+    > 263 |         expect(isRetryableError(retryableBLError)).toBe(true);
+          |                                                    ^
+      264 |         expect(isRetryableError(nonRetryableBLError)).toBe(false);
+      265 |       });
+      266 |     });
+      at Object.<anonymous> (tests/unit/lib/error-handling.test.ts:263:52)
+FAIL tests/integration/api/interview-questions.test.ts (14.246 s)
+  ● Console
+    console.log
+      🔧 Mock database mode enabled for tests
+      at Object.<anonymous> (tests/jest.setup.js:51:11)
+    console.log
+      [dotenv@17.2.1] injecting env (10) from .env.test -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should successfully generate interview questions
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should generate questions in different categories
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should validate question structure
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should handle session ID parameter
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should return 400 for invalid resume ID
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should return 400 for invalid job ID
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should return 404 for non-existent resume
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should return 404 for non-existent job description
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should not allow access to other users resume
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should not allow access to other users job description
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should require authentication
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should measure interview question generation performance
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should store interview questions in database
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should handle resume without prior analysis
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should handle job description without prior analysis
+  ● Interview Questions API › Interview Question Quality and Content › should generate relevant technical questions
+  ● Interview Questions API › Interview Question Quality and Content › should generate experience-based questions
+  ● Interview Questions API › Interview Question Quality and Content › should generate skill gap questions when applicable
+  ● Interview Questions API › Interview Question Quality and Content › should generate inclusion and diversity questions
+  ● Interview Questions API › Interview Questions with Existing Analysis › should use existing analysis for question generation
+  ● Interview Questions API › Interview Questions with Existing Analysis › should generate questions focusing on missing skills
+  ● Interview Questions API › Error Handling and Edge Cases › should handle empty resume content gracefully
+  ● Interview Questions API › Error Handling and Edge Cases › should handle empty job description gracefully
+  ● Interview Questions API › Error Handling and Edge Cases › should handle AI service failures gracefully
+  ● Interview Questions API › Error Handling and Edge Cases › should handle malformed request data
+  ● Interview Questions API › Error Handling and Edge Cases › should handle very large resume content
+  ● Interview Questions API › Error Handling and Edge Cases › should handle special characters in content
+  ● Interview Questions API › Error Handling and Edge Cases › should validate numeric parameters properly
+  ● Interview Questions API › Rate Limiting and Performance › should handle concurrent interview question requests
+  ● Interview Questions API › Rate Limiting and Performance › should enforce reasonable response times
+  ● Interview Questions API › Rate Limiting and Performance › should handle multiple users generating questions simultaneously
+FAIL tests/unit/lib/batch-persistence.test.ts
+  ● Test suite failed to run
+    tests/unit/lib/batch-persistence.test.ts:175:3 - error TS2322: Type 'BatchState' is not assignable to type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    175   state: mockBatchState,
+          ~~~~~
+      client/src/lib/batch-persistence.ts:50:3
+        50   state: BatchState;
+             ~~~~~
+        The expected type comes from property 'state' which is declared here on type 'PersistedBatchState'
+    tests/unit/lib/batch-persistence.test.ts:303:14 - error TS2304: Cannot find name 'logger'.
+    303       expect(logger.warn).toHaveBeenCalled();
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:323:14 - error TS2304: Cannot find name 'logger'.
+    323       expect(logger.error).toHaveBeenCalled();
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:408:14 - error TS2304: Cannot find name 'logger'.
+    408       expect(logger.warn).toHaveBeenCalled();
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:463:14 - error TS2304: Cannot find name 'logger'.
+    463       expect(logger.info).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:529:9 - error TS2345: Argument of type 'BatchState' is not assignable to parameter of type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    529         mockBatchState,
+                ~~~~~~~~~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:534:14 - error TS2304: Cannot find name 'logger'.
+    534       expect(logger.info).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:553:11 - error TS2345: Argument of type 'BatchState' is not assignable to parameter of type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    553           mockBatchState
+                  ~~~~~~~~~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:557:14 - error TS2304: Cannot find name 'logger'.
+    557       expect(logger.error).toHaveBeenCalled();
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:591:14 - error TS2304: Cannot find name 'logger'.
+    591       expect(logger.warn).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:607:14 - error TS2304: Cannot find name 'logger'.
+    607       expect(logger.warn).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:630:14 - error TS2304: Cannot find name 'logger'.
+    630       expect(logger.error).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:667:14 - error TS2304: Cannot find name 'logger'.
+    667       expect(logger.info).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:729:14 - error TS2304: Cannot find name 'logger'.
+    729       expect(logger.info).toHaveBeenCalledWith('All persisted data cleared');
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:747:9 - error TS2345: Argument of type 'BatchState' is not assignable to parameter of type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    747         mockBatchState,
+                ~~~~~~~~~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:791:14 - error TS2304: Cannot find name 'logger'.
+    791       expect(logger.info).toHaveBeenCalledWith('All persisted data cleared');
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:813:9 - error TS2345: Argument of type 'BatchState' is not assignable to parameter of type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    813         mockBatchState,
+                ~~~~~~~~~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:845:14 - error TS2304: Cannot find name 'logger'.
+    845       expect(logger.debug).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:861:11 - error TS2345: Argument of type 'BatchState' is not assignable to parameter of type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    861           mockBatchState
+                  ~~~~~~~~~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:865:14 - error TS2304: Cannot find name 'logger'.
+    865       expect(logger.error).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:876:11 - error TS2345: Argument of type '{ resumeCount: number; currentBatchId: string | null; sessionId: string | null; status: string; isLoading: boolean; error: any | null; lastValidated: Date | null; retryCount: number; ... 4 more ...; serverValidated: boolean; }' is not assignable to parameter of type 'BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    876           { ...mockBatchState, resumeCount: i }
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:903:72 - error TS2345: Argument of type 'BatchState' is not assignable to parameter of type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    903         manager.persistBatchState('test_batch', 'test_session' as any, mockBatchState)
+                                                                               ~~~~~~~~~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:913:14 - error TS2304: Cannot find name 'logger'.
+    913       expect(logger.warn).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:929:9 - error TS2345: Argument of type 'BatchState' is not assignable to parameter of type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    929         mockBatchState
+                ~~~~~~~~~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:942:84 - error TS2345: Argument of type 'BatchState' is not assignable to parameter of type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    942       await manager.persistBatchState('fallback_batch', 'fallback_session' as any, mockBatchState);
+                                                                                           ~~~~~~~~~~~~~~
+FAIL tests/integration/api/analysis.test.ts (11.96 s)
+  ● Console
+    console.log
+      🔧 Mock database mode enabled for tests
+      at Object.<anonymous> (tests/jest.setup.js:51:11)
+    console.log
+      [dotenv@17.2.1] injecting env (10) from .env.test -- tip: 📡 version env with Radar: https://dotenvx.com/radar
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should successfully analyze all resumes against job description
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should analyze specific resumes when resume IDs provided
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should filter resumes by session ID
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should filter resumes by batch ID
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should return 404 for non-existent job ID
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should return 400 for invalid job ID
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should return 404 when no resumes found
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should not allow access to other users job descriptions
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should require authentication
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should handle invalid resume IDs gracefully
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should measure analysis performance
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should handle concurrent analysis requests
+  ● Analysis API › GET /api/analysis/analyze/:jobId - Get Analysis Results › should retrieve existing analysis results
+  ● Analysis API › GET /api/analysis/analyze/:jobId - Get Analysis Results › should return empty results for job with no analysis
+  ● Analysis API › GET /api/analysis/analyze/:jobId - Get Analysis Results › should require authentication
+  ● Analysis API › GET /api/analysis/analyze/:jobId - Get Analysis Results › should not allow access to other users analysis
+  ● Analysis API › GET /api/analysis/analyze/:jobId/:resumeId - Get Specific Analysis › should retrieve specific analysis result
+  ● Analysis API › GET /api/analysis/analyze/:jobId/:resumeId - Get Specific Analysis › should return 404 for non-existent analysis
+  ● Analysis API › GET /api/analysis/analyze/:jobId/:resumeId - Get Specific Analysis › should validate job and resume ownership
+  ● Analysis API › GET /api/analysis/analyze/:jobId/:resumeId - Get Specific Analysis › should return 400 for invalid IDs
+  ● Analysis API › POST /api/analysis/analyze-bias/:jobId - Analyze Job Description for Bias › should analyze job description for bias
+  ● Analysis API › POST /api/analysis/analyze-bias/:jobId - Analyze Job Description for Bias › should detect language bias
+  ● Analysis API › POST /api/analysis/analyze-bias/:jobId - Analyze Job Description for Bias › should detect age bias
+  ● Analysis API › POST /api/analysis/analyze-bias/:jobId - Analyze Job Description for Bias › should handle job descriptions with minimal bias
+  ● Analysis API › POST /api/analysis/analyze-bias/:jobId - Analyze Job Description for Bias › should return 404 for non-existent job
+  ● Analysis API › POST /api/analysis/analyze-bias/:jobId - Analyze Job Description for Bias › should validate job ownership
+  ● Analysis API › POST /api/analysis/analyze-bias/:jobId - Analyze Job Description for Bias › should require authentication
+  ● Analysis API › POST /api/analysis/analyze-bias/:jobId - Analyze Job Description for Bias › should measure bias analysis performance
+  ● Analysis API › Analysis Data Quality and Validation › should validate match percentage range
+  ● Analysis API › Analysis Data Quality and Validation › should provide meaningful analysis results
+  ● Analysis API › Analysis Data Quality and Validation › should handle resumes without analysis data
+  ● Analysis API › Analysis Data Quality and Validation › should store analysis results in database
+  ● Analysis API › Rate Limiting and Performance › should enforce rate limits on analysis requests
+  ● Analysis API › Rate Limiting and Performance › should handle batch analysis efficiently
+  ● Analysis API › Error Handling and Edge Cases › should handle empty job descriptions gracefully
+  ● Analysis API › Error Handling and Edge Cases › should handle empty resume content gracefully
+  ● Analysis API › Error Handling and Edge Cases › should handle malformed request data
+  ● Analysis API › Error Handling and Edge Cases › should handle AI service failures gracefully
+FAIL tests/components/pages/AnalysisPage.test.tsx
+  ● Test suite failed to run
+    tests/components/pages/AnalysisPage.test.tsx:51:49 - error TS2345: Argument of type '(key: string) => SessionId | "batch_test_456" | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    51     mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                       ~~~~~~~~~~~~~~~~~~
+    tests/components/pages/AnalysisPage.test.tsx:790:51 - error TS2345: Argument of type '(key: string) => "different_session" | "different_batch" | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    790       mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                          ~~~~~~~~~~~~~~~~~~
+FAIL tests/integration/api/job-descriptions.test.ts
+  ● Test suite failed to run
+    tests/integration/api/job-descriptions.test.ts:517:64 - error TS2345: Argument of type '{ userId: string; }' is not assignable to parameter of type 'Omit<TestResume, "id" | "createdAt">'.
+      Property 'filename' is missing in type '{ userId: string; }' but required in type 'Omit<TestResume, "id" | "createdAt">'.
+    517       const resume = await DatabaseTestHelper.createTestResume({
+                                                                       ~
+    518         userId: testUser.uid
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    519       });
+        ~~~~~~~
+      tests/helpers/api-helpers.ts:32:3
+        32   filename: string;
+             ~~~~~~~~
+        'filename' is declared here.
+FAIL tests/components/pages/UploadPage.test.tsx
+  ● Test suite failed to run
+    tests/components/pages/UploadPage.test.tsx:97:51 - error TS2345: Argument of type '(key: string) => "batch_test_456" | SessionId | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    97       mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                         ~~~~~~~~~~~~~~~~~~
+    tests/components/pages/UploadPage.test.tsx:141:51 - error TS2345: Argument of type '(key: string) => "batch_test_456" | SessionId | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    141       mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                          ~~~~~~~~~~~~~~~~~~
+    tests/components/pages/UploadPage.test.tsx:164:51 - error TS2345: Argument of type '(key: string) => "batch_test_456" | SessionId | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    164       mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                          ~~~~~~~~~~~~~~~~~~
+    tests/components/pages/UploadPage.test.tsx:184:51 - error TS2345: Argument of type '(key: string) => "batch_test_456" | SessionId | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    184       mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                          ~~~~~~~~~~~~~~~~~~
+    tests/components/pages/UploadPage.test.tsx:333:51 - error TS2345: Argument of type '(key: string) => "batch_test_456" | SessionId | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    333       mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                          ~~~~~~~~~~~~~~~~~~
+    tests/components/pages/UploadPage.test.tsx:606:51 - error TS2345: Argument of type '(key: string) => "batch_test_456" | SessionId | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    606       mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                          ~~~~~~~~~~~~~~~~~~
+    tests/components/pages/UploadPage.test.tsx:773:51 - error TS2345: Argument of type '(key: string) => "batch_test_456" | SessionId | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    773       mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                          ~~~~~~~~~~~~~~~~~~
+FAIL tests/integration/api/auth.test.ts (6.58 s)
+  ● Console
+    console.log
+      🔧 Mock database mode enabled for tests
+      at Object.<anonymous> (tests/jest.setup.js:51:11)
+    console.log
+      [dotenv@17.2.1] injecting env (10) from .env.test -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+  ● Authentication and Authorization › Authentication Middleware › should accept valid Firebase token
+  ● Authentication and Authorization › Authentication Middleware › should reject requests without authorization header
+  ● Authentication and Authorization › Authentication Middleware › should reject malformed authorization header
+  ● Authentication and Authorization › Authentication Middleware › should reject invalid Firebase token
+  ● Authentication and Authorization › Authentication Middleware › should reject expired Firebase token
+  ● Authentication and Authorization › Authentication Middleware › should handle missing ***
+  ● Authentication and Authorization › Authentication Middleware › should validate token format
+  ● Authentication and Authorization › User Context and Authorization › should populate request with user information
+  ● Authentication and Authorization › User Context and Authorization › should prevent access to other users data
+  ● Authentication and Authorization › User Context and Authorization › should isolate user data in list endpoints
+  ● Authentication and Authorization › User Context and Authorization › should validate user ownership in job descriptions
+  ● Authentication and Authorization › User Context and Authorization › should validate user ownership in analysis operations
+  ● Authentication and Authorization › Session Management and Security › should handle session-based access control
+  ● Authentication and Authorization › Session Management and Security › should validate batch ownership through sessions
+  ● Authentication and Authorization › Session Management and Security › should prevent cross-user session access
+  ● Authentication and Authorization › Authorization Edge Cases › should handle missing user ID gracefully
+  ● Authentication and Authorization › Authorization Edge Cases › should handle null user ID gracefully
+  ● Authentication and Authorization › Authorization Edge Cases › should handle special characters in user IDs
+  ● Authentication and Authorization › Authorization Edge Cases › should handle extremely long user IDs
+  ● Authentication and Authorization › API Endpoint Access Control › should require authentication for all protected endpoints
+  ● Authentication and Authorization › API Endpoint Access Control › should allow access with valid authentication
+  ● Authentication and Authorization › Security Headers and Validation › should validate required headers for batch operations
+  ● Authentication and Authorization › Security Headers and Validation › should sanitize user input in headers
+  ● Authentication and Authorization › Security Headers and Validation › should handle case-insensitive header names
+  ● Authentication and Authorization › Security Headers and Validation › should validate header value lengths
+  ● Authentication and Authorization › Rate Limiting and Security Measures › should enforce authentication rate limits
+  ● Authentication and Authorization › Rate Limiting and Security Measures › should handle concurrent authentication requests
+  ● Authentication and Authorization › Rate Limiting and Security Measures › should prevent brute force attacks on endpoints
+  ● Authentication and Authorization › Error Handling and Security › should not leak sensitive information in error messages
+  ● Authentication and Authorization › Error Handling and Security › should handle malformed authorization headers gracefully
+  ● Authentication and Authorization › Error Handling and Security › should handle Firebase authentication errors gracefully
+  ● Authentication and Authorization › Error Handling and Security › should handle network errors during token validation
+  ● Authentication and Authorization › User Permissions and Roles › should handle user role validation
+  ● Authentication and Authorization › User Permissions and Roles › should handle admin-specific endpoints
+FAIL tests/unit/hooks/useBatchManager.test.tsx (72.267 s)
+  ● Console
+    console.log
+      🔧 Mock database mode enabled for tests
+      at Object.<anonymous> (tests/jest.setup.js:51:11)
+    console.log
+      [dotenv@17.2.1] injecting env (10) from .env.test -- tip: 📡 observe env with Radar: https://dotenvx.com/radar
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+  ● useBatchManager Hook › Initialization › should initialize with correct default state
+    expect(received).toBeNull()
+    Received: "batch_1754247739609_9rd5rl"
+      140 |       const { result } = renderHook(() => useBatchManager(), { wrapper });
+      141 |
+    > 142 |       expect(result.current.currentBatchId).toBeNull();
+          |                                             ^
+      143 |       expect(result.current.sessionId).toBeNull();
+      144 |       expect(result.current.batchStatus).toBe('initializing');
+      145 |       expect(result.current.resumeCount).toBe(0);
+      at Object.<anonymous> (tests/unit/hooks/useBatchManager.test.tsx:142:45)
+  ● useBatchManager Hook › Initialization › should create new batch on initialization when autoRecover is false
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+    Expected: ObjectContaining {"title": "New batch created"}
+    Number of calls: 0
+      178 |       expect(result.current.sessionId).toBeTruthy();
+      179 |       expect(result.current.batchStatus).toBe('ready');
+    > 180 |       expect(mockToast).toHaveBeenCalledWith(
+          |                         ^
+      181 |         expect.objectContaining({
+      182 |           title: 'New batch created',
+      183 |         })
+      at tests/unit/hooks/useBatchManager.test.tsx:180:25
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Initialization › should attempt recovery on initialization when autoRecover is true
+    expect(received).toBe(expected) // Object.is equality
+    Expected: "batch_test456"
+    Received: "batch_1754247739724_2mo0zc"
+      217 |       });
+      218 |
+    > 219 |       expect(result.current.currentBatchId).toBe(mockBatchId);
+          |                                             ^
+      220 |       expect(result.current.sessionId).toBe(mockSessionId);
+      221 |       expect(result.current.resumeCount).toBe(2);
+      222 |       expect(mockToast).toHaveBeenCalledWith(
+      at tests/unit/hooks/useBatchManager.test.tsx:219:45
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Batch Creation › should create new batch with generated IDs
+    expect(received).toBe(expected) // Object.is equality
+    Expected: "batch_1754247739783_7s0xio"
+    Received: "batch_1754247739784_ugidwq"
+      240 |
+      241 |       expect(newBatchId!).toBeTruthy();
+    > 242 |       expect(result.current.currentBatchId).toBe(newBatchId!);
+          |                                             ^
+      243 |       expect(result.current.sessionId).toBeTruthy();
+      244 |       expect(result.current.batchStatus).toBe('ready');
+      245 |       expect(result.current.resumeCount).toBe(0);
+      at tests/unit/hooks/useBatchManager.test.tsx:242:45
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Batch Creation › should reuse existing session when creating new batch
+    expect(received).not.toBe(expected) // Object.is equality
+    Expected: not "batch_1754247739794_miwte0"
+      262 |
+      263 |       expect(result.current.sessionId).toBe(firstSessionId);
+    > 264 |       expect(result.current.currentBatchId).not.toBe(result.current.currentBatchId);
+          |                                                 ^
+      265 |     });
+      266 |   });
+      267 |
+      at tests/unit/hooks/useBatchManager.test.tsx:264:49
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Batch Validation › should validate batch successfully with server validation
+    expect(received).toBe(expected) // Object.is equality
+    Expected: true
+    Received: undefined
+      317 |       });
+      318 |
+    > 319 |       expect(validationResult!.valid).toBe(true);
+          |                                       ^
+      320 |       expect(result.current.serverValidated).toBe(true);
+      321 |       expect(result.current.ownership).toEqual(serverValidationResponse.data?.ownership);
+      322 |     });
+      at tests/unit/hooks/useBatchManager.test.tsx:319:39
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Batch Validation › should fallback to legacy validation when server validation fails
+    expect(received).toBe(expected) // Object.is equality
+    Expected: true
+    Received: undefined
+      348 |       });
+      349 |
+    > 350 |       expect(validationResult!.valid).toBe(true);
+          |                                       ^
+      351 |     });
+      352 |
+      353 |     it('should handle validation timeout', async () => {
+      at tests/unit/hooks/useBatchManager.test.tsx:350:39
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Batch Validation › should handle validation timeout
+    expect(received).toBe(expected) // Object.is equality
+    Expected: false
+    Received: undefined
+      371 |       });
+      372 |
+    > 373 |       expect(validationResult!.valid).toBe(false);
+          |                                       ^
+      374 |       expect(validationResult!.errors).toContain('timeout');
+      375 |     });
+      376 |
+      at tests/unit/hooks/useBatchManager.test.tsx:373:39
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Batch Validation › should retry validation on failure
+    expect(received).toBe(expected) // Object.is equality
+    Expected: true
+    Received: undefined
+      403 |       });
+      404 |
+    > 405 |       expect(validationResult!.valid).toBe(true);
+          |                                       ^
+      406 |       expect(mockApiRequest).toHaveBeenCalledTimes(2);
+      407 |     });
+      408 |
+      at tests/unit/hooks/useBatchManager.test.tsx:405:39
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Batch Validation › should handle validation without batch ID or session ID
+    expect(received).toBe(expected) // Object.is equality
+    Expected: false
+    Received: undefined
+      415 |       });
+      416 |
+    > 417 |       expect(validationResult!.valid).toBe(false);
+          |                                       ^
+      418 |       expect(validationResult!.errors).toContain('missing batch ID or session ID');
+      419 |     });
+      420 |   });
+      at tests/unit/hooks/useBatchManager.test.tsx:417:39
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Error Handling › should handle network errors gracefully
+    expect(received).toBeTruthy()
+    Received: null
+      436 |       });
+      437 |
+    > 438 |       expect(result.current.error).toBeTruthy();
+          |                                    ^
+      439 |       expect(result.current.error?.type).toBe('network_error');
+      440 |       expect(result.current.batchStatus).toBe('error');
+      441 |     });
+      at tests/unit/hooks/useBatchManager.test.tsx:438:36
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Error Handling › should provide error recovery suggestions
+    expect(received).toContain(expected) // indexOf
+    Matcher error: received value must not be null nor undefined
+    Received has value: undefined
+      454 |       });
+      455 |
+    > 456 |       expect(result.current.error?.suggestions).toContain('Start a new upload session');
+          |                                                 ^
+      457 |       expect(result.current.error?.retryable).toBe(true);
+      458 |     });
+      459 |
+      at tests/unit/hooks/useBatchManager.test.tsx:456:49
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Error Handling › should clear errors when requested
+    expect(received).toBeTruthy()
+    Received: null
+      471 |       });
+      472 |
+    > 473 |       expect(result.current.error).toBeTruthy();
+          |                                    ^
+      474 |
+      475 |       await act(async () => {
+      476 |         result.current.clearError();
+      at tests/unit/hooks/useBatchManager.test.tsx:473:36
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Batch Reset › should reset batch state completely
+    expect(received).toBe(expected) // Object.is equality
+    Expected: "ready"
+    Received: "initializing"
+      592 |       });
+      593 |
+    > 594 |       expect(result.current.batchStatus).toBe('ready');
+          |                                          ^
+      595 |       expect(result.current.resumeCount).toBe(0);
+      596 |       expect(result.current.error).toBeNull();
+      597 |       expect(mockLocalStorage.removeItem).toHaveBeenCalled();
+      at tests/unit/hooks/useBatchManager.test.tsx:594:42
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Enhanced Server Operations › should get batch status from server
+    expect(received).toBe(expected) // Object.is equality
+    Expected: "ready"
+    Received: "error"
+      667 |       });
+      668 |
+    > 669 |       expect(status).toBe('ready');
+          |                      ^
+      670 |       expect(mockApiRequest).toHaveBeenCalledWith(
+      671 |         'GET',
+      672 |         expect.stringContaining('/status'),
+      at tests/unit/hooks/useBatchManager.test.tsx:669:22
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › React Query Integration › should fetch resumes when batch is ready
+    expect(received).toBeTruthy()
+    Received: undefined
+    Ignored nodes: comments, script, style
+    <html>
+      <head />
+      <body>
+        <div />
+      </body>
+    </html>
+      776 |
+      777 |       await waitFor(() => {
+    > 778 |         expect(result.current.resumesData).toBeTruthy();
+          |                                            ^
+      779 |       });
+      780 |
+      781 |       expect(result.current.resumesData?.resumes).toHaveLength(2);
+      at tests/unit/hooks/useBatchManager.test.tsx:778:44
+      at runWithExpensiveErrorDiagnosticsDisabled (node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+      at checkRealTimersCallback (node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+      at Timeout.task [as _onTimeout] (node_modules/jsdom/lib/jsdom/browser/Window.js:579:19)
+  ● useBatchManager Hook › React Query Integration › should sync resume count from server
+    expect(received).toBe(expected) // Object.is equality
+    Expected: 3
+    Received: 0
+    Ignored nodes: comments, script, style
+    <html>
+      <head />
+      <body>
+        <div />
+      </body>
+    </html>
+      809 |
+      810 |       await waitFor(() => {
+    > 811 |         expect(result.current.resumeCount).toBe(3);
+          |                                            ^
+      812 |       });
+      813 |     });
+      814 |
+      at tests/unit/hooks/useBatchManager.test.tsx:811:44
+      at runWithExpensiveErrorDiagnosticsDisabled (node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+      at checkRealTimersCallback (node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+      at Timeout.task [as _onTimeout] (node_modules/jsdom/lib/jsdom/browser/Window.js:579:19)
+  ● useBatchManager Hook › React Query Integration › should refetch resumes when requested
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+    Expected number of calls: 1
+    Received number of calls: 3
+      834 |       });
+      835 |
+    > 836 |       expect(mockApiRequest).toHaveBeenCalledTimes(1);
+          |                              ^
+      837 |     });
+      838 |   });
+      839 |
+      at tests/unit/hooks/useBatchManager.test.tsx:836:30
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Utility Functions › should validate batch ID format
+    expect(received).toBe(expected) // Object.is equality
+    Expected: true
+    Received: false
+      844 |       const { result } = renderHook(() => useBatchManager(), { wrapper });
+      845 |
+    > 846 |       expect(result.current.isValidBatchId('batch_valid123')).toBe(true);
+          |                                                               ^
+      847 |       expect(result.current.isValidBatchId('invalid')).toBe(false);
+      848 |       expect(result.current.isValidBatchId('')).toBe(false);
+      849 |     });
+      at Object.<anonymous> (tests/unit/hooks/useBatchManager.test.tsx:846:63)
+  ● useBatchManager Hook › Utility Functions › should validate session ID format
+    expect(received).toBe(expected) // Object.is equality
+    Expected: true
+    Received: false
+      852 |       const { result } = renderHook(() => useBatchManager(), { wrapper });
+      853 |
+    > 854 |       expect(result.current.isValidSessionId('session_valid123')).toBe(true);
+          |                                                                   ^
+      855 |       expect(result.current.isValidSessionId('invalid')).toBe(false);
+      856 |       expect(result.current.isValidSessionId('')).toBe(false);
+      857 |     });
+      at Object.<anonymous> (tests/unit/hooks/useBatchManager.test.tsx:854:67)
+  ● useBatchManager Hook › Utility Functions › should detect stale batches
+    expect(received).toBe(expected) // Object.is equality
+    Expected: true
+    Received: false
+      889 |       });
+      890 |
+    > 891 |       expect(result.current.isStale).toBe(true);
+          |                                      ^
+      892 |     });
+      893 |   });
+      894 |
+      at tests/unit/hooks/useBatchManager.test.tsx:891:38
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Auto-validation › should not auto-validate when disabled
+    expect(jest.fn()).not.toHaveBeenCalled()
+    Expected number of calls: 0
+    Received number of calls: 2
+    1: "GET", "/api/resumes?sessionId=session_1754247743336_g6wswb2e&batchId=batch_1754247743336_4kjqzr"
+    2: "GET", "/api/resumes?sessionId=session_1754247743336_0v83si5n&batchId=batch_1754247743336_iy5zp8"
+      950 |       });
+      951 |
+    > 952 |       expect(mockApiRequest).not.toHaveBeenCalled();
+          |                                  ^
+      953 |
+      954 |       jest.useRealTimers();
+      955 |     });
+      at tests/unit/hooks/useBatchManager.test.tsx:952:34
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Edge Cases › should handle API response with invalid format
+    expect(received).toBe(expected) // Object.is equality
+    Expected: false
+    Received: undefined
+       997 |       });
+       998 |
+    >  999 |       expect(validationResult!.valid).toBe(false);
+           |                                       ^
+      1000 |       expect(validationResult!.errors).toContain('Invalid response format');
+      1001 |     });
+      1002 |
+      at tests/unit/hooks/useBatchManager.test.tsx:999:39
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Edge Cases › should handle concurrent batch operations
+    thrown: "Exceeded timeout of 30000 ms for a test.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+      1001 |     });
+      1002 |
+    > 1003 |     it('should handle concurrent batch operations', async () => {
+           |     ^
+      1004 |       const { result } = renderHook(() => useBatchManager(), { wrapper });
+      1005 |
+      1006 |       await act(async () => {
+      at tests/unit/hooks/useBatchManager.test.tsx:1003:5
+      at tests/unit/hooks/useBatchManager.test.tsx:960:3
+      at Object.<anonymous> (tests/unit/hooks/useBatchManager.test.tsx:127:1)
+  ● useBatchManager Hook › Edge Cases › should handle browser going offline
+    TypeError: Cannot read properties of null (reading 'createNewBatch')
+      1041 |
+      1042 |       await act(async () => {
+    > 1043 |         result.current.createNewBatch();
+           |                        ^
+      1044 |       });
+      1045 |
+      1046 |       // Simulate offline
+      at tests/unit/hooks/useBatchManager.test.tsx:1043:24
+      at tests/unit/hooks/useBatchManager.test.tsx:8:71
+      at Object.<anonymous>.__awaiter (tests/unit/hooks/useBatchManager.test.tsx:4:12)
+      at tests/unit/hooks/useBatchManager.test.tsx:1042:28
+      at node_modules/@testing-library/react/dist/act-compat.js:48:24
+      at act (node_modules/react/cjs/react.development.js:2512:16)
+      at node_modules/@testing-library/react/dist/act-compat.js:47:25
+      at tests/unit/hooks/useBatchManager.test.tsx:1042:16
+      at tests/unit/hooks/useBatchManager.test.tsx:8:71
+      at Object.<anonymous>.__awaiter (tests/unit/hooks/useBatchManager.test.tsx:4:12)
+      at Object.<anonymous> (tests/unit/hooks/useBatchManager.test.tsx:1039:58)
+FAIL tests/hooks/useSteps.test.ts
+  ● Test suite failed to run
+    tests/hooks/useSteps.test.ts:20:8 - error TS2307: Cannot find module '../../helpers/component-test-helpers' or its corresponding type declarations.
+    20 } from '../../helpers/component-test-helpers';
+              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+FAIL tests/integration/api/resumes.test.ts
+  ● Test suite failed to run
+    tests/integration/api/resumes.test.ts:50:45 - error TS2339: Property 'uploadTestFile' does not exist on type 'typeof FileTestHelper'.
+    50       const response = await FileTestHelper.uploadTestFile(
+                                                   ~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:63:41 - error TS2339: Property 'createTestDocxBuffer' does not exist on type 'typeof FileTestHelper'.
+    63       const docxBuffer = FileTestHelper.createTestDocxBuffer();
+                                               ~~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:64:45 - error TS2339: Property 'uploadTestFile' does not exist on type 'typeof FileTestHelper'.
+    64       const response = await FileTestHelper.uploadTestFile(
+                                                   ~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:77:41 - error TS2551: Property 'createTestTextFile' does not exist on type 'typeof FileTestHelper'. Did you mean 'createTestFile'?
+    77       const textBuffer = FileTestHelper.createTestTextFile();
+                                               ~~~~~~~~~~~~~~~~~~
+      tests/helpers/api-helpers.ts:325:10
+        325   static createTestFile(filename: string, size: number = 1024): Buffer {
+                     ~~~~~~~~~~~~~~
+        'createTestFile' is declared here.
+    tests/integration/api/resumes.test.ts:78:45 - error TS2339: Property 'uploadTestFile' does not exist on type 'typeof FileTestHelper'.
+    78       const response = await FileTestHelper.uploadTestFile(
+                                                   ~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:92:45 - error TS2339: Property 'uploadTestFile' does not exist on type 'typeof FileTestHelper'.
+    92       const response = await FileTestHelper.uploadTestFile(
+                                                   ~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:115:45 - error TS2339: Property 'uploadTestFile' does not exist on type 'typeof FileTestHelper'.
+    115       const response = await FileTestHelper.uploadTestFile(
+                                                    ~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:137:40 - error TS2339: Property 'createTestPDFBuffer' does not exist on type 'typeof FileTestHelper'.
+    137       const pdfBuffer = FileTestHelper.createTestPDFBuffer();
+                                               ~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:189:30 - error TS2339: Property 'uploadTestFile' does not exist on type 'typeof FileTestHelper'.
+    189         () => FileTestHelper.uploadTestFile(app, testUser, '/api/resumes', 'test-resume.pdf'),
+                                     ~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:201:59 - error TS2339: Property 'createTestPDFBuffer' does not exist on type 'typeof FileTestHelper'.
+    201         { filename: 'resume1.pdf', buffer: FileTestHelper.createTestPDFBuffer() },
+                                                                  ~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:202:60 - error TS2339: Property 'createTestDocxBuffer' does not exist on type 'typeof FileTestHelper'.
+    202         { filename: 'resume2.docx', buffer: FileTestHelper.createTestDocxBuffer() },
+                                                                   ~~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:203:59 - error TS2551: Property 'createTestTextFile' does not exist on type 'typeof FileTestHelper'. Did you mean 'createTestFile'?
+    203         { filename: 'resume3.txt', buffer: FileTestHelper.createTestTextFile() }
+                                                                  ~~~~~~~~~~~~~~~~~~
+      tests/helpers/api-helpers.ts:325:10
+        325   static createTestFile(filename: string, size: number = 1024): Buffer {
+                     ~~~~~~~~~~~~~~
+        'createTestFile' is declared here.
+    tests/integration/api/resumes.test.ts:206:45 - error TS2339: Property 'uploadMultipleTestFiles' does not exist on type 'typeof FileTestHelper'.
+    206       const response = await FileTestHelper.uploadMultipleTestFiles(
+                                                    ~~~~~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:222:59 - error TS2339: Property 'createTestPDFBuffer' does not exist on type 'typeof FileTestHelper'.
+    222         { filename: 'resume1.pdf', buffer: FileTestHelper.createTestPDFBuffer() },
+                                                                  ~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:223:59 - error TS2339: Property 'createTestPDFBuffer' does not exist on type 'typeof FileTestHelper'.
+    223         { filename: 'resume2.pdf', buffer: FileTestHelper.createTestPDFBuffer() }
+                                                                  ~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:226:45 - error TS2339: Property 'uploadMultipleTestFiles' does not exist on type 'typeof FileTestHelper'.
+    226       const response = await FileTestHelper.uploadMultipleTestFiles(
+                                                    ~~~~~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:249:59 - error TS2339: Property 'createTestPDFBuffer' does not exist on type 'typeof FileTestHelper'.
+    249         { filename: 'resume1.pdf', buffer: FileTestHelper.createTestPDFBuffer() },
+                                                                  ~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:250:59 - error TS2339: Property 'createTestPDFBuffer' does not exist on type 'typeof FileTestHelper'.
+    250         { filename: 'resume2.pdf', buffer: FileTestHelper.createTestPDFBuffer() }
+                                                                  ~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:253:45 - error TS2339: Property 'uploadMultipleTestFiles' does not exist on type 'typeof FileTestHelper'.
+    253       const response = await FileTestHelper.uploadMultipleTestFiles(
+                                                    ~~~~~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:267:64 - error TS2339: Property 'createTestPDFBuffer' does not exist on type 'typeof FileTestHelper'.
+    267         { filename: 'valid-resume.pdf', buffer: FileTestHelper.createTestPDFBuffer() },
+                                                                       ~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:269:65 - error TS2551: Property 'createTestTextFile' does not exist on type 'typeof FileTestHelper'. Did you mean 'createTestFile'?
+    269         { filename: 'another-valid.txt', buffer: FileTestHelper.createTestTextFile() }
+                                                                        ~~~~~~~~~~~~~~~~~~
+      tests/helpers/api-helpers.ts:325:10
+        325   static createTestFile(filename: string, size: number = 1024): Buffer {
+                     ~~~~~~~~~~~~~~
+        'createTestFile' is declared here.
+    tests/integration/api/resumes.test.ts:272:45 - error TS2339: Property 'uploadMultipleTestFiles' does not exist on type 'typeof FileTestHelper'.
+    272       const response = await FileTestHelper.uploadMultipleTestFiles(
+                                                    ~~~~~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:297:32 - error TS2339: Property 'createTestPDFBuffer' does not exist on type 'typeof FileTestHelper'.
+    297         buffer: FileTestHelper.createTestPDFBuffer()
+                                       ~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:300:45 - error TS2339: Property 'uploadMultipleTestFiles' does not exist on type 'typeof FileTestHelper'.
+    300       const response = await FileTestHelper.uploadMultipleTestFiles(
+                                                    ~~~~~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:314:32 - error TS2339: Property 'createTestPDFBuffer' does not exist on type 'typeof FileTestHelper'.
+    314         buffer: FileTestHelper.createTestPDFBuffer()
+                                       ~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:318:30 - error TS2339: Property 'uploadMultipleTestFiles' does not exist on type 'typeof FileTestHelper'.
+    318         () => FileTestHelper.uploadMultipleTestFiles(app, testUser, '/api/resumes/batch', files),
+                                     ~~~~~~~~~~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:538:24 - error TS2339: Property 'uploadTestFile' does not exist on type 'typeof FileTestHelper'.
+    538         FileTestHelper.uploadTestFile(app, testUser, '/api/resumes', 'test-resume.pdf')
+                               ~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:554:30 - error TS2339: Property 'uploadTestFile' does not exist on type 'typeof FileTestHelper'.
+    554         () => FileTestHelper.uploadTestFile(app, testUser, '/api/resumes', 'concurrent-test.pdf'),
+                                     ~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:566:45 - error TS2339: Property 'uploadTestFile' does not exist on type 'typeof FileTestHelper'.
+    566       const response = await FileTestHelper.uploadTestFile(
+                                                    ~~~~~~~~~~~~~~
+    tests/integration/api/resumes.test.ts:581:41 - error TS2551: Property 'createTestTextFile' does not exist on type 'typeof FileTestHelper'. Did you mean 'createTestFile'?
+    581       const textBuffer = FileTestHelper.createTestTextFile();
+                                                ~~~~~~~~~~~~~~~~~~
+      tests/helpers/api-helpers.ts:325:10
+        325   static createTestFile(filename: string, size: number = 1024): Buffer {
+                     ~~~~~~~~~~~~~~
+        'createTestFile' is declared here.
+FAIL tests/components/shared/ErrorBoundary.test.tsx
+  ● Test suite failed to run
+    tests/components/shared/ErrorBoundary.test.tsx:380:26 - error TS2339: Property 'group' does not exist on type '{ log: Mock<UnknownFunction>; error: Mock<UnknownFunction>; warn: Mock<UnknownFunction>; info: Mock<UnknownFunction>; debug: Mock<...>; }'.
+    380       expect(mockConsole.group).toHaveBeenCalledWith(
+                                 ~~~~~
+FAIL tests/components/charts/SkillRadarChart.test.tsx
+  ● Test suite failed to run
+    tests/helpers/component-test-helpers.tsx:18:16 - error TS2305: Module '"@jest/globals"' has no exported member 'Mock'.
+    18 import { jest, Mock, MockedFunction } from '@jest/globals';
+                      ~~~~
+    tests/helpers/component-test-helpers.tsx:18:22 - error TS2305: Module '"@jest/globals"' has no exported member 'MockedFunction'.
+    18 import { jest, Mock, MockedFunction } from '@jest/globals';
+                            ~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:57:1 - error TS2322: Type 'Mock<UnknownFunction>' is not assignable to type '{ (input: RequestInfo | URL, init?: RequestInit | undefined): Promise<Response>; (input: string | Request | URL, init?: RequestInit | undefined): Promise<...>; }'.
+      Type 'unknown' is not assignable to type 'Promise<Response>'.
+    57 global.fetch = mockFetch;
+       ~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:60:14 - error TS2323: Cannot redeclare exported variable 'mockConsole'.
+    60 export const mockConsole = {
+                    ~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:79:45 - error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+    79   getAuthToken: jest.fn().mockResolvedValue('mock-auth-token'),
+                                                   ~~~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:80:47 - error TS2345: Argument of type 'null' is not assignable to parameter of type 'never'.
+    80   getCurrentUser: jest.fn().mockResolvedValue(null),
+                                                     ~~~~
+    tests/helpers/component-test-helpers.tsx:81:40 - error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'never'.
+    81   signOut: jest.fn().mockResolvedValue(void 0),
+                                              ~~~~~~
+    tests/helpers/component-test-helpers.tsx:123:14 - error TS2323: Cannot redeclare exported variable 'mockAuthContext'.
+    123 export const mockAuthContext = {
+                     ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:139:29 - error TS2339: Property 'importActual' does not exist on type 'Jest'.
+    139   const actual = await jest.importActual('wouter');
+                                    ~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:145:26 - error TS2339: Property 'match' does not exist on type 'string | Mock<UnknownFunction>'.
+      Property 'match' does not exist on type 'Mock<UnknownFunction>'.
+    145       const match = path.match(new RegExp(pattern.replace(/:\w+/g, '([^/]+)')));
+                                 ~~~~~
+    tests/helpers/component-test-helpers.tsx:191:11 - error TS2352: Conversion of type 'string' to type 'ResumeId' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+      Type 'string' is not comparable to type 'number'.
+    191       id: '1' as ResumeId,
+                  ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:199:11 - error TS2352: Conversion of type 'string' to type 'ResumeId' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+      Type 'string' is not comparable to type 'number'.
+    199       id: '2' as ResumeId,
+                  ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:384:37 - error TS2345: Argument of type '{ ok: boolean; status: number; statusText: string; json: () => Promise<MockApiResponse<T>>; text: () => Promise<string>; headers: Headers; }' is not assignable to parameter of type 'never'.
+    384     mockFetch.mockResolvedValueOnce(mockResponse);
+                                            ~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:406:47 - error TS2345: Argument of type '(key: string) => string | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    406   mockLocalStorage.getItem.mockImplementation((key: string) => data[key] || null);
+                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:541:37 - error TS2345: Argument of type 'Error' is not assignable to parameter of type 'never'.
+    541     mockFetch.mockRejectedValueOnce(error);
+                                            ~~~~~
+    tests/helpers/component-test-helpers.tsx:583:50 - error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+    583   mockAuthService.getAuthToken.mockResolvedValue('mock-auth-token');
+                                                         ~~~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:584:52 - error TS2345: Argument of type 'null' is not assignable to parameter of type 'never'.
+    584   mockAuthService.getCurrentUser.mockResolvedValue(null);
+                                                           ~~~~
+    tests/helpers/component-test-helpers.tsx:617:3 - error TS2323: Cannot redeclare exported variable 'mockConsole'.
+    617   mockConsole,
+          ~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:617:3 - error TS2484: Export declaration conflicts with exported declaration of 'mockConsole'.
+    617   mockConsole,
+          ~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:621:3 - error TS2323: Cannot redeclare exported variable 'mockAuthContext'.
+    621   mockAuthContext,
+          ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:621:3 - error TS2484: Export declaration conflicts with exported declaration of 'mockAuthContext'.
+    621   mockAuthContext,
+          ~~~~~~~~~~~~~~~
+FAIL tests/components/shared/StepProgress.test.tsx
+  ● Test suite failed to run
+    tests/helpers/component-test-helpers.tsx:18:16 - error TS2305: Module '"@jest/globals"' has no exported member 'Mock'.
+    18 import { jest, Mock, MockedFunction } from '@jest/globals';
+                      ~~~~
+    tests/helpers/component-test-helpers.tsx:18:22 - error TS2305: Module '"@jest/globals"' has no exported member 'MockedFunction'.
+    18 import { jest, Mock, MockedFunction } from '@jest/globals';
+                            ~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:57:1 - error TS2322: Type 'Mock<UnknownFunction>' is not assignable to type '{ (input: RequestInfo | URL, init?: RequestInit | undefined): Promise<Response>; (input: string | Request | URL, init?: RequestInit | undefined): Promise<...>; }'.
+      Type 'unknown' is not assignable to type 'Promise<Response>'.
+    57 global.fetch = mockFetch;
+       ~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:60:14 - error TS2323: Cannot redeclare exported variable 'mockConsole'.
+    60 export const mockConsole = {
+                    ~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:79:45 - error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+    79   getAuthToken: jest.fn().mockResolvedValue('mock-auth-token'),
+                                                   ~~~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:80:47 - error TS2345: Argument of type 'null' is not assignable to parameter of type 'never'.
+    80   getCurrentUser: jest.fn().mockResolvedValue(null),
+                                                     ~~~~
+    tests/helpers/component-test-helpers.tsx:81:40 - error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'never'.
+    81   signOut: jest.fn().mockResolvedValue(void 0),
+                                              ~~~~~~
+    tests/helpers/component-test-helpers.tsx:123:14 - error TS2323: Cannot redeclare exported variable 'mockAuthContext'.
+    123 export const mockAuthContext = {
+                     ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:139:29 - error TS2339: Property 'importActual' does not exist on type 'Jest'.
+    139   const actual = await jest.importActual('wouter');
+                                    ~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:145:26 - error TS2339: Property 'match' does not exist on type 'string | Mock<UnknownFunction>'.
+      Property 'match' does not exist on type 'Mock<UnknownFunction>'.
+    145       const match = path.match(new RegExp(pattern.replace(/:\w+/g, '([^/]+)')));
+                                 ~~~~~
+    tests/helpers/component-test-helpers.tsx:191:11 - error TS2352: Conversion of type 'string' to type 'ResumeId' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+      Type 'string' is not comparable to type 'number'.
+    191       id: '1' as ResumeId,
+                  ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:199:11 - error TS2352: Conversion of type 'string' to type 'ResumeId' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+      Type 'string' is not comparable to type 'number'.
+    199       id: '2' as ResumeId,
+                  ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:384:37 - error TS2345: Argument of type '{ ok: boolean; status: number; statusText: string; json: () => Promise<MockApiResponse<T>>; text: () => Promise<string>; headers: Headers; }' is not assignable to parameter of type 'never'.
+    384     mockFetch.mockResolvedValueOnce(mockResponse);
+                                            ~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:406:47 - error TS2345: Argument of type '(key: string) => string | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    406   mockLocalStorage.getItem.mockImplementation((key: string) => data[key] || null);
+                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:541:37 - error TS2345: Argument of type 'Error' is not assignable to parameter of type 'never'.
+    541     mockFetch.mockRejectedValueOnce(error);
+                                            ~~~~~
+    tests/helpers/component-test-helpers.tsx:583:50 - error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+    583   mockAuthService.getAuthToken.mockResolvedValue('mock-auth-token');
+                                                         ~~~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:584:52 - error TS2345: Argument of type 'null' is not assignable to parameter of type 'never'.
+    584   mockAuthService.getCurrentUser.mockResolvedValue(null);
+                                                           ~~~~
+    tests/helpers/component-test-helpers.tsx:617:3 - error TS2323: Cannot redeclare exported variable 'mockConsole'.
+    617   mockConsole,
+          ~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:617:3 - error TS2484: Export declaration conflicts with exported declaration of 'mockConsole'.
+    617   mockConsole,
+          ~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:621:3 - error TS2323: Cannot redeclare exported variable 'mockAuthContext'.
+    621   mockAuthContext,
+          ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:621:3 - error TS2484: Export declaration conflicts with exported declaration of 'mockAuthContext'.
+    621   mockAuthContext,
+          ~~~~~~~~~~~~~~~
+FAIL tests/components/layout/Header.test.tsx
+  ● Test suite failed to run
+    tests/components/layout/Header.test.tsx:163:7 - error TS2322: Type '{ uid: string; email: string; displayName: string; }' is not assignable to type 'null'.
+    163       mockAuthContext.user = mockUser;
+              ~~~~~~~~~~~~~~~~~~~~
+    tests/components/layout/Header.test.tsx:196:7 - error TS2322: Type '{ uid: string; email: string; displayName: string; }' is not assignable to type 'null'.
+    196       mockAuthContext.user = mockUser;
+              ~~~~~~~~~~~~~~~~~~~~
+    tests/components/layout/Header.test.tsx:369:7 - error TS2322: Type '{ uid: string; email: string; displayName: string; }' is not assignable to type 'null'.
+    369       mockAuthContext.user = mockUser;
+              ~~~~~~~~~~~~~~~~~~~~
+    tests/components/layout/Header.test.tsx:486:7 - error TS2322: Type '{ uid: string; email: string; displayName: string; }' is not assignable to type 'null'.
+    486       mockAuthContext.user = mockUser;
+              ~~~~~~~~~~~~~~~~~~~~
+    tests/components/layout/Header.test.tsx:585:7 - error TS2322: Type '{ uid: string; email: string; displayName: string; }' is not assignable to type 'null'.
+    585       mockAuthContext.user = mockUser;
+              ~~~~~~~~~~~~~~~~~~~~
+    tests/components/layout/Header.test.tsx:604:7 - error TS2322: Type '{ uid: string; email: string; displayName: string; }' is not assignable to type 'null'.
+    604       mockAuthContext.user = mockUser;
+              ~~~~~~~~~~~~~~~~~~~~
+    tests/components/layout/Header.test.tsx:641:9 - error TS2322: Type '{ uid: string; email: string; displayName: string; } | null' is not assignable to type 'null'.
+      Type '{ uid: string; email: string; displayName: string; }' is not assignable to type 'null'.
+    641         mockAuthContext.user = i % 2 === 0 ? mockUser : null;
+                ~~~~~~~~~~~~~~~~~~~~
+FAIL tests/components/layout/Footer.test.tsx
+  ● Test suite failed to run
+    tests/helpers/component-test-helpers.tsx:18:16 - error TS2305: Module '"@jest/globals"' has no exported member 'Mock'.
+    18 import { jest, Mock, MockedFunction } from '@jest/globals';
+                      ~~~~
+    tests/helpers/component-test-helpers.tsx:18:22 - error TS2305: Module '"@jest/globals"' has no exported member 'MockedFunction'.
+    18 import { jest, Mock, MockedFunction } from '@jest/globals';
+                            ~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:57:1 - error TS2322: Type 'Mock<UnknownFunction>' is not assignable to type '{ (input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>; (input: string | URL | Request, init?: RequestInit | undefined): Promise<...>; }'.
+      Type 'unknown' is not assignable to type 'Promise<Response>'.
+    57 global.fetch = mockFetch;
+       ~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:60:14 - error TS2323: Cannot redeclare exported variable 'mockConsole'.
+    60 export const mockConsole = {
+                    ~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:79:45 - error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+    79   getAuthToken: jest.fn().mockResolvedValue('mock-auth-token'),
+                                                   ~~~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:80:47 - error TS2345: Argument of type 'null' is not assignable to parameter of type 'never'.
+    80   getCurrentUser: jest.fn().mockResolvedValue(null),
+                                                     ~~~~
+    tests/helpers/component-test-helpers.tsx:81:40 - error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'never'.
+    81   signOut: jest.fn().mockResolvedValue(void 0),
+                                              ~~~~~~
+    tests/helpers/component-test-helpers.tsx:123:14 - error TS2323: Cannot redeclare exported variable 'mockAuthContext'.
+    123 export const mockAuthContext = {
+                     ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:139:29 - error TS2339: Property 'importActual' does not exist on type 'Jest'.
+    139   const actual = await jest.importActual('wouter');
+                                    ~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:145:26 - error TS2339: Property 'match' does not exist on type 'string | Mock<UnknownFunction>'.
+      Property 'match' does not exist on type 'Mock<UnknownFunction>'.
+    145       const match = path.match(new RegExp(pattern.replace(/:\w+/g, '([^/]+)')));
+                                 ~~~~~
+    tests/helpers/component-test-helpers.tsx:191:11 - error TS2352: Conversion of type 'string' to type 'ResumeId' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+      Type 'string' is not comparable to type 'number'.
+    191       id: '1' as ResumeId,
+                  ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:199:11 - error TS2352: Conversion of type 'string' to type 'ResumeId' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+      Type 'string' is not comparable to type 'number'.
+    199       id: '2' as ResumeId,
+                  ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:384:37 - error TS2345: Argument of type '{ ok: boolean; status: number; statusText: string; json: () => Promise<MockApiResponse<T>>; text: () => Promise<string>; headers: Headers; }' is not assignable to parameter of type 'never'.
+    384     mockFetch.mockResolvedValueOnce(mockResponse);
+                                            ~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:406:47 - error TS2345: Argument of type '(key: string) => string | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    406   mockLocalStorage.getItem.mockImplementation((key: string) => data[key] || null);
+                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:541:37 - error TS2345: Argument of type 'Error' is not assignable to parameter of type 'never'.
+    541     mockFetch.mockRejectedValueOnce(error);
+                                            ~~~~~
+    tests/helpers/component-test-helpers.tsx:583:50 - error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+    583   mockAuthService.getAuthToken.mockResolvedValue('mock-auth-token');
+                                                         ~~~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:584:52 - error TS2345: Argument of type 'null' is not assignable to parameter of type 'never'.
+    584   mockAuthService.getCurrentUser.mockResolvedValue(null);
+                                                           ~~~~
+    tests/helpers/component-test-helpers.tsx:617:3 - error TS2323: Cannot redeclare exported variable 'mockConsole'.
+    617   mockConsole,
+          ~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:617:3 - error TS2484: Export declaration conflicts with exported declaration of 'mockConsole'.
+    617   mockConsole,
+          ~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:621:3 - error TS2323: Cannot redeclare exported variable 'mockAuthContext'.
+    621   mockAuthContext,
+          ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:621:3 - error TS2484: Export declaration conflicts with exported declaration of 'mockAuthContext'.
+    621   mockAuthContext,
+          ~~~~~~~~~~~~~~~
+FAIL tests/e2e-workflow.test.ts (11.941 s)
+  ● Console
+    console.log
+      🔧 Mock database mode enabled for tests
+      at Object.<anonymous> (tests/jest.setup.js:51:11)
+    console.log
+      [dotenv@17.2.1] injecting env (10) from .env.test -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+  ● End-to-End Workflow Tests › Complete Job Analysis Workflow › Step 1: Create Job Description
+  ● End-to-End Workflow Tests › Complete Job Analysis Workflow › Step 2: Upload Resume
+  ● End-to-End Workflow Tests › Complete Job Analysis Workflow › Step 3: Run Bias Analysis
+  ● End-to-End Workflow Tests › Complete Job Analysis Workflow › Step 4: Run Match Analysis
+  ● End-to-End Workflow Tests › Complete Job Analysis Workflow › Step 5: Generate Interview Questions
+  ● End-to-End Workflow Tests › Complete Job Analysis Workflow › Step 6: Retrieve Analysis Results
+  ● End-to-End Workflow Tests › Complete Job Analysis Workflow › Step 7: Retrieve Specific Analysis Result
+  ● End-to-End Workflow Tests › Data Persistence Validation › Job should persist in database
+  ● End-to-End Workflow Tests › Data Persistence Validation › Resume should persist in database
+  ● End-to-End Workflow Tests › Data Persistence Validation › Analysis results should persist in database
+  ● End-to-End Workflow Tests › Error Recovery and Edge Cases › Should handle malformed resume upload gracefully
+  ● End-to-End Workflow Tests › Error Recovery and Edge Cases › Should handle invalid job ID in analysis
+  ● End-to-End Workflow Tests › Error Recovery and Edge Cases › Should handle missing parameters in interview generation
+  ● Test suite failed to run
+    Expected an Error, but "" was thrown
+FAIL tests/schema-validation.test.ts (7.198 s)
+  ● Console
+    console.log
+      🔧 Mock database mode enabled for tests
+      at Object.<anonymous> (tests/jest.setup.js:51:11)
+    console.log
+      [dotenv@17.2.1] injecting env (10) from .env.test -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+  ● Database Schema Validation › Table Existence › All required tables should exist
+    DATABASE_URL or TEST_DATABASE_URL must be set for schema tests
+      13 |     const databaseUrl = process.env.DATABASE_URL || process.env.TEST_DATABASE_URL;
+      14 |     if (!databaseUrl) {
+    > 15 |       throw new Error('DATABASE_URL or TEST_DATABASE_URL must be set for schema tests');
+         |             ^
+      16 |     }
+      17 |
+      18 |     pool = new Pool({
+      at tests/schema-validation.test.ts:15:13
+      at tests/schema-validation.test.ts:12:71
+      at Object.<anonymous>.__awaiter (tests/schema-validation.test.ts:8:12)
+      at Object.<anonymous> (tests/schema-validation.test.ts:12:24)
+  ● Database Schema Validation › Column Validation › resumes table should have correct columns
+    DATABASE_URL or TEST_DATABASE_URL must be set for schema tests
+      13 |     const databaseUrl = process.env.DATABASE_URL || process.env.TEST_DATABASE_URL;
+      14 |     if (!databaseUrl) {
+    > 15 |       throw new Error('DATABASE_URL or TEST_DATABASE_URL must be set for schema tests');
+         |             ^
+      16 |     }
+      17 |
+      18 |     pool = new Pool({
+      at tests/schema-validation.test.ts:15:13
+      at tests/schema-validation.test.ts:12:71
+      at Object.<anonymous>.__awaiter (tests/schema-validation.test.ts:8:12)
+      at Object.<anonymous> (tests/schema-validation.test.ts:12:24)
+  ● Database Schema Validation › Column Validation › job_descriptions table should have correct columns
+    DATABASE_URL or TEST_DATABASE_URL must be set for schema tests
+      13 |     const databaseUrl = process.env.DATABASE_URL || process.env.TEST_DATABASE_URL;
+      14 |     if (!databaseUrl) {
+    > 15 |       throw new Error('DATABASE_URL or TEST_DATABASE_URL must be set for schema tests');
+         |             ^
+      16 |     }
+      17 |
+      18 |     pool = new Pool({
+      at tests/schema-validation.test.ts:15:13
+      at tests/schema-validation.test.ts:12:71
+      at Object.<anonymous>.__awaiter (tests/schema-validation.test.ts:8:12)
+      at Object.<anonymous> (tests/schema-validation.test.ts:12:24)
+  ● Database Schema Validation › Column Validation › analysis_results table should have correct columns
+    DATABASE_URL or TEST_DATABASE_URL must be set for schema tests
+      13 |     const databaseUrl = process.env.DATABASE_URL || process.env.TEST_DATABASE_URL;
+      14 |     if (!databaseUrl) {
+    > 15 |       throw new Error('DATABASE_URL or TEST_DATABASE_URL must be set for schema tests');
+         |             ^
+      16 |     }
+      17 |
+      18 |     pool = new Pool({
+      at tests/schema-validation.test.ts:15:13
+      at tests/schema-validation.test.ts:12:71
+      at Object.<anonymous>.__awaiter (tests/schema-validation.test.ts:8:12)
+      at Object.<anonymous> (tests/schema-validation.test.ts:12:24)
+  ● Database Schema Validation › Column Validation › interview_questions table should have correct columns
+    DATABASE_URL or TEST_DATABASE_URL must be set for schema tests
+      13 |     const databaseUrl = process.env.DATABASE_URL || process.env.TEST_DATABASE_URL;
+      14 |     if (!databaseUrl) {
+    > 15 |       throw new Error('DATABASE_URL or TEST_DATABASE_URL must be set for schema tests');
+         |             ^
+      16 |     }
+      17 |
+      18 |     pool = new Pool({
+      at tests/schema-validation.test.ts:15:13
+      at tests/schema-validation.test.ts:12:71
+      at Object.<anonymous>.__awaiter (tests/schema-validation.test.ts:8:12)
+      at Object.<anonymous> (tests/schema-validation.test.ts:12:24)
+  ● Database Schema Validation › Foreign Key Constraints › analysis_results should have proper foreign keys
+    DATABASE_URL or TEST_DATABASE_URL must be set for schema tests
+      13 |     const databaseUrl = process.env.DATABASE_URL || process.env.TEST_DATABASE_URL;
+      14 |     if (!databaseUrl) {
+    > 15 |       throw new Error('DATABASE_URL or TEST_DATABASE_URL must be set for schema tests');
+         |             ^
+      16 |     }
+      17 |
+      18 |     pool = new Pool({
+      at tests/schema-validation.test.ts:15:13
+      at tests/schema-validation.test.ts:12:71
+      at Object.<anonymous>.__awaiter (tests/schema-validation.test.ts:8:12)
+      at Object.<anonymous> (tests/schema-validation.test.ts:12:24)
+  ● Database Schema Validation › Index Validation › Important indexes should exist
+    DATABASE_URL or TEST_DATABASE_URL must be set for schema tests
+      13 |     const databaseUrl = process.env.DATABASE_URL || process.env.TEST_DATABASE_URL;
+      14 |     if (!databaseUrl) {
+    > 15 |       throw new Error('DATABASE_URL or TEST_DATABASE_URL must be set for schema tests');
+         |             ^
+      16 |     }
+      17 |
+      18 |     pool = new Pool({
+      at tests/schema-validation.test.ts:15:13
+      at tests/schema-validation.test.ts:12:71
+      at Object.<anonymous>.__awaiter (tests/schema-validation.test.ts:8:12)
+      at Object.<anonymous> (tests/schema-validation.test.ts:12:24)
+  ● Database Schema Validation › Data Integrity › All tables should have reasonable constraints
+    DATABASE_URL or TEST_DATABASE_URL must be set for schema tests
+      13 |     const databaseUrl = process.env.DATABASE_URL || process.env.TEST_DATABASE_URL;
+      14 |     if (!databaseUrl) {
+    > 15 |       throw new Error('DATABASE_URL or TEST_DATABASE_URL must be set for schema tests');
+         |             ^
+      16 |     }
+      17 |
+      18 |     pool = new Pool({
+      at tests/schema-validation.test.ts:15:13
+      at tests/schema-validation.test.ts:12:71
+      at Object.<anonymous>.__awaiter (tests/schema-validation.test.ts:8:12)
+      at Object.<anonymous> (tests/schema-validation.test.ts:12:24)
+  ● Database Schema Validation › Migration Status › Schema migrations table should exist and have records
+    DATABASE_URL or TEST_DATABASE_URL must be set for schema tests
+      13 |     const databaseUrl = process.env.DATABASE_URL || process.env.TEST_DATABASE_URL;
+      14 |     if (!databaseUrl) {
+    > 15 |       throw new Error('DATABASE_URL or TEST_DATABASE_URL must be set for schema tests');
+         |             ^
+      16 |     }
+      17 |
+      18 |     pool = new Pool({
+      at tests/schema-validation.test.ts:15:13
+      at tests/schema-validation.test.ts:12:71
+      at Object.<anonymous>.__awaiter (tests/schema-validation.test.ts:8:12)
+      at Object.<anonymous> (tests/schema-validation.test.ts:12:24)
+FAIL tests/api-integration.test.ts (13.669 s)
+  ● Console
+    console.log
+      🔧 Mock database mode enabled for tests
+      at Object.<anonymous> (tests/jest.setup.js:51:11)
+    console.log
+      [dotenv@17.2.1] injecting env (10) from .env.test -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+  ● API Integration Tests › Health Endpoints › GET /api/health - should return health status
+  ● API Integration Tests › Health Endpoints › GET /api/health/detailed - should return detailed health
+  ● API Integration Tests › Health Endpoints › GET /api/migration-status - should return migration status
+  ● API Integration Tests › Job Description Workflow › POST /api/job-descriptions - should create job description
+  ● API Integration Tests › Job Description Workflow › GET /api/job-descriptions/:id - should retrieve job description
+  ● API Integration Tests › Job Description Workflow › PATCH /api/job-descriptions/:id - should update job description
+  ● API Integration Tests › Resume Upload Workflow › POST /api/resumes - should upload resume
+  ● API Integration Tests › Resume Upload Workflow › GET /api/resumes - should list resumes
+  ● API Integration Tests › Resume Upload Workflow › GET /api/resumes/:id - should retrieve specific resume
+  ● API Integration Tests › Analysis Workflow › POST /api/analysis/analyze-bias/:jobId - should analyze bias
+  ● API Integration Tests › Analysis Workflow › POST /api/analysis/analyze/:jobId - should run match analysis
+  ● API Integration Tests › Analysis Workflow › GET /api/analysis/analyze/:jobId - should get analysis results
+  ● API Integration Tests › Analysis Workflow › POST /api/analysis/interview-questions/:resumeId/:jobId - should generate interview questions
+  ● API Integration Tests › Error Handling › GET /api/job-descriptions/999999 - should handle not found
+  ● API Integration Tests › Error Handling › POST /api/job-descriptions - should validate required fields
+  ● API Integration Tests › Error Handling › POST /api/analysis/analyze-bias/invalid - should handle invalid job ID
+  ● API Integration Tests › API Route Validation › All defined routes should be accessible
+  ● Test suite failed to run
+    Expected an Error, but "" was thrown
+PASS tests/unit/helpers/database-mock.test.ts (5.402 s)
+  ● Console
+    console.log
+      🔧 Mock database mode enabled for tests
+      at Object.<anonymous> (tests/jest.setup.js:51:11)
+    console.log
+      [dotenv@17.2.1] injecting env (10) from .env.test -- tip: ⚙️  enable debug logging with { debug: true }
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+Summary of all failing tests
+FAIL tests/integration/api/batches.test.ts
+  ● Test suite failed to run
+    tests/integration/api/batches.test.ts:439:80 - error TS2345: Argument of type '{ userId: string; title: string; }' is not assignable to parameter of type 'Omit<TestJobDescription, "id" | "createdAt">'.
+      Property 'description' is missing in type '{ userId: string; title: string; }' but required in type 'Omit<TestJobDescription, "id" | "createdAt">'.
+    439       const jobDescription = await DatabaseTestHelper.createTestJobDescription({
+                                                                                       ~
+    440         userId: testUser.uid,
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    441         title: 'Delete Test Job'
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    442       });
+        ~~~~~~~
+      tests/helpers/api-helpers.ts:48:3
+        48   description: string;
+             ~~~~~~~~~~~
+        'description' is declared here.
+FAIL tests/unit/lib/batch-recovery.test.ts
+  ● Test suite failed to run
+    tests/unit/lib/batch-recovery.test.ts:128:3 - error TS2322: Type 'BatchState' is not assignable to type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'status' are incompatible.
+        Type 'string' is not assignable to type 'LocalBatchStatus'.
+    128   state: mockBatchState,
+          ~~~~~
+      client/src/lib/batch-persistence.ts:50:3
+        50   state: BatchState;
+             ~~~~~
+        The expected type comes from property 'state' which is declared here on type 'PersistedBatchState'
+    tests/unit/lib/batch-recovery.test.ts:280:47 - error TS2345: Argument of type '{ state: { resumeCount: number; currentBatchId: string | null; sessionId: SessionId | null; status: string; isLoading: boolean; error: BatchError | null; lastValidated: Date | null; ... 5 more ...; serverValidated: boolean; }; ... 7 more ...; encrypted?: boolean; }' is not assignable to parameter of type 'PersistedBatchState | Promise<PersistedBatchState | null> | null'.
+      Type '{ state: { resumeCount: number; currentBatchId: string | null; sessionId: SessionId | null; status: string; isLoading: boolean; error: BatchError | null; lastValidated: Date | null; ... 5 more ...; serverValidated: boolean; }; ... 7 more ...; encrypted?: boolean; }' is not assignable to type 'PersistedBatchState'.
+        The types of 'state.status' are incompatible between these types.
+          Type 'string' is not assignable to type 'LocalBatchStatus'.
+    280       mockRestoreBatchState.mockResolvedValue(partialPersistedState);
+                                                      ~~~~~~~~~~~~~~~~~~~~~
+    tests/unit/lib/batch-recovery.test.ts:298:9 - error TS2322: Type '{ resumeCount: number; currentBatchId: string | null; sessionId: SessionId | null; status: string; isLoading: boolean; error: BatchError | null; lastValidated: Date | null; retryCount: number; ... 4 more ...; serverValidated: boolean; }' is not assignable to type 'BatchState'.
+      Types of property 'status' are incompatible.
+        Type 'string' is not assignable to type 'LocalBatchStatus'.
+    298         state: localState,
+                ~~~~~
+    tests/unit/lib/batch-recovery.test.ts:323:9 - error TS2322: Type '{ resumeCount: number; currentBatchId: string | null; sessionId: SessionId | null; status: string; isLoading: boolean; error: BatchError | null; lastValidated: Date | null; retryCount: number; ... 4 more ...; serverValidated: boolean; }' is not assignable to type 'BatchState'.
+      Types of property 'status' are incompatible.
+        Type 'string' is not assignable to type 'LocalBatchStatus'.
+    323         state: localState,
+                ~~~~~
+    tests/unit/lib/batch-recovery.test.ts:550:11 - error TS2322: Type '{ error: BatchError; currentBatchId: string | null; sessionId: SessionId | null; status: string; resumeCount: number; isLoading: boolean; lastValidated: Date | null; ... 5 more ...; serverValidated: boolean; }' is not assignable to type 'BatchState'.
+      Types of property 'status' are incompatible.
+        Type 'string' is not assignable to type 'LocalBatchStatus'.
+    550           state: { ...mockBatchState, error: localError },
+                  ~~~~~
+      client/src/lib/batch-persistence.ts:50:3
+        50   state: BatchState;
+             ~~~~~
+        The expected type comes from property 'state' which is declared here on type 'PersistedBatchState'
+    tests/unit/lib/batch-recovery.test.ts:901:47 - error TS2345: Argument of type '{ state: BatchState; version: string; timestamp: number; batchId: string; sessionId: string; userId?: string; metadata: { userAgent: string; url: string; resumeCount: number; lastActivity: number; syncStatus: "synced" | "pending" | "conflict" | "failed"; checksum: string; }; compressed?: boolean; encrypted?: boolean...' is not assignable to parameter of type 'PersistedBatchState | Promise<PersistedBatchState | null> | null'.
+      Type '{ state: BatchState; version: string; timestamp: number; batchId: string; sessionId: string; userId?: string; metadata: { userAgent: string; url: string; resumeCount: number; lastActivity: number; syncStatus: "synced" | "pending" | "conflict" | "failed"; checksum: string; }; compressed?: boolean; encrypted?: boolean...' is not assignable to type 'PersistedBatchState'.
+        The types of 'state.status' are incompatible between these types.
+          Type 'string' is not assignable to type 'LocalBatchStatus'.
+    901       mockRestoreBatchState.mockResolvedValue(corruptedState);
+                                                      ~~~~~~~~~~~~~~
+FAIL tests/unit/lib/global-error-handler.test.ts (37.902 s)
+  ● Global Error Handler › Error Handling › should handle offline network errors differently
+    expect(received).toBe(expected) // Object.is equality
+    Expected: "You are currently offline"
+    Received: "Network connection failed"
+      329 |       const result = errorManager.handleError(networkError);
+      330 |
+    > 331 |       expect(result.message).toBe('You are currently offline');
+          |                              ^
+      332 |       expect(result.code).toBe('OFFLINE_ERROR');
+      333 |       expect(result.userFriendlyMessage).toContain('You are offline');
+      334 |     });
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:331:30)
+  ● Global Error Handler › Error Handling › should show toast notifications by default
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+    Expected: {"attempts": 0, "category": "system", "cause": undefined, "code": "SYSTEM_001", "componentName": "TestComponent", "context": {"additionalData": undefined, "timestamp": 2025-08-03T19:02:19.768Z, "url": "http://localhost/", "userAgent": "Mozilla/5.0 (linux) AppleWebKit/537.36 (KHTML, like Gecko) jsdom/26.1.0"}, "id": "err_1754247739768_mq3uy9my0", "isTransient": true, "maxRetries": 3, "message": "System error occurred", "resourceType": undefined, "retryable": true, "severity": "high", "suggestedActions": ["Try again in a few moments", "Refresh the page", "Contact support if the issue persists"], "systemLoad": undefined, "userFriendlyMessage": "A system error occurred. Please try again later."}
+    Number of calls: 0
+      339 |       errorManager.handleError(error);
+      340 |
+    > 341 |       expect(mockShowErrorToast).toHaveBeenCalledWith(error);
+          |                                  ^
+      342 |     });
+      343 |
+      344 |     it('should skip toast when disabled', () => {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:341:34)
+  ● Global Error Handler › Toast Notification Logic › should show toasts for medium severity errors
+    expect(jest.fn()).toHaveBeenCalled()
+    Expected number of calls: >= 1
+    Received number of calls:    0
+      435 |       errorManager.handleError(mediumError);
+      436 |
+    > 437 |       expect(mockShowErrorToast).toHaveBeenCalled();
+          |                                  ^
+      438 |     });
+      439 |
+      440 |     it('should always show toasts for critical errors', () => {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:437:34)
+  ● Global Error Handler › Toast Notification Logic › should limit toasts when error rate is high
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+    Expected number of calls: 5
+    Received number of calls: 0
+      466 |       }
+      467 |
+    > 468 |       expect(mockShowErrorToast).toHaveBeenCalledTimes(5); // Should stop showing medium errors
+          |                                  ^
+      469 |     });
+      470 |
+      471 |     it('should still show critical errors even at high error rate', () => {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:468:34)
+  ● Global Error Handler › Toast Notification Logic › should not show duplicate toasts for similar errors
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+    Expected number of calls: 1
+    Received number of calls: 0
+      501 |       errorManager.handleError(error2);
+      502 |
+    > 503 |       expect(mockShowErrorToast).toHaveBeenCalledTimes(1);
+          |                                  ^
+      504 |     });
+      505 |
+      506 |     it('should show toasts for similar errors after time delay', () => {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:503:34)
+  ● Global Error Handler › Toast Notification Logic › should show toasts for similar errors after time delay
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+    Expected number of calls: 2
+    Received number of calls: 0
+      522 |       errorManager.handleError(error2);
+      523 |
+    > 524 |       expect(mockShowErrorToast).toHaveBeenCalledTimes(2);
+          |                                  ^
+      525 |     });
+      526 |   });
+      527 |
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:524:34)
+  ● Global Error Handler › React Hooks › useGlobalErrors › should clear errors when requested
+    expect(received).toBe(expected) // Object.is equality
+    Expected: 1
+    Received: 2
+      721 |         });
+      722 |
+    > 723 |         expect(result.current.errorCount).toBe(1);
+          |                                           ^
+      724 |
+      725 |         act(() => {
+      726 |           result.current.clearErrors();
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:723:43)
+  ● Global Error Handler › React Hooks › useGlobalErrors › should handle errors through hook
+    expect(received).toBe(expected) // Object.is equality
+    Expected: 1
+    Received: 3
+      737 |         });
+      738 |
+    > 739 |         expect(result.current.errorCount).toBe(1);
+          |                                           ^
+      740 |         expect(result.current.lastError?.message).toBe('Hook error');
+      741 |       });
+      742 |     });
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:739:43)
+  ● Global Error Handler › React Hooks › useConnectionStatus › should update when connection changes
+    expect(received).toBe(expected) // Object.is equality
+    Expected: false
+    Received: true
+      758 |         });
+      759 |
+    > 760 |         expect(result.current.isOnline).toBe(false);
+          |                                         ^
+      761 |         expect(result.current.connectionQuality).toBe('offline');
+      762 |         expect(result.current.isGoodConnection).toBe(false);
+      763 |       });
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:760:41)
+  ● Global Error Handler › React Hooks › useConnectionStatus › should identify good connections correctly
+    expect(received).toBe(expected) // Object.is equality
+    Expected: false
+    Received: true
+      782 |           triggerConnectionChange('2g');
+      783 |         });
+    > 784 |         expect(result.current.isGoodConnection).toBe(false);
+          |                                                 ^
+      785 |       });
+      786 |     });
+      787 |   });
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:784:49)
+  ● Global Error Handler › Utility Functions › should handle global errors with helper function
+    expect(received).toEqual(expected) // deep equality
+    Expected: {"customData": "test"}
+    Received: undefined
+      795 |
+      796 |       expect(result).toBe(error);
+    > 797 |       expect(result.context.additionalData).toEqual({ customData: 'test' });
+          |                                             ^
+      798 |     });
+      799 |
+      800 |     it('should report errors without showing toast', () => {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:797:45)
+  ● Global Error Handler › Utility Functions › should create error boundary handler
+    expect(received).toHaveLength(expected)
+    Expected length: 1
+    Received length: 6
+    Received array:  [{"attempts": 0, "category": "system", "cause": undefined, "code": "REACT_ERROR_BOUNDARY", "componentName": "ErrorBoundary", "context": {"additionalData": {"componentStack": "Component stack trace", "stack": "Error: React error
+      807 |     it('should create error boundary handler', () => {
+      808 |       const handler = createErrorBoundaryHandler();
+    > 809 |       const error = new Error('React error');
+          |                     ^
+      810 |       const errorInfo = { componentStack: 'Component stack trace' };
+      811 |
+      812 |       handler(error, errorInfo);
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:809:21)
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:815:28)
+  ● Global Error Handler › Recovery Actions › should execute refresh action correctly
+    expect(jest.fn()).toHaveBeenCalled()
+    Expected number of calls: >= 1
+    Received number of calls:    0
+      877 |       refreshAction!.action();
+      878 |
+    > 879 |       expect(mockReload).toHaveBeenCalled();
+          |                          ^
+      880 |     });
+      881 |
+      882 |     it('should execute clear cache action correctly', async () => {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:879:26)
+  ● Global Error Handler › Recovery Actions › should execute clear cache action correctly
+    expect(jest.fn()).toHaveBeenCalled()
+    Expected number of calls: >= 1
+    Received number of calls:    0
+      893 |       expect(mockCaches.delete).toHaveBeenCalledWith('cache2');
+      894 |       expect(mockStorage.clear).toHaveBeenCalledTimes(2); // localStorage + sessionStorage
+    > 895 |       expect(mockReload).toHaveBeenCalled();
+          |                          ^
+      896 |     });
+      897 |
+      898 |     it('should handle caches API not available', async () => {
+      at tests/unit/lib/global-error-handler.test.ts:895:26
+      at fulfilled (tests/unit/lib/global-error-handler.test.ts:16:58)
+  ● Global Error Handler › Recovery Actions › should handle caches API not available
+    expect(jest.fn()).toHaveBeenCalled()
+    Expected number of calls: >= 1
+    Received number of calls:    0
+      905 |       await expect(clearCacheAction!.action()).resolves.not.toThrow();
+      906 |
+    > 907 |       expect(mockReload).toHaveBeenCalled();
+          |                          ^
+      908 |
+      909 |       // Restore caches for other tests
+      910 |       (window as any).caches = mockCaches;
+      at tests/unit/lib/global-error-handler.test.ts:907:26
+      at fulfilled (tests/unit/lib/global-error-handler.test.ts:16:58)
+  ● Global Error Handler › Integration Tests › should handle complete error workflow
+    expect(received).toBe(expected) // Object.is equality
+    Expected: 0
+    Received: 6
+      917 |     it('should handle complete error workflow', () => {
+      918 |       // Start with no errors
+    > 919 |       expect(globalErrorManager.getState().errorCount).toBe(0);
+          |                                                        ^
+      920 |
+      921 |       // Trigger unhandled error
+      922 |       const errorEvent = {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:919:56)
+  ● Global Error Handler › Integration Tests › should handle network state changes affecting error handling
+    expect(received).toBe(expected) // Object.is equality
+    Expected: "OFFLINE_ERROR"
+    Received: "NETWORK_001"
+      963 |       globalErrorManager.handleError(anotherNetworkError);
+      964 |
+    > 965 |       expect(globalErrorManager.getState().lastError?.code).toBe('OFFLINE_ERROR');
+          |                                                             ^
+      966 |     });
+      967 |
+      968 |     it('should maintain error rate across multiple errors', () => {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:965:61)
+  ● Global Error Handler › Integration Tests › should maintain error rate across multiple errors
+    expect(received).toBe(expected) // Object.is equality
+    Expected: 3
+    Received: 11
+      974 |
+      975 |       const state = globalErrorManager.getState();
+    > 976 |       expect(state.errorCount).toBe(3);
+          |                                ^
+      977 |       expect(state.errorRate).toBe(3); // All within 1-minute window
+      978 |     });
+      979 |
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:976:32)
+  ● Global Error Handler › Integration Tests › should handle hook integration with real state changes
+    expect(received).toBe(expected) // Object.is equality
+    Expected: 0
+    Received: 11
+      982 |
+      983 |       // Initial state
+    > 984 |       expect(result.current.errorCount).toBe(0);
+          |                                         ^
+      985 |
+      986 |       // Add error through global manager
+      987 |       act(() => {
+      at Object.<anonymous> (tests/unit/lib/global-error-handler.test.ts:984:41)
+FAIL tests/unit/lib/error-handling.test.ts (5.646 s)
+  ● Error Handling Utilities › Utility Functions › createErrorContext › should create context with environment data
+    expect(received).toBe(expected) // Object.is equality
+    Expected: "https://test.example.com/page"
+    Received: "http://localhost/"
+      135 |         expect(context.timestamp).toBeInstanceOf(Date);
+      136 |         expect(context.userAgent).toBe('Test User Agent');
+    > 137 |         expect(context.url).toBe('https://test.example.com/page');
+          |                             ^
+      138 |       });
+      139 |
+      140 |       it('should include additional data when provided', () => {
+      at Object.<anonymous> (tests/unit/lib/error-handling.test.ts:137:29)
+  ● Error Handling Utilities › Utility Functions › createErrorContext › should handle undefined window gracefully
+    expect(received).toBeUndefined()
+    Received: "Test User Agent"
+      152 |
+      153 |         expect(context.timestamp).toBeInstanceOf(Date);
+    > 154 |         expect(context.userAgent).toBeUndefined();
+          |                                   ^
+      155 |         expect(context.url).toBeUndefined();
+      156 |
+      157 |         global.window = originalWindow;
+      at Object.<anonymous> (tests/unit/lib/error-handling.test.ts:154:35)
+  ● Error Handling Utilities › Retry Logic › isRetryableError › should handle special business logic errors
+    expect(received).toBe(expected) // Object.is equality
+    Expected: true
+    Received: false
+      261 |         });
+      262 |
+    > 263 |         expect(isRetryableError(retryableBLError)).toBe(true);
+          |                                                    ^
+      264 |         expect(isRetryableError(nonRetryableBLError)).toBe(false);
+      265 |       });
+      266 |     });
+      at Object.<anonymous> (tests/unit/lib/error-handling.test.ts:263:52)
+FAIL tests/integration/api/interview-questions.test.ts (14.246 s)
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should successfully generate interview questions
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should generate questions in different categories
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should validate question structure
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should handle session ID parameter
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should return 400 for invalid resume ID
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should return 400 for invalid job ID
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should return 404 for non-existent resume
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should return 404 for non-existent job description
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should not allow access to other users resume
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should not allow access to other users job description
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should require authentication
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should measure interview question generation performance
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should store interview questions in database
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should handle resume without prior analysis
+  ● Interview Questions API › POST /api/analysis/interview-questions/:resumeId/:jobId - Generate Interview Questions › should handle job description without prior analysis
+  ● Interview Questions API › Interview Question Quality and Content › should generate relevant technical questions
+  ● Interview Questions API › Interview Question Quality and Content › should generate experience-based questions
+  ● Interview Questions API › Interview Question Quality and Content › should generate skill gap questions when applicable
+  ● Interview Questions API › Interview Question Quality and Content › should generate inclusion and diversity questions
+  ● Interview Questions API › Interview Questions with Existing Analysis › should use existing analysis for question generation
+  ● Interview Questions API › Interview Questions with Existing Analysis › should generate questions focusing on missing skills
+  ● Interview Questions API › Error Handling and Edge Cases › should handle empty resume content gracefully
+  ● Interview Questions API › Error Handling and Edge Cases › should handle empty job description gracefully
+  ● Interview Questions API › Error Handling and Edge Cases › should handle AI service failures gracefully
+  ● Interview Questions API › Error Handling and Edge Cases › should handle malformed request data
+  ● Interview Questions API › Error Handling and Edge Cases › should handle very large resume content
+  ● Interview Questions API › Error Handling and Edge Cases › should handle special characters in content
+  ● Interview Questions API › Error Handling and Edge Cases › should validate numeric parameters properly
+  ● Interview Questions API › Rate Limiting and Performance › should handle concurrent interview question requests
+  ● Interview Questions API › Rate Limiting and Performance › should enforce reasonable response times
+  ● Interview Questions API › Rate Limiting and Performance › should handle multiple users generating questions simultaneously
+FAIL tests/unit/lib/batch-persistence.test.ts
+  ● Test suite failed to run
+    tests/unit/lib/batch-persistence.test.ts:175:3 - error TS2322: Type 'BatchState' is not assignable to type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    175   state: mockBatchState,
+          ~~~~~
+      client/src/lib/batch-persistence.ts:50:3
+        50   state: BatchState;
+             ~~~~~
+        The expected type comes from property 'state' which is declared here on type 'PersistedBatchState'
+    tests/unit/lib/batch-persistence.test.ts:303:14 - error TS2304: Cannot find name 'logger'.
+    303       expect(logger.warn).toHaveBeenCalled();
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:323:14 - error TS2304: Cannot find name 'logger'.
+    323       expect(logger.error).toHaveBeenCalled();
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:408:14 - error TS2304: Cannot find name 'logger'.
+    408       expect(logger.warn).toHaveBeenCalled();
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:463:14 - error TS2304: Cannot find name 'logger'.
+    463       expect(logger.info).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:529:9 - error TS2345: Argument of type 'BatchState' is not assignable to parameter of type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    529         mockBatchState,
+                ~~~~~~~~~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:534:14 - error TS2304: Cannot find name 'logger'.
+    534       expect(logger.info).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:553:11 - error TS2345: Argument of type 'BatchState' is not assignable to parameter of type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    553           mockBatchState
+                  ~~~~~~~~~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:557:14 - error TS2304: Cannot find name 'logger'.
+    557       expect(logger.error).toHaveBeenCalled();
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:591:14 - error TS2304: Cannot find name 'logger'.
+    591       expect(logger.warn).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:607:14 - error TS2304: Cannot find name 'logger'.
+    607       expect(logger.warn).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:630:14 - error TS2304: Cannot find name 'logger'.
+    630       expect(logger.error).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:667:14 - error TS2304: Cannot find name 'logger'.
+    667       expect(logger.info).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:729:14 - error TS2304: Cannot find name 'logger'.
+    729       expect(logger.info).toHaveBeenCalledWith('All persisted data cleared');
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:747:9 - error TS2345: Argument of type 'BatchState' is not assignable to parameter of type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    747         mockBatchState,
+                ~~~~~~~~~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:791:14 - error TS2304: Cannot find name 'logger'.
+    791       expect(logger.info).toHaveBeenCalledWith('All persisted data cleared');
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:813:9 - error TS2345: Argument of type 'BatchState' is not assignable to parameter of type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    813         mockBatchState,
+                ~~~~~~~~~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:845:14 - error TS2304: Cannot find name 'logger'.
+    845       expect(logger.debug).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:861:11 - error TS2345: Argument of type 'BatchState' is not assignable to parameter of type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    861           mockBatchState
+                  ~~~~~~~~~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:865:14 - error TS2304: Cannot find name 'logger'.
+    865       expect(logger.error).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:876:11 - error TS2345: Argument of type '{ resumeCount: number; currentBatchId: string | null; sessionId: string | null; status: string; isLoading: boolean; error: any | null; lastValidated: Date | null; retryCount: number; ... 4 more ...; serverValidated: boolean; }' is not assignable to parameter of type 'BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    876           { ...mockBatchState, resumeCount: i }
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:903:72 - error TS2345: Argument of type 'BatchState' is not assignable to parameter of type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    903         manager.persistBatchState('test_batch', 'test_session' as any, mockBatchState)
+                                                                               ~~~~~~~~~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:913:14 - error TS2304: Cannot find name 'logger'.
+    913       expect(logger.warn).toHaveBeenCalledWith(
+                     ~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:929:9 - error TS2345: Argument of type 'BatchState' is not assignable to parameter of type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    929         mockBatchState
+                ~~~~~~~~~~~~~~
+    tests/unit/lib/batch-persistence.test.ts:942:84 - error TS2345: Argument of type 'BatchState' is not assignable to parameter of type 'import("/home/runner/work/Evalmatch/Evalmatch/client/src/hooks/useBatchManager").BatchState'.
+      Types of property 'sessionId' are incompatible.
+        Type 'string | null' is not assignable to type 'SessionId | null'.
+          Type 'string' is not assignable to type 'SessionId'.
+            Type 'string' is not assignable to type '{ readonly _brand: "SessionId"; }'.
+    942       await manager.persistBatchState('fallback_batch', 'fallback_session' as any, mockBatchState);
+                                                                                           ~~~~~~~~~~~~~~
+FAIL tests/integration/api/analysis.test.ts (11.96 s)
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should successfully analyze all resumes against job description
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should analyze specific resumes when resume IDs provided
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should filter resumes by session ID
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should filter resumes by batch ID
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should return 404 for non-existent job ID
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should return 400 for invalid job ID
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should return 404 when no resumes found
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should not allow access to other users job descriptions
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should require authentication
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should handle invalid resume IDs gracefully
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should measure analysis performance
+  ● Analysis API › POST /api/analysis/analyze/:jobId - Analyze Resumes Against Job › should handle concurrent analysis requests
+  ● Analysis API › GET /api/analysis/analyze/:jobId - Get Analysis Results › should retrieve existing analysis results
+  ● Analysis API › GET /api/analysis/analyze/:jobId - Get Analysis Results › should return empty results for job with no analysis
+  ● Analysis API › GET /api/analysis/analyze/:jobId - Get Analysis Results › should require authentication
+  ● Analysis API › GET /api/analysis/analyze/:jobId - Get Analysis Results › should not allow access to other users analysis
+  ● Analysis API › GET /api/analysis/analyze/:jobId/:resumeId - Get Specific Analysis › should retrieve specific analysis result
+  ● Analysis API › GET /api/analysis/analyze/:jobId/:resumeId - Get Specific Analysis › should return 404 for non-existent analysis
+  ● Analysis API › GET /api/analysis/analyze/:jobId/:resumeId - Get Specific Analysis › should validate job and resume ownership
+  ● Analysis API › GET /api/analysis/analyze/:jobId/:resumeId - Get Specific Analysis › should return 400 for invalid IDs
+  ● Analysis API › POST /api/analysis/analyze-bias/:jobId - Analyze Job Description for Bias › should analyze job description for bias
+  ● Analysis API › POST /api/analysis/analyze-bias/:jobId - Analyze Job Description for Bias › should detect language bias
+  ● Analysis API › POST /api/analysis/analyze-bias/:jobId - Analyze Job Description for Bias › should detect age bias
+  ● Analysis API › POST /api/analysis/analyze-bias/:jobId - Analyze Job Description for Bias › should handle job descriptions with minimal bias
+  ● Analysis API › POST /api/analysis/analyze-bias/:jobId - Analyze Job Description for Bias › should return 404 for non-existent job
+  ● Analysis API › POST /api/analysis/analyze-bias/:jobId - Analyze Job Description for Bias › should validate job ownership
+  ● Analysis API › POST /api/analysis/analyze-bias/:jobId - Analyze Job Description for Bias › should require authentication
+  ● Analysis API › POST /api/analysis/analyze-bias/:jobId - Analyze Job Description for Bias › should measure bias analysis performance
+  ● Analysis API › Analysis Data Quality and Validation › should validate match percentage range
+  ● Analysis API › Analysis Data Quality and Validation › should provide meaningful analysis results
+  ● Analysis API › Analysis Data Quality and Validation › should handle resumes without analysis data
+  ● Analysis API › Analysis Data Quality and Validation › should store analysis results in database
+  ● Analysis API › Rate Limiting and Performance › should enforce rate limits on analysis requests
+  ● Analysis API › Rate Limiting and Performance › should handle batch analysis efficiently
+  ● Analysis API › Error Handling and Edge Cases › should handle empty job descriptions gracefully
+  ● Analysis API › Error Handling and Edge Cases › should handle empty resume content gracefully
+  ● Analysis API › Error Handling and Edge Cases › should handle malformed request data
+  ● Analysis API › Error Handling and Edge Cases › should handle AI service failures gracefully
+FAIL tests/components/pages/AnalysisPage.test.tsx
+  ● Test suite failed to run
+    tests/components/pages/AnalysisPage.test.tsx:51:49 - error TS2345: Argument of type '(key: string) => SessionId | "batch_test_456" | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    51     mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                       ~~~~~~~~~~~~~~~~~~
+    tests/components/pages/AnalysisPage.test.tsx:790:51 - error TS2345: Argument of type '(key: string) => "different_session" | "different_batch" | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    790       mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                          ~~~~~~~~~~~~~~~~~~
+FAIL tests/integration/api/job-descriptions.test.ts
+  ● Test suite failed to run
+    tests/integration/api/job-descriptions.test.ts:517:64 - error TS2345: Argument of type '{ userId: string; }' is not assignable to parameter of type 'Omit<TestResume, "id" | "createdAt">'.
+      Property 'filename' is missing in type '{ userId: string; }' but required in type 'Omit<TestResume, "id" | "createdAt">'.
+    517       const resume = await DatabaseTestHelper.createTestResume({
+                                                                       ~
+    518         userId: testUser.uid
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    519       });
+        ~~~~~~~
+      tests/helpers/api-helpers.ts:32:3
+        32   filename: string;
+             ~~~~~~~~
+        'filename' is declared here.
+FAIL tests/components/pages/UploadPage.test.tsx
+  ● Test suite failed to run
+    tests/components/pages/UploadPage.test.tsx:97:51 - error TS2345: Argument of type '(key: string) => "batch_test_456" | SessionId | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    97       mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                         ~~~~~~~~~~~~~~~~~~
+    tests/components/pages/UploadPage.test.tsx:141:51 - error TS2345: Argument of type '(key: string) => "batch_test_456" | SessionId | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    141       mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                          ~~~~~~~~~~~~~~~~~~
+    tests/components/pages/UploadPage.test.tsx:164:51 - error TS2345: Argument of type '(key: string) => "batch_test_456" | SessionId | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    164       mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                          ~~~~~~~~~~~~~~~~~~
+    tests/components/pages/UploadPage.test.tsx:184:51 - error TS2345: Argument of type '(key: string) => "batch_test_456" | SessionId | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    184       mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                          ~~~~~~~~~~~~~~~~~~
+    tests/components/pages/UploadPage.test.tsx:333:51 - error TS2345: Argument of type '(key: string) => "batch_test_456" | SessionId | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    333       mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                          ~~~~~~~~~~~~~~~~~~
+    tests/components/pages/UploadPage.test.tsx:606:51 - error TS2345: Argument of type '(key: string) => "batch_test_456" | SessionId | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    606       mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                          ~~~~~~~~~~~~~~~~~~
+    tests/components/pages/UploadPage.test.tsx:773:51 - error TS2345: Argument of type '(key: string) => "batch_test_456" | SessionId | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    773       mockLocalStorage.getItem.mockImplementation((key: string) => {
+                                                          ~~~~~~~~~~~~~~~~~~
+FAIL tests/integration/api/auth.test.ts (6.58 s)
+  ● Authentication and Authorization › Authentication Middleware › should accept valid Firebase token
+  ● Authentication and Authorization › Authentication Middleware › should reject requests without authorization header
+  ● Authentication and Authorization › Authentication Middleware › should reject malformed authorization header
+  ● Authentication and Authorization › Authentication Middleware › should reject invalid Firebase token
+  ● Authentication and Authorization › Authentication Middleware › should reject expired Firebase token
+  ● Authentication and Authorization › Authentication Middleware › should handle missing ***
+  ● Authentication and Authorization › Authentication Middleware › should validate token format
+  ● Authentication and Authorization › User Context and Authorization › should populate request with user information
+  ● Authentication and Authorization › User Context and Authorization › should prevent access to other users data
+  ● Authentication and Authorization › User Context and Authorization › should isolate user data in list endpoints
+  ● Authentication and Authorization › User Context and Authorization › should validate user ownership in job descriptions
+  ● Authentication and Authorization › User Context and Authorization › should validate user ownership in analysis operations
+  ● Authentication and Authorization › Session Management and Security › should handle session-based access control
+  ● Authentication and Authorization › Session Management and Security › should validate batch ownership through sessions
+  ● Authentication and Authorization › Session Management and Security › should prevent cross-user session access
+  ● Authentication and Authorization › Authorization Edge Cases › should handle missing user ID gracefully
+  ● Authentication and Authorization › Authorization Edge Cases › should handle null user ID gracefully
+  ● Authentication and Authorization › Authorization Edge Cases › should handle special characters in user IDs
+  ● Authentication and Authorization › Authorization Edge Cases › should handle extremely long user IDs
+  ● Authentication and Authorization › API Endpoint Access Control › should require authentication for all protected endpoints
+  ● Authentication and Authorization › API Endpoint Access Control › should allow access with valid authentication
+  ● Authentication and Authorization › Security Headers and Validation › should validate required headers for batch operations
+  ● Authentication and Authorization › Security Headers and Validation › should sanitize user input in headers
+  ● Authentication and Authorization › Security Headers and Validation › should handle case-insensitive header names
+  ● Authentication and Authorization › Security Headers and Validation › should validate header value lengths
+  ● Authentication and Authorization › Rate Limiting and Security Measures › should enforce authentication rate limits
+  ● Authentication and Authorization › Rate Limiting and Security Measures › should handle concurrent authentication requests
+  ● Authentication and Authorization › Rate Limiting and Security Measures › should prevent brute force attacks on endpoints
+  ● Authentication and Authorization › Error Handling and Security › should not leak sensitive information in error messages
+  ● Authentication and Authorization › Error Handling and Security › should handle malformed authorization headers gracefully
+  ● Authentication and Authorization › Error Handling and Security › should handle Firebase authentication errors gracefully
+  ● Authentication and Authorization › Error Handling and Security › should handle network errors during token validation
+  ● Authentication and Authorization › User Permissions and Roles › should handle user role validation
+  ● Authentication and Authorization › User Permissions and Roles › should handle admin-specific endpoints
+FAIL tests/unit/hooks/useBatchManager.test.tsx (72.267 s)
+  ● useBatchManager Hook › Initialization › should initialize with correct default state
+    expect(received).toBeNull()
+    Received: "batch_1754247739609_9rd5rl"
+      140 |       const { result } = renderHook(() => useBatchManager(), { wrapper });
+      141 |
+    > 142 |       expect(result.current.currentBatchId).toBeNull();
+          |                                             ^
+      143 |       expect(result.current.sessionId).toBeNull();
+      144 |       expect(result.current.batchStatus).toBe('initializing');
+      145 |       expect(result.current.resumeCount).toBe(0);
+      at Object.<anonymous> (tests/unit/hooks/useBatchManager.test.tsx:142:45)
+  ● useBatchManager Hook › Initialization › should create new batch on initialization when autoRecover is false
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+    Expected: ObjectContaining {"title": "New batch created"}
+    Number of calls: 0
+      178 |       expect(result.current.sessionId).toBeTruthy();
+      179 |       expect(result.current.batchStatus).toBe('ready');
+    > 180 |       expect(mockToast).toHaveBeenCalledWith(
+          |                         ^
+      181 |         expect.objectContaining({
+      182 |           title: 'New batch created',
+      183 |         })
+      at tests/unit/hooks/useBatchManager.test.tsx:180:25
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Initialization › should attempt recovery on initialization when autoRecover is true
+    expect(received).toBe(expected) // Object.is equality
+    Expected: "batch_test456"
+    Received: "batch_1754247739724_2mo0zc"
+      217 |       });
+      218 |
+    > 219 |       expect(result.current.currentBatchId).toBe(mockBatchId);
+          |                                             ^
+      220 |       expect(result.current.sessionId).toBe(mockSessionId);
+      221 |       expect(result.current.resumeCount).toBe(2);
+      222 |       expect(mockToast).toHaveBeenCalledWith(
+      at tests/unit/hooks/useBatchManager.test.tsx:219:45
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Batch Creation › should create new batch with generated IDs
+    expect(received).toBe(expected) // Object.is equality
+    Expected: "batch_1754247739783_7s0xio"
+    Received: "batch_1754247739784_ugidwq"
+      240 |
+      241 |       expect(newBatchId!).toBeTruthy();
+    > 242 |       expect(result.current.currentBatchId).toBe(newBatchId!);
+          |                                             ^
+      243 |       expect(result.current.sessionId).toBeTruthy();
+      244 |       expect(result.current.batchStatus).toBe('ready');
+      245 |       expect(result.current.resumeCount).toBe(0);
+      at tests/unit/hooks/useBatchManager.test.tsx:242:45
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Batch Creation › should reuse existing session when creating new batch
+    expect(received).not.toBe(expected) // Object.is equality
+    Expected: not "batch_1754247739794_miwte0"
+      262 |
+      263 |       expect(result.current.sessionId).toBe(firstSessionId);
+    > 264 |       expect(result.current.currentBatchId).not.toBe(result.current.currentBatchId);
+          |                                                 ^
+      265 |     });
+      266 |   });
+      267 |
+      at tests/unit/hooks/useBatchManager.test.tsx:264:49
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Batch Validation › should validate batch successfully with server validation
+    expect(received).toBe(expected) // Object.is equality
+    Expected: true
+    Received: undefined
+      317 |       });
+      318 |
+    > 319 |       expect(validationResult!.valid).toBe(true);
+          |                                       ^
+      320 |       expect(result.current.serverValidated).toBe(true);
+      321 |       expect(result.current.ownership).toEqual(serverValidationResponse.data?.ownership);
+      322 |     });
+      at tests/unit/hooks/useBatchManager.test.tsx:319:39
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Batch Validation › should fallback to legacy validation when server validation fails
+    expect(received).toBe(expected) // Object.is equality
+    Expected: true
+    Received: undefined
+      348 |       });
+      349 |
+    > 350 |       expect(validationResult!.valid).toBe(true);
+          |                                       ^
+      351 |     });
+      352 |
+      353 |     it('should handle validation timeout', async () => {
+      at tests/unit/hooks/useBatchManager.test.tsx:350:39
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Batch Validation › should handle validation timeout
+    expect(received).toBe(expected) // Object.is equality
+    Expected: false
+    Received: undefined
+      371 |       });
+      372 |
+    > 373 |       expect(validationResult!.valid).toBe(false);
+          |                                       ^
+      374 |       expect(validationResult!.errors).toContain('timeout');
+      375 |     });
+      376 |
+      at tests/unit/hooks/useBatchManager.test.tsx:373:39
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Batch Validation › should retry validation on failure
+    expect(received).toBe(expected) // Object.is equality
+    Expected: true
+    Received: undefined
+      403 |       });
+      404 |
+    > 405 |       expect(validationResult!.valid).toBe(true);
+          |                                       ^
+      406 |       expect(mockApiRequest).toHaveBeenCalledTimes(2);
+      407 |     });
+      408 |
+      at tests/unit/hooks/useBatchManager.test.tsx:405:39
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Batch Validation › should handle validation without batch ID or session ID
+    expect(received).toBe(expected) // Object.is equality
+    Expected: false
+    Received: undefined
+      415 |       });
+      416 |
+    > 417 |       expect(validationResult!.valid).toBe(false);
+          |                                       ^
+      418 |       expect(validationResult!.errors).toContain('missing batch ID or session ID');
+      419 |     });
+      420 |   });
+      at tests/unit/hooks/useBatchManager.test.tsx:417:39
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Error Handling › should handle network errors gracefully
+    expect(received).toBeTruthy()
+    Received: null
+      436 |       });
+      437 |
+    > 438 |       expect(result.current.error).toBeTruthy();
+          |                                    ^
+      439 |       expect(result.current.error?.type).toBe('network_error');
+      440 |       expect(result.current.batchStatus).toBe('error');
+      441 |     });
+      at tests/unit/hooks/useBatchManager.test.tsx:438:36
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Error Handling › should provide error recovery suggestions
+    expect(received).toContain(expected) // indexOf
+    Matcher error: received value must not be null nor undefined
+    Received has value: undefined
+      454 |       });
+      455 |
+    > 456 |       expect(result.current.error?.suggestions).toContain('Start a new upload session');
+          |                                                 ^
+      457 |       expect(result.current.error?.retryable).toBe(true);
+      458 |     });
+      459 |
+      at tests/unit/hooks/useBatchManager.test.tsx:456:49
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Error Handling › should clear errors when requested
+    expect(received).toBeTruthy()
+    Received: null
+      471 |       });
+      472 |
+    > 473 |       expect(result.current.error).toBeTruthy();
+          |                                    ^
+      474 |
+      475 |       await act(async () => {
+      476 |         result.current.clearError();
+      at tests/unit/hooks/useBatchManager.test.tsx:473:36
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Batch Reset › should reset batch state completely
+    expect(received).toBe(expected) // Object.is equality
+    Expected: "ready"
+    Received: "initializing"
+      592 |       });
+      593 |
+    > 594 |       expect(result.current.batchStatus).toBe('ready');
+          |                                          ^
+      595 |       expect(result.current.resumeCount).toBe(0);
+      596 |       expect(result.current.error).toBeNull();
+      597 |       expect(mockLocalStorage.removeItem).toHaveBeenCalled();
+      at tests/unit/hooks/useBatchManager.test.tsx:594:42
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › Enhanced Server Operations › should get batch status from server
+    expect(received).toBe(expected) // Object.is equality
+    Expected: "ready"
+    Received: "error"
+      667 |       });
+      668 |
+    > 669 |       expect(status).toBe('ready');
+          |                      ^
+      670 |       expect(mockApiRequest).toHaveBeenCalledWith(
+      671 |         'GET',
+      672 |         expect.stringContaining('/status'),
+      at tests/unit/hooks/useBatchManager.test.tsx:669:22
+      at fulfilled (tests/unit/hooks/useBatchManager.test.tsx:5:58)
+  ● useBatchManager Hook › React Query Integration › should fetch resumes when batch is ready
+    expect(received).toBeTruthy()
+    Received: undefined
+    Ignored nodes: comments, script, style
+    <html>
+      <head />
+      <body>
+        <div />
+    617   mockConsole,
+          ~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:621:3 - error TS2323: Cannot redeclare exported variable 'mockAuthContext'.
+    621   mockAuthContext,
+          ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:621:3 - error TS2484: Export declaration conflicts with exported declaration of 'mockAuthContext'.
+    621   mockAuthContext,
+          ~~~~~~~~~~~~~~~
+FAIL tests/components/layout/Header.test.tsx
+  ● Test suite failed to run
+    tests/components/layout/Header.test.tsx:163:7 - error TS2322: Type '{ uid: string; email: string; displayName: string; }' is not assignable to type 'null'.
+    163       mockAuthContext.user = mockUser;
+              ~~~~~~~~~~~~~~~~~~~~
+    tests/components/layout/Header.test.tsx:196:7 - error TS2322: Type '{ uid: string; email: string; displayName: string; }' is not assignable to type 'null'.
+    196       mockAuthContext.user = mockUser;
+              ~~~~~~~~~~~~~~~~~~~~
+    tests/components/layout/Header.test.tsx:369:7 - error TS2322: Type '{ uid: string; email: string; displayName: string; }' is not assignable to type 'null'.
+    369       mockAuthContext.user = mockUser;
+              ~~~~~~~~~~~~~~~~~~~~
+    tests/components/layout/Header.test.tsx:486:7 - error TS2322: Type '{ uid: string; email: string; displayName: string; }' is not assignable to type 'null'.
+    486       mockAuthContext.user = mockUser;
+              ~~~~~~~~~~~~~~~~~~~~
+    tests/components/layout/Header.test.tsx:585:7 - error TS2322: Type '{ uid: string; email: string; displayName: string; }' is not assignable to type 'null'.
+    585       mockAuthContext.user = mockUser;
+              ~~~~~~~~~~~~~~~~~~~~
+    tests/components/layout/Header.test.tsx:604:7 - error TS2322: Type '{ uid: string; email: string; displayName: string; }' is not assignable to type 'null'.
+    604       mockAuthContext.user = mockUser;
+              ~~~~~~~~~~~~~~~~~~~~
+    tests/components/layout/Header.test.tsx:641:9 - error TS2322: Type '{ uid: string; email: string; displayName: string; } | null' is not assignable to type 'null'.
+      Type '{ uid: string; email: string; displayName: string; }' is not assignable to type 'null'.
+    641         mockAuthContext.user = i % 2 === 0 ? mockUser : null;
+                ~~~~~~~~~~~~~~~~~~~~
+FAIL tests/components/layout/Footer.test.tsx
+  ● Test suite failed to run
+    tests/helpers/component-test-helpers.tsx:18:16 - error TS2305: Module '"@jest/globals"' has no exported member 'Mock'.
+    18 import { jest, Mock, MockedFunction } from '@jest/globals';
+                      ~~~~
+    tests/helpers/component-test-helpers.tsx:18:22 - error TS2305: Module '"@jest/globals"' has no exported member 'MockedFunction'.
+    18 import { jest, Mock, MockedFunction } from '@jest/globals';
+                            ~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:57:1 - error TS2322: Type 'Mock<UnknownFunction>' is not assignable to type '{ (input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>; (input: string | URL | Request, init?: RequestInit | undefined): Promise<...>; }'.
+      Type 'unknown' is not assignable to type 'Promise<Response>'.
+    57 global.fetch = mockFetch;
+       ~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:60:14 - error TS2323: Cannot redeclare exported variable 'mockConsole'.
+    60 export const mockConsole = {
+                    ~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:79:45 - error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+    79   getAuthToken: jest.fn().mockResolvedValue('mock-auth-token'),
+                                                   ~~~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:80:47 - error TS2345: Argument of type 'null' is not assignable to parameter of type 'never'.
+    80   getCurrentUser: jest.fn().mockResolvedValue(null),
+                                                     ~~~~
+    tests/helpers/component-test-helpers.tsx:81:40 - error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'never'.
+    81   signOut: jest.fn().mockResolvedValue(void 0),
+                                              ~~~~~~
+    tests/helpers/component-test-helpers.tsx:123:14 - error TS2323: Cannot redeclare exported variable 'mockAuthContext'.
+    123 export const mockAuthContext = {
+                     ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:139:29 - error TS2339: Property 'importActual' does not exist on type 'Jest'.
+    139   const actual = await jest.importActual('wouter');
+                                    ~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:145:26 - error TS2339: Property 'match' does not exist on type 'string | Mock<UnknownFunction>'.
+      Property 'match' does not exist on type 'Mock<UnknownFunction>'.
+    145       const match = path.match(new RegExp(pattern.replace(/:\w+/g, '([^/]+)')));
+                                 ~~~~~
+    tests/helpers/component-test-helpers.tsx:191:11 - error TS2352: Conversion of type 'string' to type 'ResumeId' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+      Type 'string' is not comparable to type 'number'.
+    191       id: '1' as ResumeId,
+                  ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:199:11 - error TS2352: Conversion of type 'string' to type 'ResumeId' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+      Type 'string' is not comparable to type 'number'.
+    199       id: '2' as ResumeId,
+                  ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:384:37 - error TS2345: Argument of type '{ ok: boolean; status: number; statusText: string; json: () => Promise<MockApiResponse<T>>; text: () => Promise<string>; headers: Headers; }' is not assignable to parameter of type 'never'.
+    384     mockFetch.mockResolvedValueOnce(mockResponse);
+                                            ~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:406:47 - error TS2345: Argument of type '(key: string) => string | null' is not assignable to parameter of type 'UnknownFunction'.
+      Types of parameters 'key' and 'args' are incompatible.
+        Type 'unknown' is not assignable to type 'string'.
+    406   mockLocalStorage.getItem.mockImplementation((key: string) => data[key] || null);
+                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:541:37 - error TS2345: Argument of type 'Error' is not assignable to parameter of type 'never'.
+    541     mockFetch.mockRejectedValueOnce(error);
+                                            ~~~~~
+    tests/helpers/component-test-helpers.tsx:583:50 - error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+    583   mockAuthService.getAuthToken.mockResolvedValue('mock-auth-token');
+                                                         ~~~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:584:52 - error TS2345: Argument of type 'null' is not assignable to parameter of type 'never'.
+    584   mockAuthService.getCurrentUser.mockResolvedValue(null);
+                                                           ~~~~
+    tests/helpers/component-test-helpers.tsx:617:3 - error TS2323: Cannot redeclare exported variable 'mockConsole'.
+    617   mockConsole,
+          ~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:617:3 - error TS2484: Export declaration conflicts with exported declaration of 'mockConsole'.
+    617   mockConsole,
+          ~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:621:3 - error TS2323: Cannot redeclare exported variable 'mockAuthContext'.
+    621   mockAuthContext,
+          ~~~~~~~~~~~~~~~
+    tests/helpers/component-test-helpers.tsx:621:3 - error TS2484: Export declaration conflicts with exported declaration of 'mockAuthContext'.
+    621   mockAuthContext,
+          ~~~~~~~~~~~~~~~
+FAIL tests/e2e-workflow.test.ts (11.941 s)
+  ● End-to-End Workflow Tests › Complete Job Analysis Workflow › Step 1: Create Job Description
+  ● End-to-End Workflow Tests › Complete Job Analysis Workflow › Step 2: Upload Resume
+  ● End-to-End Workflow Tests › Complete Job Analysis Workflow › Step 3: Run Bias Analysis
+  ● End-to-End Workflow Tests › Complete Job Analysis Workflow › Step 4: Run Match Analysis
+  ● End-to-End Workflow Tests › Complete Job Analysis Workflow › Step 5: Generate Interview Questions
+  ● End-to-End Workflow Tests › Complete Job Analysis Workflow › Step 6: Retrieve Analysis Results
+  ● End-to-End Workflow Tests › Complete Job Analysis Workflow › Step 7: Retrieve Specific Analysis Result
+  ● End-to-End Workflow Tests › Data Persistence Validation › Job should persist in database
+  ● End-to-End Workflow Tests › Data Persistence Validation › Resume should persist in database
+  ● End-to-End Workflow Tests › Data Persistence Validation › Analysis results should persist in database
+  ● End-to-End Workflow Tests › Error Recovery and Edge Cases › Should handle malformed resume upload gracefully
+  ● End-to-End Workflow Tests › Error Recovery and Edge Cases › Should handle invalid job ID in analysis
+  ● End-to-End Workflow Tests › Error Recovery and Edge Cases › Should handle missing parameters in interview generation
+  ● Test suite failed to run
+    Expected an Error, but "" was thrown
+FAIL tests/schema-validation.test.ts (7.198 s)
+  ● Database Schema Validation › Table Existence › All required tables should exist
+    DATABASE_URL or TEST_DATABASE_URL must be set for schema tests
+      13 |     const databaseUrl = process.env.DATABASE_URL || process.env.TEST_DATABASE_URL;
+0s
+0s
+0s
+0s
+/usr/bin/git version
+git version 2.50.1
+Temporarily overriding HOME='/home/runner/work/_temp/d31a7eba-cfd1-4cc2-8b19-75a55f8db872' before making global git config changes
+Adding repository directory to the temporary git global config as a safe directory
+/usr/bin/git config --global --add safe.directory /home/runner/work/Evalmatch/Evalmatch
+/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+/usr/bin/git conf

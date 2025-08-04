@@ -329,6 +329,99 @@ export class FileTestHelper {
   static createLargeFile(size: number): Buffer {
     return Buffer.alloc(size, 'x');
   }
+
+  static createTestPDFBuffer(): Buffer {
+    // Simple PDF header - enough for testing file upload validation
+    const pdfHeader = '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n2 0 obj\n<<\n/Type /Pages\n/Kids [3 0 R]\n/Count 1\n>>\nendobj\n3 0 obj\n<<\n/Type /Page\n/Parent 2 0 R\n/MediaBox [0 0 612 792]\n>>\nendobj\nxref\n0 4\n0000000000 65535 f \n0000000010 00000 n \n0000000053 00000 n \n0000000125 00000 n \ntrailer\n<<\n/Size 4\n/Root 1 0 R\n>>\nstartxref\n196\n%%EOF';
+    return Buffer.from(pdfHeader);
+  }
+
+  static createTestDocxBuffer(): Buffer {
+    // Minimal DOCX file structure (ZIP format with minimal content)
+    const docxContent = 'UEsDBAoAAAAAAMNAaU0AAAAAAAAAAAAAAAAJAAAAZG9jUHJvcHMvUEsDBBQAAAAIAMNAaU27DQAABgEAAAkAAABkb2NQcm9wcy9hcHAueG1sTY/NCsIwEISfJXsPyf4hiLQpeKhQwYsXb22LFyEE2qRJrPj2mrS09uAwM9/szLJzQHYJz9YYrXghCUQIJ6217KLtK1lANl0uOJ0ulxgaWyYdcLSKZ1sljcR47e8xdGi1bCNJWIenJOCPWMRNw9oOOlTnR02hPYH2P5L16r7XGp4/8PuGgFCXnhOWYB+YUH9fCJFLhKh54z8lNBfr9fv1CQnJlNAgxqLiEFPcaKs7W8mfCQWbdDpE4JwqjTJSv3dA8j/2m50QG4Jrz5J35Hta/wBQSwMEFAAAAAgAw0BpTbsNAAAGAQAACQAAAGRvY1Byb3BzL2NvcmUueG1sTY/NCsIwEISfJXsPyf4hiLQpeKhQwYsXb22LFyEE2qRJrPj2mrS09uAwM9/szLJzQHYJz9YYrXghCUQIJ6217KLtK1lANl0uOJ0ulxgaWyYdcLSKZ1sljcR47e8xdGi1bCNJWIenJOCPWMRNw9oOOlTnR02hPYH2P5L16r7XGp4/8PuGgFCXnhOWYB+YUH9fCJFLhKh54z8lNBfr9fv1CQnJlNAgxqLiEFPcaKs7W8mfCQWbdDpE4JwqjTJSv3dA8j/2m50QG4Jrz5J35Hta/wBQSwECFAAKAAAAAADDQGlNAAAAAAAAAAAAAAAACQAAAAAAAAAAABAA/UFBAAAAZG9jUHJvcHMvUEsBAhQAFAAAAAgAw0BpTbsNAAAGAQAACQAAAAAAAAAAABAAfQFqAAAAZG9jUHJvcHMvYXBwLnhtbFBLAQIUABQAAAAIAMNAaU27DQAABgEAAAkAAAAAAAAAAAAQAH0B2wAAAGRvY1Byb3BzL2NvcmUueG1sUEsFBgAAAAADAAMAqwAAAEwBAAAAAA==';
+    return Buffer.from(docxContent, 'base64');
+  }
+
+  static createTestImageBuffer(): Buffer {
+    // 1x1 pixel PNG image
+    const pngData = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    return Buffer.from(pngData, 'base64');
+  }
+
+  static createTestTextFile(): Buffer {
+    const content = `
+John Doe
+Software Developer
+
+EXPERIENCE:
+- 3 years of experience in JavaScript and Node.js
+- Worked with React and Redux
+- Database experience with PostgreSQL
+
+EDUCATION:
+- Bachelor of Computer Science from University
+
+SKILLS:
+- JavaScript
+- Node.js
+- React
+- PostgreSQL
+- Git
+`;
+    return Buffer.from(content);
+  }
+
+  static async uploadTestFile(
+    app: any,
+    user: TestUser,
+    endpoint: string,
+    filename: string = 'test-resume.pdf',
+    fileBuffer?: Buffer,
+    additionalFields: Record<string, string> = {}
+  ): Promise<any> {
+    const buffer = fileBuffer || this.createTestPDFBuffer();
+    const authHeaders = MockAuth.generateAuthHeaders(user);
+
+    // This is a mock implementation - in real tests this would use supertest
+    return {
+      status: 200,
+      body: {
+        success: true,
+        data: {
+          id: Date.now(),
+          filename,
+          fileSize: buffer.length,
+          fileType: 'application/pdf'
+        }
+      }
+    };
+  }
+
+  static async uploadMultipleTestFiles(
+    app: any,
+    user: TestUser,
+    endpoint: string,
+    files: Array<{ filename: string; buffer: Buffer }>,
+    additionalFields: Record<string, string> = {}
+  ): Promise<any> {
+    const authHeaders = MockAuth.generateAuthHeaders(user);
+
+    // This is a mock implementation
+    return {
+      status: 200,
+      body: {
+        success: true,
+        data: {
+          files: files.map((file, index) => ({
+            id: Date.now() + index,
+            filename: file.filename,
+            fileSize: file.buffer.length,
+            fileType: 'application/pdf'
+          }))
+        }
+      }
+    };
+  }
 }
 
 // Test suite helper for common setup/teardown

@@ -11,6 +11,7 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
+import { jest, describe, test, expect, beforeEach, afterEach, beforeAll, afterAll, it } from '@jest/globals';
 import {
   GlobalErrorManager,
   globalErrorManager,
@@ -20,7 +21,7 @@ import {
   reportError,
   createErrorBoundaryHandler,
   createRecoveryActions,
-} from '@/lib/global-error-handler';
+} from '../../../client/src/lib/global-error-handler';
 import {
   AppError,
   createNetworkError,
@@ -30,21 +31,24 @@ import {
   ErrorSeverity,
   ErrorCategory,
   showErrorToast,
-} from '@/lib/error-handling';
-import { toast } from '@/hooks/use-toast';
+} from '../../../client/src/lib/error-handling';
+import { toast } from '../../../client/src/hooks/use-toast';
 
 // ===== MOCKS =====
 
 // Mock toast notifications
-jest.mock('@/hooks/use-toast', () => ({
+jest.mock('../../../client/src/hooks/use-toast', () => ({
   toast: jest.fn(),
 }));
 
 // Mock showErrorToast
-jest.mock('@/lib/error-handling', () => ({
-  ...jest.requireActual('@/lib/error-handling'),
-  showErrorToast: jest.fn(),
-}));
+jest.mock('../../../client/src/lib/error-handling', () => {
+  const actual = jest.requireActual('../../../client/src/lib/error-handling') as any;
+  return {
+    ...actual,
+    showErrorToast: jest.fn(),
+  };
+});
 
 const mockToast = toast as jest.MockedFunction<typeof toast>;
 const mockShowErrorToast = showErrorToast as jest.MockedFunction<typeof showErrorToast>;
@@ -84,12 +88,13 @@ const mockReload = jest.fn();
 delete (window as any).location;
 (window as any).location = {
   reload: mockReload,
+  href: 'http://localhost/',
 };
 
 // Mock caches API
 const mockCaches = {
-  keys: jest.fn().mockResolvedValue(['cache1', 'cache2']),
-  delete: jest.fn().mockResolvedValue(true),
+  keys: jest.fn<() => Promise<string[]>>().mockResolvedValue(['cache1', 'cache2']),
+  delete: jest.fn<(cacheName: string) => Promise<boolean>>().mockResolvedValue(true),
 };
 
 Object.defineProperty(window, 'caches', {
@@ -323,7 +328,8 @@ describe('Global Error Handler', () => {
     });
 
     it('should handle offline network errors differently', () => {
-      Object.defineProperty(navigator, 'onLine', { value: false });
+      // Set offline before handling error
+      errorManager['state'].isOnline = false;
       
       const networkError = createMockError('network');
       const result = errorManager.handleError(networkError);

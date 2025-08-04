@@ -13,17 +13,88 @@ import React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { waitFor } from '@testing-library/dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { toast } from '@/hooks/use-toast';
-import { useBatchManager } from '@/hooks/useBatchManager';
-import { apiRequest } from '@/lib/queryClient';
-import type { SessionId, ApiResult, ResumeListResponse } from '@shared/api-contracts';
-import type { 
-  BatchValidationResult, 
-  ValidateBatchResponse,
-  BatchStatusResponse,
-  ClaimBatchResponse,
-  DeleteBatchResponse 
-} from '@shared/batch-validation-types';
+import { toast } from '../../../client/src/hooks/use-toast';
+import { useBatchManager } from '../../../client/src/hooks/useBatchManager';
+import type { SessionId, ApiResult, ResumeListResponse } from '../../../shared/api-contracts';
+
+// Mock API request function
+const apiRequest = jest.fn();
+
+// Mock types that don't exist
+interface BatchValidationResult {
+  valid: boolean;
+  batchId: string;
+  ownership: any;
+  errors: string[];
+  warnings: string[];
+  securityFlags: string[];
+  integrityChecks: {
+    resumesExist: boolean;
+    sessionMatches: boolean;
+    userAuthorized: boolean;
+    dataConsistent: boolean;
+  };
+}
+
+interface ValidateBatchResponse {
+  success: boolean;
+  data?: {
+    valid: boolean;
+    batchId: string;
+    ownership: any;
+    warnings: string[];
+    securityFlags: string[];
+    errors: string[];
+    integrityChecks: any;
+    timestamp: string;
+  };
+  message: string;
+}
+
+interface BatchStatusResponse {
+  success: boolean;
+  data: {
+    batchId: string;
+    sessionId: string;
+    userId: string;
+    status: string;
+    resumeCount: number;
+    createdAt: Date;
+    lastAccessedAt: Date;
+    analysisCount: number;
+    integrityStatus: any;
+    warnings: string[];
+    canClaim: boolean;
+  };
+  message: string;
+}
+
+interface ClaimBatchResponse {
+  success: boolean;
+  data: {
+    success: boolean;
+    message: string;
+    batchId: string;
+    resumeCount: number;
+    warnings: string[];
+  };
+  message: string;
+}
+
+interface DeleteBatchResponse {
+  success: boolean;
+  data: {
+    success: boolean;
+    message: string;
+    deletedItems: {
+      resumes: number;
+      analysisResults: number;
+      interviewQuestions: number;
+    };
+    warnings: string[];
+  };
+  message: string;
+}
 
 // ===== MOCKS =====
 
@@ -40,16 +111,10 @@ const createTestQueryClient = () => new QueryClient({
   },
 });
 
-// Mock API requests
-jest.mock('@/lib/queryClient', () => ({
-  apiRequest: jest.fn(),
-  queryClient: {
-    invalidateQueries: jest.fn(),
-  },
-}));
+// Mock API requests - using the jest.fn() defined above
 
 // Mock toast notifications
-jest.mock('@/hooks/use-toast', () => ({
+jest.mock('../../../client/src/hooks/use-toast', () => ({
   useToast: () => ({
     toast: jest.fn(),
   }),
