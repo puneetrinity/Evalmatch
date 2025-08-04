@@ -5,7 +5,7 @@
 
 import { Express } from 'express';
 import request from 'supertest';
-import { beforeAll, afterAll, beforeEach, describe, test, expect } from '@jest/globals';
+import { jest, beforeAll, afterAll, beforeEach, describe, test, expect, it } from '@jest/globals';
 import { 
   MockAuth, 
   DatabaseTestHelper, 
@@ -22,6 +22,19 @@ import {
 let app: Express;
 let testUser: TestUser;
 let anotherUser: TestUser;
+
+// Mock the database before importing server
+jest.mock('../../../server/database/index.js', () => ({
+  getDatabase: jest.fn(() => ({
+    query: jest.fn(),
+  })),
+  executeQuery: jest.fn(),
+  testConnection: jest.fn(() => Promise.resolve(true)),
+  testDatabaseConnection: jest.fn(() => Promise.resolve({ success: true })),
+  isDatabaseAvailable: jest.fn(() => true),
+  initializeDatabase: jest.fn(),
+  closeDatabase: jest.fn(),
+}));
 
 beforeAll(async () => {
   // Import and setup server

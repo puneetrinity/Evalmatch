@@ -9,6 +9,7 @@
  * - Cross-storage persistence strategies
  */
 
+import { jest, describe, test, expect, beforeEach, afterEach, beforeAll, afterAll, it } from '@jest/globals';
 import {
   BatchPersistenceManager,
   LocalStorageProvider,

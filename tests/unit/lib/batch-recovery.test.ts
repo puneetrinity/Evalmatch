@@ -9,6 +9,7 @@
  * - Partial recovery scenarios
  */
 
+import { jest, describe, test, expect, beforeEach, afterEach, beforeAll, afterAll, it } from '@jest/globals';
 import { BatchError, BatchErrorType } from '../../../client/src/hooks/useBatchManager';
 import type { SessionId } from '../../../shared/api-contracts';
 

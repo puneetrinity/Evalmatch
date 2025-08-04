@@ -5,6 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { jest } from '@jest/globals';
 
 // Test configuration
 export const TEST_CONFIG = {
@@ -708,18 +709,8 @@ export class MockDatabase {
 export const initializeMockDatabase = () => {
   MockDatabase.reset();
   
-  // Mock the database functions
-  jest.doMock('/home/ews/Evalmatch/server/database/index.js', () => ({
-    getDatabase: jest.fn(() => ({
-      query: MockDatabase.executeQuery,
-    })),
-    executeQuery: MockDatabase.executeQuery,
-    testConnection: MockDatabase.testConnection,
-    testDatabaseConnection: MockDatabase.testDatabaseConnection,
-    isDatabaseAvailable: jest.fn(() => true),
-    initializeDatabase: jest.fn(),
-    closeDatabase: jest.fn(),
-  }));
+  // Initialize mock database without using jest.doMock
+  // The database mocking will be handled in individual test files
 };
 
 // Mock middleware for testing
