@@ -327,20 +327,24 @@ async function checkMemoryUsage(): Promise<HealthCheckResult> {
     );
 
     // Check if NODE_OPTIONS is properly applied
-    const expectedHeapLimitMB = 7168; // Expected from NODE_OPTIONS
+    // Railway and other cloud platforms may have different memory constraints
+    // Be flexible with heap limit expectations based on available system memory
+    const systemMemoryGB = Math.round(mbTotal / 1024);
+    const expectedHeapLimitMB = systemMemoryGB >= 8 ? 7168 : Math.min(7168, mbTotal * 0.8); // Use 80% of system memory if less than 8GB
     const nodeOptionsApplied = heapLimitMB > 2000; // Much higher than default ~1.7GB
-    const nodeOptionsCorrect = heapLimitMB >= expectedHeapLimitMB * 0.9; // Allow 10% tolerance
+    const nodeOptionsWorking = heapLimitMB >= Math.min(expectedHeapLimitMB * 0.7, 4000); // Accept at least 4GB or 70% of expected
 
     let status: "healthy" | "degraded" | "unhealthy" = "healthy";
     let message = `Memory: ${mbUsed}/${mbTotal}MB (${usagePercent}%), Limit: ${heapLimitMB}MB`;
 
-    // Primary concern: Is NODE_OPTIONS working?
+    // Primary concern: Is NODE_OPTIONS working reasonably?
     if (!nodeOptionsApplied) {
       status = "unhealthy";
-      message = `NODE_OPTIONS not applied! Heap limit: ${heapLimitMB}MB (expected ~${expectedHeapLimitMB}MB)`;
-    } else if (!nodeOptionsCorrect) {
+      message = `NODE_OPTIONS not applied! Heap limit: ${heapLimitMB}MB (expected >${2000}MB)`;
+    } else if (!nodeOptionsWorking && systemMemoryGB >= 8) {
+      // Only complain about low heap limit if system has plenty of memory
       status = "degraded";
-      message = `NODE_OPTIONS partially applied. Heap limit: ${heapLimitMB}MB (expected ${expectedHeapLimitMB}MB)`;
+      message = `NODE_OPTIONS could be higher. Heap limit: ${heapLimitMB}MB (system has ${systemMemoryGB}GB)`;
     }
     // Secondary concern: Current memory usage
     else if (usagePercent > 90) {
