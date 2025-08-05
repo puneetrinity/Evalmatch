@@ -16,6 +16,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import SkillRadarChart from "@/components/skill-radar-chart";
 import MatchInsightsCard from "@/components/match-insights-card";
+import MatchExplanationCard from "@/components/match-explanation-card";
+import ConfidenceBiasCard from "@/components/confidence-bias-card";
 
 import type {
   JobId,
@@ -734,6 +736,22 @@ export default function AnalysisPage() {
                       </div>
                     )}
                     
+                    {/* Match Explanation Section */}
+                    <div className="mb-6">
+                      <MatchExplanationCard 
+                        matchPercentage={result.matchPercentage}
+                        scoringDimensions={{
+                          skills: result.scoringDimensions?.skills || 0,
+                          experience: result.scoringDimensions?.experience || 0,
+                          education: result.scoringDimensions?.education || 0,
+                          semantic: result.scoringDimensions?.semantic || 0,
+                          overall: result.matchPercentage
+                        }}
+                        matchedSkillsCount={result.matchedSkills?.length || 0}
+                        totalRequiredSkills={result.missingSkills?.length + result.matchedSkills?.length || 10}
+                      />
+                    </div>
+                    
                     {/* Existing Skills and Experience Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
@@ -861,82 +879,17 @@ export default function AnalysisPage() {
                             </div>
                           )}
                           
-                          {/* Confidence Level Section */}
-                          {result.confidenceLevel && (
+                          {/* Combined Confidence & Bias Analysis */}
+                          {(result.confidenceLevel || result.fairnessMetrics) && (
                             <div className="pt-4 mt-4 border-t border-gray-200">
-                              <h5 className="text-sm font-semibold text-gray-600 mb-3">Analysis Confidence</h5>
-                              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium text-gray-800">Confidence Level</span>
-                                  <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                    result.confidenceLevel === 'high' ? 'bg-green-100 text-green-800' :
-                                    result.confidenceLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                    'bg-red-100 text-red-800'
-                                  }`}>
-                                    {result.confidenceLevel.toUpperCase()}
-                                  </div>
-                                </div>
-                                <p className="text-xs text-gray-600 mt-2">
-                                  {result.confidenceLevel === 'high' && 'High confidence: Analysis based on comprehensive data with clear skill matches.'}
-                                  {result.confidenceLevel === 'medium' && 'Medium confidence: Analysis based on adequate data but some areas may need more information.'}
-                                  {result.confidenceLevel === 'low' && 'Low confidence: Analysis based on limited data. Consider providing more detailed information.'}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Fairness Metrics Section */}
-                          {result.fairnessMetrics && (
-                            <div className="pt-4 mt-4 border-t border-gray-200">
-                              <h5 className="text-sm font-semibold text-gray-600 mb-3">Fairness Analysis</h5>
-                              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                                <div className="mb-3">
-                                  <div className="flex justify-between text-sm mb-1">
-                                    <span className="font-medium text-gray-800">Bias Confidence Score</span>
-                                    <span className={`font-medium ${
-                                      result.fairnessMetrics.biasConfidenceScore >= 80 
-                                        ? 'text-green-600' 
-                                        : result.fairnessMetrics.biasConfidenceScore >= 40 
-                                          ? 'text-amber-600' 
-                                          : 'text-red-600'
-                                    }`}>
-                                      {result.fairnessMetrics.biasConfidenceScore}%
-                                    </span>
-                                  </div>
-                                  <div className="w-full bg-gray-200 rounded-full h-2">
-                                    <div 
-                                      className={`rounded-full h-full ${
-                                        result.fairnessMetrics.biasConfidenceScore >= 80 
-                                          ? 'bg-green-500' 
-                                          : result.fairnessMetrics.biasConfidenceScore >= 40 
-                                            ? 'bg-amber-500' 
-                                            : 'bg-red-500'
-                                      }`} 
-                                      style={{ width: `${result.fairnessMetrics.biasConfidenceScore}%` }}
-                                    ></div>
-                                  </div>
-                                </div>
-                                
-                                {result.fairnessMetrics.fairnessAssessment && (
-                                  <p className="text-sm text-gray-700 mt-2">
-                                    {result.fairnessMetrics.fairnessAssessment}
-                                  </p>
-                                )}
-                                
-                                {result.fairnessMetrics.potentialBiasAreas && 
-                                  result.fairnessMetrics.potentialBiasAreas.length > 0 && (
-                                    <div className="mt-3">
-                                      <h6 className="text-xs font-medium text-gray-700 mb-2">Potential Bias Areas</h6>
-                                      <div className="flex flex-wrap gap-2">
-                                        {result.fairnessMetrics.potentialBiasAreas.map((area, index) => (
-                                          <Badge key={index} variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                                            {area}
-                                          </Badge>
-                                        ))}
-                                      </div>
-                                    </div>
-                                )}
-                              </div>
+                              <ConfidenceBiasCard 
+                                confidenceLevel={result.confidenceLevel || 'medium'}
+                                fairnessMetrics={result.fairnessMetrics ? {
+                                  biasConfidenceScore: result.fairnessMetrics.biasConfidenceScore || 0,
+                                  fairnessAssessment: result.fairnessMetrics.fairnessAssessment,
+                                  potentialBiasAreas: result.fairnessMetrics.potentialBiasAreas || []
+                                } : undefined}
+                              />
                             </div>
                           )}
                           

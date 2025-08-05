@@ -520,6 +520,7 @@ export interface MatchAnalysisResponse {
   missingSkills?: string[];
   candidateStrengths?: string[];
   candidateWeaknesses?: string[];
+  recommendations?: string[];
   confidenceLevel?: 'low' | 'medium' | 'high';
   fairnessMetrics?: FairnessMetrics;
 }

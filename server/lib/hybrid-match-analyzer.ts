@@ -4,6 +4,7 @@ import {
   AnalyzeJobDescriptionResponse,
   MatchAnalysisResponse,
   SkillMatch,
+  FairnessMetrics,
 } from "@shared/schema";
 import {
   calculateEnhancedMatch,
@@ -42,7 +43,7 @@ interface HybridMatchResult {
   candidateWeaknesses: string[];
   recommendations: string[];
   confidenceLevel: "low" | "medium" | "high";
-  fairnessMetrics?: any;
+  fairnessMetrics?: FairnessMetrics;
   biasDetection?: BiasDetectionResult;
   scoringDimensions: {
     skills: number;
@@ -182,7 +183,11 @@ export class HybridMatchAnalyzer {
           );
 
           result.biasDetection = biasDetection;
-          result.fairnessMetrics = biasDetection.fairnessMetrics;
+          result.fairnessMetrics = {
+            biasConfidenceScore: Math.round(100 - biasDetection.biasScore), // Convert bias score to confidence score
+            potentialBiasAreas: biasDetection.detectedBiases.map(bias => bias.type),
+            fairnessAssessment: biasDetection.explanation
+          } as FairnessMetrics;
 
           logger.info("Bias detection completed", {
             hasBias: biasDetection.hasBias,
