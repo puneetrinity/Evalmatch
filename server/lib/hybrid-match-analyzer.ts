@@ -435,7 +435,7 @@ export class HybridMatchAnalyzer {
         content: resumeText,
       },
       {
-        skills: jobAnalysis.skills || [],
+        skills: jobAnalysis.skills || jobAnalysis.analyzedData?.requiredSkills || [],
         experience: jobAnalysis.experience || "",
         description: jobText,
       },
@@ -481,19 +481,19 @@ export class HybridMatchAnalyzer {
     jobText?: string,
   ): Promise<LLMAnalysisResult> {
     const response = await groq.analyzeMatch(resumeAnalysis, jobAnalysis, resumeText, jobText);
-    const result = response.results?.[0];
     
-    if (!result) {
-      throw new Error("No results from Groq analysis");
+    // Groq.analyzeMatch returns MatchAnalysisResponse directly, not wrapped in results array
+    if (!response) {
+      throw new Error("No response from Groq analysis");
     }
 
     return {
-      matchPercentage: result.matchPercentage,
-      matchedSkills: result.matchedSkills.map((s) => typeof s === 'string' ? s : s.skill),
-      missingSkills: result.missingSkills,
-      candidateStrengths: result.candidateStrengths,
-      candidateWeaknesses: result.candidateWeaknesses,
-      recommendations: result.recommendations,
+      matchPercentage: response.matchPercentage || 0,
+      matchedSkills: (response.matchedSkills || []).map((s) => typeof s === 'string' ? s : s.skill),
+      missingSkills: response.missingSkills || [],
+      candidateStrengths: response.candidateStrengths || [],
+      candidateWeaknesses: response.candidateWeaknesses || [],
+      recommendations: response.recommendations || [],
       reasoning: "Groq AI analysis",
     };
   }
@@ -506,19 +506,19 @@ export class HybridMatchAnalyzer {
     jobAnalysis: AnalyzeJobDescriptionResponse,
   ): Promise<LLMAnalysisResult> {
     const response = await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
-    const result = response.results?.[0];
     
-    if (!result) {
-      throw new Error("No results from OpenAI analysis");
+    // OpenAI.analyzeMatch returns MatchAnalysisResponse directly, not wrapped in results array
+    if (!response) {
+      throw new Error("No response from OpenAI analysis");
     }
 
     return {
-      matchPercentage: result.matchPercentage,
-      matchedSkills: result.matchedSkills.map((s) => typeof s === 'string' ? s : s.skill),
-      missingSkills: result.missingSkills,
-      candidateStrengths: result.candidateStrengths,
-      candidateWeaknesses: result.candidateWeaknesses,
-      recommendations: result.recommendations,
+      matchPercentage: response.matchPercentage || 0,
+      matchedSkills: (response.matchedSkills || []).map((s) => typeof s === 'string' ? s : s.skill),
+      missingSkills: response.missingSkills || [],
+      candidateStrengths: response.candidateStrengths || [],
+      candidateWeaknesses: response.candidateWeaknesses || [],
+      recommendations: response.recommendations || [],
       reasoning: "OpenAI analysis",
     };
   }
@@ -531,19 +531,19 @@ export class HybridMatchAnalyzer {
     jobAnalysis: AnalyzeJobDescriptionResponse,
   ): Promise<LLMAnalysisResult> {
     const response = await anthropic.analyzeMatch(resumeAnalysis, jobAnalysis);
-    const result = response.results?.[0];
     
-    if (!result) {
-      throw new Error("No results from Anthropic analysis");
+    // Anthropic.analyzeMatch returns MatchAnalysisResponse directly, not wrapped in results array
+    if (!response) {
+      throw new Error("No response from Anthropic analysis");
     }
 
     return {
-      matchPercentage: result.matchPercentage,
-      matchedSkills: result.matchedSkills.map((s) => typeof s === 'string' ? s : s.skill),
-      missingSkills: result.missingSkills,
-      candidateStrengths: result.candidateStrengths,
-      candidateWeaknesses: result.candidateWeaknesses,
-      recommendations: result.recommendations,
+      matchPercentage: response.matchPercentage || 0,
+      matchedSkills: (response.matchedSkills || []).map((s) => typeof s === 'string' ? s : s.skill),
+      missingSkills: response.missingSkills || [],
+      candidateStrengths: response.candidateStrengths || [],
+      candidateWeaknesses: response.candidateWeaknesses || [],
+      recommendations: response.recommendations || [],
       reasoning: "Anthropic analysis",
     };
   }
