@@ -12,7 +12,7 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
-  customHeaders?: Record<string, string>
+  options?: { headers?: Record<string, string>; signal?: AbortSignal }
 ): Promise<Response> {
   // Get auth token using simplified auth manager
   const token = await authManager.getAuthToken();
@@ -21,7 +21,7 @@ export async function apiRequest(
   const headers: Record<string, string> = {
     ...(data ? { "Content-Type": "application/json" } : {}),
     ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-    ...(customHeaders || {}),
+    ...(options?.headers || {}),
   };
 
   const res = await fetch(url, {
@@ -29,6 +29,7 @@ export async function apiRequest(
     headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
+    signal: options?.signal,
   });
 
   // If 401 and we have no token, throw a more specific error

@@ -325,7 +325,9 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
         `/api/batches/${batchId}/validate`,
         undefined,
         {
-          'X-Session-ID': sessionId,
+          headers: {
+            'X-Session-ID': sessionId,
+          }
         }
       );
       
@@ -388,7 +390,9 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
         `/api/batches/${batchId}/status`,
         undefined,
         {
-          'X-Session-ID': sessionId,
+          headers: {
+            'X-Session-ID': sessionId,
+          }
         }
       );
       
@@ -483,7 +487,9 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
         `/api/batches/${batchId}`,
         undefined,
         {
-          'X-Session-ID': sessionId,
+          headers: {
+            'X-Session-ID': sessionId,
+          }
         }
       );
       
