@@ -16,7 +16,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import SkillRadarChart from "@/components/skill-radar-chart";
 import MatchInsightsCard from "@/components/match-insights-card";
-import MatchExplanationCard from "@/components/match-explanation-card";
+import SimpleMatchSummary from "@/components/simple-match-summary";
 import ConfidenceBiasCard from "@/components/confidence-bias-card";
 
 import type {
@@ -736,19 +736,14 @@ export default function AnalysisPage() {
                       </div>
                     )}
                     
-                    {/* Match Explanation Section */}
+                    {/* Simple Match Summary Section */}
                     <div className="mb-6">
-                      <MatchExplanationCard 
+                      <SimpleMatchSummary 
                         matchPercentage={result.matchPercentage}
-                        scoringDimensions={{
-                          skills: result.scoringDimensions?.skills || 0,
-                          experience: result.scoringDimensions?.experience || 0,
-                          education: result.scoringDimensions?.education || 0,
-                          semantic: result.scoringDimensions?.semantic || 0,
-                          overall: result.matchPercentage
-                        }}
-                        matchedSkillsCount={result.matchedSkills?.length || 0}
-                        totalRequiredSkills={result.missingSkills?.length + result.matchedSkills?.length || 10}
+                        matchedSkills={result.matchedSkills || []}
+                        candidateStrengths={result.candidateStrengths || []}
+                        missingSkills={result.missingSkills || []}
+                        aiInsight={result.matchInsights?.summary}
                       />
                     </div>
                     
