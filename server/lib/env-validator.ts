@@ -417,6 +417,16 @@ export function validateEnvironment(): EnvValidationResult {
     });
   }
 
+  // Critical security check: AUTH_BYPASS_MODE must never be enabled in production
+  if (isProduction && process.env.AUTH_BYPASS_MODE === "true") {
+    errors.push({
+      variable: "AUTH_BYPASS_MODE",
+      message: "AUTH_BYPASS_MODE cannot be enabled in production environment",
+      category: "security",
+      suggestion: "Remove AUTH_BYPASS_MODE or set it to false in production",
+    });
+  }
+
   const isValid = errors.length === 0;
 
   return {

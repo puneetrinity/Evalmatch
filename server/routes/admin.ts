@@ -10,8 +10,31 @@ const router = Router();
 
 // Admin route protection middleware
 const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
-  // For now, allow all admin routes - in production, add proper admin verification
-  // TODO: Implement proper admin authentication
+  // Check for admin authorization header
+  const adminToken = req.headers['x-admin-token'];
+  const expectedToken = process.env.ADMIN_API_TOKEN;
+  
+  if (!expectedToken) {
+    logger.warn('Admin routes disabled - ADMIN_API_TOKEN not configured');
+    return res.status(503).json({
+      error: 'Service Unavailable',
+      message: 'Admin functionality is not configured'
+    });
+  }
+  
+  if (!adminToken || adminToken !== expectedToken) {
+    logger.warn('Unauthorized admin access attempt', {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+      path: req.path
+    });
+    return res.status(401).json({
+      error: 'Unauthorized',
+      message: 'Valid admin token required'
+    });
+  }
+  
+  logger.info('Admin access granted', { path: req.path, ip: req.ip });
   next();
 };
 

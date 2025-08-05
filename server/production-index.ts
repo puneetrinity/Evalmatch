@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
 import { fileURLToPath } from 'url';
 import { registerRoutes } from "./routes";
+import { logger } from "./config/logger";
 
 // For ES modules in Node.js
 const __filename = fileURLToPath(import.meta.url);
@@ -9,10 +10,10 @@ const __dirname = path.dirname(__filename);
 
 // Check for OpenAI API Key
 if (!process.env.OPENAI_API_KEY) {
-  console.warn("Warning: OPENAI_API_KEY environment variable is not set");
-  console.warn("Some features of the application may not work correctly");
+  logger.warn("Warning: OPENAI_API_KEY environment variable is not set");
+  logger.warn("Some features of the application may not work correctly");
 } else {
-  console.log("OpenAI API key configuration: Key is set");
+  logger.info("OpenAI API key configuration: Key is set");
 }
 
 // Create Express application
@@ -44,7 +45,7 @@ app.use((req, res, next) => {
         logLine = logLine.slice(0, 79) + "…";
       }
 
-      console.log(logLine);
+      logger.info(logLine);
     }
   });
 
@@ -61,7 +62,7 @@ app.use((req, res, next) => {
     const message = err instanceof Error ? err.message : "Internal Server Error";
 
     res.status(status).json({ message });
-    console.error("Error:", err instanceof Error ? err.message : String(err));
+    logger.error("Error:", err instanceof Error ? err.message : String(err));
   });
 
   // Serve static files from the React app
@@ -77,6 +78,6 @@ app.use((req, res, next) => {
   const port = process.env.PORT || 3000;
   
   app.listen(parseInt(port.toString()), "0.0.0.0", () => {
-    console.log(`Server running on port ${port} in production mode`);
+    logger.info(`Server running on port ${port} in production mode`);
   });
 })();

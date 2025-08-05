@@ -8,6 +8,7 @@
 import { IStorage } from './storage';
 import { MemStorage } from './storage';
 import { config } from './config';
+import { logger } from './config/logger';
 
 let storageImplementation: IStorage | null = null;
 
@@ -29,14 +30,14 @@ export async function initializeStorage(): Promise<IStorage> {
       
       // Wrap it in the hybrid storage for reliability
       storageImplementation = new HybridStorage(dbStorage);
-      console.log('Using hybrid PostgreSQL storage with automatic fallback');
+      logger.info('Using hybrid PostgreSQL storage with automatic fallback');
     } catch (error) {
-      console.error('Failed to initialize database storage:', error);
-      console.warn('Falling back to in-memory storage');
+      logger.error('Failed to initialize database storage:', error);
+      logger.warn('Falling back to in-memory storage');
       storageImplementation = new MemStorage();
     }
   } else {
-    console.log('Using in-memory storage');
+    logger.info('Using in-memory storage');
     storageImplementation = new MemStorage();
   }
   

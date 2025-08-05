@@ -101,6 +101,10 @@ const queryCache = new Map<string, CachedQuery<unknown>>();
 const CACHE_CLEANUP_INTERVAL = 300000; // 5 minutes
 let cacheCleanupTimer: NodeJS.Timeout | null = null;
 
+// Cache statistics tracking
+let cacheHits = 0;
+let cacheMisses = 0;
+
 // Prepared statements cache
 const preparedStatements = new Map<string, boolean>();
 
@@ -984,13 +988,18 @@ function isQueryCacheable(query: string): boolean {
 
 function getCachedQuery<T = unknown>(cacheKey: string): T[] | null {
   const cached = queryCache.get(cacheKey) as CachedQuery<T> | undefined;
-  if (!cached) return null;
-
-  if (Date.now() - cached.timestamp > cached.ttl) {
-    queryCache.delete(cacheKey);
+  if (!cached) {
+    cacheMisses++;
     return null;
   }
 
+  if (Date.now() - cached.timestamp > cached.ttl) {
+    queryCache.delete(cacheKey);
+    cacheMisses++;
+    return null;
+  }
+
+  cacheHits++;
   return cached.result;
 }
 
@@ -1115,9 +1124,12 @@ export function getCacheStats(): {
     }
   }
 
+  const totalRequests = cacheHits + cacheMisses;
+  const hitRate = totalRequests > 0 ? (cacheHits / totalRequests) * 100 : 0;
+
   return {
     size: queryCache.size,
-    hitRate: 0, // TODO: Implement hit rate tracking
+    hitRate: Math.round(hitRate * 100) / 100, // Round to 2 decimal places
     oldestEntry: Math.floor((now - oldestTimestamp) / 1000),
   };
 }

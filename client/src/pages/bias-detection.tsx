@@ -162,15 +162,21 @@ export default function BiasDetectionPage() {
   // Process job data when it changes - SIMPLIFIED to prevent infinite loop
   useEffect(() => {
     if (jobData) {
-      console.log(`Job data fetched. Job ID: ${jobId}, ID: ${jobData.id}, Title: ${jobData.title}, Analyzed: ${jobData.isAnalyzed}`);
+      if (import.meta.env.DEV) {
+        console.log(`Job data fetched. Job ID: ${jobId}, ID: ${jobData.id}, Title: ${jobData.title}, Analyzed: ${jobData.isAnalyzed}`);
+      }
       
       // Check for existing bias analysis in both possible locations
       const existingBiasAnalysis = jobData.analysis?.biasAnalysis || jobData.analyzedData?.biasAnalysis;
-      console.log(`Analysis exists: ${!!jobData.analysis?.biasAnalysis}, AnalyzedData Bias Analysis exists: ${!!jobData.analyzedData?.biasAnalysis}`);
+      if (import.meta.env.DEV) {
+        console.log(`Analysis exists: ${!!jobData.analysis?.biasAnalysis}, AnalyzedData Bias Analysis exists: ${!!jobData.analyzedData?.biasAnalysis}`);
+      }
       
       // If we found existing bias analysis, set it immediately and stop the loop
       if (existingBiasAnalysis && !biasAnalysis) {
-        console.log("Found existing bias analysis, setting it to prevent loop");
+        if (import.meta.env.DEV) {
+          console.log("Found existing bias analysis, setting it to prevent loop");
+        }
         setBiasAnalysis({
           hasBias: existingBiasAnalysis.hasBias || false,
           biasTypes: existingBiasAnalysis.biasTypes || [],
@@ -190,7 +196,9 @@ export default function BiasDetectionPage() {
       // 3. Haven't attempted bias analysis yet
       // 4. Not currently analyzing
       if (jobData.isAnalyzed && !existingBiasAnalysis && !hasAttemptedBiasAnalysis && !isBiasAnalyzing) {
-        console.log("Job analysis complete, automatically starting new bias analysis via API");
+        if (import.meta.env.DEV) {
+          console.log("Job analysis complete, automatically starting new bias analysis via API");
+        }
         setIsBiasAnalyzing(true);
         setHasAttemptedBiasAnalysis(true);
         biasAnalyzeMutation.mutate();

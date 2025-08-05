@@ -59,6 +59,33 @@ function isValidExtension(filename: string): boolean {
   return ALLOWED_EXTENSIONS.includes(ext);
 }
 
+// Check for suspicious file patterns (basic malware detection)
+async function checkForSuspiciousPatterns(filepath: string): Promise<boolean> {
+  try {
+    const buffer = await fs.readFile(filepath, { encoding: null, flag: "r" });
+    const content = buffer.toString('utf8', 0, Math.min(10000, buffer.length));
+    
+    // Common malicious patterns to detect
+    const suspiciousPatterns = [
+      /javascript:/i,
+      /<script/i,
+      /eval\(/i,
+      /document\.write/i,
+      /\.exe\b/i,
+      /cmd\.exe/i,
+      /powershell/i,
+      /base64,/i,
+      /vbscript/i,
+      /activex/i,
+    ];
+    
+    return suspiciousPatterns.some(pattern => pattern.test(content));
+  } catch (error) {
+    logger.warn("Error checking for suspicious patterns:", error);
+    return false; // If we can't read, assume safe but log warning
+  }
+}
+
 // File content validation (magic number checking)
 async function validateFileContent(
   filepath: string,
@@ -217,11 +244,38 @@ export async function validateUploadedFile(
     if (!isValid) {
       // Delete the file if validation fails
       await fs.unlink(req.file.path);
-      logger.warn(`Deleted invalid file upload attempt: ${req.file.filename}`);
+      logger.warn(`Deleted invalid file upload attempt: ${req.file.filename}`, {
+        userId: req.user?.uid,
+        originalName: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      });
 
       return res.status(400).json({
         error: "Invalid file content",
         message: "File content does not match the declared file type",
+      });
+    }
+    
+    // Check for suspicious patterns
+    const hasSuspiciousPatterns = await checkForSuspiciousPatterns(req.file.path);
+    
+    if (hasSuspiciousPatterns) {
+      // Delete the file and log security incident
+      await fs.unlink(req.file.path);
+      logger.error(`SECURITY: Suspicious file upload detected and blocked`, {
+        userId: req.user?.uid,
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+
+      return res.status(400).json({
+        error: "Security validation failed",
+        message: "File contains potentially malicious content",
       });
     }
 
@@ -229,6 +283,17 @@ export async function validateUploadedFile(
     req.file.securityChecked = true;
     req.file.uploadedBy = req.user?.uid;
     req.file.uploadedAt = new Date().toISOString();
+    
+    // Log successful upload for audit purposes
+    logger.info(`File upload successful`, {
+      userId: req.user?.uid,
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      securityChecked: true,
+      uploadedAt: req.file.uploadedAt
+    });
 
     next();
   } catch (error) {

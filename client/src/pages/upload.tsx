@@ -71,14 +71,18 @@ export default function UploadPage() {
   const createNewSession = useCallback((): SessionId => {
     const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 10)}` as SessionId;
     setSessionId(newSessionId);
-    console.log(`Created new upload session: ${newSessionId}`);
+    if (import.meta.env.DEV) {
+      console.log(`Created new upload session: ${newSessionId}`);
+    }
     localStorage.setItem('currentUploadSession', newSessionId);
     
     // Create new batch ID for this session
     const newBatchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     setCurrentBatchId(newBatchId);
     localStorage.setItem('currentBatchId', newBatchId);
-    console.log(`Created new batch: ${newBatchId}`);
+    if (import.meta.env.DEV) {
+      console.log(`Created new batch: ${newBatchId}`);
+    }
     
     return newSessionId;
   }, []);

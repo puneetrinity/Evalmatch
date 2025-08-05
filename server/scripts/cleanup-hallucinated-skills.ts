@@ -346,15 +346,15 @@ if (require.main === module) {
     specificResumeId: specificId ? parseInt(specificId) : undefined,
   })
     .then((stats) => {
-      console.log('\n=== Cleanup Complete ===');
-      console.log(`Resumes processed: ${stats.resumesProcessed}`);
-      console.log(`Resumes with hallucinations: ${stats.resumesWithHallucinations}`);
-      console.log(`Total skills removed: ${stats.totalSkillsRemoved}`);
-      console.log('Pattern frequency:', stats.hallucinationPatterns);
+      logger.info('\n=== Cleanup Complete ===');
+      logger.info(`Resumes processed: ${stats.resumesProcessed}`);
+      logger.info(`Resumes with hallucinations: ${stats.resumesWithHallucinations}`);
+      logger.info(`Total skills removed: ${stats.totalSkillsRemoved}`);
+      logger.info('Pattern frequency:', stats.hallucinationPatterns);
       process.exit(0);
     })
     .catch((error) => {
-      console.error('Cleanup failed:', error);
+      logger.error('Cleanup failed:', error);
       process.exit(1);
     });
 }

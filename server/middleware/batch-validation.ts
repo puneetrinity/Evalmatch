@@ -489,10 +489,18 @@ async function logBatchAccess(context: BatchSecurityContext): Promise<void> {
       logger.info("Batch access logged:", auditLogEntry);
     }
 
-    // TODO: In production, store in dedicated audit table
-    // await executeQuery(
-    //   'INSERT INTO audit_logs (batch_id, session_id, user_id, access_type, risk_score, flags, ip_address, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())',
-    //   [context.batchId, context.sessionId, context.userId, context.accessType, context.riskScore, JSON.stringify(context.flags), context.ipAddress]
+    // Future enhancement: Store in dedicated audit table when available
+    // This would require creating an audit_logs table with the following schema:
+    // CREATE TABLE audit_logs (
+    //   id SERIAL PRIMARY KEY,
+    //   batch_id VARCHAR(100),
+    //   session_id VARCHAR(100),
+    //   user_id VARCHAR(100),
+    //   access_type VARCHAR(50),
+    //   risk_score INTEGER,
+    //   flags JSONB,
+    //   ip_address INET,
+    //   created_at TIMESTAMP DEFAULT NOW()
     // );
   } catch (error) {
     // Use enhanced error handling

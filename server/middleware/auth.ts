@@ -38,8 +38,17 @@ export async function authenticateUser(
   next: NextFunction,
 ) {
   try {
-    // Auth bypass mode for testing
+    // Auth bypass mode for testing (NEVER allowed in production)
     if (process.env.AUTH_BYPASS_MODE === "true") {
+      if (config.env === "production") {
+        logger.error("SECURITY VIOLATION: AUTH_BYPASS_MODE cannot be enabled in production");
+        return res.status(500).json({
+          error: "Security configuration error",
+          message: "Invalid authentication configuration for production environment",
+          code: "INVALID_PRODUCTION_CONFIG",
+        });
+      }
+      
       logger.warn("Auth bypass mode enabled, creating mock user");
       req.user = {
         uid: "test-user-123",
