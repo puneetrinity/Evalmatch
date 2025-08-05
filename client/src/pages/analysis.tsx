@@ -771,11 +771,12 @@ export default function AnalysisPage() {
                         onClick={() => setExpanded(expanded === result.resumeId ? null : result.resumeId)}
                         className="mt-3 text-blue-600 hover:text-blue-800 text-sm font-medium"
                       >
-                        View detailed breakdown
+                        {expanded === result.resumeId ? 'Hide detailed breakdown' : 'View detailed breakdown'}
                       </button>
                     </div>
                     
-                    {/* Skills and Experience Grid */}
+                    {/* Skills and Experience Grid - Only show when expanded */}
+                    {expanded === result.resumeId && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div>
                         <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">KEY SKILLS</h4>
@@ -938,6 +939,7 @@ export default function AnalysisPage() {
                         </div>
                       </div>
                     </div>
+                    )}
                   </CardContent>
                 )}
               </Card>
