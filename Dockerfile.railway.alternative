@@ -133,8 +133,8 @@ ENV PORT=8080
 # Enable static file serving - Railway single container
 ENV SERVE_STATIC=true
 
-# Testing mode - allows more lenient configuration validation
-ENV AUTH_BYPASS_MODE=true
+# Production mode - enforce proper authentication
+# ENV AUTH_BYPASS_MODE=false  # Not needed in production
 
 # Minimal required environment variables for Railway deployment
 ENV FIREBASE_PROJECT_ID=railway-placeholder
