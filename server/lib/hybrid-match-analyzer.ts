@@ -20,6 +20,11 @@ import {
   CandidateProfile,
   JobProfile 
 } from "./bias-detection";
+import { 
+  generateMatchInsights, 
+  type MatchInsights,
+  type MatchAnalysisInput 
+} from "./match-insights-generator";
 
 // Updated scoring weights without cultural assessment
 export const HYBRID_SCORING_WEIGHTS: ScoringWeights = {
@@ -48,6 +53,7 @@ interface HybridMatchResult {
   };
   analysisMethod: "hybrid" | "ml_only" | "llm_only";
   confidence: number;
+  matchInsights?: MatchInsights;
 }
 
 interface LLMAnalysisResult {
@@ -177,12 +183,39 @@ export class HybridMatchAnalyzer {
         }
       }
 
+      // Generate user-focused match insights 
+      try {
+        const insightsInput: MatchAnalysisInput = {
+          matchPercentage: result.matchPercentage,
+          matchedSkills: result.matchedSkills,
+          missingSkills: result.missingSkills,
+          candidateStrengths: result.candidateStrengths,
+          candidateWeaknesses: result.candidateWeaknesses,
+          scoringDimensions: result.scoringDimensions,
+          pharmaRelated: resumeText && jobText ? await this.isPharmaMatch(resumeText, jobText) : false,
+          analysisMethod: result.analysisMethod,
+          confidence: result.confidence
+        };
+
+        result.matchInsights = generateMatchInsights(insightsInput, resumeText, jobText);
+        
+        logger.info('Match insights generated', {
+          matchStrength: result.matchInsights.matchStrength,
+          strengthsCount: result.matchInsights.keyStrengths.length,
+          areasToExploreCount: result.matchInsights.areasToExplore.length
+        });
+      } catch (insightsError) {
+        logger.error('Failed to generate match insights:', insightsError);
+        // Continue without insights - not critical for core functionality
+      }
+
       const processingTime = Date.now() - startTime;
       logger.info(`Hybrid match analysis completed`, {
         strategy: result.analysisMethod,
         matchPercentage: result.matchPercentage,
         confidence: result.confidence,
         hasBias: result.biasDetection?.hasBias || false,
+        hasInsights: !!result.matchInsights,
         processingTime,
       });
 
@@ -540,6 +573,23 @@ export class HybridMatchAnalyzer {
       openai.getOpenAIServiceStatus().isAvailable ||
       (this.isAnthropicConfigured && anthropic.getAnthropicServiceStatus().isAvailable)
     );
+  }
+
+  /**
+   * Check if this is a pharma-related match
+   */
+  private async isPharmaMatch(resumeText: string, jobText: string): Promise<boolean> {
+    try {
+      const { escoExtractor } = await import('./esco-skill-extractor');
+      const [resumePharma, jobPharma] = await Promise.all([
+        escoExtractor.isPharmaRelated(resumeText),
+        escoExtractor.isPharmaRelated(jobText)
+      ]);
+      return resumePharma && jobPharma;
+    } catch (error) {
+      logger.error('Failed to check pharma match:', error);
+      return false;
+    }
   }
 
   /**

@@ -15,6 +15,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import SkillRadarChart from "@/components/skill-radar-chart";
+import MatchInsightsCard from "@/components/match-insights-card";
 
 import type {
   JobId,
@@ -25,6 +26,7 @@ import type {
   AnalysisResponse,
   MatchedSkill,
   FairnessMetrics,
+  MatchInsights,
   ApiResult
 } from "@shared/api-contracts";
 import { isApiSuccess } from "@shared/api-contracts";
@@ -65,6 +67,7 @@ interface AnalysisResult {
     overall: number;
   };
   fairnessMetrics?: FairnessMetrics;
+  matchInsights?: MatchInsights;
 }
 
 interface AnalysisData {
@@ -724,6 +727,14 @@ export default function AnalysisPage() {
                 
                 {expanded === result.resumeId && (
                   <CardContent className="p-6">
+                    {/* Match Insights Section */}
+                    {result.matchInsights && (
+                      <div className="mb-6">
+                        <MatchInsightsCard insights={result.matchInsights} />
+                      </div>
+                    )}
+                    
+                    {/* Existing Skills and Experience Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-3">Key Skills</h4>

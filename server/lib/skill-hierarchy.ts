@@ -4,8 +4,9 @@ import { skillCategories, skillsTable, type Skill } from "@shared/schema";
 import { generateEmbedding, cosineSimilarity } from "./embeddings";
 import { logger } from "./logger";
 import stringSimilarity from "string-similarity";
+import { escoExtractor, type ESCOSkill } from "./esco-skill-extractor";
 
-// Enhanced skill dictionary with categories
+// Enhanced skill dictionary with categories (now including ESCO domains)
 export const SKILL_CATEGORIES = {
   PROGRAMMING_LANGUAGES: "Programming Languages",
   FRAMEWORKS: "Frameworks & Libraries",
@@ -20,6 +21,15 @@ export const SKILL_CATEGORIES = {
   MOBILE: "Mobile Development",
   SECURITY: "Security & Compliance",
   BUSINESS: "Business & Domain Knowledge",
+  // ESCO Pharmaceutical Categories
+  CLINICAL_RESEARCH: "Clinical Research",
+  PHARMACEUTICAL_MANUFACTURING: "Pharmaceutical Manufacturing", 
+  DRUG_DISCOVERY: "Drug Discovery",
+  REGULATORY_AFFAIRS: "Regulatory Affairs",
+  MEDICAL_AFFAIRS: "Medical Affairs",
+  BIOTECHNOLOGY: "Biotechnology",
+  QUALITY_ASSURANCE: "Quality Assurance",
+  PHARMACOVIGILANCE: "Pharmacovigilance",
 };
 
 // Enhanced skill mappings with category assignments
@@ -411,5 +421,107 @@ export async function findRelatedSkills(
   } catch (error) {
     logger.error("Error finding related skills:", error);
     return [];
+  }
+}
+
+/**
+ * Enhanced skill extraction using ESCO taxonomy
+ * Combines traditional skill matching with ESCO skill extraction
+ */
+export async function extractSkillsWithESCO(text: string): Promise<{
+  skills: string[];
+  escoSkills: ESCOSkill[];
+  pharmaRelated: boolean;
+  categories: string[];
+}> {
+  try {
+    logger.info('Starting enhanced skill extraction with ESCO', {
+      textLength: text.length
+    });
+
+    // Run ESCO extraction
+    const escoResult = await escoExtractor.extractSkills(text);
+    const pharmaRelated = await escoExtractor.isPharmaRelated(text);
+
+    // Extract skills from ESCO results
+    const escoSkills = escoResult.skills || [];
+    const escoSkillNames = escoSkills.map(skill => skill.skill);
+
+    // Get traditional skills using existing normalization
+    const traditionalSkills: string[] = [];
+    
+    // Try to normalize each ESCO skill through our existing system
+    for (const escoSkillName of escoSkillNames) {
+      const normalized = await normalizeSkillWithHierarchy(escoSkillName);
+      if (normalized.confidence > 0.5) {
+        traditionalSkills.push(normalized.normalized);
+      } else {
+        // Add ESCO skill directly if not found in traditional system
+        traditionalSkills.push(escoSkillName);
+      }
+    }
+
+    // Combine and deduplicate skills
+    const allSkills = [...new Set([...traditionalSkills, ...escoSkillNames])];
+    
+    // Get unique categories
+    const categories = [...new Set([
+      ...escoSkills.map(skill => skill.category),
+      ...escoResult.domains
+    ])];
+
+    logger.info('Enhanced skill extraction completed', {
+      totalSkills: allSkills.length,
+      escoSkills: escoSkills.length,
+      traditionalSkills: traditionalSkills.length,
+      pharmaRelated,
+      categories: categories.length
+    });
+
+    return {
+      skills: allSkills,
+      escoSkills,
+      pharmaRelated,
+      categories
+    };
+  } catch (error) {
+    logger.error('Enhanced skill extraction failed', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    // Fallback to empty result
+    return {
+      skills: [],
+      escoSkills: [],
+      pharmaRelated: false,
+      categories: []
+    };
+  }
+}
+
+/**
+ * Get enhanced skills for resume or job analysis
+ * This replaces the traditional skill extraction in our ML pipeline
+ */
+export async function getEnhancedSkills(text: string, existingSkills: string[] = []): Promise<string[]> {
+  try {
+    const enhanced = await extractSkillsWithESCO(text);
+    
+    // Combine ESCO skills with existing skills
+    const combinedSkills = [...new Set([...existingSkills, ...enhanced.skills])];
+    
+    logger.info('Enhanced skills generated', {
+      originalSkills: existingSkills.length,
+      escoSkills: enhanced.escoSkills.length,
+      finalSkills: combinedSkills.length,
+      pharmaContent: enhanced.pharmaRelated
+    });
+    
+    return combinedSkills;
+  } catch (error) {
+    logger.error('Failed to get enhanced skills', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    return existingSkills;
   }
 }

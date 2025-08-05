@@ -188,6 +188,7 @@ router.post(
             scoringDimensions: hybridResult.scoringDimensions,
             analysisMethod: hybridResult.analysisMethod,
             confidence: hybridResult.confidence,
+            matchInsights: hybridResult.matchInsights,
           };
           
           const matchAnalysisTime = Date.now() - matchAnalysisStartTime;
@@ -256,6 +257,7 @@ router.post(
               candidateWeaknesses: matchAnalysis.candidateWeaknesses || [],
               confidenceLevel: matchAnalysis.confidenceLevel,
               fairnessMetrics: matchAnalysis.fairnessMetrics,
+              matchInsights: matchAnalysis.matchInsights,
             },
             analysisId: analysisResult.id,
           };
@@ -385,6 +387,7 @@ router.post(
           confidenceLevel: r.match?.confidenceLevel || "low",
           fairnessMetrics: r.match?.fairnessMetrics,
           scoringDimensions: (r.match as any)?.scoringDimensions || {},
+          matchInsights: (r.match as any)?.matchInsights,
         })),
           createdAt: new Date().toISOString(),
           processingTime: totalAnalysisTime,

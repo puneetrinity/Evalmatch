@@ -7,6 +7,8 @@ import {
 import {
   normalizeSkillWithHierarchy,
   findRelatedSkills,
+  extractSkillsWithESCO,
+  getEnhancedSkills,
 } from "./skill-hierarchy";
 import { scoreExperienceEnhanced } from "./enhanced-experience-matching";
 import stringSimilarity from "string-similarity";
@@ -386,9 +388,10 @@ export function scoreEducation(
 }
 
 /**
- * Main enhanced scoring function
+ * ESCO-Enhanced scoring function
+ * Uses ESCO taxonomy for improved skill matching
  */
-export async function calculateEnhancedMatch(
+export async function calculateEnhancedMatchWithESCO(
   resumeData: {
     skills: string[];
     experience: string;
@@ -403,35 +406,73 @@ export async function calculateEnhancedMatch(
   weights: ScoringWeights = DEFAULT_SCORING_WEIGHTS,
 ): Promise<EnhancedMatchResult> {
   try {
-    // 1. Enhanced skill matching
+    logger.info('Starting ESCO-enhanced match calculation', {
+      resumeSkills: resumeData.skills.length,
+      jobSkills: jobData.skills.length,
+      hasContent: !!(resumeData.content && jobData.description)
+    });
+
+    // 1. ESCO-Enhanced skill extraction and matching
+    const [resumeESCO, jobESCO] = await Promise.all([
+      extractSkillsWithESCO(resumeData.content),
+      extractSkillsWithESCO(jobData.description)
+    ]);
+
+    // Combine traditional skills with ESCO skills
+    const enhancedResumeSkills = [...new Set([
+      ...resumeData.skills,
+      ...resumeESCO.skills
+    ])];
+
+    const enhancedJobSkills = [...new Set([
+      ...jobData.skills,
+      ...jobESCO.skills
+    ])];
+
+    logger.info('ESCO skill enhancement completed', {
+      originalResumeSkills: resumeData.skills.length,
+      enhancedResumeSkills: enhancedResumeSkills.length,
+      originalJobSkills: jobData.skills.length,
+      enhancedJobSkills: enhancedJobSkills.length,
+      resumePharmaRelated: resumeESCO.pharmaRelated,
+      jobPharmaRelated: jobESCO.pharmaRelated
+    });
+
+    // 2. Enhanced skill matching with ESCO skills
     const skillMatch = await matchSkillsEnhanced(
-      resumeData.skills,
-      jobData.skills,
+      enhancedResumeSkills,
+      enhancedJobSkills,
     );
 
-    // 2. Enhanced experience scoring
+    // 3. Enhanced experience scoring
     const experienceMatch = await scoreExperienceEnhanced(
       resumeData.experience,
       jobData.experience,
     );
 
-    // 3. Education scoring
+    // 4. Education scoring
     const educationMatch = scoreEducation(resumeData.education);
 
-    // 4. Semantic similarity
+    // 5. Semantic similarity (keeping minimal weight)
     const semanticScore = await calculateSemanticSimilarity(
       resumeData.content,
       jobData.description,
     );
 
-    // 5. Cultural fit - REMOVED (no cultural assessment)
-    const culturalScore = 0; // Cultural assessment removed
+    // 6. Pharma domain bonus
+    let pharmaBonus = 0;
+    if (resumeESCO.pharmaRelated && jobESCO.pharmaRelated) {
+      pharmaBonus = 5; // 5% bonus for pharma-pharma matches
+      logger.info('Applied pharma domain matching bonus', { bonus: pharmaBonus });
+    }
 
-    const totalScore =
+    const baseScore =
       skillMatch.score * weights.skills +
       experienceMatch.score * weights.experience +
       educationMatch.score * weights.education +
       semanticScore * weights.semantic;
+
+    const totalScore = Math.min(100, baseScore + pharmaBonus);
 
     // Calculate weighted total
     const dimensionScores = {
@@ -490,6 +531,27 @@ export async function calculateEnhancedMatch(
       skillBreakdown: [],
     };
   }
+}
+
+/**
+ * Main enhanced scoring function (original - kept for backward compatibility)
+ */
+export async function calculateEnhancedMatch(
+  resumeData: {
+    skills: string[];
+    experience: string;
+    education: string;
+    content: string;
+  },
+  jobData: {
+    skills: string[];
+    experience: string;
+    description: string;
+  },
+  weights: ScoringWeights = DEFAULT_SCORING_WEIGHTS,
+): Promise<EnhancedMatchResult> {
+  // For now, redirect to ESCO-enhanced version for better results
+  return calculateEnhancedMatchWithESCO(resumeData, jobData, weights);
 }
 
 /**

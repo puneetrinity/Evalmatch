@@ -301,6 +301,21 @@ export interface FairnessMetrics {
   recommendations?: string[];
 }
 
+export interface MatchInsights {
+  matchStrength: 'EXCELLENT' | 'STRONG' | 'MODERATE' | 'WEAK';
+  overallScore: number;
+  keyStrengths: string[];
+  areasToExplore: string[];
+  interviewFocus: string[];
+  riskFactors: string[];
+  domainExpertise?: {
+    domain: string;
+    level: 'Expert' | 'Experienced' | 'Familiar' | 'Limited';
+    bonus: number;
+  };
+  summary: string;
+}
+
 export interface AnalysisResponse {
   analysisId: AnalysisId;
   jobId: JobId;
@@ -323,6 +338,7 @@ export interface AnalysisResponse {
       semantic: number;
       overall: number;
     };
+    matchInsights?: MatchInsights;
   }>;
   createdAt: string;
   processingTime: number;
