@@ -393,7 +393,6 @@ export async function analyzeMatch(
             experience: 60,
             education: 60,
             semantic: 60,
-            cultural: 60,
             overall: 60,
           },
         },
@@ -569,7 +568,6 @@ Format your response as valid JSON with this structure:
               experience: matchPercentage,
               education: matchPercentage,
               semantic: matchPercentage,
-              cultural: matchPercentage,
               overall: matchPercentage,
             },
           },
@@ -644,8 +642,7 @@ Format your response as valid JSON with this structure:
               experience: 60,
               education: 60,
               semantic: 60,
-              cultural: 60,
-              overall: 60,
+                overall: 60,
             },
           },
         ],
@@ -740,7 +737,6 @@ Format your response as valid JSON with this structure:
             experience: 60,
             education: 60,
             semantic: 60,
-            cultural: 60,
             overall: 60,
           },
         },
@@ -995,7 +991,7 @@ export async function analyzeBias(
     logApiServiceStatus("Performing bias analysis with Anthropic Claude");
 
     // Create prompt
-    const prompt = `Analyze this job description for potential biases (gender, age, racial, cultural, ableist, etc).
+    const prompt = `Analyze this job description for potential biases (gender, age, racial, ableist, etc).
   
 Job Title: ${title || ""}
 
@@ -1366,7 +1362,7 @@ Format your response as valid JSON with this structure:
       max_tokens: 2000,
       messages: [{ role: "user", content: prompt }],
       system:
-        "You are an expert technical recruiter who specializes in creating fair, unbiased, and effective interview questions that assess both technical skills and cultural fit. Respond with valid JSON only, no explanations.",
+        "You are an expert technical recruiter who specializes in creating fair, unbiased, and effective interview questions that assess technical skills and team collaboration. Respond with valid JSON only, no explanations.",
     });
 
     // Record successful API call

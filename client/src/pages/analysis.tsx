@@ -62,7 +62,7 @@ interface AnalysisResult {
     experience: number;
     education: number;
     semantic: number;
-    cultural: number;
+    overall: number;
   };
   fairnessMetrics?: FairnessMetrics;
 }

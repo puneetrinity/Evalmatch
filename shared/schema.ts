@@ -107,7 +107,6 @@ export interface ScoringDimensions {
   experience: number;
   education: number;
   semantic: number;
-  cultural: number;
   overall: number;
 }
 
@@ -250,7 +249,7 @@ export const interviewQuestions = pgTable("interview_questions", {
 // Enhanced interview question type
 export interface InterviewQuestionData {
   question: string;
-  category: 'technical' | 'behavioral' | 'situational' | 'cultural' | 'problem-solving';
+  category: 'technical' | 'behavioral' | 'situational' | 'problem-solving';
   difficulty: 'easy' | 'medium' | 'hard';
   expectedAnswer: string;
   followUpQuestions?: string[];
@@ -368,7 +367,6 @@ export const scoringDimensionsSchema = z.object({
   experience: z.number().min(0).max(100),
   education: z.number().min(0).max(100),
   semantic: z.number().min(0).max(100),
-  cultural: z.number().min(0).max(100),
   overall: z.number().min(0).max(100),
 });
 
@@ -385,7 +383,7 @@ export const fairnessMetricsSchema = z.object({
 // Interview question schema - MUST be defined before insert schemas
 export const interviewQuestionDataSchema = z.object({
   question: z.string().min(10),
-  category: z.enum(['technical', 'behavioral', 'situational', 'cultural', 'problem-solving']),
+  category: z.enum(['technical', 'behavioral', 'situational', 'problem-solving']),
   difficulty: z.enum(['easy', 'medium', 'hard']),
   expectedAnswer: z.string().min(10),
   followUpQuestions: z.array(z.string()).optional(),

@@ -24,10 +24,9 @@ import {
 // Updated scoring weights without cultural assessment
 export const HYBRID_SCORING_WEIGHTS: ScoringWeights = {
   skills: 0.50,      // 50% - Increased from 45%
-  experience: 0.30,  // 30% - Increased from 25%
+  experience: 0.35,  // 35% - Increased to compensate for removed cultural
   education: 0.15,   // 15% - Unchanged
-  semantic: 0.05,    // 5% - Decreased from 10%
-  cultural: 0.0,     // 0% - Removed completely
+  semantic: 0.0,     // 0% - Removed for simplicity
 };
 
 interface HybridMatchResult {

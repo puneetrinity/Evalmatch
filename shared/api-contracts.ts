@@ -321,7 +321,7 @@ export interface AnalysisResponse {
       experience: number;
       education: number;
       semantic: number;
-      cultural: number;
+      overall: number;
     };
   }>;
   createdAt: string;
@@ -331,7 +331,7 @@ export interface AnalysisResponse {
 // Interview questions endpoint types
 export interface InterviewQuestion {
   question: string;
-  category: 'technical' | 'behavioral' | 'situational' | 'cultural';
+  category: 'technical' | 'behavioral' | 'situational' | 'problem-solving';
   difficulty: 'easy' | 'medium' | 'hard';
   expectedAnswer: string;
   followUpQuestions?: string[];

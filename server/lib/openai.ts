@@ -575,14 +575,14 @@ export async function analyzeJobDescription(
         {
           role: "system",
           content: `You are an expert in diversity, equity, and inclusion in the workplace. Your task is to analyze job descriptions for potential bias
-          that might discourage diverse candidates from applying. Look for language related to gender, age, cultural, or other biases. Consider terms
+          that might discourage diverse candidates from applying. Look for language related to gender, age, or unconscious biases. Consider terms
           like "rockstar," "ninja," "aggressive," "digital native," etc. which may implicitly favor certain groups.`,
         },
         {
           role: "user",
           content: `Analyze the following job description and identify any potential bias. Provide your analysis in JSON format with these fields:
           - hasBias (boolean): whether the description contains potentially biased language
-          - biasTypes (array of strings): categories of bias detected (e.g. "gender", "age", "cultural")
+          - biasTypes (array of strings): categories of bias detected (e.g. "gender", "age", "language")
           - suggestedImprovements (array of strings): specific suggestions to make the language more inclusive
           - explanation (string): brief explanation of your findings
           
@@ -758,7 +758,6 @@ export async function analyzeMatch(
           experience: 50,
           education: 50,
           semantic: 50,
-          cultural: 50,
           overall: 50,
         },
       },
@@ -1102,7 +1101,6 @@ export async function analyzeMatch(
             experience: 75,
             education: 70,
             semantic: 80,
-            cultural: 75,
             overall: matchPercentage,
           },
         },
@@ -1216,14 +1214,14 @@ export async function analyzeBias(
         {
           role: "system",
           content: `You are an expert in diversity, equity, and inclusion in the workplace. Your task is to analyze job descriptions for potential bias
-          that might discourage diverse candidates from applying. Look for language related to gender, age, cultural, or other biases. Consider terms
+          that might discourage diverse candidates from applying. Look for language related to gender, age, or unconscious biases. Consider terms
           like "rockstar," "ninja," "aggressive," "digital native," etc. which may implicitly favor certain groups.`,
         },
         {
           role: "user",
           content: `Analyze the following job description and identify any potential bias. Provide your analysis in JSON format with these fields:
           - hasBias (boolean): whether the description contains potentially biased language
-          - biasTypes (array of strings): categories of bias detected (e.g. "gender", "age", "cultural")
+          - biasTypes (array of strings): categories of bias detected (e.g. "gender", "age", "language")
           - biasedPhrases (array of objects with "phrase" and "reason" properties): specific phrases that are problematic
           - suggestions (array of strings): specific suggestions to make the language more inclusive
           - improvedDescription (string): a rewritten version of the job description with bias-free language
@@ -1748,10 +1746,10 @@ export async function generateInterviewQuestions(
           : []
     ).map((q: string) => ({
       question: q,
-      category: "cultural" as const,
+      category: "behavioral" as const,
       difficulty: "medium" as const,
-      expectedAnswer: "Cultural fit assessment",
-      skillsAssessed: ["diversity awareness", "inclusion"],
+      expectedAnswer: "Team collaboration and inclusion assessment",
+      skillsAssessed: ["teamwork", "collaboration"],
     }));
 
     normalizedResult.questions.push(...inclusionQuestions);

@@ -31,15 +31,13 @@ export interface ScoringWeights {
   experience: number;
   education: number;
   semantic: number;
-  cultural: number;
 }
 
 export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
   skills: 0.50, // 50% - Most important (increased from 45%)
-  experience: 0.30, // 30% - Very important (increased from 25%)
+  experience: 0.35, // 35% - Very important (increased from 30% to compensate for removed cultural)
   education: 0.15, // 15% - Important (unchanged)
-  semantic: 0.05, // 5% - Context understanding (decreased from 10%)
-  cultural: 0.0, // 0% - Removed cultural assessment
+  semantic: 0.0, // 0% - Context understanding (removed for simplicity)
 };
 
 // Scoring rubrics for consistent evaluation
@@ -82,7 +80,7 @@ export interface EnhancedMatchResult {
     experience: number;
     education: number;
     semantic: number;
-    cultural: number; // Keep interface for compatibility but always 0
+    overall: number;
   };
   confidence: number;
   explanation: {
@@ -429,21 +427,20 @@ export async function calculateEnhancedMatch(
     // 5. Cultural fit - REMOVED (no cultural assessment)
     const culturalScore = 0; // Cultural assessment removed
 
+    const totalScore =
+      skillMatch.score * weights.skills +
+      experienceMatch.score * weights.experience +
+      educationMatch.score * weights.education +
+      semanticScore * weights.semantic;
+
     // Calculate weighted total
     const dimensionScores = {
       skills: skillMatch.score,
       experience: experienceMatch.score,
       education: educationMatch.score,
       semantic: semanticScore,
-      cultural: culturalScore,
+      overall: Math.round(totalScore),
     };
-
-    const totalScore =
-      dimensionScores.skills * weights.skills +
-      dimensionScores.experience * weights.experience +
-      dimensionScores.education * weights.education +
-      dimensionScores.semantic * weights.semantic +
-      dimensionScores.cultural * weights.cultural;
 
     // Calculate confidence based on data quality
     const confidence = calculateConfidence({
@@ -482,7 +479,7 @@ export async function calculateEnhancedMatch(
         experience: 50,
         education: 50,
         semantic: 50,
-        cultural: 0, // Cultural assessment removed
+        overall: 50,
       },
       confidence: 0.3,
       explanation: {

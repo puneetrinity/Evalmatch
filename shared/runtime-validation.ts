@@ -116,7 +116,6 @@ export const ScoringDimensionsValidation = z.object({
   experience: z.number().min(0).max(100),
   education: z.number().min(0).max(100),
   semantic: z.number().min(0).max(100),
-  cultural: z.number().min(0).max(100),
   overall: z.number().min(0).max(100),
 });
 
@@ -147,7 +146,7 @@ export const AnalysisResultValidation = z.object({
 // Interview question validation
 export const InterviewQuestionValidation = z.object({
   question: z.string().min(10).max(1000),
-  category: z.enum(['technical', 'behavioral', 'situational', 'cultural', 'problem-solving']),
+  category: z.enum(['technical', 'behavioral', 'situational', 'problem-solving']),
   difficulty: z.enum(['easy', 'medium', 'hard']),
   expectedAnswer: z.string().min(10).max(2000),
   followUpQuestions: z.array(z.string().min(5).max(500)).optional(),

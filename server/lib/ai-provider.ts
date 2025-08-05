@@ -81,7 +81,6 @@ function createMatchAnalysisResponse(
           experience: 0,
           education: 0,
           semantic: 0,
-          cultural: 0,
           overall: singleResult.matchPercentage,
         },
         fairnessMetrics: singleResult.fairnessMetrics,
