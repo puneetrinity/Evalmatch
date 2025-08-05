@@ -9,11 +9,7 @@ export default {
   transform: {
     '^.+\\.ts$': ['ts-jest', {
       useESM: true,
-      tsconfig: {
-        types: ['jest', 'node'],
-        module: 'ESNext',
-        target: 'ESNext'
-      }
+      tsconfig: './tsconfig.test.json'
     }]
   },
   moduleNameMapper: {
@@ -50,11 +46,5 @@ export default {
   forceExit: true,
   detectOpenHandles: true,
   logHeapUsage: true,
-  workerIdleMemoryLimit: '512MB',
-  
-  globals: {
-    'ts-jest': {
-      useESM: true
-    }
-  }
+  workerIdleMemoryLimit: '512MB'
 };

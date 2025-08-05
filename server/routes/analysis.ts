@@ -223,6 +223,13 @@ router.post(
             candidateWeaknesses: matchAnalysis.candidateWeaknesses,
             confidenceLevel: matchAnalysis.confidenceLevel,
             fairnessMetrics: matchAnalysis.fairnessMetrics,
+            semanticSimilarity: matchAnalysis.scoringDimensions?.semantic || null,
+            skillsSimilarity: matchAnalysis.scoringDimensions?.skills || null,
+            experienceSimilarity: matchAnalysis.scoringDimensions?.experience || null,
+            educationSimilarity: matchAnalysis.scoringDimensions?.education || null,
+            mlConfidenceScore: matchAnalysis.confidence || null,
+            scoringDimensions: matchAnalysis.scoringDimensions || null,
+            recommendations: hybridResult.recommendations || [],
           });
           const dbStoreTime = Date.now() - dbStoreStartTime;
           const totalResumeTime = Date.now() - resumeProcessStartTime;

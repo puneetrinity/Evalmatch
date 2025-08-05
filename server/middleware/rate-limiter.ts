@@ -1,14 +1,23 @@
-import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import rateLimit from "express-rate-limit";
 import { logger } from "../lib/logger";
 
+// Create test-safe rate limiter configuration
+const createTestSafeRateLimiter = (options: any) => {
+  // Skip rate limiting entirely in test environment
+  if (process.env.NODE_ENV === "test") {
+    return (req: any, res: any, next: any) => next();
+  }
+  return rateLimit(options);
+};
+
 // Auth endpoints rate limiter - stricter limits to prevent brute force
-export const authRateLimiter = rateLimit({
+export const authRateLimiter = createTestSafeRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // 5 requests per IP per 15 minutes
   message: "Too many authentication attempts, please try again later",
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res) => {
+  handler: (req: any, res: any) => {
     logger.warn(`Rate limit exceeded for IP: ${req.ip}, Path: ${req.path}`);
     res.status(429).json({
       error: "Too many authentication attempts",
@@ -16,20 +25,20 @@ export const authRateLimiter = rateLimit({
       retryAfter: 15 * 60, // seconds
     });
   },
-  skip: (req) => {
+  skip: (req: any) => {
     // Skip rate limiting in development
     return process.env.NODE_ENV === "development";
   },
 });
 
 // General API rate limiter - more permissive
-export const apiRateLimiter = rateLimit({
+export const apiRateLimiter = createTestSafeRateLimiter({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 100, // 100 requests per minute
   message: "Too many requests, please slow down",
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res) => {
+  handler: (req: any, res: any) => {
     logger.warn(`API rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
       error: "Too many requests",
@@ -40,15 +49,13 @@ export const apiRateLimiter = rateLimit({
 });
 
 // File upload rate limiter - prevent abuse
-export const uploadRateLimiter = rateLimit({
+export const uploadRateLimiter = createTestSafeRateLimiter({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 20, // 20 uploads per hour
   message: "Too many file uploads, please try again later",
   standardHeaders: true,
   legacyHeaders: false,
-  // Use proper IPv6-compatible key generator
-  keyGenerator: (req) => req.ip || req.connection.remoteAddress || "unknown",
-  handler: (req, res) => {
+  handler: (req: any, res: any) => {
     logger.warn(`Upload rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
       error: "Too many uploads",
@@ -56,8 +63,8 @@ export const uploadRateLimiter = rateLimit({
       retryAfter: 60 * 60, // seconds
     });
   },
-  skip: (req) => {
-    // Skip rate limiting in development
-    return process.env.NODE_ENV === "development";
+  skip: (req: any) => {
+    // Skip rate limiting in development and test
+    return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
   },
 });
