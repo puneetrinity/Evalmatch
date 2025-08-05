@@ -97,17 +97,26 @@ export class HybridMatchAnalyzer {
       const hasFullText = resumeText && jobText;
       const strategy = this.determineAnalysisStrategy(!!hasFullText, userTier);
 
-      logger.info(`Starting hybrid match analysis using ${strategy} strategy`, {
+      logger.info(`🔍 STARTING HYBRID MATCH ANALYSIS`, {
+        strategy: strategy,
         hasFullText,
         userTier: userTier.tier,
         resumeSkills: resumeAnalysis.skills?.length || 0,
         jobSkills: jobAnalysis.skills?.length || 0,
+        resumeTextLength: resumeText?.length || 0,
+        jobTextLength: jobText?.length || 0,
+        aiProvidersAvailable: {
+          groq: this.isGroqConfigured,
+          anthropic: this.isAnthropicConfigured,
+          anyAvailable: this.isAIProviderAvailable()
+        }
       });
 
       let result: HybridMatchResult;
 
       switch (strategy) {
         case "hybrid":
+          logger.info("🔄 EXECUTING HYBRID ANALYSIS (ML + LLM)");
           result = await this.performHybridAnalysis(
             resumeAnalysis,
             jobAnalysis,
@@ -117,6 +126,7 @@ export class HybridMatchAnalyzer {
           );
           break;
         case "ml_only":
+          logger.info("🔄 EXECUTING ML-ONLY ANALYSIS (Enhanced Scoring + ESCO)");
           result = await this.performMLOnlyAnalysis(
             resumeAnalysis,
             jobAnalysis,
@@ -125,6 +135,7 @@ export class HybridMatchAnalyzer {
           );
           break;
         case "llm_only":
+          logger.info("🔄 EXECUTING LLM-ONLY ANALYSIS (AI Providers)");
           result = await this.performLLMOnlyAnalysis(
             resumeAnalysis,
             jobAnalysis,
@@ -134,6 +145,7 @@ export class HybridMatchAnalyzer {
           );
           break;
         default:
+          logger.error("🚨 UNKNOWN ANALYSIS STRATEGY", { strategy });
           throw new Error(`Unknown analysis strategy: ${strategy}`);
       }
 
@@ -221,7 +233,19 @@ export class HybridMatchAnalyzer {
 
       return result;
     } catch (error) {
-      logger.error("Hybrid match analysis failed:", error);
+      logger.error("🚨 HYBRID MATCH ANALYSIS FAILED 🚨", {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        errorType: error?.constructor?.name || 'UnknownError',
+        resumeAnalysisPresent: !!resumeAnalysis,
+        jobAnalysisPresent: !!jobAnalysis,
+        userTier: userTier?.tier || 'unknown',
+        hasResumeText: !!resumeText,
+        hasJobText: !!jobText,
+        resumeTextLength: resumeText?.length || 0,
+        jobTextLength: jobText?.length || 0,
+        timestamp: new Date().toISOString()
+      });
       
       // Fallback to basic analysis
       return this.createFallbackResult(resumeAnalysis, jobAnalysis);
@@ -295,12 +319,26 @@ export class HybridMatchAnalyzer {
     resumeText?: string,
     jobText?: string,
   ): Promise<HybridMatchResult> {
+    logger.info("🧠 Starting ML-only analysis with ESCO integration", {
+      hasResumeText: !!resumeText,
+      hasJobText: !!jobText,
+      resumeTextLength: resumeText?.length || 0,
+      jobTextLength: jobText?.length || 0
+    });
+
     const mlResult = await this.runMLAnalysis(
       resumeAnalysis,
       jobAnalysis,
       resumeText || "",
       jobText || "",
     );
+
+    logger.info("✅ ML-only analysis completed", {
+      totalScore: mlResult.totalScore,
+      confidence: mlResult.confidence,
+      skillsMatched: mlResult.skillBreakdown?.filter(s => s.matched)?.length || 0,
+      skillsTotal: mlResult.skillBreakdown?.length || 0
+    });
 
     return {
       matchPercentage: mlResult.totalScore,
@@ -599,7 +637,16 @@ export class HybridMatchAnalyzer {
     resumeAnalysis: AnalyzeResumeResponse,
     jobAnalysis: AnalyzeJobDescriptionResponse,
   ): HybridMatchResult {
-    logger.warn("Creating fallback match result due to analysis failure");
+    logger.error("🚨 CREATING FALLBACK MATCH RESULT 🚨", {
+      reason: "Hybrid analysis failed completely",
+      resumeHasSkills: !!(resumeAnalysis?.skills?.length),
+      resumeSkillsCount: resumeAnalysis?.skills?.length || 0,
+      jobHasSkills: !!(jobAnalysis?.skills?.length),
+      jobSkillsCount: jobAnalysis?.skills?.length || 0,
+      resumeHasContent: !!(resumeAnalysis as any)?.content,
+      jobHasDescription: !!(jobAnalysis as any)?.description,
+      timestamp: new Date().toISOString()
+    });
 
     return {
       matchPercentage: 50,
