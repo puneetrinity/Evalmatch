@@ -618,18 +618,6 @@ export default function AnalysisPage() {
             We've analyzed your job description and candidate resumes. Here are the results ranked by overall fit.
           </p>
           
-          {currentBatchId && (
-            <div className="mt-4 p-3 border border-blue-200 bg-blue-50 rounded-md text-sm text-blue-800">
-              <p className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="16" x2="12" y2="12"></line>
-                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                </svg>
-                <span><strong>Analyzing Batch:</strong> {currentBatchId.slice(-8)} - Only resumes from the current upload batch</span>
-              </p>
-            </div>
-          )}
         </div>
         
         {isLoading ? (
@@ -779,7 +767,10 @@ export default function AnalysisPage() {
                         )}
                       </div>
                       
-                      <button className="mt-3 text-blue-600 hover:text-blue-800 text-sm font-medium">
+                      <button 
+                        onClick={() => setExpanded(expanded === result.resumeId ? null : result.resumeId)}
+                        className="mt-3 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      >
                         View detailed breakdown
                       </button>
                     </div>
@@ -929,15 +920,16 @@ export default function AnalysisPage() {
                             </div>
                             
                             <div className="flex items-center gap-6">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-gray-600">Analysis Quality:</span>
-                                <span className="text-sm font-medium text-green-600">Good</span>
-                              </div>
+                              <span className="text-sm font-medium text-green-600">
+                                {result.matchPercentage >= 80 ? 'Excellent' : 
+                                 result.matchPercentage >= 60 ? 'Good' : 
+                                 result.matchPercentage >= 40 ? 'Fair' : 'Poor'}
+                              </span>
                               
                               <Button 
                                 onClick={() => handleGenerateQuestions(result.resumeId)}
                                 size="sm"
-                                variant="outline"
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
                               >
                                 Generate Interview Questions
                               </Button>
