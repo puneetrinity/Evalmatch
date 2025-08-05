@@ -452,11 +452,20 @@ export async function extractSkillsWithESCO(text: string): Promise<{
     
     // Try to normalize each ESCO skill through our existing system
     for (const escoSkillName of escoSkillNames) {
-      const normalized = await normalizeSkillWithHierarchy(escoSkillName);
-      if (normalized.confidence > 0.5) {
-        traditionalSkills.push(normalized.normalized);
-      } else {
-        // Add ESCO skill directly if not found in traditional system
+      try {
+        const normalized = await normalizeSkillWithHierarchy(escoSkillName);
+        if (normalized.confidence > 0.5) {
+          traditionalSkills.push(normalized.normalized);
+        } else {
+          // Add ESCO skill directly if not found in traditional system
+          traditionalSkills.push(escoSkillName);
+        }
+      } catch (error) {
+        // If database access fails (memory storage mode), add ESCO skill directly
+        logger.debug('Database normalization failed, using ESCO skill directly', {
+          skill: escoSkillName,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
         traditionalSkills.push(escoSkillName);
       }
     }

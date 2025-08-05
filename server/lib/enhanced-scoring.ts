@@ -409,13 +409,22 @@ export async function calculateEnhancedMatchWithESCO(
     logger.info('Starting ESCO-enhanced match calculation', {
       resumeSkills: resumeData.skills.length,
       jobSkills: jobData.skills.length,
-      hasContent: !!(resumeData.content && jobData.description)
+      hasContent: !!(resumeData.content && jobData.description),
+      resumeContentLength: resumeData.content?.length || 0,
+      jobDescriptionLength: jobData.description?.length || 0
     });
 
     // 1. ESCO-Enhanced skill extraction and matching
+    logger.info('Calling ESCO skill extraction...');
     const [resumeESCO, jobESCO] = await Promise.all([
-      extractSkillsWithESCO(resumeData.content),
-      extractSkillsWithESCO(jobData.description)
+      extractSkillsWithESCO(resumeData.content).catch(error => {
+        logger.error('Resume ESCO extraction failed:', error);
+        return { skills: [], escoSkills: [], pharmaRelated: false, categories: [] };
+      }),
+      extractSkillsWithESCO(jobData.description).catch(error => {
+        logger.error('Job ESCO extraction failed:', error);
+        return { skills: [], escoSkills: [], pharmaRelated: false, categories: [] };
+      })
     ]);
 
     // Combine traditional skills with ESCO skills
@@ -439,25 +448,38 @@ export async function calculateEnhancedMatchWithESCO(
     });
 
     // 2. Enhanced skill matching with ESCO skills
+    logger.info('Starting enhanced skill matching...');
     const skillMatch = await matchSkillsEnhanced(
       enhancedResumeSkills,
       enhancedJobSkills,
-    );
+    ).catch(error => {
+      logger.error('Enhanced skill matching failed:', error);
+      return { score: 50, breakdown: [] };
+    });
 
     // 3. Enhanced experience scoring
+    logger.info('Starting enhanced experience scoring...');
     const experienceMatch = await scoreExperienceEnhanced(
       resumeData.experience,
       jobData.experience,
-    );
+    ).catch(error => {
+      logger.error('Enhanced experience scoring failed:', error);
+      return { score: 50, explanation: 'Experience scoring failed' };
+    });
 
     // 4. Education scoring
+    logger.info('Starting education scoring...');
     const educationMatch = scoreEducation(resumeData.education);
 
     // 5. Semantic similarity (keeping minimal weight)
+    logger.info('Starting semantic similarity calculation...');
     const semanticScore = await calculateSemanticSimilarity(
       resumeData.content,
       jobData.description,
-    );
+    ).catch(error => {
+      logger.error('Semantic similarity calculation failed:', error);
+      return 50;
+    });
 
     // 6. Pharma domain bonus
     let pharmaBonus = 0;
@@ -510,7 +532,14 @@ export async function calculateEnhancedMatchWithESCO(
       skillBreakdown: skillMatch.breakdown,
     };
   } catch (error) {
-    logger.error("Error in enhanced scoring calculation:", error);
+    logger.error("Error in enhanced scoring calculation:", {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      resumeSkillsLength: resumeData.skills?.length || 0,
+      jobSkillsLength: jobData.skills?.length || 0,
+      hasResumeContent: !!resumeData.content,
+      hasJobDescription: !!jobData.description
+    });
 
     // Fallback scoring
     return {
@@ -525,7 +554,7 @@ export async function calculateEnhancedMatchWithESCO(
       confidence: 0.3,
       explanation: {
         strengths: ["Resume analysis completed"],
-        weaknesses: ["Enhanced scoring temporarily unavailable"],
+        weaknesses: ["Enhanced scoring temporarily unavailable: " + (error instanceof Error ? error.message : 'Unknown error')],
         recommendations: ["Please try again later"],
       },
       skillBreakdown: [],
