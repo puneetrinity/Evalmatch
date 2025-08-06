@@ -12,10 +12,6 @@ import {
   signOut,
   onAuthStateChanged,
   User,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
   sendPasswordResetEmail,
   updateProfile
 } from 'firebase/auth';
@@ -55,16 +51,7 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firebase Authentication and get a reference to the service
 export const auth = getAuth(app);
 
-// Google Auth Provider
-const googleProvider = new GoogleAuthProvider();
-// Add required scopes
-googleProvider.addScope('email');
-googleProvider.addScope('profile');
-// Custom parameters to fix popup issues (from StackOverflow solutions)
-googleProvider.setCustomParameters({
-  prompt: 'select_account',
-  display: 'popup'  // Explicitly set display mode for popup
-});
+// Removed Google Auth Provider - using email/password only
 
 // Authentication functions
 export const authService = {
@@ -121,100 +108,7 @@ export const authService = {
     }
   },
 
-  // Sign in with Google using popup
-  async signInWithGoogle(): Promise<User> {
-    try {
-      authLogger.debug('Starting Google popup sign-in', {
-        operation: 'google_signin',
-        provider: 'google'
-      });
-      
-      // Small delay to ensure DOM is stable before opening popup
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const result = await signInWithPopup(auth, googleProvider);
-      
-      authLogger.success('Google sign-in successful', {
-        operation: 'google_signin',
-        uid: result.user.uid,
-        email: result.user.email || undefined,
-        provider: 'google'
-      });
-      
-      return result.user;
-    } catch (error: any) {
-      authLogger.error('Google sign-in failed', error, {
-        operation: 'google_signin',
-        provider: 'google',
-        errorCode: error.code
-      });
-      
-      // Provide clear error messages and ask user to retry
-      if (error.code === 'auth/operation-not-allowed') {
-        throw new Error('Google sign-in is not enabled. Please use email/password login or contact support.');
-      }
-      
-      if (error.code === 'auth/popup-closed-by-user') {
-        throw new Error('Google sign-in was cancelled. Please click "Continue with Google" again and complete the sign-in process.');
-      }
-      
-      if (error.code === 'auth/popup-blocked') {
-        throw new Error('Pop-up was blocked by your browser. Please allow pop-ups for this site and try again.');
-      }
-      
-      if (error.code === 'auth/cancelled-popup-request') {
-        throw new Error('Google sign-in was cancelled. Please try again.');
-      }
-      
-      if (error.code === 'auth/unauthorized-domain') {
-        throw new Error('This domain is not authorized for Google sign-in. Please contact support.');
-      }
-      
-      // Generic error with retry instruction
-      throw new Error(`Google sign-in failed: ${getAuthErrorMessage(error.code)}. Please try again.`);
-    }
-  },
-
-  // Handle Google redirect result (call this on app startup)
-  async handleGoogleRedirectResult(): Promise<User | null> {
-    try {
-      authLogger.debug('Checking for Google redirect result', {
-        operation: 'google_redirect'
-      });
-      
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise<null>((_, reject) => {
-        setTimeout(() => reject(new Error('Redirect result timeout')), 5000);
-      });
-      
-      const result = await Promise.race([
-        getRedirectResult(auth),
-        timeoutPromise
-      ]);
-      
-      if (result && result.user) {
-        authLogger.success('Google redirect sign-in successful', {
-          operation: 'google_redirect',
-          uid: result.user.uid,
-          email: result.user.email || undefined,
-          provider: 'google'
-        });
-        return result.user;
-      }
-      
-      authLogger.debug('No Google redirect result found', {
-        operation: 'google_redirect'
-      });
-      return null;
-    } catch (error: any) {
-      authLogger.error('Google redirect result error', error, {
-        operation: 'google_redirect',
-        errorCode: error.code
-      });
-      // Don't throw error, just return null to allow app to continue
-      return null;
-    }
-  },
+  // Removed Google sign-in methods - using email/password only
 
   // Sign out
   async signOut(): Promise<void> {
