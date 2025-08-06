@@ -50,9 +50,9 @@ class ESCOSkillExtractor:
         # Auto-detect domain if not specified
         if domain_context == "auto":
             domain_context = self._detect_text_domain(text_lower)
-            print(f"[ESCO] Auto-detected domain: {domain_context} for text preview: {text_lower[:100]}...")
+            print(f"[ESCO] Auto-detected domain: {domain_context} for text preview: {text_lower[:100]}...", file=sys.stderr)
         
-        print(f"[ESCO] Extracting skills for domain: {domain_context}")
+        print(f"[ESCO] Extracting skills for domain: {domain_context}", file=sys.stderr)
         
         # Domain-specific skill extraction to prevent contamination
         if domain_context == "pharmaceutical" or domain_context == "general":
@@ -84,7 +84,7 @@ class ESCOSkillExtractor:
         # Apply contamination filter to prevent cross-domain pollution
         filtered_skills = self._filter_contaminated_skills(extracted_skills, domain_context, text_lower)
         
-        print(f"[ESCO] Extracted {len(extracted_skills)} raw skills, filtered to {len(filtered_skills)} clean skills")
+        print(f"[ESCO] Extracted {len(extracted_skills)} raw skills, filtered to {len(filtered_skills)} clean skills", file=sys.stderr)
         return filtered_skills
     
     def _detect_text_domain(self, text_lower: str) -> str:
@@ -109,7 +109,7 @@ class ESCOSkillExtractor:
         pharma_score = sum(1 for keyword in pharma_keywords if keyword in text_lower)
         tech_score = sum(1 for keyword in tech_keywords if keyword in text_lower)
         
-        print(f"[ESCO] Domain detection - Pharma: {pharma_score}, Tech: {tech_score}")
+        print(f"[ESCO] Domain detection - Pharma: {pharma_score}, Tech: {tech_score}", file=sys.stderr)
         
         # Determine primary domain
         if pharma_score > tech_score and pharma_score >= 2:
@@ -140,7 +140,7 @@ class ESCOSkillExtractor:
                 # Block pharmaceutical skills in technology context
                 pharma_indicators = ["manufacturing", "fda", "clinical", "drug", "medical", "regulatory"]
                 if any(indicator in skill_name for indicator in pharma_indicators):
-                    print(f"[ESCO] ❌ BLOCKED: '{skill_obj['skill']}' (pharma skill in tech context)")
+                    print(f"[ESCO] ❌ BLOCKED: '{skill_obj['skill']}' (pharma skill in tech context)", file=sys.stderr)
                     is_contaminated = True
                     blocked_count += 1
             
@@ -148,7 +148,7 @@ class ESCOSkillExtractor:
                 # Block pure technology skills in pharmaceutical context (except data/analysis tools)
                 tech_indicators = ["ios", "android", "react", "angular", "javascript", "web development"]
                 if any(indicator in skill_name for indicator in tech_indicators):
-                    print(f"[ESCO] ❌ BLOCKED: '{skill_obj['skill']}' (tech skill in pharma context)")
+                    print(f"[ESCO] ❌ BLOCKED: '{skill_obj['skill']}' (tech skill in pharma context)", file=sys.stderr)
                     is_contaminated = True
                     blocked_count += 1
             
@@ -156,7 +156,7 @@ class ESCOSkillExtractor:
                 filtered_skills.append(skill_obj)
         
         if blocked_count > 0:
-            print(f"[ESCO] 🧹 CONTAMINATION CLEANUP: Blocked {blocked_count} cross-domain skills")
+            print(f"[ESCO] 🧹 CONTAMINATION CLEANUP: Blocked {blocked_count} cross-domain skills", file=sys.stderr)
         
         return filtered_skills
     
