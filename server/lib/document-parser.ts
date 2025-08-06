@@ -738,32 +738,44 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
           console.log(
             "[ResumeParser] Attempting final OCR extraction with Tesseract",
           );
+          
+          // OCR extraction now has internal error handling and won't throw
           const ocrText = await extractTextWithOcr(buffer);
+          const ocrSuccess = ocrText.length > 100;
 
-          const sampleText =
-            ocrText.substring(0, 100).replace(/\n/g, " ") + "...";
+          const sampleText = ocrText.length > 0 
+            ? (ocrText.substring(0, 100).replace(/\n/g, " ") + "...")
+            : "No text extracted";
+
           extractionResults.push({
             method: "tesseract-ocr",
             textLength: ocrText.length,
             sampleText,
-            success: ocrText.length > 100, // OCR should produce substantial text
+            success: ocrSuccess,
           });
 
           console.log(
-            `[ResumeParser] OCR: tesseract (text length: ${ocrText.length})`,
+            `[ResumeParser] OCR: tesseract (text length: ${ocrText.length}, success: ${ocrSuccess})`,
           );
 
           // Only use OCR text if it's substantially better or other methods failed
-          if (
-            (ocrText.length > 100 &&
-              ocrText.length > extractedText.length * 1.5) ||
-            (extractedText.length < 50 && ocrText.length > 100)
-          ) {
-            extractedText = ocrText;
-            extractionSuccess = true;
+          if (ocrSuccess) {
+            if (extractedText.length < 50 || ocrText.length > extractedText.length * 1.5) {
+              extractedText = ocrText;
+              extractionSuccess = true;
+              console.log("[ResumeParser] Using OCR text as primary extraction result");
+            }
           }
+          
+          // If OCR also failed but returned some text, check if we should use it anyway
+          if (!extractionSuccess && ocrText.length > extractedText.length) {
+            console.log("[ResumeParser] Using partial OCR text as fallback");
+            extractedText = ocrText;
+          }
+          
         } catch (err) {
-          console.warn("[ResumeParser] Failed OCR extraction:", err);
+          // This shouldn't happen now since OCR function handles its own errors
+          console.warn("[ResumeParser] Unexpected OCR extraction error:", err);
           extractionResults.push({
             method: "tesseract-ocr",
             textLength: 0,
@@ -821,11 +833,27 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
           (r) => r.method === "pdf-parse" && !r.success,
         );
 
+        // If we have minimal text (like 8 characters), try to provide a better error
+        if (extractedText.length > 0 && extractedText.length < 50) {
+          return `PDF text extraction returned minimal content (${extractedText.length} characters: "${extractedText.trim()}"). This PDF appears to be image-based or heavily formatted. Please try:\n1. Converting to a text-based PDF using "Save As" or "Print to PDF"\n2. Using a Word document (.docx) instead\n3. Ensuring the document contains selectable text`;
+        }
+
         if (hasOCRError && hasPDFParseError) {
-          return "Unable to extract text from this PDF. The document appears to be a scanned image or uses an unsupported encoding. Please try:\n1. Converting to a text-based PDF\n2. Using a Word document (.docx)\n3. Ensuring the document is not password-protected";
+          return "Unable to extract text from this PDF. The document appears to be a scanned image or uses an unsupported encoding. Please try:\n1. Converting to a text-based PDF\n2. Using a Word document (.docx)\n3. Ensuring the document is not password-protected\n4. Re-scanning at higher quality if this is a scanned document";
         }
 
         return "PDF text extraction failed. This document may be encrypted, scanned at low quality, or in an unsupported format. Please try uploading a text-based PDF or Word document instead.";
+      }
+
+      // Handle case where we got some text but it's very minimal
+      if (extractionSuccess && extractedText.length < 100) {
+        console.warn(
+          `[ResumeParser][Warning] Very short extraction result (${extractedText.length} chars): "${extractedText.substring(0, 50)}..."`,
+        );
+        
+        // Add a helpful note to the extracted text to inform the user
+        const warningNote = `\n\n[EXTRACTION WARNING: Only ${extractedText.length} characters extracted. This PDF may be image-based or heavily formatted. Consider using a text-based PDF or DOCX format for better results.]`;
+        extractedText += warningNote;
       }
 
       // Post-process the extracted text to improve quality
@@ -922,18 +950,93 @@ export async function extractTextFromDocx(buffer: Buffer): Promise<string> {
 }
 
 /**
- * Extract text using OCR (Optical Character Recognition)
+ * Extract text using OCR (Optical Character Recognition) with robust error handling
  * @param buffer Image or PDF as a buffer
  * @returns Extracted text
  */
 export async function extractTextWithOcr(buffer: Buffer): Promise<string> {
-  const worker = await createWorker("eng");
-
+  let worker = null;
+  
   try {
-    const { data } = await worker.recognize(buffer);
-    return data.text;
+    console.log("[OCR] Starting Tesseract worker initialization");
+    
+    // Add timeout to worker creation to prevent hanging
+    const workerPromise = createWorker("eng", {
+      logger: (m) => {
+        if (m.status === 'recognizing text' && m.progress) {
+          console.log(`[OCR] Progress: ${Math.round(m.progress * 100)}%`);
+        }
+      }
+    });
+    
+    // 30 second timeout for worker creation
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("OCR worker creation timeout (30s)")), 30000);
+    });
+    
+    worker = await Promise.race([workerPromise, timeoutPromise]);
+    console.log("[OCR] Tesseract worker initialized successfully");
+    
+    // Validate buffer before processing
+    if (!buffer || buffer.length === 0) {
+      throw new Error("Empty or invalid buffer provided to OCR");
+    }
+    
+    if (buffer.length > 50 * 1024 * 1024) { // 50MB limit
+      throw new Error("File too large for OCR processing (max 50MB)");
+    }
+    
+    console.log(`[OCR] Processing ${buffer.length} bytes with Tesseract`);
+    
+    // Add timeout to OCR recognition to prevent hanging
+    const recognitionPromise = worker.recognize(buffer, {
+      rectangle: { top: 0, left: 0, width: 0, height: 0 } // Process full image
+    });
+    
+    // 120 second timeout for OCR processing
+    const ocrTimeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("OCR recognition timeout (120s)")), 120000);
+    });
+    
+    const { data } = await Promise.race([recognitionPromise, ocrTimeoutPromise]);
+    
+    if (!data || !data.text) {
+      console.warn("[OCR] Tesseract returned empty or null text");
+      return "";
+    }
+    
+    const extractedText = data.text.trim();
+    console.log(`[OCR] Successfully extracted ${extractedText.length} characters`);
+    
+    // Validate OCR output quality
+    if (extractedText.length < 10) {
+      console.warn("[OCR] OCR extracted very little text, file may be corrupted or low quality");
+      return extractedText; // Still return what we got
+    }
+    
+    return extractedText;
+    
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[OCR] Tesseract OCR failed:", errorMessage);
+    
+    // Don't throw the error - return empty string to allow graceful fallback
+    // The main PDF extraction function will handle this failure gracefully
+    console.warn("[OCR] Returning empty string due to OCR failure - document processing will continue without OCR");
+    return "";
+    
   } finally {
-    await worker.terminate();
+    // Ensure worker is always terminated to prevent resource leaks
+    if (worker) {
+      try {
+        console.log("[OCR] Terminating Tesseract worker");
+        await worker.terminate();
+        console.log("[OCR] Tesseract worker terminated successfully");
+      } catch (terminateError) {
+        console.error("[OCR] Failed to terminate Tesseract worker:", terminateError);
+        // Don't throw here - worker may already be terminated
+      }
+    }
   }
 }
 
