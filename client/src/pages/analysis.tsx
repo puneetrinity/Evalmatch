@@ -920,13 +920,16 @@ export default function AnalysisPage() {
                               <span className="text-sm text-gray-500">AI-generated content</span>
                             </div>
                             
-                            <div className="flex items-center gap-6">
-                              <span className="text-sm font-medium text-green-600">
-                                {result.matchPercentage >= 80 ? 'Excellent' : 
-                                 result.matchPercentage >= 60 ? 'Good' : 
-                                 result.matchPercentage >= 40 ? 'Fair' : 'Poor'}
-                              </span>
-                              
+                            {/* Candidate Summary from Groq AI */}
+                            <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                              <h4 className="text-sm font-semibold text-gray-900 mb-2">Candidate Summary</h4>
+                              <p className="text-sm text-gray-700 leading-relaxed">
+                                {result.matchInsights?.summary || 
+                                 `Strong candidate with ${result.matchPercentage}% match. Key skills include ${result.matchedSkills.slice(0, 3).map(s => typeof s === 'string' ? s : s.skill).join(', ')}. ${result.candidateStrengths.length > 0 ? 'Notable strengths: ' + result.candidateStrengths[0] : ''}`}
+                              </p>
+                            </div>
+                            
+                            <div className="flex justify-end mt-4">
                               <Button 
                                 onClick={() => handleGenerateQuestions(result.resumeId)}
                                 size="sm"
