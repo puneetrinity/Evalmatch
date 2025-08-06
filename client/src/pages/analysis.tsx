@@ -16,8 +16,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import SkillRadarChart from "@/components/skill-radar-chart";
 import MatchInsightsCard from "@/components/match-insights-card";
-import MatchExplanationCard from "@/components/match-explanation-card";
-import ConfidenceBiasCard from "@/components/confidence-bias-card";
+import SimpleMatchSummary from "@/components/simple-match-summary";
 
 import type {
   JobId,
@@ -618,18 +617,6 @@ export default function AnalysisPage() {
             We've analyzed your job description and candidate resumes. Here are the results ranked by overall fit.
           </p>
           
-          {currentBatchId && (
-            <div className="mt-4 p-3 border border-blue-200 bg-blue-50 rounded-md text-sm text-blue-800">
-              <p className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="16" x2="12" y2="12"></line>
-                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                </svg>
-                <span><strong>Analyzing Batch:</strong> {currentBatchId.slice(-8)} - Only resumes from the current upload batch</span>
-              </p>
-            </div>
-          )}
         </div>
         
         {isLoading ? (
@@ -698,29 +685,26 @@ export default function AnalysisPage() {
                       <p className="text-sm text-gray-500">{result.filename}</p>
                     </div>
                   </div>
-                  <div className="flex items-center">
-                    <div className="mr-6">
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <span className="text-3xl font-bold text-primary">{result.matchPercentage}%</span>
-                          <span className="text-sm text-gray-500 ml-1">match</span>
-                        </div>
-                        {result.confidenceLevel && (
-                          <div className="flex flex-col items-center">
-                            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              result.confidenceLevel === 'high' ? 'bg-green-100 text-green-800' :
-                              result.confidenceLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {result.confidenceLevel} confidence
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-3xl font-bold text-blue-600">{result.matchPercentage}%</div>
+                      <div className="text-sm text-gray-500">match</div>
                     </div>
+                    
+                    {result.confidenceLevel && (
+                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        result.confidenceLevel === 'high' ? 'bg-green-100 text-green-800' :
+                        result.confidenceLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {result.confidenceLevel} confidence
+                      </div>
+                    )}
+                    
                     <Button
                       onClick={() => handleViewDetails(result.resumeId)}
                       variant={expanded === result.resumeId ? "default" : "outline"}
+                      className="ml-4"
                     >
                       {expanded === result.resumeId ? "Hide Details" : "View Details"}
                     </Button>
@@ -729,34 +713,73 @@ export default function AnalysisPage() {
                 
                 {expanded === result.resumeId && (
                   <CardContent className="p-6">
-                    {/* Match Insights Section */}
-                    {result.matchInsights && (
-                      <div className="mb-6">
-                        <MatchInsightsCard insights={result.matchInsights} />
+                    {/* Match Summary Section */}
+                    <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="h-6 w-6 bg-green-500 rounded-full flex items-center justify-center">
+                          <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        <h4 className="text-lg font-semibold text-green-800">Match Summary</h4>
+                        <span className="ml-auto text-green-700 font-medium">
+                          {result.matchPercentage}% - {result.matchPercentage >= 85 ? 'Exceptional' : result.matchPercentage >= 70 ? 'Strong' : result.matchPercentage >= 55 ? 'Viable' : 'Potential'} Candidate
+                        </span>
                       </div>
-                    )}
-                    
-                    {/* Match Explanation Section */}
-                    <div className="mb-6">
-                      <MatchExplanationCard 
-                        matchPercentage={result.matchPercentage}
-                        scoringDimensions={{
-                          skills: result.scoringDimensions?.skills || 0,
-                          experience: result.scoringDimensions?.experience || 0,
-                          education: result.scoringDimensions?.education || 0,
-                          semantic: result.scoringDimensions?.semantic || 0,
-                          overall: result.matchPercentage
-                        }}
-                        matchedSkillsCount={result.matchedSkills?.length || 0}
-                        totalRequiredSkills={result.missingSkills?.length + result.matchedSkills?.length || 10}
-                      />
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="h-5 w-5 bg-green-500 rounded-full flex items-center justify-center">
+                            <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <span className="text-green-800">
+                            <strong>Has key skills:</strong> {result.matchedSkills?.slice(0, 4).map(skill => 
+                              typeof skill === 'string' ? skill : skill?.skill || 'Skill'
+                            ).join(', ')} {result.matchedSkills && result.matchedSkills.length > 4 && `+${result.matchedSkills.length - 4} more`}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <div className="h-5 w-5 bg-green-500 rounded-full flex items-center justify-center">
+                            <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <span className="text-green-800">
+                            <strong>Strong skill alignment with</strong> <em>{result.matchedSkills?.length || 0} matching requirements</em>
+                          </span>
+                        </div>
+                        
+                        {result.missingSkills && result.missingSkills.length > 0 && (
+                          <div className="flex items-start gap-2">
+                            <div className="h-5 w-5 bg-orange-500 rounded-full flex items-center justify-center mt-0.5">
+                              <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
+                              </svg>
+                            </div>
+                            <span className="text-orange-800">
+                              <strong>May benefit from training in:</strong> {result.missingSkills.slice(0, 3).join(', ')} {result.missingSkills.length > 3 && `+${result.missingSkills.length - 3} more`}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <button 
+                        onClick={() => setExpanded(expanded === result.resumeId ? null : result.resumeId)}
+                        className="mt-3 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      >
+                        {expanded === result.resumeId ? 'Hide detailed breakdown' : 'View detailed breakdown'}
+                      </button>
                     </div>
                     
-                    {/* Existing Skills and Experience Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Skills and Experience Grid - Only show when expanded */}
+                    {expanded === result.resumeId && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div>
-                        <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-3">Key Skills</h4>
-                        <div className="space-y-3">
+                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">KEY SKILLS</h4>
+                        <div className="space-y-4">
                           {result.matchedSkills && result.matchedSkills.slice(0, 5).map((skill: any, index: number) => {
                             // Extract skill name and match percentage
                             const skillName = typeof skill === 'string' 
@@ -767,33 +790,19 @@ export default function AnalysisPage() {
                                 
                             const matchPercentage = (skill && typeof skill === 'object' && typeof skill.matchPercentage === 'number') 
                               ? skill.matchPercentage 
-                              : 100;
+                              : 85;
                             
                             return (
-                              <div key={index}>
-                                <div className="flex justify-between text-sm mb-1">
-                                  <span className="font-medium text-gray-800">{skillName}</span>
-                                  <span 
-                                    className={`font-medium ${
-                                      matchPercentage >= 80 
-                                        ? 'text-green-600' 
-                                        : matchPercentage >= 40 
-                                          ? 'text-amber-600' 
-                                          : 'text-red-600'
-                                    }`}
-                                  >
+                              <div key={index} className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                  <span className="font-medium text-gray-900">{skillName}</span>
+                                  <span className="text-sm font-semibold text-green-600">
                                     {matchPercentage}% match
                                   </span>
                                 </div>
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                   <div 
-                                    className={`skill-match rounded-full h-full ${
-                                      matchPercentage >= 80 
-                                        ? 'bg-green-500' 
-                                        : matchPercentage >= 40 
-                                          ? 'bg-amber-500' 
-                                          : 'bg-red-500'
-                                    }`} 
+                                    className="bg-green-500 rounded-full h-full transition-all duration-300" 
                                     style={{ width: `${matchPercentage}%` }}
                                   ></div>
                                 </div>
@@ -858,49 +867,82 @@ export default function AnalysisPage() {
                       </div>
                       
                       <div>
-                        <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-3">Experience & Missing Skills</h4>
-                        <div className="space-y-4">
-                          {result.candidateStrengths && result.candidateStrengths.slice(0, 2).map((strength, index) => (
-                            <div key={index}>
-                              <p className="font-medium text-gray-800">{strength}</p>
+                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">EXPERIENCE & MISSING SKILLS</h4>
+                        
+                        {/* Experience Summary */}
+                        <div className="mb-6">
+                          <p className="text-gray-800 font-medium">
+                            Strong skill alignment with <span className="font-semibold">{result.matchedSkills?.length || 0} matching requirements</span>
+                          </p>
+                        </div>
+                        
+                        {/* Missing Skills */}
+                        {result.missingSkills?.length > 0 && (
+                          <div className="mb-6">
+                            <h5 className="text-sm font-medium text-gray-700 mb-3">Missing Skills</h5>
+                            <div className="flex flex-wrap gap-2">
+                              {result.missingSkills.map((skill, index) => (
+                                <span 
+                                  key={index} 
+                                  className="px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-sm font-medium"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
                             </div>
-                          ))}
+                          </div>
+                        )}
                           
-                          {result.missingSkills?.length > 0 && (
-                            <div className="pt-2">
-                              <h5 className="text-sm font-medium text-gray-700 mb-2">Missing Skills</h5>
-                              <div className="flex flex-wrap gap-2">
-                                {result.missingSkills.map((skill, index) => (
-                                  <Badge key={index} variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                                    {skill}
-                                  </Badge>
-                                ))}
-                              </div>
+                        {/* AI Generated Content Section */}
+                        <div className="mt-8 pt-6 border-t border-gray-200 space-y-4">
+                          {/* AI Generated Label */}
+                          <div className="flex items-center gap-2">
+                            <div className="h-4 w-4 text-gray-400">
+                              <svg fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
                             </div>
-                          )}
+                            <span className="text-sm text-gray-500 font-medium">AI-generated content</span>
+                          </div>
                           
-                          {/* Combined Confidence & Bias Analysis */}
-                          {(result.confidenceLevel || result.fairnessMetrics) && (
-                            <div className="pt-4 mt-4 border-t border-gray-200">
-                              <ConfidenceBiasCard 
-                                confidenceLevel={result.confidenceLevel || 'medium'}
-                                fairnessMetrics={result.fairnessMetrics ? {
-                                  biasConfidenceScore: result.fairnessMetrics.biasConfidenceScore || 0,
-                                  fairnessAssessment: result.fairnessMetrics.fairnessAssessment,
-                                  potentialBiasAreas: result.fairnessMetrics.potentialBiasAreas || []
-                                } : undefined}
-                              />
+                          {/* Candidate Summary */}
+                          <div className="max-w-2xl">
+                            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                              <h4 className="text-sm font-semibold text-gray-900 mb-2">Candidate Summary</h4>
+                              <p className="text-sm text-gray-700 leading-relaxed">
+                                {result.matchInsights?.summary || 
+                                 (() => {
+                                   // Dynamic candidate assessment based on match percentage
+                                   const getMatchStrengthText = (percentage: number) => {
+                                     if (percentage >= 85) return 'Exceptional candidate';
+                                     if (percentage >= 70) return 'Strong candidate';
+                                     if (percentage >= 55) return 'Viable candidate';
+                                     return 'Potential candidate';
+                                   };
+                                   
+                                   const strengthText = getMatchStrengthText(result.matchPercentage || 0);
+                                   const keySkills = result.matchedSkills?.slice(0, 3).map(s => typeof s === 'string' ? s : s.skill).join(', ') || 'various skills';
+                                   const strengthNote = result.candidateStrengths?.length > 0 ? 'Notable strengths: ' + result.candidateStrengths[0] : '';
+                                   
+                                   return `${strengthText} with ${result.matchPercentage}% match. Key skills include ${keySkills}. ${strengthNote}`;
+                                 })()}
+                              </p>
                             </div>
-                          )}
+                          </div>
                           
-                          <div className="pt-4">
-                            <Button onClick={() => handleGenerateQuestions(result.resumeId)}>
+                          {/* Interview Button */}
+                          <div className="flex justify-start">
+                            <Button 
+                              onClick={() => handleGenerateQuestions(result.resumeId)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3"
+                            >
                               Generate Interview Questions
                             </Button>
                           </div>
                         </div>
                       </div>
                     </div>
+                    )}
                   </CardContent>
                 )}
               </Card>

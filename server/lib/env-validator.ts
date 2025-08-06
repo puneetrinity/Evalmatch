@@ -250,9 +250,11 @@ const ENV_SPECS: EnvVarSpec[] = [
     required: false,
     category: "core",
     validator: (val) =>
-      val.includes(".railway.app") || val.includes(".up.railway.app"),
-    description: "Railway deployment public domain",
-    example: "myapp-production.up.railway.app",
+      val.includes(".railway.app") || 
+      val.includes(".up.railway.app") || 
+      /^[a-zA-Z0-9][a-zA-Z0-9-_.]*[a-zA-Z0-9]\.[a-zA-Z]{2,}$/.test(val), // Allow custom domains
+    description: "Railway deployment public domain or custom domain",
+    example: "myapp-production.up.railway.app or evalmatch.app",
     securityLevel: "public",
   },
   {

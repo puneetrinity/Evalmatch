@@ -38,6 +38,11 @@ const MIGRATIONS: Migration[] = [
     description: "Add recommendations column to analysis_results table",
     filename: "002_add_recommendations_column.sql",
   },
+  {
+    version: "002_fix_interview_questions_column",
+    description: "Fix missing questions column in interview_questions table",
+    filename: "002_fix_interview_questions_column.sql",
+  },
 ];
 
 /**

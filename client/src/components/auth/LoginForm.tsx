@@ -147,7 +147,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
           </Button>
         </form>
 
-        {/* Removed Google login section */
+        {/* Removed Google login section */}
       </CardContent>
       <CardFooter className="flex flex-col space-y-2">
         <button

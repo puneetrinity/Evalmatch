@@ -26,6 +26,11 @@ import {
   type MatchInsights,
   type MatchAnalysisInput 
 } from "./match-insights-generator";
+import {
+  detectJobIndustry,
+  cleanContaminatedSkills,
+  type JobContext
+} from "./skill-contamination-detector";
 
 // Updated scoring weights without cultural assessment
 export const HYBRID_SCORING_WEIGHTS: ScoringWeights = {
@@ -226,13 +231,101 @@ export class HybridMatchAnalyzer {
         // Continue without insights - not critical for core functionality
       }
 
+      // 🚨 EMERGENCY CONTAMINATION CLEANUP - Apply "smell test" before returning results
+      try {
+        const jobContext: JobContext = {
+          industry: detectJobIndustry(
+            jobAnalysis.title || 'Unknown Job', 
+            jobText || jobAnalysis.description || ''
+          ),
+          jobTitle: jobAnalysis.title || 'Unknown Job',
+          jobDescription: jobText || jobAnalysis.description || '',
+          requiredSkills: jobAnalysis.skills || []
+        };
+
+        logger.info(`🔍 CONTAMINATION DETECTION: Detected job industry: ${jobContext.industry}`, {
+          jobTitle: jobContext.jobTitle,
+          industry: jobContext.industry,
+          originalSkillsCount: result.matchedSkills?.length || 0
+        });
+
+        // Extract skill names for cleaning
+        const skillNames = (result.matchedSkills || []).map(s => 
+          typeof s === 'string' ? s : s.skill || String(s)
+        );
+
+        // Clean contaminated skills
+        const { cleanSkills, blockedSkills, flaggedSkills } = await cleanContaminatedSkills(
+          skillNames,
+          jobContext
+        );
+
+        if (blockedSkills.length > 0) {
+          logger.warn(`🚨 CONTAMINATION DETECTED AND BLOCKED!`, {
+            industry: jobContext.industry,
+            jobTitle: jobContext.jobTitle,
+            originalSkills: skillNames.length,
+            cleanSkills: cleanSkills.length,
+            blockedSkills: blockedSkills.length,
+            blockedSkillsList: blockedSkills,
+            flaggedSkills: flaggedSkills.length
+          });
+
+          // Update matched skills with only clean skills
+          result.matchedSkills = cleanSkills.map(skill => {
+            // Find original skill object or create new one
+            const originalSkill = result.matchedSkills?.find(s => 
+              (typeof s === 'string' ? s : s.skill) === skill
+            );
+            
+            if (originalSkill && typeof originalSkill === 'object') {
+              return originalSkill;
+            }
+            
+            return {
+              skill: skill,
+              matchPercentage: flaggedSkills.includes(skill) ? 60 : 85,
+              category: "technical",
+              importance: "important" as const,
+              source: "semantic" as const, // Use 'semantic' since we're doing intelligent filtering
+            };
+          });
+
+          // Add blocked skills to missing skills (they were incorrectly matched)
+          const existingMissingSkills = result.missingSkills || [];
+          result.missingSkills = [...existingMissingSkills, ...blockedSkills];
+
+          // Add contamination note to weaknesses
+          if (blockedSkills.length > 0) {
+            const contaminationNote = `System detected ${blockedSkills.length} irrelevant skills from different industry - these have been filtered out`;
+            result.candidateWeaknesses = [
+              ...(result.candidateWeaknesses || []),
+              contaminationNote
+            ];
+          }
+        }
+
+        logger.info(`✅ CONTAMINATION CLEANUP COMPLETE`, {
+          industry: jobContext.industry,
+          originalSkills: skillNames.length,
+          finalSkills: result.matchedSkills?.length || 0,
+          blockedCount: blockedSkills.length,
+          success: true
+        });
+
+      } catch (contaminationError) {
+        logger.error('Contamination detection failed:', contaminationError);
+        // Continue without contamination cleanup - not critical for basic functionality
+      }
+
       const processingTime = Date.now() - startTime;
-      logger.info(`Hybrid match analysis completed`, {
+      logger.info(`🎯 HYBRID MATCH ANALYSIS COMPLETED`, {
         strategy: result.analysisMethod,
         matchPercentage: result.matchPercentage,
         confidence: result.confidence,
         hasBias: result.biasDetection?.hasBias || false,
         hasInsights: !!result.matchInsights,
+        finalSkillsCount: result.matchedSkills?.length || 0,
         processingTime,
       });
 

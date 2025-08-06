@@ -17,6 +17,8 @@ export const authRateLimiter = createTestSafeRateLimiter({
   message: "Too many authentication attempts, please try again later",
   standardHeaders: true,
   legacyHeaders: false,
+  // Trust proxy setting for Railway deployment - prevents proxy warnings
+  trustProxy: true,
   handler: (req: any, res: any) => {
     logger.warn(`Rate limit exceeded for IP: ${req.ip}, Path: ${req.path}`);
     res.status(429).json({
@@ -38,6 +40,8 @@ export const apiRateLimiter = createTestSafeRateLimiter({
   message: "Too many requests, please slow down",
   standardHeaders: true,
   legacyHeaders: false,
+  // Trust proxy setting for Railway deployment - prevents proxy warnings
+  trustProxy: true,
   handler: (req: any, res: any) => {
     logger.warn(`API rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
@@ -55,6 +59,8 @@ export const uploadRateLimiter = createTestSafeRateLimiter({
   message: "Too many file uploads, please try again later",
   standardHeaders: true,
   legacyHeaders: false,
+  // Trust proxy setting for Railway deployment - prevents proxy warnings
+  trustProxy: true,
   handler: (req: any, res: any) => {
     logger.warn(`Upload rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
