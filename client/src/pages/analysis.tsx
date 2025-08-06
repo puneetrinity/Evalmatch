@@ -17,7 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import SkillRadarChart from "@/components/skill-radar-chart";
 import MatchInsightsCard from "@/components/match-insights-card";
 import SimpleMatchSummary from "@/components/simple-match-summary";
-import ConfidenceBiasCard from "@/components/confidence-bias-card";
 
 import type {
   JobId,
@@ -893,20 +892,6 @@ export default function AnalysisPage() {
                             </div>
                           </div>
                         )}
-                          
-                          {/* Combined Confidence & Bias Analysis */}
-                          {(result.confidenceLevel || result.fairnessMetrics) && (
-                            <div className="pt-4 mt-4 border-t border-gray-200">
-                              <ConfidenceBiasCard 
-                                confidenceLevel={result.confidenceLevel || 'medium'}
-                                fairnessMetrics={result.fairnessMetrics ? {
-                                  biasConfidenceScore: result.fairnessMetrics.biasConfidenceScore || 0,
-                                  fairnessAssessment: result.fairnessMetrics.fairnessAssessment,
-                                  potentialBiasAreas: result.fairnessMetrics.potentialBiasAreas || []
-                                } : undefined}
-                              />
-                            </div>
-                          )}
                           
                         {/* Analysis Quality Indicator */}
                         <div className="mt-8 pt-4 border-t border-gray-200">
