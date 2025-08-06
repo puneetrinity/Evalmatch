@@ -25,6 +25,74 @@ const isAnthropicConfigured = !!config.anthropicApiKey;
 const isGroqConfigured = !!process.env.GROQ_API_KEY;
 const isOpenAIConfigured = !!process.env.OPENAI_API_KEY;
 
+/**
+ * Classify error types and throw appropriate errors based on actual failure reasons
+ */
+function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: string): never {
+  const errorMessage = error instanceof Error ? error.message.toLowerCase() : "";
+  const errorStack = error instanceof Error ? error.stack?.toLowerCase() || "" : "";
+  
+  // Rate limit errors
+  if (errorMessage.includes("rate limit") || 
+      errorMessage.includes("too many requests") ||
+      errorMessage.includes("quota exceeded") ||
+      errorStack.includes("429")) {
+    throw getApiLimitExceededError(userTier, context);
+  }
+  
+  // Timeout errors
+  if (errorMessage.includes("timeout") || 
+      errorMessage.includes("timed out") ||
+      errorMessage.includes("request timeout") ||
+      errorStack.includes("timeout")) {
+    throw new Error(`${context} request timed out. Please try again in a moment.`);
+  }
+  
+  // Network/connectivity errors
+  if (errorMessage.includes("network") ||
+      errorMessage.includes("connection") ||
+      errorMessage.includes("econnrefused") ||
+      errorMessage.includes("enotfound") ||
+      errorStack.includes("network")) {
+    throw new Error(`${context} service is temporarily unavailable due to network issues. Please try again.`);
+  }
+  
+  // Authentication errors
+  if (errorMessage.includes("unauthorized") ||
+      errorMessage.includes("invalid api key") ||
+      errorMessage.includes("authentication") ||
+      errorStack.includes("401")) {
+    logger.error("AI provider authentication failure", { context, userTier: userTier.tier });
+    throw getServiceUnavailableError(userTier, context);
+  }
+  
+  // Content filtering/policy violations
+  if (errorMessage.includes("content policy") ||
+      errorMessage.includes("safety") ||
+      errorMessage.includes("filtered") ||
+      errorMessage.includes("inappropriate")) {
+    throw new Error(`${context} could not be completed due to content guidelines. Please review your input and try again.`);
+  }
+  
+  // Model overload/capacity issues
+  if (errorMessage.includes("overload") ||
+      errorMessage.includes("capacity") ||
+      errorMessage.includes("server overloaded") ||
+      errorStack.includes("503")) {
+    throw getServiceUnavailableError(userTier, context);
+  }
+  
+  // Default fallback - log the unclassified error for investigation
+  logger.warn("Unclassified AI provider error", {
+    context,
+    userTier: userTier.tier,
+    errorMessage,
+    errorType: typeof error,
+  });
+  
+  throw getServiceUnavailableError(userTier, context);
+}
+
 interface TierAwareProviderSelection {
   provider: "groq" | "openai" | "anthropic";
   reason: string;
@@ -184,9 +252,15 @@ export async function analyzeResume(
         return await groq.analyzeResume(resumeText);
     }
   } catch (error) {
-    logger.error("AI provider error in resume analysis", error);
-    // Throw appropriate error message based on user tier
-    throw getApiLimitExceededError(userTier, "Resume analysis");
+    logger.error("AI provider error in resume analysis", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      provider: selection.provider,
+      userTier: userTier.tier,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    
+    // Classify error type and throw appropriate error
+    throw classifyAndThrowError(error, userTier, "Resume analysis");
   }
 }
 
@@ -229,8 +303,7 @@ export async function analyzeResumeParallel(
     }
   } catch (error) {
     logger.error("AI provider error in parallel resume analysis", error);
-    // Throw appropriate error message based on user tier
-    throw getApiLimitExceededError(userTier, "Resume analysis");
+    throw classifyAndThrowError(error, userTier, "Resume analysis");
   }
 }
 
@@ -269,7 +342,7 @@ export async function analyzeJobDescription(
   } catch (error) {
     logger.error("AI provider error in job description analysis", error);
     // Throw appropriate error message based on user tier
-    throw getApiLimitExceededError(userTier, "Job description analysis");
+    throw classifyAndThrowError(error, userTier, "Job description analysis");
   }
 }
 
@@ -319,7 +392,7 @@ export async function analyzeMatch(
   } catch (error) {
     logger.error("AI provider error in match analysis", error);
     // Throw appropriate error message based on user tier
-    throw getApiLimitExceededError(userTier, "Match analysis");
+    throw classifyAndThrowError(error, userTier, "Match analysis");
   }
 
   // Add fairness metrics for premium users
@@ -385,7 +458,7 @@ export async function analyzeBias(
   } catch (error) {
     logger.error("AI provider error in bias analysis", error);
     // Throw appropriate error message based on user tier
-    throw getApiLimitExceededError(userTier, "Bias analysis");
+    throw classifyAndThrowError(error, userTier, "Bias analysis");
   }
 }
 
@@ -447,7 +520,7 @@ export async function generateInterviewQuestions(
   } catch (error) {
     logger.error("AI provider error in interview questions generation", error);
     // Throw appropriate error message based on user tier
-    throw getApiLimitExceededError(userTier, "Interview questions generation");
+    throw classifyAndThrowError(error, userTier, "Interview questions generation");
   }
 }
 
@@ -517,7 +590,7 @@ export async function generateInterviewScript(
   } catch (error) {
     logger.error("AI provider error in interview script generation", error);
     // Throw appropriate error message based on user tier
-    throw getApiLimitExceededError(userTier, "Interview script generation");
+    throw classifyAndThrowError(error, userTier, "Interview script generation");
   }
 }
 

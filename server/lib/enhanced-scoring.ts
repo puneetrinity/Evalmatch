@@ -36,10 +36,10 @@ export interface ScoringWeights {
 }
 
 export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
-  skills: 0.50, // 50% - Most important (increased from 45%)
-  experience: 0.35, // 35% - Very important (increased from 30% to compensate for removed cultural)
-  education: 0.15, // 15% - Important (unchanged)
-  semantic: 0.0, // 0% - Context understanding (removed for simplicity)
+  skills: 0.50, // 50% - Most important (research-backed optimal range 45-50%)
+  experience: 0.28, // 28% - Important but reduced based on research findings (target 25-30%)
+  education: 0.15, // 15% - Important (research-backed optimal range 15-20%)
+  semantic: 0.07, // 7% - Context understanding re-enabled (research target 10-15%, starting conservative)
 };
 
 // Scoring rubrics for consistent evaluation
@@ -206,31 +206,59 @@ export async function matchSkillsEnhanced(
           category: jobSkill.category,
         };
       } else {
-        // 3. Semantic similarity fallback
+        // 3. Semantic similarity fallback with parallel embedding generation
         let bestSemanticScore = 0;
-        for (const resumeSkill of normalizedResumeSkills) {
-          try {
-            const jobEmbedding = await generateEmbedding(jobSkill.normalized);
-            const resumeEmbedding = await generateEmbedding(
-              resumeSkill.normalized,
-            );
-            const similarity = cosineSimilarity(jobEmbedding, resumeEmbedding);
-
-            if (similarity > bestSemanticScore && similarity > 0.6) {
-              bestSemanticScore = similarity;
-              bestMatch = {
-                matched: true,
-                matchType: "semantic",
-                score: Math.round(
-                  similarity *
-                    ENHANCED_SCORING_RUBRICS.SKILL_MATCH.SEMANTIC_MATCH,
-                ),
-                category: jobSkill.category,
-              };
+        try {
+          // Generate job skill embedding once
+          const jobEmbedding = await generateEmbedding(jobSkill.normalized);
+          
+          // Generate all resume skill embeddings in parallel
+          const resumeEmbeddingPromises = normalizedResumeSkills.map(async (resumeSkill) => {
+            try {
+              const embedding = await generateEmbedding(resumeSkill.normalized);
+              return { skill: resumeSkill, embedding };
+            } catch (error) {
+              logger.warn("Resume skill embedding generation failed:", {
+                skill: resumeSkill.normalized,
+                error: error instanceof Error ? error.message : "Unknown error"
+              });
+              return { skill: resumeSkill, embedding: null };
             }
-          } catch (error) {
-            logger.warn("Semantic similarity calculation failed:", error);
+          });
+          
+          const resumeEmbeddings = await Promise.all(resumeEmbeddingPromises);
+          
+          // Calculate similarities in parallel
+          for (const { skill: resumeSkill, embedding: resumeEmbedding } of resumeEmbeddings) {
+            if (!resumeEmbedding) continue;
+            
+            try {
+              const similarity = cosineSimilarity(jobEmbedding, resumeEmbedding);
+              
+              if (similarity > bestSemanticScore && similarity > 0.6) {
+                bestSemanticScore = similarity;
+                bestMatch = {
+                  matched: true,
+                  matchType: "semantic",
+                  score: Math.round(
+                    similarity * ENHANCED_SCORING_RUBRICS.SKILL_MATCH.SEMANTIC_MATCH,
+                  ),
+                  category: jobSkill.category,
+                };
+              }
+            } catch (error) {
+              logger.warn("Semantic similarity calculation failed:", {
+                jobSkill: jobSkill.normalized,
+                resumeSkill: resumeSkill.normalized,
+                error: error instanceof Error ? error.message : "Unknown error"
+              });
+            }
           }
+        } catch (error) {
+          logger.warn("Job skill embedding generation failed:", {
+            skill: jobSkill.normalized,
+            error: error instanceof Error ? error.message : "Unknown error"
+          });
         }
       }
     }
@@ -271,11 +299,40 @@ export async function matchSkillsEnhanced(
     maxPossibleScore += 10;
   }
 
-  const finalScore =
-    maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0;
+  // Robust score calculation with proper edge case handling
+  let finalScore = 0;
+  
+  if (maxPossibleScore > 0) {
+    // Normal case: calculate percentage score
+    finalScore = (totalScore / maxPossibleScore) * 100;
+    
+    // Validate the calculation result
+    if (!isFinite(finalScore) || isNaN(finalScore)) {
+      logger.warn("Invalid score calculation detected", {
+        totalScore,
+        maxPossibleScore,
+        calculatedScore: finalScore,
+      });
+      finalScore = 0;
+    }
+  } else if (normalizedJobSkills.length === 0) {
+    // Edge case: no job skills to match against
+    logger.warn("No job skills provided for matching");
+    finalScore = 0;
+  } else {
+    // Edge case: job skills exist but maxPossibleScore is 0 (shouldn't happen in normal flow)
+    logger.warn("Zero max possible score with existing job skills", {
+      jobSkillsCount: normalizedJobSkills.length,
+      totalScore,
+    });
+    finalScore = 0;
+  }
 
+  // Single clamping with validation (removing double clamping anti-pattern)
+  const clampedScore = Math.min(100, Math.max(0, finalScore));
+  
   return {
-    score: Math.min(100, Math.max(0, finalScore)),
+    score: clampedScore,
     breakdown: skillBreakdown,
   };
 }
@@ -406,12 +463,23 @@ export async function calculateEnhancedMatchWithESCO(
   weights: ScoringWeights = DEFAULT_SCORING_WEIGHTS,
 ): Promise<EnhancedMatchResult> {
   try {
+    // Validate scoring weights sum to approximately 1.0
+    const weightSum = weights.skills + weights.experience + weights.education + weights.semantic;
+    if (Math.abs(weightSum - 1.0) > 0.01) {
+      logger.warn('Scoring weights do not sum to 1.0', {
+        weights,
+        sum: weightSum,
+        difference: Math.abs(weightSum - 1.0)
+      });
+    }
+    
     logger.info('Starting ESCO-enhanced match calculation', {
       resumeSkills: resumeData.skills.length,
       jobSkills: jobData.skills.length,
       hasContent: !!(resumeData.content && jobData.description),
       resumeContentLength: resumeData.content?.length || 0,
-      jobDescriptionLength: jobData.description?.length || 0
+      jobDescriptionLength: jobData.description?.length || 0,
+      scoringWeights: weights
     });
 
     // 1. ESCO-Enhanced skill extraction and matching

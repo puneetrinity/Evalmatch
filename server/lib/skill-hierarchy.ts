@@ -263,13 +263,16 @@ export async function normalizeSkillWithHierarchy(skill: string): Promise<{
     // 3. Try fuzzy string matching
     const allSkills = await db.select().from(skillsTable);
     
-    // If skills database is empty or has issues, return original skill
+    // If skills database is empty or has issues, return original skill with appropriate confidence
     if (!allSkills || allSkills.length === 0) {
-      logger.warn("Skills database is empty or unavailable, returning original skill without normalization");
+      logger.warn("Skills database is empty or unavailable, returning original skill without normalization", {
+        skill,
+        timestamp: new Date().toISOString(),
+      });
       return {
         normalized: skill,
-        confidence: 0.5,
-        method: "fuzzy",
+        confidence: 0.1, // Very low confidence since no processing occurred
+        method: "fuzzy", // Use fuzzy as fallback method for unprocessed skills
       };
     }
     
@@ -326,18 +329,26 @@ export async function normalizeSkillWithHierarchy(skill: string): Promise<{
       };
     }
 
-    // 5. Fallback - return original with low confidence
+    // 5. Final fallback - no matches found at all
+    logger.debug("No skill matches found, returning original skill", {
+      skill,
+      timestamp: new Date().toISOString(),
+    });
     return {
       normalized: skill,
-      confidence: 0.3,
-      method: "fuzzy",
+      confidence: 0.2, // Low confidence for unmatched skills
+      method: "fuzzy", // Use fuzzy as fallback method for unmatched skills
     };
   } catch (error) {
-    logger.error("Error in skill normalization:", error);
+    logger.error("Error in skill normalization:", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      skill,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return {
       normalized: skill,
-      confidence: 0.1,
-      method: "fuzzy",
+      confidence: 0.05, // Very low confidence for error cases
+      method: "fuzzy", // Use fuzzy as fallback method for error cases
     };
   }
 }

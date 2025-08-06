@@ -236,10 +236,10 @@ export class HybridMatchAnalyzer {
         const jobContext: JobContext = {
           industry: detectJobIndustry(
             jobAnalysis.title || 'Unknown Job', 
-            jobText || jobAnalysis.description || ''
+            jobText || ''
           ),
           jobTitle: jobAnalysis.title || 'Unknown Job',
-          jobDescription: jobText || jobAnalysis.description || '',
+          jobDescription: jobText || '',
           requiredSkills: jobAnalysis.skills || []
         };
 
@@ -827,7 +827,7 @@ export class HybridMatchAnalyzer {
       jobHasSkills: !!(jobAnalysis?.skills?.length),
       jobSkillsCount: jobAnalysis?.skills?.length || 0,
       resumeHasContent: !!(resumeAnalysis as any)?.content,
-      jobHasDescription: !!(jobAnalysis as any)?.description,
+      jobHasData: !!(jobAnalysis as any)?.analyzedData,
       timestamp: new Date().toISOString()
     });
 

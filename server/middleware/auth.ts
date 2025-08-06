@@ -40,16 +40,42 @@ export async function authenticateUser(
   try {
     // Auth bypass mode for testing (NEVER allowed in production)
     if (process.env.AUTH_BYPASS_MODE === "true") {
-      if (config.env === "production") {
-        logger.error("SECURITY VIOLATION: AUTH_BYPASS_MODE cannot be enabled in production");
+      // Multiple production checks for security
+      const isProduction = config.env === "production" || 
+                          process.env.NODE_ENV === "production" ||
+                          process.env.RAILWAY_ENVIRONMENT === "production" ||
+                          process.env.VERCEL_ENV === "production";
+      
+      if (isProduction) {
+        logger.error("CRITICAL SECURITY VIOLATION: AUTH_BYPASS_MODE cannot be enabled in production", {
+          configEnv: config.env,
+          nodeEnv: process.env.NODE_ENV,
+          railwayEnv: process.env.RAILWAY_ENVIRONMENT,
+          vercelEnv: process.env.VERCEL_ENV,
+          timestamp: new Date().toISOString(),
+        });
+        
+        // Exit the process to prevent security breach
+        process.exit(1);
+      }
+      
+      // Additional runtime validation for development/test environments
+      if (!["development", "test", "local"].includes(config.env)) {
+        logger.error("AUTH_BYPASS_MODE only allowed in development, test, or local environments", {
+          currentEnv: config.env,
+          timestamp: new Date().toISOString(),
+        });
         return res.status(500).json({
           error: "Security configuration error",
-          message: "Invalid authentication configuration for production environment",
-          code: "INVALID_PRODUCTION_CONFIG",
+          message: "Invalid authentication configuration",
+          code: "INVALID_AUTH_CONFIG",
         });
       }
       
-      logger.warn("Auth bypass mode enabled, creating mock user");
+      logger.warn("Auth bypass mode enabled for development/testing", {
+        environment: config.env,
+        timestamp: new Date().toISOString(),
+      });
       req.user = {
         uid: "test-user-123",
         email: "test@example.com",

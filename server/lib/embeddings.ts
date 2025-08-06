@@ -85,28 +85,82 @@ export async function generateEmbedding(text: string): Promise<number[]> {
  * Calculate cosine similarity between two vectors
  */
 export function cosineSimilarity(a: number[], b: number[]): number {
+  // Handle empty arrays
+  if (a.length === 0 || b.length === 0) {
+    logger.warn("Cosine similarity called with empty vector(s)", {
+      aLength: a.length,
+      bLength: b.length,
+    });
+    return 0; // Empty vectors have no similarity
+  }
+
   if (a.length !== b.length) {
-    throw new Error("Vectors must have the same length");
+    logger.error("Cosine similarity vector length mismatch", {
+      aLength: a.length,
+      bLength: b.length,
+    });
+    throw new Error(`Vector length mismatch: ${a.length} vs ${b.length}`);
   }
 
   let dotProduct = 0;
   let normA = 0;
   let normB = 0;
+  let validElements = 0;
 
   for (let i = 0; i < a.length; i++) {
+    // Skip NaN or infinite values
+    if (!isFinite(a[i]) || !isFinite(b[i])) {
+      logger.warn("Invalid values in cosine similarity calculation", {
+        index: i,
+        aValue: a[i],
+        bValue: b[i],
+      });
+      continue;
+    }
+    
     dotProduct += a[i] * b[i];
     normA += a[i] * a[i];
     normB += b[i] * b[i];
+    validElements++;
+  }
+
+  // Check if we have any valid elements to work with
+  if (validElements === 0) {
+    logger.warn("No valid elements found for cosine similarity calculation");
+    return 0;
   }
 
   normA = Math.sqrt(normA);
   normB = Math.sqrt(normB);
 
+  // Handle zero vectors (all elements are zero)
+  if (normA === 0 && normB === 0) {
+    // Both vectors are zero vectors - they are identical
+    logger.debug("Both vectors are zero vectors, returning perfect similarity");
+    return 1.0;
+  }
+
   if (normA === 0 || normB === 0) {
+    // One vector is zero, the other is not - no similarity
+    logger.debug("One vector is zero vector, returning no similarity");
     return 0;
   }
 
-  return dotProduct / (normA * normB);
+  const similarity = dotProduct / (normA * normB);
+
+  // Final validation of result
+  if (!isFinite(similarity)) {
+    logger.error("Cosine similarity calculation produced invalid result", {
+      dotProduct,
+      normA,
+      normB,
+      similarity,
+    });
+    return 0;
+  }
+
+  // Clamp result to valid range [-1, 1] (though for embeddings it should be [0, 1])
+  return Math.max(-1, Math.min(1, similarity));
 }
 
 /**
@@ -138,8 +192,16 @@ export async function generateBatchEmbeddings(
           const embedding = await generateEmbedding(text);
           embeddings.push(embedding);
         } catch (individualError) {
-          logger.error("Individual embedding failed:", individualError);
-          embeddings.push([]); // Empty embedding as fallback
+          logger.error("Individual embedding failed:", {
+            error: individualError instanceof Error ? individualError.message : "Unknown error",
+            text: text.substring(0, 100), // Log first 100 chars for debugging
+          });
+          // Don't push empty embeddings - they cause downstream calculation issues
+          // Instead, generate a zero vector with the expected dimensionality
+          const pipeline = embeddingPipeline || await initializeEmbeddingPipeline();
+          const expectedDim = 384; // Default dimension for sentence-transformers/all-MiniLM-L6-v2
+          const zeroVector = new Array(expectedDim).fill(0);
+          embeddings.push(zeroVector);
         }
       }
     }

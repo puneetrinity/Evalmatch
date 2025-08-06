@@ -1,6 +1,6 @@
 import { users, type User, type InsertUser } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import {
   type Resume, type InsertResume,
   type JobDescription, type InsertJobDescription,
@@ -74,11 +74,12 @@ export class DatabaseStorage implements IStorage {
       console.log(`DatabaseStorage: Getting resumes for user ${userId}, session: ${sessionId}, batch: ${batchId}`);
       let query = db.select().from(resumes).where(eq(resumes.userId, userId));
       
-      if (sessionId) {
-        query = query.where(eq(resumes.sessionId, sessionId));
-      }
+      // Priority-based filtering: batchId takes precedence over sessionId
+      // This ensures consistent behavior with other storage implementations
       if (batchId) {
         query = query.where(eq(resumes.batchId, batchId));
+      } else if (sessionId) {
+        query = query.where(eq(resumes.sessionId, sessionId));
       }
       
       return await query;
@@ -338,14 +339,34 @@ export class DatabaseStorage implements IStorage {
 
   async getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string, batchId?: string): Promise<AnalysisResult[]> {
     try {
-      console.log(`DatabaseStorage: Getting analysis results for job ${jobId}, user ${userId}`);
-      let query = db.select().from(analysisResults)
-        .where(eq(analysisResults.jobDescriptionId, jobId))
-        .where(eq(analysisResults.userId, userId));
+      console.log(`DatabaseStorage: Getting analysis results for job ${jobId}, user ${userId}, session: ${sessionId}, batch: ${batchId}`);
       
-      // Note: For database implementation, we'd need to join with resumes table to filter by sessionId/batchId
-      // For now, return all results matching job and user
-      return await query;
+      // Start with base conditions
+      const whereConditions = [
+        eq(analysisResults.jobDescriptionId, jobId),
+        eq(analysisResults.userId, userId)
+      ];
+      
+      // Add session/batch filtering via join with resumes table
+      // Priority-based filtering: batchId takes precedence over sessionId
+      if (batchId || sessionId) {
+        if (batchId) {
+          whereConditions.push(eq(resumes.batchId, batchId));
+        } else if (sessionId) {
+          whereConditions.push(eq(resumes.sessionId, sessionId));
+        }
+        
+        // Join with resumes to apply session/batch filters
+        return await db.select()
+          .from(analysisResults)
+          .innerJoin(resumes, eq(analysisResults.resumeId, resumes.id))
+          .where(and(...whereConditions));
+      } else {
+        // No session/batch filtering needed
+        return await db.select()
+          .from(analysisResults)
+          .where(and(...whereConditions));
+      }
     } catch (error) {
       console.error(`Error in DatabaseStorage.getAnalysisResultsByJob:`, error);
       throw error;

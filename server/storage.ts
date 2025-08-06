@@ -150,14 +150,14 @@ export class MemStorage implements IStorage {
     // Filter by userId first
     let userResumes = allResumes.filter(resume => resume.userId === userId);
     
-    // Then filter by sessionId if provided
-    if (sessionId) {
-      userResumes = userResumes.filter(resume => resume.sessionId === sessionId);
-    }
-    
-    // Then filter by batchId if provided (this is the key change for batch analysis)
+    // Priority-based filtering: batchId takes precedence over sessionId
+    // This ensures consistent behavior with getAnalysisResultsByJob
     if (batchId) {
+      // Filter by batchId only - ignore sessionId to avoid conflicts
       userResumes = userResumes.filter(resume => resume.batchId === batchId);
+    } else if (sessionId) {
+      // Only filter by sessionId if no batchId is provided
+      userResumes = userResumes.filter(resume => resume.sessionId === sessionId);
     }
     
     return userResumes;
@@ -387,15 +387,17 @@ export class MemStorage implements IStorage {
       result.userId === userId
     );
     
-    // If batchId is provided, filter results to only include resumes from that batch
+    // Priority-based filtering: batchId takes precedence over sessionId
+    // This ensures consistent behavior with getResumesByUserId method
     if (batchId) {
+      // Filter by batchId only - ignore sessionId to avoid conflicts
       filteredResults = filteredResults.filter(result => {
         if (result.resumeId === null) return false;
         const resume = this.resumesData.get(result.resumeId);
         return resume && resume.batchId === batchId;
       });
     } else if (sessionId) {
-      // Fallback to sessionId filtering if no batchId provided
+      // Only filter by sessionId if no batchId is provided
       filteredResults = filteredResults.filter(result => {
         if (result.resumeId === null) return false;
         const resume = this.resumesData.get(result.resumeId);

@@ -961,13 +961,13 @@ export async function extractTextWithOcr(buffer: Buffer): Promise<string> {
     console.log("[OCR] Starting Tesseract worker initialization");
     
     // Add timeout to worker creation to prevent hanging
-    const workerPromise = createWorker("eng", {
-      logger: (m) => {
+    const workerPromise = createWorker("eng", 1, {
+      logger: (m: any) => {
         if (m.status === 'recognizing text' && m.progress) {
           console.log(`[OCR] Progress: ${Math.round(m.progress * 100)}%`);
         }
       }
-    });
+    } as any);
     
     // 30 second timeout for worker creation
     const timeoutPromise = new Promise<never>((_, reject) => {

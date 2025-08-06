@@ -44,7 +44,7 @@ router.post(
         });
       }
 
-      // Get user's resumes (prioritize batchId filtering over sessionId)
+      // Get user's resumes (batchId takes priority over sessionId for consistent filtering)
       let resumes = await storage.getResumesByUserId(
         userId,
         sessionId,
@@ -121,12 +121,17 @@ router.post(
         );
         jobAnalysis = jobResponse as any;
 
-        // Update job with analysis asynchronously
-        storage
-          .updateJobDescriptionAnalysis(jobId, jobAnalysis as any)
-          .catch((error) => {
-            logger.warn("Failed to update job analysis in database:", error);
+        // Update job with analysis synchronously to ensure data consistency
+        try {
+          await storage.updateJobDescriptionAnalysis(jobId, jobAnalysis as any);
+          logger.debug("Successfully updated job analysis", { jobId });
+        } catch (error) {
+          logger.error("Failed to update job analysis in database", {
+            jobId,
+            error: error instanceof Error ? error.message : "Unknown error",
           });
+          // Don't fail the entire request, but log the issue
+        }
       }
 
       // Process all resume-job matches in parallel
@@ -146,15 +151,19 @@ router.post(
             );
             resumeAnalysis = resumeResponse as any;
 
-            // Update resume with analysis asynchronously
-            storage
-              .updateResumeAnalysis(resume.id, resumeAnalysis as any)
-              .catch((error) => {
-                logger.warn(
-                  `Failed to update resume ${resume.id} analysis in database:`,
-                  error,
-                );
+            // Update resume with analysis synchronously to ensure data consistency
+            try {
+              await storage.updateResumeAnalysis(resume.id, resumeAnalysis as any);
+              logger.debug("Successfully updated resume analysis", { 
+                resumeId: resume.id 
               });
+            } catch (error) {
+              logger.error("Failed to update resume analysis in database", {
+                resumeId: resume.id,
+                error: error instanceof Error ? error.message : "Unknown error",
+              });
+              // Don't fail the entire request, but log the issue
+            }
           }
 
           // Perform hybrid matching analysis
@@ -456,7 +465,7 @@ router.get(
         });
       }
 
-      // Check for available resumes first (prioritize batchId filtering)
+      // Check for available resumes first (batchId takes priority over sessionId)
       const resumeFetchStartTime = Date.now();
       const userResumes = await storage.getResumesByUserId(
         userId,
@@ -478,7 +487,7 @@ router.get(
         })),
       });
 
-      // Get analysis results (prioritize batchId filtering)
+      // Get analysis results (batchId takes priority over sessionId)
       const analysisFetchStartTime = Date.now();
       const analysisResults = await storage.getAnalysisResultsByJob(
         jobId,

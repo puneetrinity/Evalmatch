@@ -169,8 +169,11 @@ export function UnifiedErrorDisplay({
   
   const displaySuggestions = customSuggestions || errorInfo.suggestions;
   
+  // Map our variant types to Alert component's supported variants
+  const alertVariant = variant === 'destructive' ? 'destructive' : 'default';
+  
   return (
-    <Alert variant={variant} className="my-4">
+    <Alert variant={alertVariant} className="my-4">
       <AlertTitle className="text-lg font-semibold flex items-center gap-2">
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 

@@ -130,6 +130,60 @@ const INDUSTRY_SKILL_PATTERNS = {
     ]
   },
 
+  healthcare: {
+    allowed: [
+      // Medical & Clinical
+      'patient care', 'clinical assessment', 'medical diagnosis', 'treatment planning',
+      'healthcare administration', 'medical records', 'hipaa compliance', 
+      'electronic health records', 'telemedicine', 'medical coding',
+      
+      // Nursing & Care
+      'nursing', 'patient monitoring', 'medication administration', 
+      'wound care', 'infection control', 'patient education',
+      
+      // Healthcare Technology
+      'healthcare informatics', 'medical devices', 'healthcare software',
+      'clinical data analysis', 'epidemiology', 'public health'
+    ],
+    forbidden: [
+      // Technology (non-healthcare)
+      'web development', 'mobile development', 'game development',
+      'social media marketing', 'e-commerce development',
+      
+      // Finance
+      'investment banking', 'trading systems', 'portfolio management'
+    ]
+  },
+
+  manufacturing: {
+    allowed: [
+      // Core Manufacturing
+      'manufacturing processes', 'quality control', 'lean manufacturing',
+      'six sigma', 'process improvement', 'supply chain management',
+      'inventory management', 'production planning', 'operations management',
+      
+      // Industrial Engineering
+      'industrial engineering', 'automation systems', 'robotics',
+      'plc programming', 'manufacturing execution systems', 'mes',
+      'preventive maintenance', 'safety compliance', 'iso standards',
+      
+      // Quality & Safety
+      'quality assurance', 'statistical process control', 'root cause analysis',
+      'workplace safety', 'osha compliance', 'environmental compliance'
+    ],
+    forbidden: [
+      // Technology (non-industrial)
+      'web development', 'mobile app development', 'social media',
+      'digital marketing', 'e-commerce platforms',
+      
+      // Pharmaceutical
+      'clinical trials', 'drug development', 'fda regulations',
+      
+      // Finance
+      'investment banking', 'trading systems', 'financial modeling'
+    ]
+  },
+
   // General skills that can appear in multiple industries
   general: {
     allowed: [
@@ -203,7 +257,7 @@ function performQuickContaminationCheck(
   }
 
   // Check if skill is explicitly forbidden for this industry
-  const isForbidden = industryPatterns.forbidden.some(forbiddenSkill => 
+  const isForbidden = industryPatterns.forbidden.some((forbiddenSkill: string) => 
     skill.includes(forbiddenSkill) || forbiddenSkill.includes(skill)
   );
 
@@ -223,7 +277,7 @@ function performQuickContaminationCheck(
   }
 
   // Check if skill is explicitly allowed
-  const isAllowed = industryPatterns.allowed.some(allowedSkill =>
+  const isAllowed = industryPatterns.allowed.some((allowedSkill: string) =>
     skill.includes(allowedSkill) || allowedSkill.includes(skill)
   );
 
@@ -238,7 +292,7 @@ function performQuickContaminationCheck(
 
   // Check general skills (can appear in any industry)
   const generalPatterns = INDUSTRY_SKILL_PATTERNS.general;
-  const isGeneralSkill = generalPatterns.allowed.some(generalSkill =>
+  const isGeneralSkill = generalPatterns.allowed.some((generalSkill: string) =>
     skill.includes(generalSkill) || generalSkill.includes(skill)
   );
 
