@@ -17,7 +17,6 @@ interface AuthContextType {
   // Authentication methods
   signIn: (email: string, password: string) => Promise<User>;
   signUp: (email: string, password: string, displayName?: string) => Promise<User>;
-  signInWithGoogle: () => Promise<User>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   
@@ -55,7 +54,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           });
         });
         
-        // Google OAuth now uses popup, no need to handle redirect result
+        // Removed Google OAuth - using email/password only
       } catch (error: any) {
         authLogger.error('Auth initialization failed', error, {
           operation: 'auth_init'
@@ -122,16 +121,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const signInWithGoogle = async (): Promise<User> => {
-    // Don't set loading here - it interferes with popup
-    try {
-      const user = await authService.signInWithGoogle();
-      return user;
-    } catch (error) {
-      // Only handle errors, don't touch loading state
-      throw error;
-    }
-  };
+  // Removed Google sign-in method
 
   const signOut = async (): Promise<void> => {
     setLoading(true);
@@ -155,7 +145,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loading,
     signIn,
     signUp,
-    signInWithGoogle,
     signOut,
     resetPassword,
     getAuthToken,
