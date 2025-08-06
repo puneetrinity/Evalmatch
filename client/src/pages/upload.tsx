@@ -329,11 +329,11 @@ export default function UploadPage() {
       createNewBatch();
     }
     
-    // Check if adding these files would exceed the limit of 100
-    if (files.length + selectedFiles.length > 100) {
+    // Check if adding these files would exceed the limit of 5
+    if (files.length + selectedFiles.length > 5) {
       toast({
         title: "Maximum files exceeded",
-        description: "You can only upload up to 100 resumes per session.",
+        description: "You can only upload up to 5 resumes per session.",
         variant: "destructive",
       });
       return;
@@ -460,7 +460,7 @@ export default function UploadPage() {
         <div className="mt-12">
           <h1 className="text-3xl font-bold text-gray-900 mb-6">Upload Resumes</h1>
           <p className="text-gray-600 mb-4">
-            Upload up to 100 resumes in PDF, DOC, or DOCX format. We'll analyze them and compare with your job description to find the best matches.
+            Upload up to 5 resumes in PDF, DOC, or DOCX format. We'll analyze them and compare with your job description to find the best matches.
           </p>
           
           {currentBatchId && (
