@@ -723,7 +723,7 @@ export default function AnalysisPage() {
                         </div>
                         <h4 className="text-lg font-semibold text-green-800">Match Summary</h4>
                         <span className="ml-auto text-green-700 font-medium">
-                          {result.matchPercentage}% - {result.matchPercentage >= 80 ? 'Excellent' : result.matchPercentage >= 60 ? 'Strong' : result.matchPercentage >= 40 ? 'Good' : 'Potential'} Candidate
+                          {result.matchPercentage}% - {result.matchPercentage >= 85 ? 'Exceptional' : result.matchPercentage >= 70 ? 'Strong' : result.matchPercentage >= 55 ? 'Viable' : 'Potential'} Candidate
                         </span>
                       </div>
                       
@@ -911,7 +911,21 @@ export default function AnalysisPage() {
                               <h4 className="text-sm font-semibold text-gray-900 mb-2">Candidate Summary</h4>
                               <p className="text-sm text-gray-700 leading-relaxed">
                                 {result.matchInsights?.summary || 
-                                 `Strong candidate with ${result.matchPercentage}% match. Key skills include ${result.matchedSkills?.slice(0, 3).map(s => typeof s === 'string' ? s : s.skill).join(', ') || 'various skills'}. ${result.candidateStrengths?.length > 0 ? 'Notable strengths: ' + result.candidateStrengths[0] : ''}`}
+                                 (() => {
+                                   // Dynamic candidate assessment based on match percentage
+                                   const getMatchStrengthText = (percentage: number) => {
+                                     if (percentage >= 85) return 'Exceptional candidate';
+                                     if (percentage >= 70) return 'Strong candidate';
+                                     if (percentage >= 55) return 'Viable candidate';
+                                     return 'Potential candidate';
+                                   };
+                                   
+                                   const strengthText = getMatchStrengthText(result.matchPercentage || 0);
+                                   const keySkills = result.matchedSkills?.slice(0, 3).map(s => typeof s === 'string' ? s : s.skill).join(', ') || 'various skills';
+                                   const strengthNote = result.candidateStrengths?.length > 0 ? 'Notable strengths: ' + result.candidateStrengths[0] : '';
+                                   
+                                   return `${strengthText} with ${result.matchPercentage}% match. Key skills include ${keySkills}. ${strengthNote}`;
+                                 })()}
                               </p>
                             </div>
                           </div>
