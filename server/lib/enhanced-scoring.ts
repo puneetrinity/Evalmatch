@@ -27,20 +27,13 @@ interface MatchResult {
   explanation?: string;
 }
 
-// Enhanced scoring weights - configurable per job
-export interface ScoringWeights {
-  skills: number;
-  experience: number;
-  education: number;
-  semantic: number;
-}
+import { 
+  UNIFIED_SCORING_WEIGHTS, 
+  ScoringWeights 
+} from "./unified-scoring-weights";
 
-export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
-  skills: 0.50, // 50% - Most important (research-backed optimal range 45-50%)
-  experience: 0.28, // 28% - Important but reduced based on research findings (target 25-30%)
-  education: 0.15, // 15% - Important (research-backed optimal range 15-20%)
-  semantic: 0.07, // 7% - Context understanding re-enabled (research target 10-15%, starting conservative)
-};
+// Use unified scoring weights for consistency across all modules
+export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = UNIFIED_SCORING_WEIGHTS;
 
 // Scoring rubrics for consistent evaluation
 export const ENHANCED_SCORING_RUBRICS = {
@@ -756,3 +749,4 @@ function generateExplanation(
 
   return { strengths, weaknesses, recommendations };
 }
+
