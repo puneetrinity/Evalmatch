@@ -609,8 +609,11 @@ export class IntelligentCache {
   }
 }
 
-// Singleton cache instance
-export const deterministicCache = new DeterministicCache();
+// Singleton intelligent cache instance
+export const intelligentCache = new IntelligentCache();
+
+// Backward compatibility - alias for existing code
+export const deterministicCache = intelligentCache;
 
 // Score normalization and consistency checks
 export function normalizeScore(rawScore: number): number {
@@ -637,6 +640,7 @@ export function calculateConfidenceLevel(
   if (overallScore >= 0.4) return "medium";
   return "low";
 }
+
 
 
 
