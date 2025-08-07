@@ -866,28 +866,53 @@ export async function analyzeMatch(
   // Increment usage count
   incrementUsage(userTier);
 
-  // Call appropriate provider with error handling
+  // Call appropriate provider with retry logic and result normalization
   let matchResult: MatchAnalysisResponse;
   try {
+    let rawResult: any;
+    
     switch (selection.provider) {
       case "anthropic":
-        matchResult = await anthropic.analyzeMatch(resumeAnalysis, jobAnalysis);
+        rawResult = await withRetryAndCircuitBreaker(
+          "anthropic",
+          () => anthropic.analyzeMatch(resumeAnalysis, jobAnalysis),
+          "Match analysis"
+        );
         break;
       case "openai":
-        matchResult = await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
+        rawResult = await withRetryAndCircuitBreaker(
+          "openai",
+          () => openai.analyzeMatch(resumeAnalysis, jobAnalysis),
+          "Match analysis"
+        );
         break;
       case "groq":
       default:
-        matchResult = await groq.analyzeMatch(
-          resumeAnalysis,
-          jobAnalysis,
-          resumeText,
-          jobText,
+        rawResult = await withRetryAndCircuitBreaker(
+          "groq",
+          () => groq.analyzeMatch(resumeAnalysis, jobAnalysis, resumeText, jobText),
+          "Match analysis"
         );
         break;
     }
+
+    // Normalize result to ensure consistent format
+    matchResult = normalizeMatchAnalysis(rawResult, selection.provider);
+    
+    logger.info("Match analysis completed successfully", {
+      provider: selection.provider,
+      matchPercentage: matchResult.matchPercentage,
+      matchedSkillsCount: matchResult.matchedSkills.length,
+      missingSkillsCount: matchResult.missingSkills.length,
+      confidenceLevel: matchResult.confidenceLevel,
+    });
   } catch (error) {
-    logger.error("AI provider error in match analysis", error);
+    logger.error("AI provider error in match analysis", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      provider: selection.provider,
+      userTier: userTier.tier,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     // Throw appropriate error message based on user tier
     throw classifyAndThrowError(error, userTier, "Match analysis");
   }
@@ -1128,6 +1153,7 @@ export function getTierAwareServiceStatus(userTier: UserTierInfo) {
     features: userTier.features,
   };
 }
+
 
 
 
