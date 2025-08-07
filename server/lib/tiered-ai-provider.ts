@@ -20,6 +20,26 @@ import {
   getApiLimitExceededError,
 } from "@shared/user-tiers";
 
+// Circuit breaker state management
+interface CircuitBreakerState {
+  failures: number;
+  lastFailureTime: number;
+  state: 'closed' | 'open' | 'half-open';
+}
+
+const circuitBreakers: Map<string, CircuitBreakerState> = new Map();
+const CIRCUIT_BREAKER_THRESHOLD = 3; // Open circuit after 3 failures
+const CIRCUIT_BREAKER_TIMEOUT = 60000; // 1 minute timeout
+const CIRCUIT_BREAKER_RESET_TIMEOUT = 30000; // 30 seconds before trying half-open
+
+// Retry configuration
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelay: 1000, // 1 second
+  maxDelay: 10000, // 10 seconds
+  backoffMultiplier: 2,
+};
+
 // Verify if providers are configured
 const isAnthropicConfigured = !!config.anthropicApiKey;
 const isGroqConfigured = !!process.env.GROQ_API_KEY;
@@ -631,3 +651,4 @@ export function getTierAwareServiceStatus(userTier: UserTierInfo) {
     features: userTier.features,
   };
 }
+
