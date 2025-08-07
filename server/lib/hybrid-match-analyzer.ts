@@ -337,18 +337,20 @@ export class HybridMatchAnalyzer {
 
       const processingTime = Date.now() - startTime;
       logger.info(`🎯 HYBRID MATCH ANALYSIS COMPLETED`, {
-        strategy: validatedResult.analysisMethod,
-        matchPercentage: validatedResult.matchPercentage,
-        confidence: validatedResult.confidence,
-        confidenceLevel: validatedResult.confidenceLevel,
-        hasBias: validatedResult.biasDetection?.hasBias || false,
-        hasInsights: !!validatedResult.matchInsights,
-        finalSkillsCount: validatedResult.matchedSkills?.length || 0,
+        strategy: finalResult.analysisMethod,
+        matchPercentage: finalResult.matchPercentage,
+        confidence: finalResult.confidence,
+        confidenceLevel: finalResult.confidenceLevel,
+        hasBias: finalResult.biasDetection?.hasBias || false,
+        biasScore: finalResult.biasDetection?.biasScore || 0,
+        hasInsights: !!finalResult.matchInsights,
+        finalSkillsCount: finalResult.matchedSkills?.length || 0,
         processingTime,
         qualityGatesApplied: true,
+        biasPenaltiesApplied: !!finalResult.biasDetection?.hasBias,
       });
 
-      return validatedResult;
+      return finalResult;
     } catch (error) {
       logger.error("🚨 HYBRID MATCH ANALYSIS FAILED 🚨", {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -1163,6 +1165,7 @@ export async function analyzeMatchHybrid(
   const analyzer = new HybridMatchAnalyzer();
   return await analyzer.analyzeMatch(resumeAnalysis, jobAnalysis, userTier, resumeText, jobText);
 }
+
 
 
 
