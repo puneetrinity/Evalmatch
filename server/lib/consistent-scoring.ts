@@ -615,6 +615,203 @@ export const intelligentCache = new IntelligentCache();
 // Backward compatibility - alias for existing code
 export const deterministicCache = intelligentCache;
 
+/**
+ * Cache integration utilities for analysis pipeline
+ */
+export class CacheIntegration {
+  private cache: IntelligentCache;
+
+  constructor(cache: IntelligentCache) {
+    this.cache = cache;
+  }
+
+  /**
+   * Cache-aware resume analysis
+   */
+  async cacheResumeAnalysis<T>(
+    resumeText: string,
+    analysisFunction: () => Promise<T>
+  ): Promise<T> {
+    const key = this.cache.generateKey(resumeText, '', 'resume_analysis');
+    const cached = this.cache.get(key) as T | null;
+
+    if (cached) {
+      logger.debug("Resume analysis cache hit", { 
+        resumeLength: resumeText.length,
+        cacheKey: key.substring(0, 20) + '...'
+      });
+      return cached;
+    }
+
+    const result = await analysisFunction();
+    const seed = this.generateSeed(resumeText, '');
+    this.cache.set(key, result, seed, 'resume_analysis');
+
+    logger.debug("Resume analysis cached", { 
+      resumeLength: resumeText.length,
+      cacheKey: key.substring(0, 20) + '...'
+    });
+
+    return result;
+  }
+
+  /**
+   * Cache-aware job analysis
+   */
+  async cacheJobAnalysis<T>(
+    jobTitle: string,
+    jobDescription: string,
+    analysisFunction: () => Promise<T>
+  ): Promise<T> {
+    const jobText = `${jobTitle}\n${jobDescription}`;
+    const key = this.cache.generateKey('', jobText, 'job_analysis');
+    const cached = this.cache.get(key) as T | null;
+
+    if (cached) {
+      logger.debug("Job analysis cache hit", { 
+        jobLength: jobText.length,
+        cacheKey: key.substring(0, 20) + '...'
+      });
+      return cached;
+    }
+
+    const result = await analysisFunction();
+    const seed = this.generateSeed('', jobText);
+    this.cache.set(key, result, seed, 'job_analysis');
+
+    logger.debug("Job analysis cached", { 
+      jobLength: jobText.length,
+      cacheKey: key.substring(0, 20) + '...'
+    });
+
+    return result;
+  }
+
+  /**
+   * Cache-aware skill matching
+   */
+  async cacheSkillMatching<T>(
+    resumeText: string,
+    jobDescription: string,
+    analysisFunction: () => Promise<T>
+  ): Promise<T> {
+    const key = this.cache.generateKey(resumeText, jobDescription, 'skill_matching');
+    const cached = this.cache.get(key) as T | null;
+
+    if (cached) {
+      logger.debug("Skill matching cache hit", { 
+        cacheKey: key.substring(0, 20) + '...'
+      });
+      return cached;
+    }
+
+    const result = await analysisFunction();
+    const seed = this.generateSeed(resumeText, jobDescription);
+    this.cache.set(key, result, seed, 'skill_matching');
+
+    logger.debug("Skill matching cached", { 
+      cacheKey: key.substring(0, 20) + '...'
+    });
+
+    return result;
+  }
+
+  /**
+   * Cache-aware enhanced scoring
+   */
+  async cacheEnhancedScoring<T>(
+    resumeText: string,
+    jobDescription: string,
+    scoringParams: Record<string, any>,
+    analysisFunction: () => Promise<T>
+  ): Promise<T> {
+    const key = this.cache.generateKey(resumeText, jobDescription, 'enhanced_scoring', scoringParams);
+    const cached = this.cache.get(key) as T | null;
+
+    if (cached) {
+      logger.debug("Enhanced scoring cache hit", { 
+        cacheKey: key.substring(0, 20) + '...'
+      });
+      return cached;
+    }
+
+    const result = await analysisFunction();
+    const seed = this.generateSeed(resumeText, jobDescription);
+    this.cache.set(key, result, seed, 'enhanced_scoring');
+
+    logger.debug("Enhanced scoring cached", { 
+      cacheKey: key.substring(0, 20) + '...'
+    });
+
+    return result;
+  }
+
+  /**
+   * Invalidate cache when resume is updated
+   */
+  invalidateResumeCache(resumeId: string | number): number {
+    const pattern = `resume_analysis.*${resumeId}`;
+    return this.cache.invalidateByPattern(pattern);
+  }
+
+  /**
+   * Invalidate cache when job description is updated
+   */
+  invalidateJobCache(jobId: string | number): number {
+    const pattern = `job_analysis.*${jobId}`;
+    return this.cache.invalidateByPattern(pattern);
+  }
+
+  /**
+   * Invalidate all skill matching cache (useful when algorithm updates)
+   */
+  invalidateSkillMatchingCache(): number {
+    return this.cache.invalidateAnalysisType('skill_matching');
+  }
+
+  /**
+   * Get cache statistics for monitoring
+   */
+  getCacheStats() {
+    return this.cache.getStats();
+  }
+
+  /**
+   * Warm cache for frequently accessed combinations
+   */
+  async warmFrequentCombinations(
+    analysisFunction: (resumeText: string, jobDescription: string, analysisType: string) => Promise<unknown>
+  ): Promise<void> {
+    const frequentCombinations = this.cache.getFrequentCombinations(20);
+    
+    if (frequentCombinations.length === 0) {
+      logger.info("No frequent combinations found for cache warming");
+      return;
+    }
+
+    // Convert frequent combinations to warming format
+    const warmingCombinations = frequentCombinations.map(combo => ({
+      resumeText: `seed:${combo.seed}:resume`, // Placeholder - in real implementation, fetch actual text
+      jobDescription: `seed:${combo.seed}:job`, // Placeholder - in real implementation, fetch actual text
+      analysisTypes: combo.analysisTypes,
+    }));
+
+    await this.cache.warmCache(warmingCombinations, analysisFunction);
+  }
+
+  private generateSeed(resumeText: string, jobText: string): string {
+    const combined = `${resumeText.trim().toLowerCase()}|${jobText.trim().toLowerCase()}`;
+    return crypto
+      .createHash("sha256")
+      .update(combined)
+      .digest("hex")
+      .substring(0, 16);
+  }
+}
+
+// Singleton cache integration instance
+export const cacheIntegration = new CacheIntegration(intelligentCache);
+
 // Score normalization and consistency checks
 export function normalizeScore(rawScore: number): number {
   // Ensure score is between 0-100
@@ -640,6 +837,7 @@ export function calculateConfidenceLevel(
   if (overallScore >= 0.4) return "medium";
   return "low";
 }
+
 
 
 
