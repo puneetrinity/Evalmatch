@@ -791,19 +791,53 @@ export async function analyzeJobDescription(
   // Increment usage count
   incrementUsage(userTier);
 
-  // Call appropriate provider with error handling
+  // Call appropriate provider with retry logic and result normalization
   try {
+    let rawResult: any;
+    
     switch (selection.provider) {
       case "anthropic":
-        return await anthropic.analyzeJobDescription(title, description);
+        rawResult = await withRetryAndCircuitBreaker(
+          "anthropic",
+          () => anthropic.analyzeJobDescription(title, description),
+          "Job description analysis"
+        );
+        break;
       case "openai":
-        return await openai.analyzeJobDescription(title, description);
+        rawResult = await withRetryAndCircuitBreaker(
+          "openai",
+          () => openai.analyzeJobDescription(title, description),
+          "Job description analysis"
+        );
+        break;
       case "groq":
       default:
-        return await groq.analyzeJobDescription(title, description);
+        rawResult = await withRetryAndCircuitBreaker(
+          "groq",
+          () => groq.analyzeJobDescription(title, description),
+          "Job description analysis"
+        );
+        break;
     }
+
+    // Normalize result to ensure consistent format
+    const normalizedResult = normalizeJobAnalysis(rawResult, selection.provider);
+    
+    logger.info("Job description analysis completed successfully", {
+      provider: selection.provider,
+      skillsCount: normalizedResult.skills.length,
+      hasExperience: !!normalizedResult.experience,
+      requirementsCount: normalizedResult.requirements.length,
+    });
+
+    return normalizedResult;
   } catch (error) {
-    logger.error("AI provider error in job description analysis", error);
+    logger.error("AI provider error in job description analysis", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      provider: selection.provider,
+      userTier: userTier.tier,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     // Throw appropriate error message based on user tier
     throw classifyAndThrowError(error, userTier, "Job description analysis");
   }
@@ -1094,6 +1128,7 @@ export function getTierAwareServiceStatus(userTier: UserTierInfo) {
     features: userTier.features,
   };
 }
+
 
 
 
