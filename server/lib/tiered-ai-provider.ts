@@ -46,6 +46,136 @@ const isGroqConfigured = !!process.env.GROQ_API_KEY;
 const isOpenAIConfigured = !!process.env.OPENAI_API_KEY;
 
 /**
+ * Circuit breaker implementation for AI providers
+ */
+function getCircuitBreakerState(provider: string): CircuitBreakerState {
+  if (!circuitBreakers.has(provider)) {
+    circuitBreakers.set(provider, {
+      failures: 0,
+      lastFailureTime: 0,
+      state: 'closed',
+    });
+  }
+  return circuitBreakers.get(provider)!;
+}
+
+function updateCircuitBreakerOnSuccess(provider: string): void {
+  const state = getCircuitBreakerState(provider);
+  state.failures = 0;
+  state.state = 'closed';
+  logger.debug(`Circuit breaker reset for ${provider}`, { state: state.state });
+}
+
+function updateCircuitBreakerOnFailure(provider: string): void {
+  const state = getCircuitBreakerState(provider);
+  state.failures++;
+  state.lastFailureTime = Date.now();
+  
+  if (state.failures >= CIRCUIT_BREAKER_THRESHOLD) {
+    state.state = 'open';
+    logger.warn(`Circuit breaker opened for ${provider}`, {
+      failures: state.failures,
+      threshold: CIRCUIT_BREAKER_THRESHOLD,
+    });
+  }
+}
+
+function isCircuitBreakerOpen(provider: string): boolean {
+  const state = getCircuitBreakerState(provider);
+  const now = Date.now();
+  
+  if (state.state === 'open') {
+    // Check if we should try half-open
+    if (now - state.lastFailureTime > CIRCUIT_BREAKER_RESET_TIMEOUT) {
+      state.state = 'half-open';
+      logger.info(`Circuit breaker moving to half-open for ${provider}`);
+      return false; // Allow one attempt
+    }
+    return true; // Still open
+  }
+  
+  return false; // Closed or half-open
+}
+
+/**
+ * Exponential backoff retry logic
+ */
+async function withRetryAndCircuitBreaker<T>(
+  provider: string,
+  operation: () => Promise<T>,
+  context: string
+): Promise<T> {
+  // Check circuit breaker first
+  if (isCircuitBreakerOpen(provider)) {
+    throw new Error(`${provider} provider circuit breaker is open - service temporarily unavailable`);
+  }
+
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
+    try {
+      const result = await operation();
+      
+      // Success - reset circuit breaker
+      updateCircuitBreakerOnSuccess(provider);
+      
+      if (attempt > 0) {
+        logger.info(`${provider} provider recovered after ${attempt} retries`, { context });
+      }
+      
+      return result;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      // Update circuit breaker on failure
+      updateCircuitBreakerOnFailure(provider);
+      
+      // Don't retry on certain error types
+      const errorMessage = lastError.message.toLowerCase();
+      if (
+        errorMessage.includes('unauthorized') ||
+        errorMessage.includes('invalid api key') ||
+        errorMessage.includes('authentication') ||
+        errorMessage.includes('rate limit') ||
+        errorMessage.includes('quota exceeded')
+      ) {
+        logger.warn(`${provider} provider non-retryable error`, {
+          context,
+          error: lastError.message,
+          attempt: attempt + 1,
+        });
+        throw lastError;
+      }
+      
+      // Don't retry on last attempt
+      if (attempt === RETRY_CONFIG.maxRetries) {
+        logger.error(`${provider} provider failed after ${attempt + 1} attempts`, {
+          context,
+          error: lastError.message,
+        });
+        throw lastError;
+      }
+      
+      // Calculate delay with exponential backoff
+      const delay = Math.min(
+        RETRY_CONFIG.baseDelay * Math.pow(RETRY_CONFIG.backoffMultiplier, attempt),
+        RETRY_CONFIG.maxDelay
+      );
+      
+      logger.warn(`${provider} provider attempt ${attempt + 1} failed, retrying in ${delay}ms`, {
+        context,
+        error: lastError.message,
+        nextAttempt: attempt + 2,
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw lastError || new Error(`${provider} provider failed after all retry attempts`);
+}
+
+/**
  * Classify error types and throw appropriate errors based on actual failure reasons
  */
 function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: string): never {
@@ -651,4 +781,5 @@ export function getTierAwareServiceStatus(userTier: UserTierInfo) {
     features: userTier.features,
   };
 }
+
 
