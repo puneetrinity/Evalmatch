@@ -821,6 +821,285 @@ export class HybridMatchAnalyzer {
   }
 
   /**
+   * Apply confidence-based quality gates and validation
+   * Implements minimum confidence requirements and fallback mechanisms
+   */
+  private applyConfidenceQualityGates(
+    result: HybridMatchResult,
+    resumeAnalysis: AnalyzeResumeResponse,
+    jobAnalysis: AnalyzeJobDescriptionResponse,
+    resumeText?: string,
+    jobText?: string,
+  ): HybridMatchResult {
+    logger.info("🔍 APPLYING CONFIDENCE-BASED QUALITY GATES", {
+      originalConfidence: result.confidence,
+      originalConfidenceLevel: result.confidenceLevel,
+      matchPercentage: result.matchPercentage,
+    });
+
+    // 1. Data Quality Assessment
+    const dataQuality = this.assessDataQuality(
+      resumeAnalysis,
+      jobAnalysis,
+      resumeText,
+      jobText
+    );
+
+    // 2. Calculate Enhanced Confidence Score
+    const enhancedConfidence = this.calculateEnhancedConfidence(
+      result,
+      dataQuality
+    );
+
+    // 3. Apply Confidence Thresholds
+    const confidenceLevel = this.determineConfidenceLevel(enhancedConfidence);
+
+    // 4. Apply Quality Gates and Fallback Mechanisms
+    const validatedResult = this.applyQualityGatesAndFallbacks(
+      result,
+      enhancedConfidence,
+      confidenceLevel,
+      dataQuality
+    );
+
+    logger.info("✅ CONFIDENCE QUALITY GATES APPLIED", {
+      originalConfidence: result.confidence,
+      enhancedConfidence,
+      confidenceLevel,
+      dataQualityScore: dataQuality.overallScore,
+      qualityGatesTriggered: validatedResult.confidence !== result.confidence,
+      finalMatchPercentage: validatedResult.matchPercentage,
+    });
+
+    return {
+      ...validatedResult,
+      confidence: enhancedConfidence,
+      confidenceLevel,
+    };
+  }
+
+  /**
+   * Assess data quality for confidence calculation
+   */
+  private assessDataQuality(
+    resumeAnalysis: AnalyzeResumeResponse,
+    jobAnalysis: AnalyzeJobDescriptionResponse,
+    resumeText?: string,
+    jobText?: string,
+  ): {
+    resumeLength: number;
+    jobLength: number;
+    skillCount: number;
+    hasExperience: boolean;
+    hasEducation: boolean;
+    overallScore: number;
+    issues: string[];
+  } {
+    const issues: string[] = [];
+    
+    // Resume length assessment
+    const resumeLength = resumeText?.length || 0;
+    if (resumeLength < 200) {
+      issues.push("Resume text too short for comprehensive analysis");
+    }
+
+    // Job description length assessment
+    const jobLength = jobText?.length || 0;
+    if (jobLength < 100) {
+      issues.push("Job description too short for comprehensive analysis");
+    }
+
+    // Skill count assessment
+    const skillCount = (resumeAnalysis.skills?.length || 0) + (jobAnalysis.skills?.length || 0);
+    if (skillCount < 3) {
+      issues.push("Insufficient skills data for reliable matching");
+    }
+
+    // Experience data assessment
+    const hasExperience = !!(
+      resumeAnalysis.experience || 
+      resumeAnalysis.analyzedData?.experience ||
+      jobAnalysis.experience
+    );
+    if (!hasExperience) {
+      issues.push("Missing experience data affects matching accuracy");
+    }
+
+    // Education data assessment
+    const hasEducation = !!(
+      resumeAnalysis.education || 
+      resumeAnalysis.analyzedData?.education ||
+      jobAnalysis.analyzedData?.education
+    );
+    if (!hasEducation) {
+      issues.push("Missing education data may affect comprehensive assessment");
+    }
+
+    // Calculate overall data quality score (0-1)
+    let qualityScore = 0;
+    
+    // Resume length score (0-0.3)
+    qualityScore += Math.min(0.3, resumeLength / 1000 * 0.3);
+    
+    // Job length score (0-0.2)
+    qualityScore += Math.min(0.2, jobLength / 500 * 0.2);
+    
+    // Skill count score (0-0.2)
+    qualityScore += Math.min(0.2, skillCount / 10 * 0.2);
+    
+    // Experience score (0-0.15)
+    qualityScore += hasExperience ? 0.15 : 0;
+    
+    // Education score (0-0.15)
+    qualityScore += hasEducation ? 0.15 : 0;
+
+    const dataQuality = {
+      resumeLength,
+      jobLength,
+      skillCount,
+      hasExperience,
+      hasEducation,
+      overallScore: Math.min(1.0, qualityScore),
+      issues,
+    };
+
+    logger.debug("Data quality assessment completed", dataQuality);
+    return dataQuality;
+  }
+
+  /**
+   * Calculate enhanced confidence score based on result quality and data quality
+   */
+  private calculateEnhancedConfidence(
+    result: HybridMatchResult,
+    dataQuality: { overallScore: number; issues: string[] }
+  ): number {
+    let confidence = result.confidence || 0;
+
+    // Adjust confidence based on data quality
+    const dataQualityWeight = 0.3;
+    const originalWeight = 0.7;
+    
+    confidence = (confidence * originalWeight) + (dataQuality.overallScore * dataQualityWeight);
+
+    // Apply penalties for specific issues
+    if (result.matchedSkills?.length === 0) {
+      confidence *= 0.7; // 30% penalty for no matched skills
+    }
+
+    if (result.matchPercentage < 20) {
+      confidence *= 0.8; // 20% penalty for very low match
+    }
+
+    if (dataQuality.issues.length > 2) {
+      confidence *= 0.9; // 10% penalty for multiple data quality issues
+    }
+
+    // Apply bonuses for high-quality results
+    if (result.matchedSkills?.length >= 5 && result.matchPercentage >= 70) {
+      confidence *= 1.1; // 10% bonus for strong matches with good skill coverage
+    }
+
+    // Ensure confidence stays within valid range
+    return Math.max(0.1, Math.min(1.0, confidence));
+  }
+
+  /**
+   * Determine confidence level based on enhanced confidence score
+   * High: ≥0.8, Medium: 0.5-0.79, Low: <0.5
+   */
+  private determineConfidenceLevel(confidence: number): "low" | "medium" | "high" {
+    if (confidence >= 0.8) return "high";
+    if (confidence >= 0.5) return "medium";
+    return "low";
+  }
+
+  /**
+   * Apply quality gates and fallback mechanisms based on confidence level
+   */
+  private applyQualityGatesAndFallbacks(
+    result: HybridMatchResult,
+    confidence: number,
+    confidenceLevel: "low" | "medium" | "high",
+    dataQuality: { overallScore: number; issues: string[] }
+  ): HybridMatchResult {
+    const updatedResult = { ...result };
+
+    // Apply confidence-based adjustments
+    switch (confidenceLevel) {
+      case "low":
+        logger.warn("Low confidence detected - applying fallback mechanisms", {
+          confidence,
+          dataQualityScore: dataQuality.overallScore,
+          issues: dataQuality.issues,
+        });
+
+        // Add confidence warnings to recommendations
+        updatedResult.recommendations = [
+          ...(updatedResult.recommendations || []),
+          "Analysis confidence is low due to limited data - consider providing more detailed information",
+          "Results should be interpreted with caution due to data quality limitations",
+        ];
+
+        // Add data quality issues to weaknesses
+        if (dataQuality.issues.length > 0) {
+          updatedResult.candidateWeaknesses = [
+            ...(updatedResult.candidateWeaknesses || []),
+            `Data quality issues detected: ${dataQuality.issues.slice(0, 2).join(", ")}`,
+          ];
+        }
+
+        // Conservative match percentage adjustment for very low confidence
+        if (confidence < 0.3) {
+          updatedResult.matchPercentage = Math.min(
+            updatedResult.matchPercentage,
+            60 // Cap at 60% for very low confidence
+          );
+          logger.warn("Applied conservative match percentage cap due to very low confidence");
+        }
+        break;
+
+      case "medium":
+        logger.info("Medium confidence detected - applying moderate adjustments", {
+          confidence,
+          dataQualityScore: dataQuality.overallScore,
+        });
+
+        // Add moderate confidence note
+        updatedResult.recommendations = [
+          ...(updatedResult.recommendations || []),
+          "Analysis has moderate confidence - consider additional screening for final decision",
+        ];
+        break;
+
+      case "high":
+        logger.info("High confidence detected - results are reliable", {
+          confidence,
+          dataQualityScore: dataQuality.overallScore,
+        });
+
+        // Add confidence boost note
+        updatedResult.candidateStrengths = [
+          ...(updatedResult.candidateStrengths || []),
+          "High-confidence analysis based on comprehensive data",
+        ];
+        break;
+    }
+
+    // Validate result ranges regardless of confidence level
+    updatedResult.matchPercentage = Math.max(0, Math.min(100, updatedResult.matchPercentage));
+    
+    // Ensure all required fields are present
+    updatedResult.matchedSkills = updatedResult.matchedSkills || [];
+    updatedResult.missingSkills = updatedResult.missingSkills || [];
+    updatedResult.candidateStrengths = updatedResult.candidateStrengths || [];
+    updatedResult.candidateWeaknesses = updatedResult.candidateWeaknesses || [];
+    updatedResult.recommendations = updatedResult.recommendations || [];
+
+    return updatedResult;
+  }
+
+  /**
    * Create fallback result when analysis fails
    */
   private createFallbackResult(
@@ -872,5 +1151,6 @@ export async function analyzeMatchHybrid(
   const analyzer = new HybridMatchAnalyzer();
   return await analyzer.analyzeMatch(resumeAnalysis, jobAnalysis, userTier, resumeText, jobText);
 }
+
 
 
