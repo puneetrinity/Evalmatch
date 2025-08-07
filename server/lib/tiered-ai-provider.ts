@@ -176,6 +176,220 @@ async function withRetryAndCircuitBreaker<T>(
 }
 
 /**
+ * Provider-specific result normalization to ensure consistent output format
+ */
+function normalizeResumeAnalysis(result: any, provider: string): AnalyzeResumeResponse {
+  logger.debug(`Normalizing resume analysis from ${provider}`, {
+    hasResult: !!result,
+    resultKeys: result ? Object.keys(result) : [],
+  });
+
+  // Base normalization - ensure all required fields exist
+  const normalized: AnalyzeResumeResponse = {
+    skills: Array.isArray(result?.skills) ? result.skills : [],
+    experience: result?.experience || "",
+    education: result?.education || "",
+    analyzedData: result?.analyzedData || {},
+    summary: result?.summary || "",
+    contactInfo: result?.contactInfo || {},
+    workHistory: Array.isArray(result?.workHistory) ? result.workHistory : [],
+    certifications: Array.isArray(result?.certifications) ? result.certifications : [],
+  };
+
+  // Provider-specific normalization
+  switch (provider) {
+    case 'groq':
+      // Groq sometimes returns skills as comma-separated string
+      if (typeof result?.skills === 'string') {
+        normalized.skills = result.skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+      }
+      // Groq may have different field names
+      if (result?.technical_skills && !normalized.skills.length) {
+        normalized.skills = Array.isArray(result.technical_skills) 
+          ? result.technical_skills 
+          : result.technical_skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+      }
+      break;
+
+    case 'openai':
+      // OpenAI typically has consistent structure, but ensure arrays
+      if (result?.skills && !Array.isArray(result.skills)) {
+        normalized.skills = [result.skills];
+      }
+      break;
+
+    case 'anthropic':
+      // Anthropic may use different field structures
+      if (result?.extracted_skills) {
+        normalized.skills = Array.isArray(result.extracted_skills) 
+          ? result.extracted_skills 
+          : [result.extracted_skills];
+      }
+      if (result?.work_experience && !normalized.experience) {
+        normalized.experience = result.work_experience;
+      }
+      break;
+  }
+
+  // Ensure skills are strings and deduplicated
+  normalized.skills = [...new Set(
+    normalized.skills
+      .map(skill => typeof skill === 'string' ? skill.trim() : String(skill))
+      .filter(skill => skill.length > 0)
+  )];
+
+  logger.debug(`Resume analysis normalized for ${provider}`, {
+    skillsCount: normalized.skills.length,
+    hasExperience: !!normalized.experience,
+    hasEducation: !!normalized.education,
+  });
+
+  return normalized;
+}
+
+function normalizeJobAnalysis(result: any, provider: string): AnalyzeJobDescriptionResponse {
+  logger.debug(`Normalizing job analysis from ${provider}`, {
+    hasResult: !!result,
+    resultKeys: result ? Object.keys(result) : [],
+  });
+
+  // Base normalization
+  const normalized: AnalyzeJobDescriptionResponse = {
+    skills: Array.isArray(result?.skills) ? result.skills : [],
+    experience: result?.experience || "",
+    analyzedData: result?.analyzedData || {},
+    summary: result?.summary || "",
+    requirements: Array.isArray(result?.requirements) ? result.requirements : [],
+    responsibilities: Array.isArray(result?.responsibilities) ? result.responsibilities : [],
+  };
+
+  // Provider-specific normalization
+  switch (provider) {
+    case 'groq':
+      if (typeof result?.skills === 'string') {
+        normalized.skills = result.skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+      }
+      if (result?.required_skills && !normalized.skills.length) {
+        normalized.skills = Array.isArray(result.required_skills) 
+          ? result.required_skills 
+          : result.required_skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+      }
+      break;
+
+    case 'openai':
+      if (result?.skills && !Array.isArray(result.skills)) {
+        normalized.skills = [result.skills];
+      }
+      break;
+
+    case 'anthropic':
+      if (result?.required_skills) {
+        normalized.skills = Array.isArray(result.required_skills) 
+          ? result.required_skills 
+          : [result.required_skills];
+      }
+      break;
+  }
+
+  // Ensure skills are strings and deduplicated
+  normalized.skills = [...new Set(
+    normalized.skills
+      .map(skill => typeof skill === 'string' ? skill.trim() : String(skill))
+      .filter(skill => skill.length > 0)
+  )];
+
+  logger.debug(`Job analysis normalized for ${provider}`, {
+    skillsCount: normalized.skills.length,
+    hasExperience: !!normalized.experience,
+    requirementsCount: normalized.requirements.length,
+  });
+
+  return normalized;
+}
+
+function normalizeMatchAnalysis(result: any, provider: string): MatchAnalysisResponse {
+  logger.debug(`Normalizing match analysis from ${provider}`, {
+    hasResult: !!result,
+    resultKeys: result ? Object.keys(result) : [],
+  });
+
+  // Base normalization
+  const normalized: MatchAnalysisResponse = {
+    matchPercentage: Math.max(0, Math.min(100, Number(result?.matchPercentage) || 0)),
+    matchedSkills: Array.isArray(result?.matchedSkills) ? result.matchedSkills : [],
+    missingSkills: Array.isArray(result?.missingSkills) ? result.missingSkills : [],
+    candidateStrengths: Array.isArray(result?.candidateStrengths) ? result.candidateStrengths : [],
+    candidateWeaknesses: Array.isArray(result?.candidateWeaknesses) ? result.candidateWeaknesses : [],
+    recommendations: Array.isArray(result?.recommendations) ? result.recommendations : [],
+    confidenceLevel: result?.confidenceLevel || 'medium',
+    fairnessMetrics: result?.fairnessMetrics || {},
+  };
+
+  // Provider-specific normalization
+  switch (provider) {
+    case 'groq':
+      // Groq may return match percentage as string
+      if (typeof result?.matchPercentage === 'string') {
+        normalized.matchPercentage = Math.max(0, Math.min(100, parseFloat(result.matchPercentage) || 0));
+      }
+      // Handle different field names
+      if (result?.matched_skills && !normalized.matchedSkills.length) {
+        normalized.matchedSkills = Array.isArray(result.matched_skills) 
+          ? result.matched_skills 
+          : [result.matched_skills];
+      }
+      break;
+
+    case 'openai':
+      // OpenAI typically consistent, but ensure proper types
+      if (result?.match_score && !result?.matchPercentage) {
+        normalized.matchPercentage = Math.max(0, Math.min(100, Number(result.match_score) || 0));
+      }
+      break;
+
+    case 'anthropic':
+      // Anthropic may use different field names
+      if (result?.overall_match && !result?.matchPercentage) {
+        normalized.matchPercentage = Math.max(0, Math.min(100, Number(result.overall_match) || 0));
+      }
+      if (result?.strengths && !normalized.candidateStrengths.length) {
+        normalized.candidateStrengths = Array.isArray(result.strengths) 
+          ? result.strengths 
+          : [result.strengths];
+      }
+      if (result?.weaknesses && !normalized.candidateWeaknesses.length) {
+        normalized.candidateWeaknesses = Array.isArray(result.weaknesses) 
+          ? result.weaknesses 
+          : [result.weaknesses];
+      }
+      break;
+  }
+
+  // Ensure arrays contain strings
+  normalized.matchedSkills = normalized.matchedSkills.map(skill => 
+    typeof skill === 'string' ? skill : String(skill)
+  ).filter(Boolean);
+  
+  normalized.missingSkills = normalized.missingSkills.map(skill => 
+    typeof skill === 'string' ? skill : String(skill)
+  ).filter(Boolean);
+
+  // Validate confidence level
+  if (!['low', 'medium', 'high'].includes(normalized.confidenceLevel)) {
+    normalized.confidenceLevel = 'medium';
+  }
+
+  logger.debug(`Match analysis normalized for ${provider}`, {
+    matchPercentage: normalized.matchPercentage,
+    matchedSkillsCount: normalized.matchedSkills.length,
+    missingSkillsCount: normalized.missingSkills.length,
+    confidenceLevel: normalized.confidenceLevel,
+  });
+
+  return normalized;
+}
+
+/**
  * Classify error types and throw appropriate errors based on actual failure reasons
  */
 function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: string): never {
@@ -781,5 +995,6 @@ export function getTierAwareServiceStatus(userTier: UserTierInfo) {
     features: userTier.features,
   };
 }
+
 
 
