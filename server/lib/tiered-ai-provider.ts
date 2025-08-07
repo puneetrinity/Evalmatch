@@ -20,10 +20,374 @@ import {
   getApiLimitExceededError,
 } from "@shared/user-tiers";
 
+// Circuit breaker state management
+interface CircuitBreakerState {
+  failures: number;
+  lastFailureTime: number;
+  state: 'closed' | 'open' | 'half-open';
+}
+
+const circuitBreakers: Map<string, CircuitBreakerState> = new Map();
+const CIRCUIT_BREAKER_THRESHOLD = 3; // Open circuit after 3 failures
+const CIRCUIT_BREAKER_TIMEOUT = 60000; // 1 minute timeout
+const CIRCUIT_BREAKER_RESET_TIMEOUT = 30000; // 30 seconds before trying half-open
+
+// Retry configuration
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelay: 1000, // 1 second
+  maxDelay: 10000, // 10 seconds
+  backoffMultiplier: 2,
+};
+
 // Verify if providers are configured
 const isAnthropicConfigured = !!config.anthropicApiKey;
 const isGroqConfigured = !!process.env.GROQ_API_KEY;
 const isOpenAIConfigured = !!process.env.OPENAI_API_KEY;
+
+/**
+ * Circuit breaker implementation for AI providers
+ */
+function getCircuitBreakerState(provider: string): CircuitBreakerState {
+  if (!circuitBreakers.has(provider)) {
+    circuitBreakers.set(provider, {
+      failures: 0,
+      lastFailureTime: 0,
+      state: 'closed',
+    });
+  }
+  return circuitBreakers.get(provider)!;
+}
+
+function updateCircuitBreakerOnSuccess(provider: string): void {
+  const state = getCircuitBreakerState(provider);
+  state.failures = 0;
+  state.state = 'closed';
+  logger.debug(`Circuit breaker reset for ${provider}`, { state: state.state });
+}
+
+function updateCircuitBreakerOnFailure(provider: string): void {
+  const state = getCircuitBreakerState(provider);
+  state.failures++;
+  state.lastFailureTime = Date.now();
+  
+  if (state.failures >= CIRCUIT_BREAKER_THRESHOLD) {
+    state.state = 'open';
+    logger.warn(`Circuit breaker opened for ${provider}`, {
+      failures: state.failures,
+      threshold: CIRCUIT_BREAKER_THRESHOLD,
+    });
+  }
+}
+
+function isCircuitBreakerOpen(provider: string): boolean {
+  const state = getCircuitBreakerState(provider);
+  const now = Date.now();
+  
+  if (state.state === 'open') {
+    // Check if we should try half-open
+    if (now - state.lastFailureTime > CIRCUIT_BREAKER_RESET_TIMEOUT) {
+      state.state = 'half-open';
+      logger.info(`Circuit breaker moving to half-open for ${provider}`);
+      return false; // Allow one attempt
+    }
+    return true; // Still open
+  }
+  
+  return false; // Closed or half-open
+}
+
+/**
+ * Exponential backoff retry logic
+ */
+async function withRetryAndCircuitBreaker<T>(
+  provider: string,
+  operation: () => Promise<T>,
+  context: string
+): Promise<T> {
+  // Check circuit breaker first
+  if (isCircuitBreakerOpen(provider)) {
+    throw new Error(`${provider} provider circuit breaker is open - service temporarily unavailable`);
+  }
+
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
+    try {
+      const result = await operation();
+      
+      // Success - reset circuit breaker
+      updateCircuitBreakerOnSuccess(provider);
+      
+      if (attempt > 0) {
+        logger.info(`${provider} provider recovered after ${attempt} retries`, { context });
+      }
+      
+      return result;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      // Update circuit breaker on failure
+      updateCircuitBreakerOnFailure(provider);
+      
+      // Don't retry on certain error types
+      const errorMessage = lastError.message.toLowerCase();
+      if (
+        errorMessage.includes('unauthorized') ||
+        errorMessage.includes('invalid api key') ||
+        errorMessage.includes('authentication') ||
+        errorMessage.includes('rate limit') ||
+        errorMessage.includes('quota exceeded')
+      ) {
+        logger.warn(`${provider} provider non-retryable error`, {
+          context,
+          error: lastError.message,
+          attempt: attempt + 1,
+        });
+        throw lastError;
+      }
+      
+      // Don't retry on last attempt
+      if (attempt === RETRY_CONFIG.maxRetries) {
+        logger.error(`${provider} provider failed after ${attempt + 1} attempts`, {
+          context,
+          error: lastError.message,
+        });
+        throw lastError;
+      }
+      
+      // Calculate delay with exponential backoff
+      const delay = Math.min(
+        RETRY_CONFIG.baseDelay * Math.pow(RETRY_CONFIG.backoffMultiplier, attempt),
+        RETRY_CONFIG.maxDelay
+      );
+      
+      logger.warn(`${provider} provider attempt ${attempt + 1} failed, retrying in ${delay}ms`, {
+        context,
+        error: lastError.message,
+        nextAttempt: attempt + 2,
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw lastError || new Error(`${provider} provider failed after all retry attempts`);
+}
+
+/**
+ * Provider-specific result normalization to ensure consistent output format
+ */
+function normalizeResumeAnalysis(result: any, provider: string): AnalyzeResumeResponse {
+  logger.debug(`Normalizing resume analysis from ${provider}`, {
+    hasResult: !!result,
+    resultKeys: result ? Object.keys(result) : [],
+  });
+
+  // Base normalization - ensure all required fields exist
+  const normalized: AnalyzeResumeResponse = {
+    skills: Array.isArray(result?.skills) ? result.skills : [],
+    experience: result?.experience || "",
+    education: result?.education || "",
+    analyzedData: result?.analyzedData || {},
+    summary: result?.summary || "",
+    contactInfo: result?.contactInfo || {},
+    workHistory: Array.isArray(result?.workHistory) ? result.workHistory : [],
+    certifications: Array.isArray(result?.certifications) ? result.certifications : [],
+  };
+
+  // Provider-specific normalization
+  switch (provider) {
+    case 'groq':
+      // Groq sometimes returns skills as comma-separated string
+      if (typeof result?.skills === 'string') {
+        normalized.skills = result.skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+      }
+      // Groq may have different field names
+      if (result?.technical_skills && !normalized.skills.length) {
+        normalized.skills = Array.isArray(result.technical_skills) 
+          ? result.technical_skills 
+          : result.technical_skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+      }
+      break;
+
+    case 'openai':
+      // OpenAI typically has consistent structure, but ensure arrays
+      if (result?.skills && !Array.isArray(result.skills)) {
+        normalized.skills = [result.skills];
+      }
+      break;
+
+    case 'anthropic':
+      // Anthropic may use different field structures
+      if (result?.extracted_skills) {
+        normalized.skills = Array.isArray(result.extracted_skills) 
+          ? result.extracted_skills 
+          : [result.extracted_skills];
+      }
+      if (result?.work_experience && !normalized.experience) {
+        normalized.experience = result.work_experience;
+      }
+      break;
+  }
+
+  // Ensure skills are strings and deduplicated
+  normalized.skills = [...new Set(
+    normalized.skills
+      .map(skill => typeof skill === 'string' ? skill.trim() : String(skill))
+      .filter(skill => skill.length > 0)
+  )];
+
+  logger.debug(`Resume analysis normalized for ${provider}`, {
+    skillsCount: normalized.skills.length,
+    hasExperience: !!normalized.experience,
+    hasEducation: !!normalized.education,
+  });
+
+  return normalized;
+}
+
+function normalizeJobAnalysis(result: any, provider: string): AnalyzeJobDescriptionResponse {
+  logger.debug(`Normalizing job analysis from ${provider}`, {
+    hasResult: !!result,
+    resultKeys: result ? Object.keys(result) : [],
+  });
+
+  // Base normalization
+  const normalized: AnalyzeJobDescriptionResponse = {
+    skills: Array.isArray(result?.skills) ? result.skills : [],
+    experience: result?.experience || "",
+    analyzedData: result?.analyzedData || {},
+    summary: result?.summary || "",
+    requirements: Array.isArray(result?.requirements) ? result.requirements : [],
+    responsibilities: Array.isArray(result?.responsibilities) ? result.responsibilities : [],
+  };
+
+  // Provider-specific normalization
+  switch (provider) {
+    case 'groq':
+      if (typeof result?.skills === 'string') {
+        normalized.skills = result.skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+      }
+      if (result?.required_skills && !normalized.skills.length) {
+        normalized.skills = Array.isArray(result.required_skills) 
+          ? result.required_skills 
+          : result.required_skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+      }
+      break;
+
+    case 'openai':
+      if (result?.skills && !Array.isArray(result.skills)) {
+        normalized.skills = [result.skills];
+      }
+      break;
+
+    case 'anthropic':
+      if (result?.required_skills) {
+        normalized.skills = Array.isArray(result.required_skills) 
+          ? result.required_skills 
+          : [result.required_skills];
+      }
+      break;
+  }
+
+  // Ensure skills are strings and deduplicated
+  normalized.skills = [...new Set(
+    normalized.skills
+      .map(skill => typeof skill === 'string' ? skill.trim() : String(skill))
+      .filter(skill => skill.length > 0)
+  )];
+
+  logger.debug(`Job analysis normalized for ${provider}`, {
+    skillsCount: normalized.skills.length,
+    hasExperience: !!normalized.experience,
+    requirementsCount: normalized.requirements.length,
+  });
+
+  return normalized;
+}
+
+function normalizeMatchAnalysis(result: any, provider: string): MatchAnalysisResponse {
+  logger.debug(`Normalizing match analysis from ${provider}`, {
+    hasResult: !!result,
+    resultKeys: result ? Object.keys(result) : [],
+  });
+
+  // Base normalization
+  const normalized: MatchAnalysisResponse = {
+    matchPercentage: Math.max(0, Math.min(100, Number(result?.matchPercentage) || 0)),
+    matchedSkills: Array.isArray(result?.matchedSkills) ? result.matchedSkills : [],
+    missingSkills: Array.isArray(result?.missingSkills) ? result.missingSkills : [],
+    candidateStrengths: Array.isArray(result?.candidateStrengths) ? result.candidateStrengths : [],
+    candidateWeaknesses: Array.isArray(result?.candidateWeaknesses) ? result.candidateWeaknesses : [],
+    recommendations: Array.isArray(result?.recommendations) ? result.recommendations : [],
+    confidenceLevel: result?.confidenceLevel || 'medium',
+    fairnessMetrics: result?.fairnessMetrics || {},
+  };
+
+  // Provider-specific normalization
+  switch (provider) {
+    case 'groq':
+      // Groq may return match percentage as string
+      if (typeof result?.matchPercentage === 'string') {
+        normalized.matchPercentage = Math.max(0, Math.min(100, parseFloat(result.matchPercentage) || 0));
+      }
+      // Handle different field names
+      if (result?.matched_skills && !normalized.matchedSkills.length) {
+        normalized.matchedSkills = Array.isArray(result.matched_skills) 
+          ? result.matched_skills 
+          : [result.matched_skills];
+      }
+      break;
+
+    case 'openai':
+      // OpenAI typically consistent, but ensure proper types
+      if (result?.match_score && !result?.matchPercentage) {
+        normalized.matchPercentage = Math.max(0, Math.min(100, Number(result.match_score) || 0));
+      }
+      break;
+
+    case 'anthropic':
+      // Anthropic may use different field names
+      if (result?.overall_match && !result?.matchPercentage) {
+        normalized.matchPercentage = Math.max(0, Math.min(100, Number(result.overall_match) || 0));
+      }
+      if (result?.strengths && !normalized.candidateStrengths.length) {
+        normalized.candidateStrengths = Array.isArray(result.strengths) 
+          ? result.strengths 
+          : [result.strengths];
+      }
+      if (result?.weaknesses && !normalized.candidateWeaknesses.length) {
+        normalized.candidateWeaknesses = Array.isArray(result.weaknesses) 
+          ? result.weaknesses 
+          : [result.weaknesses];
+      }
+      break;
+  }
+
+  // Ensure arrays contain strings
+  normalized.matchedSkills = normalized.matchedSkills.map(skill => 
+    typeof skill === 'string' ? skill : String(skill)
+  ).filter(Boolean);
+  
+  normalized.missingSkills = normalized.missingSkills.map(skill => 
+    typeof skill === 'string' ? skill : String(skill)
+  ).filter(Boolean);
+
+  // Validate confidence level
+  if (!['low', 'medium', 'high'].includes(normalized.confidenceLevel)) {
+    normalized.confidenceLevel = 'medium';
+  }
+
+  logger.debug(`Match analysis normalized for ${provider}`, {
+    matchPercentage: normalized.matchPercentage,
+    matchedSkillsCount: normalized.matchedSkills.length,
+    missingSkillsCount: normalized.missingSkills.length,
+    confidenceLevel: normalized.confidenceLevel,
+  });
+
+  return normalized;
+}
 
 /**
  * Classify error types and throw appropriate errors based on actual failure reasons
@@ -99,44 +463,79 @@ interface TierAwareProviderSelection {
 }
 
 /**
- * Select AI provider based on user tier and availability
- * BETA MODE: All users use Groq for cost optimization during beta testing
+ * Simplified provider selection logic with circuit breaker awareness
  * @throws Error when no providers are available, with appropriate upgrade messaging
  */
 function selectProviderForTier(
   userTier: UserTierInfo,
 ): TierAwareProviderSelection {
-  // BETA MODE: Force all users to Groq for cost optimization
-  // This will be removed after beta testing period (~1 month)
-  const BETA_MODE = true; // Set to false to enable full tiered system
+  const allowedProviders = TIER_LIMITS[userTier.tier].allowedProviders;
+  
+  // Define provider priority order based on reliability and cost
+  const providerPriority: Array<"groq" | "openai" | "anthropic"> = ["groq", "openai", "anthropic"];
+  
+  // Filter providers by tier permissions, configuration, availability, and circuit breaker state
+  const availableProviders = providerPriority.filter(provider => {
+    // Check tier permissions
+    if (!allowedProviders.includes(provider as any)) {
+      return false;
+    }
+    
+    // Check configuration and service status
+    let isConfiguredAndAvailable = false;
+    switch (provider) {
+      case "groq":
+        isConfiguredAndAvailable = isGroqConfigured && groq.getGroqServiceStatus().isAvailable;
+        break;
+      case "openai":
+        isConfiguredAndAvailable = isOpenAIConfigured && openai.getOpenAIServiceStatus().isAvailable;
+        break;
+      case "anthropic":
+        isConfiguredAndAvailable = isAnthropicConfigured && anthropic.getAnthropicServiceStatus().isAvailable;
+        break;
+    }
+    
+    // Check circuit breaker state
+    const circuitBreakerOpen = isCircuitBreakerOpen(provider);
+    
+    logger.debug(`Provider ${provider} availability check`, {
+      tier: userTier.tier,
+      allowed: allowedProviders.includes(provider as any),
+      configured: isConfiguredAndAvailable,
+      circuitBreakerOpen,
+      available: isConfiguredAndAvailable && !circuitBreakerOpen,
+    });
+    
+    return isConfiguredAndAvailable && !circuitBreakerOpen;
+  });
 
-  if (BETA_MODE) {
-    if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
-      return {
-        provider: "groq",
-        reason: `Beta mode - all users use cost-effective Groq (tier: ${userTier.tier})`,
-      };
-    }
-    // Emergency fallback during beta if Groq is down
-    if (isOpenAIConfigured && openai.getOpenAIServiceStatus().isAvailable) {
-      return {
-        provider: "openai",
-        reason: "Beta mode - emergency fallback (Groq unavailable)",
-      };
-    }
-    // Last resort fallback
-    if (
-      isAnthropicConfigured &&
-      anthropic.getAnthropicServiceStatus().isAvailable
-    ) {
-      return {
-        provider: "anthropic",
-        reason: "Beta mode - last resort fallback",
-      };
-    }
-    // All providers unavailable - throw error instead of fallback
+  if (availableProviders.length === 0) {
+    logger.error("No AI providers available", {
+      tier: userTier.tier,
+      allowedProviders,
+      circuitBreakerStates: Array.from(circuitBreakers.entries()),
+    });
     throw getServiceUnavailableError(userTier, "AI analysis");
   }
+
+  const selectedProvider = availableProviders[0];
+  const reason = availableProviders.length === 1 
+    ? `Only available provider for ${userTier.tier} tier`
+    : `Best available provider for ${userTier.tier} tier (${availableProviders.length} options)`;
+
+  logger.info("Provider selected", {
+    provider: selectedProvider,
+    tier: userTier.tier,
+    reason,
+    availableCount: availableProviders.length,
+    totalAllowed: allowedProviders.length,
+  });
+
+  return {
+    provider: selectedProvider,
+    reason,
+  };
+}
 
   // FULL TIERED SYSTEM (disabled during beta)
   const allowedProviders = TIER_LIMITS[userTier.tier].allowedProviders;
@@ -240,17 +639,46 @@ export async function analyzeResume(
   // Increment usage count
   incrementUsage(userTier);
 
-  // Call appropriate provider with error handling
+  // Call appropriate provider with retry logic and result normalization
   try {
+    let rawResult: any;
+    
     switch (selection.provider) {
       case "anthropic":
-        return await anthropic.analyzeResume(resumeText);
+        rawResult = await withRetryAndCircuitBreaker(
+          "anthropic",
+          () => anthropic.analyzeResume(resumeText),
+          "Resume analysis"
+        );
+        break;
       case "openai":
-        return await openai.analyzeResume(resumeText);
+        rawResult = await withRetryAndCircuitBreaker(
+          "openai",
+          () => openai.analyzeResume(resumeText),
+          "Resume analysis"
+        );
+        break;
       case "groq":
       default:
-        return await groq.analyzeResume(resumeText);
+        rawResult = await withRetryAndCircuitBreaker(
+          "groq",
+          () => groq.analyzeResume(resumeText),
+          "Resume analysis"
+        );
+        break;
     }
+
+    // Normalize result to ensure consistent format
+    const normalizedResult = normalizeResumeAnalysis(rawResult, selection.provider);
+    
+    logger.info("Resume analysis completed successfully", {
+      provider: selection.provider,
+      skillsCount: normalizedResult.skills.length,
+      hasExperience: !!normalizedResult.experience,
+      hasEducation: !!normalizedResult.education,
+    });
+
+    return normalizedResult;
   } catch (error) {
     logger.error("AI provider error in resume analysis", {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -287,22 +715,57 @@ export async function analyzeResumeParallel(
   // Increment usage count
   incrementUsage(userTier);
 
-  // Call appropriate provider with error handling
+  // Call appropriate provider with retry logic and result normalization
   try {
+    let rawResult: any;
+    
     switch (selection.provider) {
       case "anthropic":
         // Fallback to standard analysis for non-Groq providers
-        return await anthropic.analyzeResume(resumeText);
+        rawResult = await withRetryAndCircuitBreaker(
+          "anthropic",
+          () => anthropic.analyzeResume(resumeText),
+          "Parallel resume analysis"
+        );
+        break;
       case "openai":
         // Fallback to standard analysis for non-Groq providers
-        return await openai.analyzeResume(resumeText);
+        rawResult = await withRetryAndCircuitBreaker(
+          "openai",
+          () => openai.analyzeResume(resumeText),
+          "Parallel resume analysis"
+        );
+        break;
       case "groq":
       default:
         // Use optimized parallel extraction for Groq
-        return await groq.analyzeResumeParallel(resumeText);
+        rawResult = await withRetryAndCircuitBreaker(
+          "groq",
+          () => groq.analyzeResumeParallel(resumeText),
+          "Parallel resume analysis"
+        );
+        break;
     }
+
+    // Normalize result to ensure consistent format
+    const normalizedResult = normalizeResumeAnalysis(rawResult, selection.provider);
+    
+    logger.info("Parallel resume analysis completed successfully", {
+      provider: selection.provider,
+      skillsCount: normalizedResult.skills.length,
+      hasExperience: !!normalizedResult.experience,
+      hasEducation: !!normalizedResult.education,
+      optimized: selection.provider === "groq",
+    });
+
+    return normalizedResult;
   } catch (error) {
-    logger.error("AI provider error in parallel resume analysis", error);
+    logger.error("AI provider error in parallel resume analysis", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      provider: selection.provider,
+      userTier: userTier.tier,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     throw classifyAndThrowError(error, userTier, "Resume analysis");
   }
 }
@@ -328,19 +791,53 @@ export async function analyzeJobDescription(
   // Increment usage count
   incrementUsage(userTier);
 
-  // Call appropriate provider with error handling
+  // Call appropriate provider with retry logic and result normalization
   try {
+    let rawResult: any;
+    
     switch (selection.provider) {
       case "anthropic":
-        return await anthropic.analyzeJobDescription(title, description);
+        rawResult = await withRetryAndCircuitBreaker(
+          "anthropic",
+          () => anthropic.analyzeJobDescription(title, description),
+          "Job description analysis"
+        );
+        break;
       case "openai":
-        return await openai.analyzeJobDescription(title, description);
+        rawResult = await withRetryAndCircuitBreaker(
+          "openai",
+          () => openai.analyzeJobDescription(title, description),
+          "Job description analysis"
+        );
+        break;
       case "groq":
       default:
-        return await groq.analyzeJobDescription(title, description);
+        rawResult = await withRetryAndCircuitBreaker(
+          "groq",
+          () => groq.analyzeJobDescription(title, description),
+          "Job description analysis"
+        );
+        break;
     }
+
+    // Normalize result to ensure consistent format
+    const normalizedResult = normalizeJobAnalysis(rawResult, selection.provider);
+    
+    logger.info("Job description analysis completed successfully", {
+      provider: selection.provider,
+      skillsCount: normalizedResult.skills.length,
+      hasExperience: !!normalizedResult.experience,
+      requirementsCount: normalizedResult.requirements.length,
+    });
+
+    return normalizedResult;
   } catch (error) {
-    logger.error("AI provider error in job description analysis", error);
+    logger.error("AI provider error in job description analysis", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      provider: selection.provider,
+      userTier: userTier.tier,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     // Throw appropriate error message based on user tier
     throw classifyAndThrowError(error, userTier, "Job description analysis");
   }
@@ -369,28 +866,53 @@ export async function analyzeMatch(
   // Increment usage count
   incrementUsage(userTier);
 
-  // Call appropriate provider with error handling
+  // Call appropriate provider with retry logic and result normalization
   let matchResult: MatchAnalysisResponse;
   try {
+    let rawResult: any;
+    
     switch (selection.provider) {
       case "anthropic":
-        matchResult = await anthropic.analyzeMatch(resumeAnalysis, jobAnalysis);
+        rawResult = await withRetryAndCircuitBreaker(
+          "anthropic",
+          () => anthropic.analyzeMatch(resumeAnalysis, jobAnalysis),
+          "Match analysis"
+        );
         break;
       case "openai":
-        matchResult = await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
+        rawResult = await withRetryAndCircuitBreaker(
+          "openai",
+          () => openai.analyzeMatch(resumeAnalysis, jobAnalysis),
+          "Match analysis"
+        );
         break;
       case "groq":
       default:
-        matchResult = await groq.analyzeMatch(
-          resumeAnalysis,
-          jobAnalysis,
-          resumeText,
-          jobText,
+        rawResult = await withRetryAndCircuitBreaker(
+          "groq",
+          () => groq.analyzeMatch(resumeAnalysis, jobAnalysis, resumeText, jobText),
+          "Match analysis"
         );
         break;
     }
+
+    // Normalize result to ensure consistent format
+    matchResult = normalizeMatchAnalysis(rawResult, selection.provider);
+    
+    logger.info("Match analysis completed successfully", {
+      provider: selection.provider,
+      matchPercentage: matchResult.matchPercentage,
+      matchedSkillsCount: matchResult.matchedSkills.length,
+      missingSkillsCount: matchResult.missingSkills.length,
+      confidenceLevel: matchResult.confidenceLevel,
+    });
   } catch (error) {
-    logger.error("AI provider error in match analysis", error);
+    logger.error("AI provider error in match analysis", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      provider: selection.provider,
+      userTier: userTier.tier,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     // Throw appropriate error message based on user tier
     throw classifyAndThrowError(error, userTier, "Match analysis");
   }
@@ -631,3 +1153,11 @@ export function getTierAwareServiceStatus(userTier: UserTierInfo) {
     features: userTier.features,
   };
 }
+
+
+
+
+
+
+
+

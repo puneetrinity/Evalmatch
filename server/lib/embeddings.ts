@@ -240,21 +240,103 @@ export async function findMostSimilar(
 
 /**
  * Calculate semantic similarity between resume and job description
+ * Uses improved embedding-based matching with proper thresholds:
+ * - High: ≥80 (Strong contextual alignment)
+ * - Moderate: 60-79 (Good contextual match)
+ * - Low: 40-59 (Some contextual relevance)
+ * - None: <40 (Limited contextual alignment)
  */
 export async function calculateSemanticSimilarity(
   resumeText: string,
   jobDescriptionText: string,
 ): Promise<number> {
   try {
-    const resumeEmbedding = await generateEmbedding(resumeText);
-    const jobEmbedding = await generateEmbedding(jobDescriptionText);
+    // Input validation
+    if (!resumeText || !jobDescriptionText) {
+      logger.warn("Empty text provided for semantic similarity calculation", {
+        hasResumeText: !!resumeText,
+        hasJobText: !!jobDescriptionText,
+      });
+      return 0;
+    }
+
+    // Clean and normalize text for better embedding quality
+    const cleanResumeText = resumeText.trim().toLowerCase();
+    const cleanJobText = jobDescriptionText.trim().toLowerCase();
+
+    if (cleanResumeText.length < 10 || cleanJobText.length < 10) {
+      logger.warn("Text too short for meaningful semantic analysis", {
+        resumeLength: cleanResumeText.length,
+        jobLength: cleanJobText.length,
+      });
+      return 0;
+    }
+
+    logger.debug("Calculating semantic similarity", {
+      resumeLength: cleanResumeText.length,
+      jobLength: cleanJobText.length,
+    });
+
+    const resumeEmbedding = await generateEmbedding(cleanResumeText);
+    const jobEmbedding = await generateEmbedding(cleanJobText);
 
     const similarity = cosineSimilarity(resumeEmbedding, jobEmbedding);
 
-    // Convert to 0-100 scale
-    return Math.max(0, Math.min(100, similarity * 100));
+    // Convert to 0-100 scale with improved scaling
+    const scaledSimilarity = Math.max(0, Math.min(100, similarity * 100));
+
+    // Apply threshold-based scoring for better differentiation
+    let adjustedScore = scaledSimilarity;
+    
+    if (scaledSimilarity >= 80) {
+      // High similarity: Apply slight boost for excellent matches
+      adjustedScore = Math.min(100, scaledSimilarity * 1.05);
+      logger.debug("High semantic similarity detected", { 
+        rawScore: scaledSimilarity, 
+        adjustedScore 
+      });
+    } else if (scaledSimilarity >= 60) {
+      // Moderate similarity: Keep as-is
+      adjustedScore = scaledSimilarity;
+      logger.debug("Moderate semantic similarity detected", { 
+        score: scaledSimilarity 
+      });
+    } else if (scaledSimilarity >= 40) {
+      // Low similarity: Apply slight penalty
+      adjustedScore = scaledSimilarity * 0.95;
+      logger.debug("Low semantic similarity detected", { 
+        rawScore: scaledSimilarity, 
+        adjustedScore 
+      });
+    } else {
+      // Very low similarity: Apply penalty
+      adjustedScore = scaledSimilarity * 0.9;
+      logger.debug("Very low semantic similarity detected", { 
+        rawScore: scaledSimilarity, 
+        adjustedScore 
+      });
+    }
+
+    const finalScore = Math.max(0, Math.min(100, Math.round(adjustedScore)));
+    
+    logger.info("Semantic similarity calculation completed", {
+      rawSimilarity: similarity,
+      scaledScore: scaledSimilarity,
+      finalScore,
+      threshold: finalScore >= 80 ? "High" : 
+                finalScore >= 60 ? "Moderate" : 
+                finalScore >= 40 ? "Low" : "None"
+    });
+
+    return finalScore;
   } catch (error) {
-    logger.error("Error calculating semantic similarity:", error);
+    logger.error("Error calculating semantic similarity:", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+      resumeTextLength: resumeText?.length || 0,
+      jobTextLength: jobDescriptionText?.length || 0,
+    });
     return 0;
   }
 }
+

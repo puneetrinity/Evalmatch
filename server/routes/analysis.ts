@@ -198,6 +198,8 @@ router.post(
             analysisMethod: hybridResult.analysisMethod,
             confidence: hybridResult.confidence,
             matchInsights: hybridResult.matchInsights,
+            // Include integrated bias detection results
+            biasDetection: hybridResult.biasDetection,
           };
           
           const matchAnalysisTime = Date.now() - matchAnalysisStartTime;
@@ -1002,3 +1004,4 @@ router.post(
 );
 
 export default router;
+
