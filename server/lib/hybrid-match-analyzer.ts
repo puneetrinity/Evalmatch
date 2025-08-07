@@ -540,15 +540,17 @@ export class HybridMatchAnalyzer {
 
       let result: HybridMatchResult;
 
+      let result: HybridMatchResult;
+
       switch (strategy) {
         case "hybrid":
           logger.info("🔄 EXECUTING HYBRID ANALYSIS (ML + LLM)");
           result = await this.performHybridAnalysis(
-            resumeAnalysis,
-            jobAnalysis,
+            sanitizedResumeAnalysis,
+            sanitizedJobAnalysis,
             userTier,
-            resumeText!,
-            jobText!,
+            sanitizedResumeText!,
+            sanitizedJobText!,
           );
           break;
         case "ml_only":
@@ -1775,6 +1777,7 @@ export async function analyzeMatchHybrid(
   const analyzer = new HybridMatchAnalyzer();
   return await analyzer.analyzeMatch(resumeAnalysis, jobAnalysis, userTier, resumeText, jobText);
 }
+
 
 
 
