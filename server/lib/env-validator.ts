@@ -386,6 +386,13 @@ export function validateEnvironment(): EnvValidationResult {
         }
       }
     } else {
+      // Special case: Skip validation for FIREBASE_SERVICE_ACCOUNT_KEY if BASE64 version exists
+      if (spec.name === "FIREBASE_SERVICE_ACCOUNT_KEY" && 
+          process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64) {
+        // Skip validation - we're using the base64 version
+        continue;
+      }
+      
       // Validate format if validator exists
       if (spec.validator && !spec.validator(value)) {
         invalidFormats.push(spec.name);
