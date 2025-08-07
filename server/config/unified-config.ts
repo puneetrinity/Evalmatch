@@ -114,8 +114,20 @@ export function loadUnifiedConfig(): AppConfig {
 
   // Firebase configuration
   const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || null;
-  const firebaseServiceAccountKey =
-    process.env.FIREBASE_SERVICE_ACCOUNT_KEY || null;
+  
+  // Get Firebase service account key - prefer base64 version for Railway compatibility
+  let firebaseServiceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || null;
+  if (!firebaseServiceAccountKey && process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64) {
+    try {
+      firebaseServiceAccountKey = Buffer.from(
+        process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64,
+        'base64'
+      ).toString('utf8');
+    } catch (error) {
+      logger.warn('Failed to decode FIREBASE_SERVICE_ACCOUNT_KEY_BASE64', { error });
+      firebaseServiceAccountKey = null;
+    }
+  }
 
   // Firebase client configuration (for build-time injection)
   const firebaseClientConfig = {

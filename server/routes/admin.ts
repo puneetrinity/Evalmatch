@@ -5,36 +5,135 @@
 
 import { Router, Request, Response, NextFunction } from "express";
 import { logger } from "../lib/logger";
+import crypto from "crypto";
 
 const router = Router();
 
-// Admin route protection middleware
-const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
-  // Check for admin authorization header
-  const adminToken = req.headers['x-admin-token'];
+// Rate limiting storage for admin attempts (in-memory for simplicity)
+const adminAttempts = new Map<string, { count: number; resetTime: number; blocked: boolean }>();
+
+// Cleanup old entries periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, data] of adminAttempts.entries()) {
+    if (now > data.resetTime) {
+      adminAttempts.delete(key);
+    }
+  }
+}, 60000); // Cleanup every minute
+
+// ENHANCED: Timing-safe admin authentication with rate limiting
+const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  const clientKey = req.ip || 'unknown';
+  const now = Date.now();
+  
+  // Initialize or get client attempt data
+  let clientData = adminAttempts.get(clientKey);
+  if (!clientData || now > clientData.resetTime) {
+    clientData = { count: 0, resetTime: now + 900000, blocked: false }; // 15 minutes window
+    adminAttempts.set(clientKey, clientData);
+  }
+  
+  // Check if client is blocked
+  if (clientData.blocked) {
+    logger.warn('🚨 Blocked admin access attempt from rate-limited IP', {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+      path: req.path,
+      attempts: clientData.count,
+      timeRemaining: Math.ceil((clientData.resetTime - now) / 1000)
+    });
+    
+    return res.status(429).json({
+      error: 'Too Many Requests',
+      message: `Too many failed admin attempts. Try again in ${Math.ceil((clientData.resetTime - now) / 60000)} minutes.`,
+      code: 'ADMIN_RATE_LIMITED',
+      retryAfter: Math.ceil((clientData.resetTime - now) / 1000)
+    });
+  }
+  
+  const adminToken = req.headers['x-admin-token'] as string;
   const expectedToken = process.env.ADMIN_API_TOKEN;
   
   if (!expectedToken) {
-    logger.warn('Admin routes disabled - ADMIN_API_TOKEN not configured');
-    return res.status(503).json({
-      error: 'Service Unavailable',
-      message: 'Admin functionality is not configured'
-    });
-  }
-  
-  if (!adminToken || adminToken !== expectedToken) {
-    logger.warn('Unauthorized admin access attempt', {
+    logger.error('🔒 Admin routes disabled - ADMIN_API_TOKEN not configured', {
       ip: req.ip,
-      userAgent: req.headers['user-agent'],
       path: req.path
     });
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Valid admin token required'
+    
+    return res.status(503).json({
+      error: 'Service Unavailable',
+      message: 'Admin functionality is disabled',
+      code: 'ADMIN_DISABLED'
     });
   }
   
-  logger.info('Admin access granted', { path: req.path, ip: req.ip });
+  // SECURITY: Timing-safe token comparison to prevent timing attacks
+  const isValidToken = adminToken && 
+    adminToken.length === expectedToken.length &&
+    crypto.timingSafeEqual(
+      Buffer.from(adminToken, 'utf8'),
+      Buffer.from(expectedToken, 'utf8')
+    );
+  
+  if (!isValidToken) {
+    // Increment failed attempts
+    clientData.count++;
+    
+    // Block after 3 failed attempts
+    if (clientData.count >= 3) {
+      clientData.blocked = true;
+      logger.error('🚨 SECURITY ALERT: Admin IP blocked after multiple failed attempts', {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+        path: req.path,
+        attempts: clientData.count,
+        timestamp: new Date().toISOString(),
+        severity: 'HIGH'
+      });
+      
+      return res.status(429).json({
+        error: 'Access Blocked',
+        message: 'Too many failed authentication attempts. Access blocked for 15 minutes.',
+        code: 'ADMIN_BLOCKED'
+      });
+    }
+    
+    logger.warn('🛡️ Unauthorized admin access attempt', {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+      path: req.path,
+      method: req.method,
+      attempts: clientData.count,
+      hasToken: !!adminToken,
+      tokenLength: adminToken?.length || 0,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Add artificial delay to slow down brute force attacks
+    await new Promise(resolve => setTimeout(resolve, Math.min(1000 * clientData.count, 5000)));
+    
+    return res.status(401).json({
+      error: 'Unauthorized',
+      message: 'Invalid admin credentials',
+      code: 'ADMIN_AUTH_FAILED',
+      attemptsRemaining: 3 - clientData.count
+    });
+  }
+  
+  // SECURITY: Log successful admin access for audit trail
+  logger.info('✅ Admin access granted', { 
+    path: req.path, 
+    method: req.method,
+    ip: req.ip,
+    userAgent: req.headers['user-agent'],
+    timestamp: new Date().toISOString(),
+    eventType: 'ADMIN_ACCESS_GRANTED'
+  });
+  
+  // Reset failed attempts on successful authentication
+  adminAttempts.delete(clientKey);
+  
   next();
 };
 
@@ -258,19 +357,24 @@ router.get(
 
       for (const tableName of tables) {
         try {
-          // Get column info
+          // Get column info - SECURITY: Using parameterized query to prevent SQL injection
           const columns = await db.execute(
-            sql.raw(`
-          SELECT column_name, data_type, is_nullable, column_default
-          FROM information_schema.columns 
-          WHERE table_name = '${tableName}'
-          ORDER BY ordinal_position
-        `),
+            sql`SELECT column_name, data_type, is_nullable, column_default
+                FROM information_schema.columns 
+                WHERE table_name = ${tableName}
+                ORDER BY ordinal_position`
           );
 
-          // Get row count
+          // Get row count - SECURITY: Validate table name against whitelist
+          // Table names cannot be parameterized, so we validate against approved list
+          const approvedTables = ["resumes", "job_descriptions", "analysis_results", "interview_questions", "skills", "skill_categories"];
+          if (!approvedTables.includes(tableName)) {
+            throw new Error(`Unauthorized table access: ${tableName}`);
+          }
+          
+          // Use safe identifier quoting for table name
           const countResult = await db.execute(
-            sql.raw(`SELECT COUNT(*) as count FROM ${tableName}`),
+            sql.raw(`SELECT COUNT(*) as count FROM "${tableName}"`)
           );
           const rowCount =
             Array.isArray(countResult) && countResult[0]

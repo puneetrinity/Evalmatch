@@ -226,7 +226,7 @@ ${resumeText}
 AI ANALYSIS RESULTS:
 - Name: ${resumeAnalysis.name || "Not specified"}
 - Skills identified: ${resumeAnalysis.skills?.join(", ") || "None"}
-- Experience identified: ${resumeAnalysis.experience?.map((exp) => `${exp?.title || exp?.position || "Position"} at ${exp?.company || "Company"}`).join("; ") || "Not specified"}
+- Experience identified: ${resumeAnalysis.experience?.map((exp) => `${exp?.position || "Position"} at ${exp?.company || "Company"}`).join("; ") || "Not specified"}
 - Match percentage: ${matchAnalysis.matchPercentage || 0}%
 - Matched skills: ${
     matchAnalysis.matchedSkills
@@ -313,7 +313,7 @@ ${resumeText}
 AI ANALYSIS RESULTS:
 - Name: ${resumeAnalysis.name || "Not specified"}
 - Skills identified: ${resumeAnalysis.skills?.join(", ") || "None"}
-- Experience identified: ${resumeAnalysis.experience?.map((exp) => `${exp?.title || exp?.position || "Position"} at ${exp?.company || "Company"}`).join("; ") || "Not specified"}
+- Experience identified: ${resumeAnalysis.experience?.map((exp) => `${exp?.position || "Position"} at ${exp?.company || "Company"}`).join("; ") || "Not specified"}
 - Match percentage: ${matchAnalysis.matchPercentage || 0}%
 - Matched skills: ${
     matchAnalysis.matchedSkills

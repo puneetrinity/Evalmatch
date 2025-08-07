@@ -380,7 +380,12 @@ export async function analyzeResumeParallel(
       confidence: 0.8,
       // Convenience properties for backward compatibility
       skills: skillsArray,
-      experience: [experience?.totalYears || "0 years"],
+      experience: [{
+        company: "Unknown",
+        position: "Unknown",
+        duration: experience?.totalYears || "0 years",
+        description: ""
+      }],
     };
 
     // Only cache if we have meaningful results (at least some skills)

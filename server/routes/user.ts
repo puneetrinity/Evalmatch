@@ -101,8 +101,8 @@ router.post("/debug/test-auth", async (req: Request, res: Response) => {
             ? tokenError.message
             : "Invalid Firebase token",
         code:
-          tokenError instanceof Error && "code" in tokenError
-            ? (tokenError as any).code
+          tokenError instanceof Error && "code" in tokenError && typeof (tokenError as { code?: string }).code === "string"
+            ? (tokenError as { code: string }).code
             : "auth/invalid-token",
         tokenLength: token.length,
       });

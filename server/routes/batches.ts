@@ -20,6 +20,39 @@ import type { SessionId } from "@shared/api-contracts";
 
 const router = express.Router();
 
+// Database query result interfaces
+interface ResumeQueryResult {
+  id: number;
+  filename: string;
+  file_size: number;
+  file_type: string;
+  analyzed_data?: any;
+  created_at: string;
+  updated_at: string;
+  has_analysis: boolean;
+}
+
+interface CleanupCandidateQueryResult {
+  batch_id: string;
+  session_id: string;
+  user_id: string | null;
+  resume_count: string;
+  created_at: string;
+  last_updated: string;
+  hours_inactive: string;
+}
+
+interface AnalysisCountResult {
+  analysis_count: string;
+}
+
+interface CorruptionCheckResult {
+  empty_content_count: string;
+  empty_filename_count: string;
+  unanalyzed_count: string;
+  total_count: string;
+}
+
 // Enhanced batch status interface
 interface BatchStatus {
   batchId: string;
@@ -105,6 +138,37 @@ const batchDeleteRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
+// Type guards for database results
+function isAnalysisCountResult(obj: unknown): obj is AnalysisCountResult {
+  return typeof obj === 'object' && obj !== null && 'analysis_count' in obj;
+}
+
+function isCorruptionCheckResult(obj: unknown): obj is CorruptionCheckResult {
+  return typeof obj === 'object' && obj !== null && 
+    'empty_content_count' in obj && 
+    'empty_filename_count' in obj && 
+    'unanalyzed_count' in obj && 
+    'total_count' in obj;
+}
+
+function isResumeQueryResult(obj: unknown): obj is ResumeQueryResult {
+  return typeof obj === 'object' && obj !== null && 
+    'id' in obj && 
+    'filename' in obj && 
+    'file_size' in obj && 
+    'file_type' in obj;
+}
+
+function isCleanupCandidateQueryResult(obj: unknown): obj is CleanupCandidateQueryResult {
+  return typeof obj === 'object' && obj !== null && 
+    'batch_id' in obj && 
+    'session_id' in obj && 
+    'resume_count' in obj && 
+    'created_at' in obj && 
+    'last_updated' in obj && 
+    'hours_inactive' in obj;
+}
+
 /**
  * GET /api/batches/:batchId/validate
  * Validate batch ownership and integrity
@@ -119,13 +183,13 @@ router.get(
       const sessionId =
         (req.headers["x-session-id"] as SessionId) ||
         (req.query.sessionId as SessionId);
-      const userId = (req as any).user?.uid || (req.query.userId as string);
+      const userId = (req as unknown as { user?: { uid: string } }).user?.uid || (req.query.userId as string);
 
       logger.info("Batch validation request:", {
         batchId: batchId.substring(0, 20) + "...",
         sessionId: sessionId?.substring(0, 20) + "...",
         userId:
-          ((req as any).user?.uid || userId)?.substring(0, 10) + "..." ||
+          ((req as unknown as { user?: { uid: string } }).user?.uid || userId)?.substring(0, 10) + "..." ||
           "anonymous",
         ip: req.ip,
       });
@@ -210,9 +274,10 @@ router.get(
       `;
 
       const analysisResults = await executeQuery(analysisQuery, [batchId]);
-      const analysisCount = parseInt(
-        (analysisResults[0] as any)?.analysis_count || "0",
-      );
+      if (!Array.isArray(analysisResults) || !analysisResults[0] || !isAnalysisCountResult(analysisResults[0])) {
+        throw new Error('Invalid analysis query result format');
+      }
+      const analysisCount = parseInt(analysisResults[0].analysis_count || "0");
 
       // Check for data corruption
       const corruptionQuery = `
@@ -226,7 +291,10 @@ router.get(
       `;
 
       const corruptionResults = await executeQuery(corruptionQuery, [batchId]);
-      const corruptionData = corruptionResults[0] as any;
+      if (!Array.isArray(corruptionResults) || !corruptionResults[0] || !isCorruptionCheckResult(corruptionResults[0])) {
+        throw new Error('Invalid corruption check query result format');
+      }
+      const corruptionData = corruptionResults[0];
 
       // Determine batch status
       let status: BatchStatus["status"] = "active";
@@ -243,8 +311,8 @@ router.get(
       }
 
       const dataCorrupted =
-        corruptionData.empty_content_count > 0 ||
-        corruptionData.empty_filename_count > 0 ||
+        parseInt(corruptionData.empty_content_count) > 0 ||
+        parseInt(corruptionData.empty_filename_count) > 0 ||
         !validation.ownership.metadataIntegrityCheck;
 
       if (dataCorrupted) {
@@ -577,7 +645,14 @@ router.get(
         ORDER BY r.created_at DESC
       `;
 
-      const resumes = await executeQuery(resumesQuery, [batchId]);
+      const resumesResult = await executeQuery(resumesQuery, [batchId]);
+      if (!Array.isArray(resumesResult)) {
+        throw new Error('Invalid resumes query result format');
+      }
+      const resumes = resumesResult.filter((resume): resume is ResumeQueryResult => isResumeQueryResult(resume));
+      if (resumes.length !== resumesResult.length) {
+        logger.warn('Some resume records had invalid format', { batchId, expected: resumesResult.length, valid: resumes.length });
+      }
 
       // Update access timestamp
       await updateBatchAccess(batchId, validation.ownership.sessionId);
@@ -589,7 +664,7 @@ router.get(
           batchId: validation.batchId,
           sessionId: validation.ownership.sessionId,
           resumeCount: resumes.length,
-          resumes: resumes.map((resume: any) => ({
+          resumes: resumes.map(resume => ({
             ...resume,
             analyzedData: resume.analyzed_data, // Standardize field name
           })),
@@ -650,7 +725,14 @@ router.get(
         LIMIT 100
       `;
 
-      const candidates = await executeQuery(cleanupQuery, [cutoffDate]);
+      const candidatesResult = await executeQuery(cleanupQuery, [cutoffDate]);
+      if (!Array.isArray(candidatesResult)) {
+        throw new Error('Invalid cleanup candidates query result format');
+      }
+      const candidates = candidatesResult.filter((candidate): candidate is CleanupCandidateQueryResult => isCleanupCandidateQueryResult(candidate));
+      if (candidates.length !== candidatesResult.length) {
+        logger.warn('Some cleanup candidate records had invalid format', { expected: candidatesResult.length, valid: candidates.length });
+      }
 
       res.json({
         success: true,
@@ -658,7 +740,7 @@ router.get(
         data: {
           candidateCount: candidates.length,
           cutoffDate: cutoffDate.toISOString(),
-          candidates: candidates.map((candidate: any) => ({
+          candidates: candidates.map((candidate) => ({
             batchId: candidate.batch_id,
             sessionId: candidate.session_id,
             userId: candidate.user_id,

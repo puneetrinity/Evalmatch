@@ -1,5 +1,6 @@
 import { pipeline, FeatureExtractionPipeline } from "@xenova/transformers";
 import { logger } from "./logger";
+import { embeddingManager } from "./embedding-manager";
 
 // Global embedding pipeline
 let embeddingPipeline: FeatureExtractionPipeline | null = null;
@@ -51,34 +52,37 @@ async function initializeEmbeddingPipeline(): Promise<FeatureExtractionPipeline>
  * Falls back to OpenAI if local model fails
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
-  try {
-    // Try local model first
-    const pipeline = await initializeEmbeddingPipeline();
-    const result = await pipeline(text, { pooling: "mean", normalize: true });
-
-    // Convert to regular array
-    if (
-      result &&
-      typeof result === "object" &&
-      "data" in result &&
-      result.data
-    ) {
-      return Array.from(result.data as ArrayLike<number>);
-    } else {
-      throw new Error("Invalid embedding result format");
-    }
-  } catch (error) {
-    logger.warn("Local embedding failed, falling back to OpenAI:", error);
-
-    // Fallback to OpenAI embeddings
+  // Use embedding manager for caching and memory management
+  return embeddingManager.getEmbedding(text, async (textToEmbed) => {
     try {
-      const openaiModule = await import("./openai");
-      return await openaiModule.generateEmbedding(text);
-    } catch (fallbackError) {
-      logger.error("Both local and OpenAI embedding failed:", fallbackError);
-      throw fallbackError;
+      // Try local model first
+      const pipeline = await initializeEmbeddingPipeline();
+      const result = await pipeline(textToEmbed, { pooling: "mean", normalize: true });
+
+      // Convert to regular array
+      if (
+        result &&
+        typeof result === "object" &&
+        "data" in result &&
+        result.data
+      ) {
+        return Array.from(result.data as ArrayLike<number>);
+      } else {
+        throw new Error("Invalid embedding result format");
+      }
+    } catch (error) {
+      logger.warn("Local embedding failed, falling back to OpenAI:", error);
+
+      // Fallback to OpenAI embeddings
+      try {
+        const openaiModule = await import("./openai");
+        return await openaiModule.generateEmbedding(textToEmbed);
+      } catch (fallbackError) {
+        logger.error("Both local and OpenAI embedding failed:", fallbackError);
+        throw fallbackError;
+      }
     }
-  }
+  });
 }
 
 /**
@@ -172,9 +176,26 @@ export async function generateBatchEmbeddings(
 ): Promise<number[][]> {
   const embeddings: number[][] = [];
   const maxConcurrent = parseInt(process.env.MAX_CONCURRENT_EMBEDDINGS || "3");
+  const startMemory = process.memoryUsage().heapUsed;
 
   // Process in batches to optimize memory usage
   for (let i = 0; i < texts.length; i += maxConcurrent) {
+    // Check memory before processing batch
+    const currentMemory = process.memoryUsage().heapUsed;
+    const memoryDelta = currentMemory - startMemory;
+    
+    if (memoryDelta > 200 * 1024 * 1024) { // 200MB increase
+      logger.warn("High memory usage in batch embeddings, forcing garbage collection", {
+        batchIndex: i,
+        memoryDeltaMB: Math.round(memoryDelta / 1024 / 1024),
+        processed: i
+      });
+      
+      if (global.gc) {
+        global.gc();
+      }
+    }
+
     const batch = texts.slice(i, i + maxConcurrent);
     const batchPromises = batch.map((text) => generateEmbedding(text));
 

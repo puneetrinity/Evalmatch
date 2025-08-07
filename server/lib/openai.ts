@@ -423,7 +423,7 @@ export async function analyzeResume(
                   .map((exp: any) =>
                     typeof exp === "string"
                       ? exp
-                      : `${exp.title || "Position"} at ${exp.company || "Company"}`,
+                      : `${exp.position || "Position"} at ${exp.company || "Company"}`,
                   )
                   .join("; ")
               : "No experience information",

@@ -988,17 +988,42 @@ export async function extractTextWithOcr(buffer: Buffer): Promise<string> {
     
     console.log(`[OCR] Processing ${buffer.length} bytes with Tesseract`);
     
+    // SECURITY: Add comprehensive resource monitoring and DoS protection
+    const memoryBefore = process.memoryUsage().heapUsed;
+    const startTime = Date.now();
+    
     // Add timeout to OCR recognition to prevent hanging
     const recognitionPromise = worker.recognize(buffer, {
       rectangle: { top: 0, left: 0, width: 0, height: 0 } // Process full image
     });
     
-    // 120 second timeout for OCR processing
+    // ENHANCED: Reduced timeout for better DoS protection
     const ocrTimeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("OCR recognition timeout (120s)")), 120000);
+      setTimeout(() => reject(new Error("OCR recognition timeout (30s)")), 30000);
     });
     
     const { data } = await Promise.race([recognitionPromise, ocrTimeoutPromise]);
+    
+    // SECURITY: Monitor memory and processing time for DoS detection
+    const memoryAfter = process.memoryUsage().heapUsed;
+    const memoryDelta = memoryAfter - memoryBefore;
+    const processingTime = Date.now() - startTime;
+    
+    // Log and alert on suspicious resource usage
+    if (memoryDelta > 100 * 1024 * 1024) { // 100MB threshold
+      console.warn(`[OCR] HIGH MEMORY USAGE DETECTED: ${Math.round(memoryDelta / 1024 / 1024)}MB`, {
+        bufferSize: buffer.length,
+        processingTime,
+        memoryDelta
+      });
+    }
+    
+    if (processingTime > 25000) { // 25 second threshold
+      console.warn(`[OCR] LONG PROCESSING TIME DETECTED: ${processingTime}ms`, {
+        bufferSize: buffer.length,
+        memoryDelta: Math.round(memoryDelta / 1024 / 1024)
+      });
+    }
     
     if (!data || !data.text) {
       console.warn("[OCR] Tesseract returned empty or null text");
@@ -1026,7 +1051,7 @@ export async function extractTextWithOcr(buffer: Buffer): Promise<string> {
     return "";
     
   } finally {
-    // Ensure worker is always terminated to prevent resource leaks
+    // SECURITY: Comprehensive cleanup to prevent resource leaks and DoS
     if (worker) {
       try {
         console.log("[OCR] Terminating Tesseract worker");
@@ -1037,6 +1062,16 @@ export async function extractTextWithOcr(buffer: Buffer): Promise<string> {
         // Don't throw here - worker may already be terminated
       }
     }
+    
+    // Force garbage collection if available to free memory immediately
+    if (global.gc) {
+      console.log("[OCR] Running garbage collection to free memory");
+      global.gc();
+    }
+    
+    // Monitor final memory state
+    const finalMemory = process.memoryUsage();
+    console.log(`[OCR] Final memory usage: ${Math.round(finalMemory.heapUsed / 1024 / 1024)}MB`);
   }
 }
 
@@ -1180,17 +1215,77 @@ export async function parseDocument(
   buffer: Buffer,
   mimeType: string,
 ): Promise<string> {
-  switch (mimeType) {
-    case "application/pdf":
-      return extractTextFromPdf(buffer);
-    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-      return extractTextFromDocx(buffer);
-    case "application/msword":
-      return extractTextFromDoc(buffer);
-    case "text/plain":
-      return extractTextFromPlain(buffer);
-    default:
-      throw new Error(`Unsupported file type: ${mimeType}`);
+  // SECURITY: Comprehensive file upload DoS protection
+  const startTime = Date.now();
+  const startMemory = process.memoryUsage().heapUsed;
+  
+  // File size limits by type for DoS protection
+  const sizeLimit = {
+    'application/pdf': 25 * 1024 * 1024,                    // 25MB for PDFs
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 15 * 1024 * 1024, // 15MB for DOCX
+    'application/msword': 10 * 1024 * 1024,                 // 10MB for DOC
+    'text/plain': 5 * 1024 * 1024                           // 5MB for text
+  };
+  
+  const maxSize = sizeLimit[mimeType as keyof typeof sizeLimit] || 5 * 1024 * 1024;
+  
+  // Validate file size
+  if (!buffer || buffer.length === 0) {
+    throw new Error("Empty or invalid file buffer");
+  }
+  
+  if (buffer.length > maxSize) {
+    console.warn(`[SECURITY] File upload blocked - size ${Math.round(buffer.length / 1024 / 1024)}MB exceeds limit ${Math.round(maxSize / 1024 / 1024)}MB for ${mimeType}`);
+    throw new Error(`File size ${Math.round(buffer.length / 1024 / 1024)}MB exceeds maximum ${Math.round(maxSize / 1024 / 1024)}MB for ${mimeType}`);
+  }
+  
+  console.log(`[PARSER] Processing ${Math.round(buffer.length / 1024)}KB ${mimeType} file`);
+  
+  try {
+    let result: string;
+    
+    switch (mimeType) {
+      case "application/pdf":
+        result = await extractTextFromPdf(buffer);
+        break;
+      case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        result = await extractTextFromDocx(buffer);
+        break;
+      case "application/msword":
+        result = await extractTextFromDoc(buffer);
+        break;
+      case "text/plain":
+        result = await extractTextFromPlain(buffer);
+        break;
+      default:
+        throw new Error(`Unsupported file type: ${mimeType}`);
+    }
+    
+    // SECURITY: Monitor processing metrics for DoS detection
+    const processingTime = Date.now() - startTime;
+    const memoryUsed = process.memoryUsage().heapUsed - startMemory;
+    
+    if (processingTime > 60000) { // 60 second threshold
+      console.warn(`[SECURITY] Long processing time detected: ${processingTime}ms for ${mimeType}`, {
+        fileSize: buffer.length,
+        memoryDelta: Math.round(memoryUsed / 1024 / 1024)
+      });
+    }
+    
+    if (memoryUsed > 150 * 1024 * 1024) { // 150MB threshold
+      console.warn(`[SECURITY] High memory usage detected: ${Math.round(memoryUsed / 1024 / 1024)}MB for ${mimeType}`, {
+        fileSize: buffer.length,
+        processingTime
+      });
+    }
+    
+    console.log(`[PARSER] Successfully extracted ${result.length} characters in ${processingTime}ms`);
+    return result;
+    
+  } catch (error) {
+    const processingTime = Date.now() - startTime;
+    console.error(`[PARSER] Failed to parse ${mimeType} after ${processingTime}ms:`, error instanceof Error ? error.message : String(error));
+    throw error;
   }
 }
 

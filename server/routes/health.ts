@@ -180,8 +180,8 @@ router.get("/service-status", async (req: Request, res: Response) => {
       const openai = await import("../lib/openai");
       const openaiStatus = openai.getOpenAIServiceStatus();
       services.openai = {
-        available: (openaiStatus as any).isAvailable || false,
-        configured: !!(openaiStatus as any).apiUsageStats,
+        available: (typeof openaiStatus === 'object' && openaiStatus && 'isAvailable' in openaiStatus) ? Boolean(openaiStatus.isAvailable) : false,
+        configured: !!(typeof openaiStatus === 'object' && openaiStatus && 'apiUsageStats' in openaiStatus && openaiStatus.apiUsageStats),
         statusMessage: "OpenAI service available",
       };
     } catch (error) {

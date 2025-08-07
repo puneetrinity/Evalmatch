@@ -967,21 +967,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        // Map analysis results to include resume data
-        const results = await Promise.all(
-          analysisResults.map(async (result) => {
-            const resume = await storage.getResume(result.resumeId);
-            if (!resume || !resume.analyzedData) return null;
-            
-            return {
-              resumeId: resume.id,
-              filename: resume.filename,
-              candidateName: (resume.analyzedData as AnalyzedResumeData)?.name || "Unknown",
-              match: result.analysis,
-              analysisId: result.id,
-            };
-          })
-        );
+        // PERFORMANCE: Use included resume data to avoid N+1 queries
+        const results = analysisResults.map((result) => {
+          // Resume data is already included in the query result
+          const resume = (result as any).resume;
+          if (!resume || !resume.analyzedData) return null;
+          
+          return {
+            resumeId: resume.id,
+            filename: resume.filename,
+            candidateName: (resume.analyzedData as AnalyzedResumeData)?.name || "Unknown",
+            match: result.analysis,
+            analysisId: result.id,
+          };
+        });
 
         // Transform the results to standardize property names (snake_case to camelCase)
         const transformedResults = results

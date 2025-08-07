@@ -22,6 +22,10 @@ import type {
   AnalyzeResumeResponse,
   AnalyzeJobDescriptionResponse,
 } from "@shared/schema";
+import {
+  transformToAnalyzeResumeResponse,
+  transformToAnalyzeJobDescriptionResponse
+} from "@shared/type-utilities";
 
 /**
  * Optimized handler for analyzing multiple resumes against a job description
@@ -100,37 +104,23 @@ export async function handleBatchAnalyze(
           }
 
           // Compare the resume with the job description
-          // Convert AnalyzedResumeData to AnalyzeResumeResponse format
-          const resumeAnalysis: AnalyzeResumeResponse = {
-            id: resume.id as any,
-            filename: resume.filename,
-            analyzedData: resume.analyzedData as AnalyzedResumeData,
-            processingTime: 0,
-            confidence: 0.8,
-            skills: (resume.analyzedData as AnalyzedResumeData)?.skills || [],
-            experience: [
-              (resume.analyzedData as AnalyzedResumeData)?.experience ||
-                "0 years",
-            ],
-          };
+          // Convert AnalyzedResumeData to AnalyzeResumeResponse format using transformation function
+          const resumeAnalysis: AnalyzeResumeResponse = transformToAnalyzeResumeResponse(
+            resume.id,
+            resume.filename,
+            resume.analyzedData as AnalyzedResumeData,
+            0, // processingTime
+            0.8 // confidence
+          );
 
-          // Convert AnalyzedJobData to AnalyzeJobDescriptionResponse format
-          const jobAnalysis: AnalyzeJobDescriptionResponse = {
-            id: jobDescription.id as any,
-            title: jobDescription.title,
-            analyzedData: jobDescription.analyzedData as AnalyzedJobData,
-            processingTime: 0,
-            confidence: 0.8,
-            requiredSkills:
-              (jobDescription.analyzedData as AnalyzedJobData)
-                ?.requiredSkills || [],
-            preferredSkills:
-              (jobDescription.analyzedData as AnalyzedJobData)
-                ?.preferredSkills || [],
-            experienceLevel:
-              (jobDescription.analyzedData as AnalyzedJobData)
-                ?.experienceLevel || "mid",
-          };
+          // Convert AnalyzedJobData to AnalyzeJobDescriptionResponse format using transformation function
+          const jobAnalysis: AnalyzeJobDescriptionResponse = transformToAnalyzeJobDescriptionResponse(
+            jobDescription.id,
+            jobDescription.title,
+            jobDescription.analyzedData as AnalyzedJobData,
+            0, // processingTime
+            0.8 // confidence
+          );
 
           const matchResult = await analyzeMatch(
             resumeAnalysis,
@@ -268,36 +258,23 @@ export async function handleSpecificAnalyze(
       }
 
       // Compare the resume with the job description
-      // Convert AnalyzedResumeData to AnalyzeResumeResponse format
-      const resumeAnalysis: AnalyzeResumeResponse = {
-        id: resume.id as any,
-        filename: resume.filename,
-        analyzedData: resume.analyzedData as AnalyzedResumeData,
-        processingTime: 0,
-        confidence: 0.8,
-        skills: (resume.analyzedData as AnalyzedResumeData)?.skills || [],
-        experience: [
-          (resume.analyzedData as AnalyzedResumeData)?.experience || "0 years",
-        ],
-      };
+      // Convert AnalyzedResumeData to AnalyzeResumeResponse format using transformation function
+      const resumeAnalysis: AnalyzeResumeResponse = transformToAnalyzeResumeResponse(
+        resume.id,
+        resume.filename,
+        resume.analyzedData as AnalyzedResumeData,
+        0, // processingTime
+        0.8 // confidence
+      );
 
-      // Convert AnalyzedJobData to AnalyzeJobDescriptionResponse format
-      const jobAnalysis: AnalyzeJobDescriptionResponse = {
-        id: jobDescription.id as any,
-        title: jobDescription.title,
-        analyzedData: jobDescription.analyzedData as AnalyzedJobData,
-        processingTime: 0,
-        confidence: 0.8,
-        requiredSkills:
-          (jobDescription.analyzedData as AnalyzedJobData)?.requiredSkills ||
-          [],
-        preferredSkills:
-          (jobDescription.analyzedData as AnalyzedJobData)?.preferredSkills ||
-          [],
-        experienceLevel:
-          (jobDescription.analyzedData as AnalyzedJobData)?.experienceLevel ||
-          "mid",
-      };
+      // Convert AnalyzedJobData to AnalyzeJobDescriptionResponse format using transformation function
+      const jobAnalysis: AnalyzeJobDescriptionResponse = transformToAnalyzeJobDescriptionResponse(
+        jobDescription.id,
+        jobDescription.title,
+        jobDescription.analyzedData as AnalyzedJobData,
+        0, // processingTime
+        0.8 // confidence
+      );
 
       const matchResult = await analyzeMatch(
         resumeAnalysis,

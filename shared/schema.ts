@@ -119,6 +119,23 @@ export interface FairnessMetrics {
   recommendations?: string[];
 }
 
+// TYPESCRIPT: Complete match analysis result interface
+export interface MatchAnalysisResult {
+  matchPercentage: number;
+  matchedSkills: SkillMatch[];
+  missingSkills: string[];
+  candidateStrengths: string[];
+  candidateWeaknesses: string[];
+  confidenceLevel: 'low' | 'medium' | 'high';
+  scoringDimensions: ScoringDimensions;
+  fairnessMetrics?: FairnessMetrics;
+  matchInsights?: {
+    topMatches: string[];
+    concerningGaps: string[];
+    recommendations: string[];
+  };
+}
+
 // Users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -463,9 +480,25 @@ export interface AnalyzeResumeResponse {
   // Convenience properties for backward compatibility
   name?: string;
   skills?: string[];
-  experience?: any[];
-  education?: any[];
-  contact?: any;
+  experience?: Array<{
+    company: string;
+    position: string;
+    duration: string;
+    description: string;
+    technologies?: string[];
+  }>;
+  education?: Array<{
+    degree: string;
+    institution: string;
+    year?: number;
+    field?: string;
+  }>;
+  contact?: {
+    email?: string;
+    phone?: string;
+    location?: string;
+    linkedin?: string;
+  };
   experienceYears?: number;
 }
 

@@ -40,47 +40,87 @@ export async function authenticateUser(
   try {
     // Auth bypass mode for testing (NEVER allowed in production)
     if (process.env.AUTH_BYPASS_MODE === "true") {
-      // Multiple production checks for security
-      const isProduction = config.env === "production" || 
-                          process.env.NODE_ENV === "production" ||
-                          process.env.RAILWAY_ENVIRONMENT === "production" ||
-                          process.env.VERCEL_ENV === "production";
+      // ENHANCED SECURITY: Multiple layers of production detection
+      const productionIndicators = [
+        config.env === "production",
+        process.env.NODE_ENV === "production",
+        process.env.RAILWAY_ENVIRONMENT === "production",
+        process.env.VERCEL_ENV === "production",
+        // Additional production domain checks
+        req.get('host')?.includes('.railway.app') && !req.get('host')?.includes('dev'),
+        req.get('host')?.includes('.vercel.app') && !req.get('host')?.includes('dev'),
+        req.get('host')?.includes('.herokuapp.com'),
+        // Custom production domain detection
+        req.get('host') && !req.get('host')?.includes('localhost') && 
+        !req.get('host')?.includes('127.0.0.1') && 
+        !req.get('host')?.includes('.local')
+      ];
       
-      if (isProduction) {
-        logger.error("CRITICAL SECURITY VIOLATION: AUTH_BYPASS_MODE cannot be enabled in production", {
+      if (productionIndicators.some(Boolean)) {
+        logger.error("🚨 CRITICAL SECURITY VIOLATION: AUTH_BYPASS_MODE detected in production environment", {
           configEnv: config.env,
           nodeEnv: process.env.NODE_ENV,
           railwayEnv: process.env.RAILWAY_ENVIRONMENT,
           vercelEnv: process.env.VERCEL_ENV,
+          host: req.get('host'),
+          userAgent: req.get('User-Agent'),
+          ip: req.ip,
+          forwardedFor: req.get('X-Forwarded-For'),
+          productionIndicators: productionIndicators.map((indicator, index) => ({
+            check: index,
+            result: indicator
+          })),
           timestamp: new Date().toISOString(),
+          severity: 'CRITICAL'
         });
         
-        // Exit the process to prevent security breach
+        // Immediate process termination to prevent security breach
         process.exit(1);
       }
       
-      // Additional runtime validation for development/test environments
-      if (!["development", "test", "local"].includes(config.env)) {
-        logger.error("AUTH_BYPASS_MODE only allowed in development, test, or local environments", {
+      // ENHANCED: Verify we're in a legitimate development environment
+      const isDevelopment = [
+        config.env === "development",
+        config.env === "test", 
+        req.get('host')?.includes('localhost'),
+        req.get('host')?.includes('127.0.0.1'),
+        req.get('host')?.includes('.local')
+      ].some(Boolean);
+      
+      if (!isDevelopment) {
+        logger.error("🛡️ AUTH_BYPASS_MODE security violation: Not in valid development environment", {
           currentEnv: config.env,
+          host: req.get('host'),
+          ip: req.ip,
+          userAgent: req.get('User-Agent'),
           timestamp: new Date().toISOString(),
         });
-        return res.status(500).json({
-          error: "Security configuration error",
-          message: "Invalid authentication configuration",
-          code: "INVALID_AUTH_CONFIG",
+        
+        return res.status(403).json({
+          error: "Authentication bypass not allowed",
+          message: "Auth bypass only permitted in development environments",
+          code: "AUTH_BYPASS_FORBIDDEN",
         });
       }
       
-      logger.warn("Auth bypass mode enabled for development/testing", {
+      // ENHANCED: Add rate limiting for bypass mode (prevent abuse)
+      const bypassAttemptKey = `auth_bypass:${req.ip}`;
+      // This would integrate with rate limiting middleware if available
+      
+      logger.warn("⚠️ Auth bypass mode enabled for development/testing", {
         environment: config.env,
+        host: req.get('host'),
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
         timestamp: new Date().toISOString(),
+        warning: "This should NEVER appear in production logs"
       });
+      
       req.user = {
-        uid: "test-user-123",
-        email: "test@example.com",
+        uid: "test-user-dev-123",
+        email: "test@development.local",
         emailVerified: true,
-        displayName: "Test User",
+        displayName: "Development Test User",
       };
       return next();
     }

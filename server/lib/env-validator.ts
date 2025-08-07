@@ -358,6 +358,14 @@ export function validateEnvironment(): EnvValidationResult {
     const value = process.env[spec.name];
     const isEmpty = !value || value.trim() === "";
 
+    // Special case: Skip FIREBASE_SERVICE_ACCOUNT_KEY validation if BASE64 version exists
+    // This needs to happen BEFORE any validation logic
+    if (spec.name === "FIREBASE_SERVICE_ACCOUNT_KEY" && 
+        process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64) {
+      // Skip this entire validation - we're using the base64 version
+      continue;
+    }
+
     // Check if required in current environment
     const isRequired =
       spec.required || (isProduction && spec.productionRequired);
@@ -386,13 +394,6 @@ export function validateEnvironment(): EnvValidationResult {
         }
       }
     } else {
-      // Special case: Skip validation for FIREBASE_SERVICE_ACCOUNT_KEY if BASE64 version exists
-      if (spec.name === "FIREBASE_SERVICE_ACCOUNT_KEY" && 
-          process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64) {
-        // Skip validation - we're using the base64 version
-        continue;
-      }
-      
       // Validate format if validator exists
       if (spec.validator && !spec.validator(value)) {
         invalidFormats.push(spec.name);

@@ -148,7 +148,7 @@ export async function analyzeResume(
     education: fallbackAnalyzedData.education.map((edu) => ({
       degree: edu,
       institution: "",
-      year: "",
+      year: undefined,
     })),
     contact: fallbackAnalyzedData.contactInfo || {
       email: "",
@@ -300,7 +300,7 @@ Format the response as valid JSON with the following structure:
         education: education.map((edu) => ({
           degree: edu,
           institution: "",
-          year: "",
+          year: undefined,
         })),
         contact: contactInfo,
       };
@@ -432,7 +432,7 @@ export async function analyzeMatch(
       resumeAnalysis.experience
         ?.map(
           (exp) =>
-            `${exp.title || exp.position || "Position"} at ${exp.company || "Unknown Company"}`,
+            `${exp.position || "Position"} at ${exp.company || "Unknown Company"}`,
         )
         .join("; ") || "";
 
@@ -1315,7 +1315,7 @@ export async function generateInterviewQuestions(
       resumeAnalysis.experience
         ?.map(
           (exp) =>
-            `${exp.title || exp.position || "Position"} at ${exp.company || "Company"}`,
+            `${exp.position || "Position"} at ${exp.company || "Company"}`,
         )
         .join("; ") || "";
 

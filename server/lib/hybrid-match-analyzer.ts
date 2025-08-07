@@ -10,6 +10,15 @@ import {
   calculateEnhancedMatch,
   ScoringWeights,
 } from "./enhanced-scoring";
+import {
+  UNIFIED_SCORING_WEIGHTS,
+  CONFIDENCE_THRESHOLDS,
+  MATCH_QUALITY_THRESHOLDS,
+  calculateUnifiedConfidence,
+  applyBiasAdjustment,
+  getMatchQualityLevel,
+  getConfidenceLevel,
+} from "./unified-scoring-config";
 import { UserTierInfo } from "@shared/user-tiers";
 import * as groq from "./groq";
 import * as openai from "./openai";
@@ -31,14 +40,21 @@ import {
   cleanContaminatedSkills,
   type JobContext
 } from "./skill-contamination-detector";
+import {
+  Result,
+  success,
+  failure,
+  fromPromise,
+  MatchAnalysisResult
+} from "@shared/result-types";
+import {
+  AppExternalServiceError,
+  AppBusinessLogicError,
+  toAppError
+} from "@shared/errors";
 
-// Updated scoring weights without cultural assessment
-export const HYBRID_SCORING_WEIGHTS: ScoringWeights = {
-  skills: 0.50,      // 50% - Increased from 45%
-  experience: 0.35,  // 35% - Increased to compensate for removed cultural
-  education: 0.15,   // 15% - Unchanged
-  semantic: 0.0,     // 0% - Removed for simplicity
-};
+// Use unified scoring weights for consistency (Task 1 & 2: Re-enable semantic scoring)
+export const HYBRID_SCORING_WEIGHTS: ScoringWeights = UNIFIED_SCORING_WEIGHTS;
 
 interface HybridMatchResult {
   matchPercentage: number;
@@ -60,6 +76,16 @@ interface HybridMatchResult {
   analysisMethod: "hybrid" | "ml_only" | "llm_only";
   confidence: number;
   matchInsights?: MatchInsights;
+  // Task 8: Add match quality level based on unified thresholds
+  matchQuality?: 'excellent' | 'strong' | 'moderate' | 'weak' | 'poor';
+  // Task 6: Add validation metadata for comprehensive error handling
+  validationMetadata?: {
+    dataQualityScore: number;
+    confidenceScore: number;
+    qualityGatesPassed: boolean;
+    validationTimestamp: string;
+    validationVersion: string;
+  };
 }
 
 interface LLMAnalysisResult {
@@ -155,7 +181,10 @@ export class HybridMatchAnalyzer {
           throw new Error(`Unknown analysis strategy: ${strategy}`);
       }
 
-      // Add bias detection analysis
+      // Task 3: Implement confidence-based quality gates and validation
+      result = await this.validateAndEnhanceResult(result, resumeAnalysis, jobAnalysis, resumeText, jobText);
+
+      // Task 4: Enhance bias detection integration into main scoring pipeline
       if (resumeText && jobText) {
         try {
           const candidateProfile: CandidateProfile = {
@@ -193,6 +222,23 @@ export class HybridMatchAnalyzer {
             potentialBiasAreas: biasDetection.detectedBiases.map(bias => bias.type),
             fairnessAssessment: biasDetection.explanation
           } as FairnessMetrics;
+
+          // Task 4: Apply bias adjustment to match score (integrated into main pipeline)
+          if (biasDetection.hasBias) {
+            const originalScore = result.matchPercentage;
+            result.matchPercentage = applyBiasAdjustment(
+              originalScore,
+              biasDetection.biasScore,
+              biasDetection.detectedBiases.length > 0 ? 0.9 : 0.5 // Confidence based on detection count
+            );
+            
+            logger.info("Bias adjustment applied to match score", {
+              originalScore,
+              adjustedScore: result.matchPercentage,
+              biasScore: biasDetection.biasScore,
+              adjustment: originalScore - result.matchPercentage
+            });
+          }
 
           logger.info("Bias detection completed", {
             hasBias: biasDetection.hasBias,
@@ -850,10 +896,241 @@ export class HybridMatchAnalyzer {
       confidence: 0.3,
     };
   }
+
+  /**
+   * Task 3: Confidence-based quality gates and validation
+   * Task 6: Comprehensive result validation and error handling
+   * 
+   * Validates and enhances match results with quality gates, confidence scoring,
+   * and comprehensive error handling based on 2024 industry best practices.
+   */
+  private async validateAndEnhanceResult(
+    result: HybridMatchResult,
+    resumeAnalysis: AnalyzeResumeResponse,
+    jobAnalysis: AnalyzeJobDescriptionResponse,
+    resumeText?: string,
+    jobText?: string
+  ): Promise<HybridMatchResult> {
+    
+    // Task 6: Data quality assessment
+    const dataQualityFactors = this.assessDataQuality(resumeAnalysis, jobAnalysis, resumeText, jobText);
+    
+    // Task 6: Result validation - ensure all required fields and valid ranges
+    this.validateResultFields(result);
+    
+    // Task 3: Calculate enhanced confidence using unified multi-factor approach
+    const enhancedConfidence = calculateUnifiedConfidence({
+      dataQuality: dataQualityFactors.dataQuality,
+      skillMatchAccuracy: dataQualityFactors.skillMatchAccuracy,
+      parseability: dataQualityFactors.parseability,
+      semanticAlignment: dataQualityFactors.semanticAlignment
+    });
+    
+    // Update result with enhanced confidence
+    result.confidence = enhancedConfidence;
+    const level = getConfidenceLevel(enhancedConfidence);
+    result.confidenceLevel = level === 'excellent' ? 'high' : level;
+    
+    // Task 3: Apply quality gates - implement minimum confidence requirements
+    if (enhancedConfidence < CONFIDENCE_THRESHOLDS.MINIMUM_VIABLE) {
+      logger.warn("Match confidence below minimum threshold", {
+        confidence: enhancedConfidence,
+        threshold: CONFIDENCE_THRESHOLDS.MINIMUM_VIABLE,
+        matchPercentage: result.matchPercentage
+      });
+      
+      // Task 3: Fallback mechanism when confidence is too low
+      result = await this.applyLowConfidenceFallback(result, dataQualityFactors);
+    }
+    
+    // Task 8: Apply unified match quality thresholds
+    result.matchQuality = getMatchQualityLevel(result.matchPercentage);
+    
+    // Task 6: Add comprehensive validation metadata
+    result.validationMetadata = {
+      dataQualityScore: dataQualityFactors.dataQuality,
+      confidenceScore: enhancedConfidence,
+      qualityGatesPassed: enhancedConfidence >= CONFIDENCE_THRESHOLDS.MINIMUM_VIABLE,
+      validationTimestamp: new Date().toISOString(),
+      validationVersion: "2024.1"
+    };
+    
+    logger.info("Result validation and enhancement completed", {
+      matchPercentage: result.matchPercentage,
+      confidence: enhancedConfidence,
+      confidenceLevel: result.confidenceLevel,
+      matchQuality: result.matchQuality,
+      qualityGatesPassed: result.validationMetadata.qualityGatesPassed
+    });
+    
+    return result;
+  }
+
+  /**
+   * Task 6: Assess data quality for confidence calculation
+   */
+  private assessDataQuality(
+    resumeAnalysis: AnalyzeResumeResponse,
+    jobAnalysis: AnalyzeJobDescriptionResponse,
+    resumeText?: string,
+    jobText?: string
+  ): {
+    dataQuality: number;
+    skillMatchAccuracy: number;
+    parseability: number;
+    semanticAlignment: number;
+  } {
+    
+    // Data completeness assessment
+    let dataQuality = 0.0;
+    
+    // Resume data quality (40% of data quality score)
+    const resumeFields = [
+      resumeAnalysis.analyzedData?.skills?.length || 0,
+      resumeAnalysis.analyzedData?.experience ? 1 : 0,
+      resumeAnalysis.analyzedData?.education ? 1 : 0,
+      resumeText && resumeText.length > 100 ? 1 : 0
+    ];
+    const resumeCompleteness = resumeFields.reduce((sum, val) => sum + (val > 0 ? 1 : 0), 0) / resumeFields.length;
+    dataQuality += resumeCompleteness * 0.4;
+    
+    // Job data quality (40% of data quality score)
+    const jobFields = [
+      jobAnalysis.analyzedData?.requiredSkills?.length || 0,
+      jobAnalysis.analyzedData?.experienceLevel ? 1 : 0,
+      jobAnalysis.analyzedData?.responsibilities?.length || 0,
+      jobText && jobText.length > 100 ? 1 : 0
+    ];
+    const jobCompleteness = jobFields.reduce((sum, val) => sum + (val > 0 ? 1 : 0), 0) / jobFields.length;
+    dataQuality += jobCompleteness * 0.4;
+    
+    // Content richness (20% of data quality score)
+    const contentRichness = Math.min(1.0, 
+      ((resumeText?.length || 0) + (jobText?.length || 0)) / 2000 // Normalize to typical resume+job length
+    );
+    dataQuality += contentRichness * 0.2;
+    
+    // Skill matching accuracy assessment
+    const resumeSkills = resumeAnalysis.analyzedData?.skills || [];
+    const jobSkills = jobAnalysis.analyzedData?.requiredSkills || [];
+    const skillOverlap = resumeSkills.filter(skill => 
+      jobSkills.some(jobSkill => 
+        jobSkill.toLowerCase().includes(skill.toLowerCase()) ||
+        skill.toLowerCase().includes(jobSkill.toLowerCase())
+      )
+    ).length;
+    
+    const skillMatchAccuracy = jobSkills.length > 0 ? skillOverlap / jobSkills.length : 0.0;
+    
+    // Parseability assessment (how well structured the data is)
+    const parseability = Math.min(1.0, 
+      (resumeAnalysis.confidence + (jobAnalysis.confidence || 0.8)) / 2
+    );
+    
+    // Semantic alignment (placeholder - would use actual semantic similarity in full implementation)
+    const semanticAlignment = resumeText && jobText ? 
+      Math.min(1.0, Math.max(0.1, skillMatchAccuracy + 0.2)) : 0.1;
+    
+    return {
+      dataQuality: Math.min(1.0, Math.max(0.0, dataQuality)),
+      skillMatchAccuracy: Math.min(1.0, Math.max(0.0, skillMatchAccuracy)),
+      parseability: Math.min(1.0, Math.max(0.0, parseability)),
+      semanticAlignment: Math.min(1.0, Math.max(0.0, semanticAlignment))
+    };
+  }
+
+  /**
+   * Task 6: Validate that result contains all required fields with valid ranges
+   */
+  private validateResultFields(result: HybridMatchResult): void {
+    // Match percentage validation
+    if (typeof result.matchPercentage !== 'number' || 
+        result.matchPercentage < 0 || 
+        result.matchPercentage > 100) {
+      logger.warn("Invalid match percentage, applying bounds", {
+        original: result.matchPercentage,
+        corrected: Math.min(100, Math.max(0, result.matchPercentage || 0))
+      });
+      result.matchPercentage = Math.min(100, Math.max(0, result.matchPercentage || 0));
+    }
+    
+    // Confidence validation
+    if (typeof result.confidence !== 'number' || 
+        result.confidence < 0 || 
+        result.confidence > 1) {
+      logger.warn("Invalid confidence score, applying bounds", {
+        original: result.confidence,
+        corrected: Math.min(1, Math.max(0, result.confidence || 0))
+      });
+      result.confidence = Math.min(1, Math.max(0, result.confidence || 0));
+    }
+    
+    // Ensure required arrays exist
+    if (!Array.isArray(result.matchedSkills)) {
+      result.matchedSkills = [];
+    }
+    if (!Array.isArray(result.missingSkills)) {
+      result.missingSkills = [];
+    }
+    if (!Array.isArray(result.candidateStrengths)) {
+      result.candidateStrengths = [];
+    }
+    if (!Array.isArray(result.candidateWeaknesses)) {
+      result.candidateWeaknesses = [];
+    }
+    if (!Array.isArray(result.recommendations)) {
+      result.recommendations = [];
+    }
+    
+    // Validate scoring dimensions
+    if (!result.scoringDimensions || typeof result.scoringDimensions !== 'object') {
+      result.scoringDimensions = {
+        skills: 0,
+        experience: 0,
+        education: 0,
+        semantic: 0,
+        overall: result.matchPercentage || 0
+      };
+    }
+  }
+
+  /**
+   * Task 3: Apply fallback mechanisms when confidence is too low
+   */
+  private async applyLowConfidenceFallback(
+    result: HybridMatchResult,
+    dataQualityFactors: any
+  ): Promise<HybridMatchResult> {
+    
+    logger.info("Applying low confidence fallback mechanisms", {
+      originalConfidence: result.confidence,
+      dataQuality: dataQualityFactors.dataQuality
+    });
+    
+    // Conservative scoring adjustment for low confidence matches
+    if (result.matchPercentage > 70) {
+      const adjustment = (result.matchPercentage - 70) * 0.3; // Reduce high scores by 30% of excess
+      result.matchPercentage = Math.max(70, result.matchPercentage - adjustment);
+      logger.info("Applied conservative scoring adjustment", {
+        reduction: adjustment,
+        newScore: result.matchPercentage
+      });
+    }
+    
+    // Add warning to recommendations
+    result.recommendations.unshift(
+      "⚠️ This match has lower confidence due to limited data quality. Review carefully."
+    );
+    
+    // Set confidence level explicitly
+    result.confidenceLevel = "low";
+    
+    return result;
+  }
 }
 
 /**
- * Factory function to create and use hybrid analyzer
+ * Factory function to create and use hybrid analyzer - Result Pattern
  */
 export async function analyzeMatchHybrid(
   resumeAnalysis: AnalyzeResumeResponse,
@@ -861,7 +1138,23 @@ export async function analyzeMatchHybrid(
   userTier: UserTierInfo,
   resumeText?: string,
   jobText?: string,
-): Promise<HybridMatchResult> {
-  const analyzer = new HybridMatchAnalyzer();
-  return await analyzer.analyzeMatch(resumeAnalysis, jobAnalysis, userTier, resumeText, jobText);
+): Promise<MatchAnalysisResult<HybridMatchResult>> {
+  try {
+    const analyzer = new HybridMatchAnalyzer();
+    const result = await analyzer.analyzeMatch(resumeAnalysis, jobAnalysis, userTier, resumeText, jobText);
+    return success(result);
+  } catch (error) {
+    logger.error("Hybrid match analysis failed", { error });
+    
+    // Convert to appropriate error type
+    if (error instanceof Error && error.message.includes('No AI providers available')) {
+      return failure(AppExternalServiceError.aiProviderFailure('Hybrid', 'match_analysis', error.message));
+    }
+    
+    if (error instanceof Error && error.message.includes('incompatible')) {
+      return failure(AppBusinessLogicError.incompatibleAnalysis());
+    }
+    
+    return failure(AppExternalServiceError.aiProviderFailure('Hybrid', 'match_analysis', error instanceof Error ? error.message : String(error)));
+  }
 }

@@ -12,9 +12,8 @@ import { logger } from "../config/logger";
 import rateLimit from "express-rate-limit";
 import type { SessionId } from "@shared/api-contracts";
 import {
-  enhancedErrorHandler,
-  batchErrorHandler,
-  asyncErrorHandler,
+  errorHandler,
+  asyncHandler,
 } from "./error-handler";
 import {
   createValidationError,
@@ -530,7 +529,7 @@ async function logBatchAccess(context: BatchSecurityContext): Promise<void> {
 export function validateBatchAccess(
   accessType: "read" | "write" | "delete" | "claim" = "read",
 ) {
-  return asyncErrorHandler(
+  return asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
       // Apply rate limiting based on access type
       if (accessType === "claim") {

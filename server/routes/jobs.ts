@@ -1,6 +1,7 @@
 /**
  * Job Description Management Routes
  * Handles job description creation, retrieval, and management
+ * Updated to use JobService for improved maintainability and testability
  */
 
 import { Router, Request, Response } from "express";
@@ -8,7 +9,9 @@ import { authenticateUser } from "../middleware/auth";
 import { validateRequest } from "../middleware/validation";
 import { insertJobDescriptionSchema } from "@shared/schema";
 import { logger } from "../lib/logger";
-import { storage } from "../storage";
+import { jobService } from "../services/job-service";
+import { isSuccess, isFailure } from "@shared/result-types";
+import { getErrorStatusCode, getErrorCode, getErrorMessage, getErrorTimestamp } from "@shared/type-utilities";
 
 const router = Router();
 
@@ -17,132 +20,63 @@ router.post("/", authenticateUser, async (req: Request, res: Response) => {
   try {
     // Validate request body
     const jobDescData = validateRequest(insertJobDescriptionSchema, req.body);
-
     const userId = req.user!.uid;
 
-    logger.info(`Creating job description for user ${userId}`, {
-      title: jobDescData.title,
-      descriptionLength: jobDescData.description?.length || 0,
-    });
-
-    // Get user tier info for AI analysis
-    const { getUserTierInfo } = await import("../lib/user-tiers");
-    const userTierInfo = getUserTierInfo(userId);
-
-    // Create job description record
-    const jobDescription = await storage.createJobDescription({
+    // Use JobService to create job with analysis
+    const result = await jobService.createJobDescription({
+      userId,
       title: jobDescData.title,
       description: jobDescData.description,
-      userId: userId,
-      requirements: jobDescData.requirements || null,
-      skills: jobDescData.skills || null,
-      experience: jobDescData.experience || null,
+      requirements: jobDescData.requirements || [],
+      analyzeImmediately: true,
+      includeBiasAnalysis: false
     });
 
-    logger.info(`Job description created with ID ${jobDescription.id}`);
+    if (isFailure(result)) {
+      // Handle different error types appropriately using type-safe utilities
+      const statusCode = getErrorStatusCode(result.error, 500);
+      return res.status(statusCode).json({
+        success: false,
+        error: getErrorCode(result.error),
+        message: getErrorMessage(result.error),
+        timestamp: getErrorTimestamp(result.error)
+      });
+    }
 
-    // Analyze job description with AI
-    try {
-      const { analyzeJobDescription } = await import(
-        "../lib/tiered-ai-provider"
-      );
-      const analysis = await analyzeJobDescription(
-        jobDescription.title,
-        jobDescription.description,
-        userTierInfo,
-      );
+    const { job, analysis, processingTime } = result.data;
 
-      // Update job description with analysis
-      await storage.updateJobDescriptionAnalysis(jobDescription.id, analysis);
-
-      // Generate embeddings for the job description
-      try {
-        const { generateEmbedding } = await import("../lib/embeddings");
-        
-        // Generate embedding for full job description
-        const contentEmbedding = await generateEmbedding(jobDescription.description);
-        
-        // Generate embedding for requirements if available
-        let requirementsEmbedding: number[] | null = null;
-        if (analysis.requirements && analysis.requirements.length > 0) {
-          const requirementsText = analysis.requirements.join(", ");
-          requirementsEmbedding = await generateEmbedding(requirementsText);
-        }
-        
-        // Update job description with embeddings
-        await storage.updateJobDescriptionEmbeddings(jobDescription.id, contentEmbedding, requirementsEmbedding);
-        
-        logger.info(`Generated and stored embeddings for job description ${jobDescription.id}`, {
-          contentEmbeddingDims: contentEmbedding?.length || 0,
-          requirementsEmbeddingDims: requirementsEmbedding?.length || 0,
-        });
-        
-      } catch (embeddingError) {
-        logger.warn(`Failed to generate embeddings for job description ${jobDescription.id}:`, {
-          error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
-        });
-      }
-
-      logger.info(
-        `Job description ${jobDescription.id} analyzed successfully`,
-        {
-          skillsFound: analysis.skills?.length || 0,
-          requirementsFound: analysis.requirements?.length || 0,
-        },
-      );
-
-      res.json({
-        status: "success",
-        message: "Job description created and analyzed successfully",
+    // Return successful response
+    res.json({
+      success: true,
+      status: "success",
+      message: "Job description created and analyzed successfully",
+      data: {
         jobDescription: {
-          id: jobDescription.id,
-          title: jobDescription.title,
-          description: jobDescription.description,
-          skills: analysis.skills || [],
-          requirements: analysis.requirements || [],
-          experience: analysis.experience,
+          id: job.id,
+          title: job.title,
+          description: job.description,
+          skills: analysis?.skills || [],
+          requirements: analysis?.requirements || [],
+          experience: analysis?.experience,
           analyzedData: analysis,
-          createdAt: jobDescription.createdAt,
+          createdAt: job.createdAt,
         },
-        analysis: {
+        analysis: analysis ? {
           skillsExtracted: analysis.skills?.length || 0,
           requirementsFound: analysis.requirements?.length || 0,
           experienceLevel: analysis.experience || "Not specified",
-        },
-      });
-    } catch (analysisError) {
-      logger.error(
-        `Job analysis failed for job ${jobDescription.id}:`,
-        analysisError,
-      );
+        } : undefined,
+        processingTime
+      }
+    });
 
-      // Return job description even if analysis fails
-      res.json({
-        status: "partial_success",
-        message:
-          "Job description created, but analysis failed. You can still use it for matching.",
-        jobDescription: {
-          id: jobDescription.id,
-          title: jobDescription.title,
-          description: jobDescription.description,
-          createdAt: jobDescription.createdAt,
-        },
-        warning: "AI analysis temporarily unavailable",
-      });
-    }
   } catch (error) {
-    logger.error("Job description creation failed:", error);
-
-    if (error instanceof Error && error.message.includes("validation")) {
-      return res.status(400).json({
-        error: "Invalid job description data",
-        message: error.message,
-      });
-    }
-
+    logger.error("Job description creation route failed:", error);
     res.status(500).json({
-      error: "Failed to create job description",
-      message: error instanceof Error ? error.message : "Unknown error",
+      success: false,
+      error: "ROUTE_ERROR",
+      message: "Failed to create job description",
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -151,34 +85,52 @@ router.post("/", authenticateUser, async (req: Request, res: Response) => {
 router.get("/", authenticateUser, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const page = parseInt(req.query.page as string) || 1;
+    const searchQuery = req.query.search as string;
 
-    logger.info(`Getting job descriptions for user ${userId}`, {
+    // Use JobService to get paginated results
+    const result = await jobService.getUserJobDescriptions({
+      userId,
+      page,
       limit,
-      offset,
+      searchQuery
     });
 
-    const allJobDescriptions = await storage.getJobDescriptionsByUserId(userId);
-    // Apply pagination manually since the storage interface doesn't support it
-    const jobDescriptions = allJobDescriptions.slice(offset, offset + limit);
+    if (isFailure(result)) {
+      const statusCode = getErrorStatusCode(result.error, 500);
+      return res.status(statusCode).json({
+        success: false,
+        error: getErrorCode(result.error),
+        message: getErrorMessage(result.error),
+        timestamp: getErrorTimestamp(result.error)
+      });
+    }
+
+    const { jobs, total, totalPages } = result.data;
 
     res.json({
+      success: true,
       status: "ok",
-      jobDescriptions: jobDescriptions || [],
-      count: jobDescriptions?.length || 0,
-      pagination: {
-        limit,
-        offset,
-        hasMore: (jobDescriptions?.length || 0) === limit,
+      data: {
+        jobDescriptions: jobs,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasMore: page < totalPages,
+        }
       },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    logger.error("Failed to get job descriptions:", error);
+    logger.error("Job descriptions retrieval route failed:", error);
     res.status(500).json({
-      error: "Failed to retrieve job descriptions",
-      message: error instanceof Error ? error.message : "Unknown error",
+      success: false,
+      error: "ROUTE_ERROR",
+      message: "Failed to retrieve job descriptions",
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -191,34 +143,42 @@ router.get("/:id", authenticateUser, async (req: Request, res: Response) => {
 
     if (isNaN(jobId)) {
       return res.status(400).json({
-        error: "Invalid job description ID",
+        success: false,
+        error: "VALIDATION_ERROR",
         message: "Job description ID must be a number",
+        timestamp: new Date().toISOString()
       });
     }
 
-    logger.info(`Getting job description ${jobId} for user ${userId}`);
+    // Use JobService to get job by ID
+    const result = await jobService.getJobDescriptionById(userId, jobId);
 
-    const jobDescription = await storage.getJobDescriptionById(jobId, userId);
-
-    if (!jobDescription) {
-      return res.status(404).json({
-        error: "Job description not found",
-        message:
-          "Job description not found or you don't have permission to access it",
+    if (isFailure(result)) {
+      const statusCode = getErrorStatusCode(result.error, 500);
+      return res.status(statusCode).json({
+        success: false,
+        error: getErrorCode(result.error),
+        message: getErrorMessage(result.error),
+        timestamp: getErrorTimestamp(result.error)
       });
     }
 
     res.json({
+      success: true,
       status: "ok",
-      jobDescription,
-      isAnalyzed: !!jobDescription.analyzedData,
+      data: {
+        jobDescription: result.data,
+        isAnalyzed: !!result.data.analyzedData,
+      },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    logger.error("Failed to get job description:", error);
+    logger.error("Job description retrieval by ID route failed:", error);
     res.status(500).json({
-      error: "Failed to retrieve job description",
-      message: error instanceof Error ? error.message : "Unknown error",
+      success: false,
+      error: "ROUTE_ERROR", 
+      message: "Failed to retrieve job description",
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -231,94 +191,49 @@ router.patch("/:id", authenticateUser, async (req: Request, res: Response) => {
 
     if (isNaN(jobId)) {
       return res.status(400).json({
-        error: "Invalid job description ID",
+        success: false,
+        error: "VALIDATION_ERROR",
         message: "Job description ID must be a number",
+        timestamp: new Date().toISOString()
       });
     }
 
-    // Validate that user owns this job description
-    const existingJob = await storage.getJobDescriptionById(jobId, userId);
-    if (!existingJob) {
-      return res.status(404).json({
-        error: "Job description not found",
-        message:
-          "Job description not found or you don't have permission to modify it",
+    // Use JobService to update job description
+    const result = await jobService.updateJobDescription({
+      userId,
+      jobId,
+      title: req.body.title,
+      description: req.body.description,
+      requirements: req.body.requirements,
+      reanalyze: !!req.body.description // Re-analyze if description changed
+    });
+
+    if (isFailure(result)) {
+      const statusCode = getErrorStatusCode(result.error, 500);
+      return res.status(statusCode).json({
+        success: false,
+        error: getErrorCode(result.error),
+        message: getErrorMessage(result.error),
+        timestamp: getErrorTimestamp(result.error)
       });
-    }
-
-    logger.info(`Updating job description ${jobId} for user ${userId}`);
-
-    // Update job description
-    const updatedJob = await storage.updateJobDescription(jobId, req.body);
-
-    // If description was changed, re-analyze
-    if (
-      req.body.description &&
-      req.body.description !== existingJob.description
-    ) {
-      try {
-        const { getUserTierInfo } = await import("../lib/user-tiers");
-        const userTierInfo = getUserTierInfo(userId);
-
-        const { analyzeJobDescription } = await import(
-          "../lib/tiered-ai-provider"
-        );
-        const analysis = await analyzeJobDescription(
-          updatedJob.title,
-          updatedJob.description,
-          userTierInfo,
-        );
-
-        await storage.updateJobDescriptionAnalysis(jobId, analysis);
-
-        // Generate embeddings for the updated job description
-        try {
-          const { generateEmbedding } = await import("../lib/embeddings");
-          
-          // Generate embedding for full job description
-          const contentEmbedding = await generateEmbedding(updatedJob.description);
-          
-          // Generate embedding for requirements if available
-          let requirementsEmbedding: number[] | null = null;
-          if (analysis.requirements && analysis.requirements.length > 0) {
-            const requirementsText = analysis.requirements.join(", ");
-            requirementsEmbedding = await generateEmbedding(requirementsText);
-          }
-          
-          // Update job description with embeddings
-          await storage.updateJobDescriptionEmbeddings(jobId, contentEmbedding, requirementsEmbedding);
-          
-          logger.info(`Generated embeddings for updated job description ${jobId}`, {
-            contentEmbeddingDims: contentEmbedding?.length || 0,
-            requirementsEmbeddingDims: requirementsEmbedding?.length || 0,
-          });
-          
-        } catch (embeddingError) {
-          logger.warn(`Failed to generate embeddings for updated job description ${jobId}:`, {
-            error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
-          });
-        }
-
-        logger.info(`Job description ${jobId} re-analyzed after update`);
-      } catch (analysisError) {
-        logger.error(
-          `Re-analysis failed for updated job ${jobId}:`,
-          analysisError,
-        );
-        // Continue without failing the update
-      }
     }
 
     res.json({
+      success: true,
       status: "success",
       message: "Job description updated successfully",
-      jobDescription: updatedJob,
+      data: {
+        jobDescription: result.data,
+      },
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
-    logger.error("Job description update failed:", error);
+    logger.error("Job description update route failed:", error);
     res.status(500).json({
-      error: "Failed to update job description",
-      message: error instanceof Error ? error.message : "Unknown error",
+      success: false,
+      error: "ROUTE_ERROR",
+      message: "Failed to update job description",
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -331,34 +246,39 @@ router.delete("/:id", authenticateUser, async (req: Request, res: Response) => {
 
     if (isNaN(jobId)) {
       return res.status(400).json({
-        error: "Invalid job description ID",
+        success: false,
+        error: "VALIDATION_ERROR",
         message: "Job description ID must be a number",
+        timestamp: new Date().toISOString()
       });
     }
 
-    // Validate that user owns this job description
-    const existingJob = await storage.getJobDescriptionById(jobId, userId);
-    if (!existingJob) {
-      return res.status(404).json({
-        error: "Job description not found",
-        message:
-          "Job description not found or you don't have permission to delete it",
+    // Use JobService to delete job description
+    const result = await jobService.deleteJobDescription(userId, jobId);
+
+    if (isFailure(result)) {
+      const statusCode = getErrorStatusCode(result.error, 500);
+      return res.status(statusCode).json({
+        success: false,
+        error: getErrorCode(result.error),
+        message: getErrorMessage(result.error),
+        timestamp: getErrorTimestamp(result.error)
       });
     }
-
-    logger.info(`Deleting job description ${jobId} for user ${userId}`);
-
-    await storage.deleteJobDescription(jobId);
 
     res.json({
+      success: true,
       status: "success",
       message: "Job description deleted successfully",
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
-    logger.error("Job description deletion failed:", error);
+    logger.error("Job description deletion route failed:", error);
     res.status(500).json({
-      error: "Failed to delete job description",
-      message: error instanceof Error ? error.message : "Unknown error",
+      success: false,
+      error: "ROUTE_ERROR",
+      message: "Failed to delete job description",
+      timestamp: new Date().toISOString()
     });
   }
 });
