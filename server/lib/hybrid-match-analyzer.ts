@@ -52,6 +52,362 @@ interface ResultValidationConfig {
 // Use unified scoring weights for consistency across all modules
 export const HYBRID_SCORING_WEIGHTS: ScoringWeights = UNIFIED_SCORING_WEIGHTS;
 
+// Result validation configuration
+const RESULT_VALIDATION_CONFIG: ResultValidationConfig = {
+  matchPercentage: { min: 0, max: 100 },
+  confidence: { min: 0, max: 1 },
+  requiredFields: [
+    'matchPercentage', 'matchedSkills', 'missingSkills', 
+    'candidateStrengths', 'candidateWeaknesses', 'recommendations',
+    'confidenceLevel', 'scoringDimensions', 'analysisMethod', 'confidence'
+  ],
+  arrayFields: [
+    'matchedSkills', 'missingSkills', 'candidateStrengths', 
+    'candidateWeaknesses', 'recommendations'
+  ],
+  stringFields: ['confidenceLevel', 'analysisMethod']
+};
+
+/**
+ * Sanitize user input data to prevent injection attacks and ensure data quality
+ */
+function sanitizeInputData(data: any, fieldName: string): any {
+  if (data === null || data === undefined) {
+    return '';
+  }
+
+  if (typeof data === 'string') {
+    // Remove potentially dangerous characters and excessive whitespace
+    return data
+      .replace(/[<>\"'&]/g, '') // Remove HTML/XML characters
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim()
+      .substring(0, 10000); // Limit length to prevent DoS
+  }
+
+  if (Array.isArray(data)) {
+    return data
+      .filter(item => item !== null && item !== undefined)
+      .map((item, index) => sanitizeInputData(item, `${fieldName}[${index}]`))
+      .slice(0, 100); // Limit array size
+  }
+
+  if (typeof data === 'object') {
+    const sanitized: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (key.length <= 100) { // Limit key length
+        sanitized[key] = sanitizeInputData(value, `${fieldName}.${key}`);
+      }
+    }
+    return sanitized;
+  }
+
+  if (typeof data === 'number') {
+    // Ensure numbers are finite and within reasonable bounds
+    if (!isFinite(data)) return 0;
+    return Math.max(-1000000, Math.min(1000000, data));
+  }
+
+  return data;
+}
+
+/**
+ * Validate and sanitize resume analysis input
+ */
+function validateAndSanitizeResumeAnalysis(
+  resumeAnalysis: AnalyzeResumeResponse
+): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  try {
+    // Sanitize the input data
+    const sanitized = {
+      ...resumeAnalysis,
+      skills: sanitizeInputData(resumeAnalysis.skills || [], 'skills'),
+      experience: sanitizeInputData(resumeAnalysis.experience || '', 'experience'),
+      education: sanitizeInputData(resumeAnalysis.education || '', 'education'),
+      analyzedData: sanitizeInputData(resumeAnalysis.analyzedData || {}, 'analyzedData'),
+      summary: sanitizeInputData(resumeAnalysis.summary || '', 'summary'),
+      contactInfo: sanitizeInputData(resumeAnalysis.contactInfo || {}, 'contactInfo'),
+      workHistory: sanitizeInputData(resumeAnalysis.workHistory || [], 'workHistory'),
+      certifications: sanitizeInputData(resumeAnalysis.certifications || [], 'certifications'),
+    };
+
+    // Validate required fields
+    if (!Array.isArray(sanitized.skills)) {
+      errors.push('Resume skills must be an array');
+      sanitized.skills = [];
+    }
+
+    if (sanitized.skills.length === 0) {
+      warnings.push('Resume has no skills listed - this may affect match accuracy');
+    }
+
+    if (!sanitized.experience || sanitized.experience.length < 10) {
+      warnings.push('Resume has limited experience information - this may affect match accuracy');
+    }
+
+    // Validate skill format
+    sanitized.skills = sanitized.skills
+      .filter((skill: any) => typeof skill === 'string' && skill.trim().length > 0)
+      .map((skill: string) => skill.trim())
+      .slice(0, 50); // Limit to 50 skills
+
+    if (sanitized.skills.length > 30) {
+      warnings.push('Resume has unusually high number of skills - some may be filtered');
+    }
+
+    logger.debug('Resume analysis validation completed', {
+      originalSkillsCount: resumeAnalysis.skills?.length || 0,
+      sanitizedSkillsCount: sanitized.skills.length,
+      hasExperience: !!sanitized.experience,
+      hasEducation: !!sanitized.education,
+      errorsCount: errors.length,
+      warningsCount: warnings.length,
+    });
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+      sanitizedData: sanitized,
+    };
+  } catch (error) {
+    logger.error('Resume analysis validation failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
+    return {
+      isValid: false,
+      errors: ['Failed to validate resume analysis data'],
+      warnings: [],
+    };
+  }
+}
+
+/**
+ * Validate and sanitize job analysis input
+ */
+function validateAndSanitizeJobAnalysis(
+  jobAnalysis: AnalyzeJobDescriptionResponse
+): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  try {
+    // Sanitize the input data
+    const sanitized = {
+      ...jobAnalysis,
+      skills: sanitizeInputData(jobAnalysis.skills || [], 'skills'),
+      experience: sanitizeInputData(jobAnalysis.experience || '', 'experience'),
+      analyzedData: sanitizeInputData(jobAnalysis.analyzedData || {}, 'analyzedData'),
+      summary: sanitizeInputData(jobAnalysis.summary || '', 'summary'),
+      requirements: sanitizeInputData(jobAnalysis.requirements || [], 'requirements'),
+      responsibilities: sanitizeInputData(jobAnalysis.responsibilities || [], 'responsibilities'),
+    };
+
+    // Validate required fields
+    if (!Array.isArray(sanitized.skills)) {
+      errors.push('Job skills must be an array');
+      sanitized.skills = [];
+    }
+
+    if (sanitized.skills.length === 0) {
+      warnings.push('Job description has no skills listed - this may affect match accuracy');
+    }
+
+    if (!sanitized.experience || sanitized.experience.length < 5) {
+      warnings.push('Job description has limited experience requirements - this may affect match accuracy');
+    }
+
+    // Validate skill format
+    sanitized.skills = sanitized.skills
+      .filter((skill: any) => typeof skill === 'string' && skill.trim().length > 0)
+      .map((skill: string) => skill.trim())
+      .slice(0, 30); // Limit to 30 skills for jobs
+
+    if (sanitized.skills.length > 20) {
+      warnings.push('Job description has unusually high number of required skills');
+    }
+
+    logger.debug('Job analysis validation completed', {
+      originalSkillsCount: jobAnalysis.skills?.length || 0,
+      sanitizedSkillsCount: sanitized.skills.length,
+      hasExperience: !!sanitized.experience,
+      hasRequirements: Array.isArray(sanitized.requirements) && sanitized.requirements.length > 0,
+      errorsCount: errors.length,
+      warningsCount: warnings.length,
+    });
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+      sanitizedData: sanitized,
+    };
+  } catch (error) {
+    logger.error('Job analysis validation failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
+    return {
+      isValid: false,
+      errors: ['Failed to validate job analysis data'],
+      warnings: [],
+    };
+  }
+}
+
+/**
+ * Validate match result to ensure all required fields are present with valid ranges
+ */
+function validateMatchResult(result: HybridMatchResult): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  try {
+    // Check required fields
+    for (const field of RESULT_VALIDATION_CONFIG.requiredFields) {
+      if (!(field in result) || result[field as keyof HybridMatchResult] === undefined) {
+        errors.push(`Missing required field: ${field}`);
+      }
+    }
+
+    // Validate match percentage range
+    if (typeof result.matchPercentage !== 'number' || 
+        !isFinite(result.matchPercentage) ||
+        result.matchPercentage < RESULT_VALIDATION_CONFIG.matchPercentage.min ||
+        result.matchPercentage > RESULT_VALIDATION_CONFIG.matchPercentage.max) {
+      errors.push(`Match percentage must be between ${RESULT_VALIDATION_CONFIG.matchPercentage.min} and ${RESULT_VALIDATION_CONFIG.matchPercentage.max}`);
+    }
+
+    // Validate confidence range
+    if (typeof result.confidence !== 'number' || 
+        !isFinite(result.confidence) ||
+        result.confidence < RESULT_VALIDATION_CONFIG.confidence.min ||
+        result.confidence > RESULT_VALIDATION_CONFIG.confidence.max) {
+      errors.push(`Confidence must be between ${RESULT_VALIDATION_CONFIG.confidence.min} and ${RESULT_VALIDATION_CONFIG.confidence.max}`);
+    }
+
+    // Validate array fields
+    for (const field of RESULT_VALIDATION_CONFIG.arrayFields) {
+      const value = result[field as keyof HybridMatchResult];
+      if (!Array.isArray(value)) {
+        errors.push(`Field ${field} must be an array`);
+      }
+    }
+
+    // Validate confidence level
+    if (!['low', 'medium', 'high'].includes(result.confidenceLevel)) {
+      errors.push('Confidence level must be "low", "medium", or "high"');
+    }
+
+    // Validate analysis method
+    if (!['hybrid', 'ml_only', 'llm_only'].includes(result.analysisMethod)) {
+      errors.push('Analysis method must be "hybrid", "ml_only", or "llm_only"');
+    }
+
+    // Validate scoring dimensions
+    if (!result.scoringDimensions || typeof result.scoringDimensions !== 'object') {
+      errors.push('Scoring dimensions must be an object');
+    } else {
+      const requiredDimensions = ['skills', 'experience', 'education', 'semantic', 'overall'];
+      for (const dimension of requiredDimensions) {
+        const value = result.scoringDimensions[dimension as keyof typeof result.scoringDimensions];
+        if (typeof value !== 'number' || !isFinite(value) || value < 0 || value > 100) {
+          errors.push(`Scoring dimension ${dimension} must be a number between 0 and 100`);
+        }
+      }
+    }
+
+    // Quality warnings
+    if (result.matchPercentage > 95) {
+      warnings.push('Unusually high match percentage - verify result accuracy');
+    }
+
+    if (result.confidence < 0.3) {
+      warnings.push('Very low confidence score - result reliability may be compromised');
+    }
+
+    if (result.matchedSkills.length === 0 && result.matchPercentage > 20) {
+      warnings.push('High match percentage with no matched skills - potential inconsistency');
+    }
+
+    if (result.missingSkills.length > 20) {
+      warnings.push('Unusually high number of missing skills - may indicate poor match');
+    }
+
+    logger.debug('Match result validation completed', {
+      matchPercentage: result.matchPercentage,
+      confidence: result.confidence,
+      confidenceLevel: result.confidenceLevel,
+      analysisMethod: result.analysisMethod,
+      matchedSkillsCount: result.matchedSkills?.length || 0,
+      missingSkillsCount: result.missingSkills?.length || 0,
+      errorsCount: errors.length,
+      warningsCount: warnings.length,
+    });
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+    };
+  } catch (error) {
+    logger.error('Match result validation failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
+    return {
+      isValid: false,
+      errors: ['Failed to validate match result'],
+      warnings: [],
+    };
+  }
+}
+
+/**
+ * Create a safe fallback result when validation fails
+ */
+function createSafeFallbackResult(
+  resumeAnalysis: AnalyzeResumeResponse,
+  jobAnalysis: AnalyzeJobDescriptionResponse,
+  error?: string
+): HybridMatchResult {
+  logger.warn('Creating safe fallback result due to validation failure', {
+    error,
+    resumeSkillsCount: resumeAnalysis.skills?.length || 0,
+    jobSkillsCount: jobAnalysis.skills?.length || 0,
+  });
+
+  return {
+    matchPercentage: 0,
+    matchedSkills: [],
+    missingSkills: jobAnalysis.skills?.slice(0, 10) || [],
+    candidateStrengths: ['Analysis could not be completed reliably'],
+    candidateWeaknesses: ['Unable to perform comprehensive analysis due to data quality issues'],
+    recommendations: [
+      'Please review and resubmit with more detailed information',
+      'Ensure resume and job description contain sufficient detail for analysis',
+      error ? `Technical issue: ${error}` : 'Technical analysis failed - manual review recommended'
+    ],
+    confidenceLevel: 'low' as const,
+    scoringDimensions: {
+      skills: 0,
+      experience: 0,
+      education: 0,
+      semantic: 0,
+      overall: 0,
+    },
+    analysisMethod: 'ml_only' as const,
+    confidence: 0.1,
+  };
+}
+
 interface HybridMatchResult {
   matchPercentage: number;
   matchedSkills: SkillMatch[];
@@ -1367,6 +1723,7 @@ export async function analyzeMatchHybrid(
   const analyzer = new HybridMatchAnalyzer();
   return await analyzer.analyzeMatch(resumeAnalysis, jobAnalysis, userTier, resumeText, jobText);
 }
+
 
 
 
