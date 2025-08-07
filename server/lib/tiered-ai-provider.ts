@@ -715,22 +715,57 @@ export async function analyzeResumeParallel(
   // Increment usage count
   incrementUsage(userTier);
 
-  // Call appropriate provider with error handling
+  // Call appropriate provider with retry logic and result normalization
   try {
+    let rawResult: any;
+    
     switch (selection.provider) {
       case "anthropic":
         // Fallback to standard analysis for non-Groq providers
-        return await anthropic.analyzeResume(resumeText);
+        rawResult = await withRetryAndCircuitBreaker(
+          "anthropic",
+          () => anthropic.analyzeResume(resumeText),
+          "Parallel resume analysis"
+        );
+        break;
       case "openai":
         // Fallback to standard analysis for non-Groq providers
-        return await openai.analyzeResume(resumeText);
+        rawResult = await withRetryAndCircuitBreaker(
+          "openai",
+          () => openai.analyzeResume(resumeText),
+          "Parallel resume analysis"
+        );
+        break;
       case "groq":
       default:
         // Use optimized parallel extraction for Groq
-        return await groq.analyzeResumeParallel(resumeText);
+        rawResult = await withRetryAndCircuitBreaker(
+          "groq",
+          () => groq.analyzeResumeParallel(resumeText),
+          "Parallel resume analysis"
+        );
+        break;
     }
+
+    // Normalize result to ensure consistent format
+    const normalizedResult = normalizeResumeAnalysis(rawResult, selection.provider);
+    
+    logger.info("Parallel resume analysis completed successfully", {
+      provider: selection.provider,
+      skillsCount: normalizedResult.skills.length,
+      hasExperience: !!normalizedResult.experience,
+      hasEducation: !!normalizedResult.education,
+      optimized: selection.provider === "groq",
+    });
+
+    return normalizedResult;
   } catch (error) {
-    logger.error("AI provider error in parallel resume analysis", error);
+    logger.error("AI provider error in parallel resume analysis", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      provider: selection.provider,
+      userTier: userTier.tier,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     throw classifyAndThrowError(error, userTier, "Resume analysis");
   }
 }
@@ -1059,6 +1094,7 @@ export function getTierAwareServiceStatus(userTier: UserTierInfo) {
     features: userTier.features,
   };
 }
+
 
 
 
