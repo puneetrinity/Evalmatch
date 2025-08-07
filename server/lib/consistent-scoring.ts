@@ -38,12 +38,12 @@ export const SCORING_RUBRICS = {
   },
 };
 
-// Weight factors for different components
+// Use unified scoring weights for consistency across all modules
 export const SCORING_WEIGHTS = {
-  SKILLS: 0.5, // 50% - Most important
-  EXPERIENCE: 0.3, // 30% - Very important
-  EDUCATION: 0.15, // 15% - Important
-  CULTURAL_FIT: 0.05, // 5% - Nice to have
+  SKILLS: UNIFIED_SCORING_WEIGHTS.skills, // 50% - Most important
+  EXPERIENCE: UNIFIED_SCORING_WEIGHTS.experience, // 30% - Very important
+  EDUCATION: UNIFIED_SCORING_WEIGHTS.education, // 15% - Important
+  SEMANTIC: UNIFIED_SCORING_WEIGHTS.semantic, // 5% - Contextual understanding (replaces cultural fit)
 };
 
 // Deterministic seed generation
@@ -307,4 +307,5 @@ export function calculateConfidenceLevel(
   if (overallScore >= 0.4) return "medium";
   return "low";
 }
+
 
