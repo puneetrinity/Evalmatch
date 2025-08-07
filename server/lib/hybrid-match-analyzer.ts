@@ -467,18 +467,70 @@ export class HybridMatchAnalyzer {
     const startTime = Date.now();
     
     try {
-      // Determine analysis strategy based on available data
-      const hasFullText = resumeText && jobText;
-      const strategy = this.determineAnalysisStrategy(!!hasFullText, userTier);
-
       logger.info(`🔍 STARTING HYBRID MATCH ANALYSIS`, {
-        strategy: strategy,
-        hasFullText,
         userTier: userTier.tier,
         resumeSkills: resumeAnalysis.skills?.length || 0,
         jobSkills: jobAnalysis.skills?.length || 0,
         resumeTextLength: resumeText?.length || 0,
         jobTextLength: jobText?.length || 0,
+        timestamp: new Date().toISOString()
+      });
+
+      // Step 1: Validate and sanitize input data
+      const resumeValidation = validateAndSanitizeResumeAnalysis(resumeAnalysis);
+      const jobValidation = validateAndSanitizeJobAnalysis(jobAnalysis);
+
+      // Handle validation failures with graceful degradation
+      if (!resumeValidation.isValid || !jobValidation.isValid) {
+        logger.error("❌ INPUT VALIDATION FAILED", {
+          resumeErrors: resumeValidation.errors,
+          jobErrors: jobValidation.errors,
+          resumeWarnings: resumeValidation.warnings,
+          jobWarnings: jobValidation.warnings,
+        });
+
+        // Return safe fallback result instead of throwing error
+        return createSafeFallbackResult(
+          resumeAnalysis,
+          jobAnalysis,
+          `Validation failed: ${[...resumeValidation.errors, ...jobValidation.errors].join(', ')}`
+        );
+      }
+
+      // Use sanitized data for analysis
+      const sanitizedResumeAnalysis = resumeValidation.sanitizedData!;
+      const sanitizedJobAnalysis = jobValidation.sanitizedData!;
+
+      // Log validation warnings if any
+      const allWarnings = [...resumeValidation.warnings, ...jobValidation.warnings];
+      if (allWarnings.length > 0) {
+        logger.warn("⚠️ INPUT VALIDATION WARNINGS", {
+          warnings: allWarnings,
+          resumeSkillsCount: sanitizedResumeAnalysis.skills.length,
+          jobSkillsCount: sanitizedJobAnalysis.skills.length,
+        });
+      }
+
+      // Sanitize text inputs
+      const sanitizedResumeText = resumeText ? sanitizeInputData(resumeText, 'resumeText') : undefined;
+      const sanitizedJobText = jobText ? sanitizeInputData(jobText, 'jobText') : undefined;
+
+      logger.info("✅ INPUT VALIDATION COMPLETED", {
+        resumeSkillsOriginal: resumeAnalysis.skills?.length || 0,
+        resumeSkillsSanitized: sanitizedResumeAnalysis.skills.length,
+        jobSkillsOriginal: jobAnalysis.skills?.length || 0,
+        jobSkillsSanitized: sanitizedJobAnalysis.skills.length,
+        warningsCount: allWarnings.length,
+      });
+
+      // Determine analysis strategy based on available data
+      const hasFullText = sanitizedResumeText && sanitizedJobText;
+      const strategy = this.determineAnalysisStrategy(!!hasFullText, userTier);
+
+      logger.info(`🔄 ANALYSIS STRATEGY SELECTED`, {
+        strategy: strategy,
+        hasFullText,
+        userTier: userTier.tier,
         aiProvidersAvailable: {
           groq: this.isGroqConfigured,
           anthropic: this.isAnthropicConfigured,
@@ -1723,6 +1775,7 @@ export async function analyzeMatchHybrid(
   const analyzer = new HybridMatchAnalyzer();
   return await analyzer.analyzeMatch(resumeAnalysis, jobAnalysis, userTier, resumeText, jobText);
 }
+
 
 
 
