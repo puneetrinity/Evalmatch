@@ -639,17 +639,46 @@ export async function analyzeResume(
   // Increment usage count
   incrementUsage(userTier);
 
-  // Call appropriate provider with error handling
+  // Call appropriate provider with retry logic and result normalization
   try {
+    let rawResult: any;
+    
     switch (selection.provider) {
       case "anthropic":
-        return await anthropic.analyzeResume(resumeText);
+        rawResult = await withRetryAndCircuitBreaker(
+          "anthropic",
+          () => anthropic.analyzeResume(resumeText),
+          "Resume analysis"
+        );
+        break;
       case "openai":
-        return await openai.analyzeResume(resumeText);
+        rawResult = await withRetryAndCircuitBreaker(
+          "openai",
+          () => openai.analyzeResume(resumeText),
+          "Resume analysis"
+        );
+        break;
       case "groq":
       default:
-        return await groq.analyzeResume(resumeText);
+        rawResult = await withRetryAndCircuitBreaker(
+          "groq",
+          () => groq.analyzeResume(resumeText),
+          "Resume analysis"
+        );
+        break;
     }
+
+    // Normalize result to ensure consistent format
+    const normalizedResult = normalizeResumeAnalysis(rawResult, selection.provider);
+    
+    logger.info("Resume analysis completed successfully", {
+      provider: selection.provider,
+      skillsCount: normalizedResult.skills.length,
+      hasExperience: !!normalizedResult.experience,
+      hasEducation: !!normalizedResult.education,
+    });
+
+    return normalizedResult;
   } catch (error) {
     logger.error("AI provider error in resume analysis", {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -1030,6 +1059,7 @@ export function getTierAwareServiceStatus(userTier: UserTierInfo) {
     features: userTier.features,
   };
 }
+
 
 
 
