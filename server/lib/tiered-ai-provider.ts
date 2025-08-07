@@ -463,44 +463,79 @@ interface TierAwareProviderSelection {
 }
 
 /**
- * Select AI provider based on user tier and availability
- * BETA MODE: All users use Groq for cost optimization during beta testing
+ * Simplified provider selection logic with circuit breaker awareness
  * @throws Error when no providers are available, with appropriate upgrade messaging
  */
 function selectProviderForTier(
   userTier: UserTierInfo,
 ): TierAwareProviderSelection {
-  // BETA MODE: Force all users to Groq for cost optimization
-  // This will be removed after beta testing period (~1 month)
-  const BETA_MODE = true; // Set to false to enable full tiered system
+  const allowedProviders = TIER_LIMITS[userTier.tier].allowedProviders;
+  
+  // Define provider priority order based on reliability and cost
+  const providerPriority: Array<"groq" | "openai" | "anthropic"> = ["groq", "openai", "anthropic"];
+  
+  // Filter providers by tier permissions, configuration, availability, and circuit breaker state
+  const availableProviders = providerPriority.filter(provider => {
+    // Check tier permissions
+    if (!allowedProviders.includes(provider as any)) {
+      return false;
+    }
+    
+    // Check configuration and service status
+    let isConfiguredAndAvailable = false;
+    switch (provider) {
+      case "groq":
+        isConfiguredAndAvailable = isGroqConfigured && groq.getGroqServiceStatus().isAvailable;
+        break;
+      case "openai":
+        isConfiguredAndAvailable = isOpenAIConfigured && openai.getOpenAIServiceStatus().isAvailable;
+        break;
+      case "anthropic":
+        isConfiguredAndAvailable = isAnthropicConfigured && anthropic.getAnthropicServiceStatus().isAvailable;
+        break;
+    }
+    
+    // Check circuit breaker state
+    const circuitBreakerOpen = isCircuitBreakerOpen(provider);
+    
+    logger.debug(`Provider ${provider} availability check`, {
+      tier: userTier.tier,
+      allowed: allowedProviders.includes(provider as any),
+      configured: isConfiguredAndAvailable,
+      circuitBreakerOpen,
+      available: isConfiguredAndAvailable && !circuitBreakerOpen,
+    });
+    
+    return isConfiguredAndAvailable && !circuitBreakerOpen;
+  });
 
-  if (BETA_MODE) {
-    if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
-      return {
-        provider: "groq",
-        reason: `Beta mode - all users use cost-effective Groq (tier: ${userTier.tier})`,
-      };
-    }
-    // Emergency fallback during beta if Groq is down
-    if (isOpenAIConfigured && openai.getOpenAIServiceStatus().isAvailable) {
-      return {
-        provider: "openai",
-        reason: "Beta mode - emergency fallback (Groq unavailable)",
-      };
-    }
-    // Last resort fallback
-    if (
-      isAnthropicConfigured &&
-      anthropic.getAnthropicServiceStatus().isAvailable
-    ) {
-      return {
-        provider: "anthropic",
-        reason: "Beta mode - last resort fallback",
-      };
-    }
-    // All providers unavailable - throw error instead of fallback
+  if (availableProviders.length === 0) {
+    logger.error("No AI providers available", {
+      tier: userTier.tier,
+      allowedProviders,
+      circuitBreakerStates: Array.from(circuitBreakers.entries()),
+    });
     throw getServiceUnavailableError(userTier, "AI analysis");
   }
+
+  const selectedProvider = availableProviders[0];
+  const reason = availableProviders.length === 1 
+    ? `Only available provider for ${userTier.tier} tier`
+    : `Best available provider for ${userTier.tier} tier (${availableProviders.length} options)`;
+
+  logger.info("Provider selected", {
+    provider: selectedProvider,
+    tier: userTier.tier,
+    reason,
+    availableCount: availableProviders.length,
+    totalAllowed: allowedProviders.length,
+  });
+
+  return {
+    provider: selectedProvider,
+    reason,
+  };
+}
 
   // FULL TIERED SYSTEM (disabled during beta)
   const allowedProviders = TIER_LIMITS[userTier.tier].allowedProviders;
@@ -995,6 +1030,7 @@ export function getTierAwareServiceStatus(userTier: UserTierInfo) {
     features: userTier.features,
   };
 }
+
 
 
 
