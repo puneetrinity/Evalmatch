@@ -33,6 +33,22 @@ import {
   type JobContext
 } from "./skill-contamination-detector";
 
+// Data sanitization and validation utilities
+interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+  sanitizedData?: any;
+}
+
+interface ResultValidationConfig {
+  matchPercentage: { min: number; max: number };
+  confidence: { min: number; max: number };
+  requiredFields: string[];
+  arrayFields: string[];
+  stringFields: string[];
+}
+
 // Use unified scoring weights for consistency across all modules
 export const HYBRID_SCORING_WEIGHTS: ScoringWeights = UNIFIED_SCORING_WEIGHTS;
 
@@ -1351,6 +1367,7 @@ export async function analyzeMatchHybrid(
   const analyzer = new HybridMatchAnalyzer();
   return await analyzer.analyzeMatch(resumeAnalysis, jobAnalysis, userTier, resumeText, jobText);
 }
+
 
 
 
