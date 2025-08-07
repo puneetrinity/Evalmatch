@@ -16,11 +16,22 @@ try {
   // Check if Firebase Admin is already initialized
   if (getApps().length === 0) {
     // Initialize with service account key or default credentials
+    let serviceAccount;
     if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
       // Parse service account key from environment variable
-      const serviceAccount = JSON.parse(
+      serviceAccount = JSON.parse(
         process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
       );
+    } else if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64) {
+      // Parse base64 encoded service account key
+      const decodedKey = Buffer.from(
+        process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64,
+        'base64'
+      ).toString('utf8');
+      serviceAccount = JSON.parse(decodedKey);
+    }
+    
+    if (serviceAccount) {
       adminApp = initializeApp({
         credential: cert(serviceAccount),
         projectId: process.env.FIREBASE_PROJECT_ID,
