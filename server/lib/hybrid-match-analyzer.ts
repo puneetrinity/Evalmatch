@@ -33,13 +33,8 @@ import {
   type JobContext
 } from "./skill-contamination-detector";
 
-// Updated scoring weights without cultural assessment
-export const HYBRID_SCORING_WEIGHTS: ScoringWeights = {
-  skills: 0.50,      // 50% - Increased from 45%
-  experience: 0.35,  // 35% - Increased to compensate for removed cultural
-  education: 0.15,   // 15% - Unchanged
-  semantic: 0.0,     // 0% - Removed for simplicity
-};
+// Use unified scoring weights for consistency across all modules
+export const HYBRID_SCORING_WEIGHTS: ScoringWeights = UNIFIED_SCORING_WEIGHTS;
 
 interface HybridMatchResult {
   matchPercentage: number;
@@ -866,3 +861,4 @@ export async function analyzeMatchHybrid(
   const analyzer = new HybridMatchAnalyzer();
   return await analyzer.analyzeMatch(resumeAnalysis, jobAnalysis, userTier, resumeText, jobText);
 }
+
