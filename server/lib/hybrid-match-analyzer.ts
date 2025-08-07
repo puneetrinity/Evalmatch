@@ -1114,6 +1114,192 @@ export class HybridMatchAnalyzer {
   }
 
   /**
+   * Run bias detection in parallel with match analysis
+   */
+  private async runBiasDetection(
+    resumeAnalysis: AnalyzeResumeResponse,
+    jobAnalysis: AnalyzeJobDescriptionResponse,
+    resumeText?: string,
+    jobText?: string,
+  ): Promise<BiasDetectionResult | null> {
+    try {
+      logger.info("🔍 STARTING BIAS DETECTION", {
+        hasResumeText: !!resumeText,
+        hasJobText: !!jobText,
+        resumeSkills: resumeAnalysis.skills?.length || 0,
+        jobSkills: jobAnalysis.skills?.length || 0,
+      });
+
+      // Create candidate profile for bias detection
+      const candidateProfile: CandidateProfile = {
+        skills: resumeAnalysis.skills || [],
+        experience: Array.isArray(resumeAnalysis.experience)
+          ? resumeAnalysis.experience.join(", ")
+          : resumeAnalysis.experience || resumeAnalysis.analyzedData?.experience || "",
+        education: Array.isArray(resumeAnalysis.education)
+          ? resumeAnalysis.education.join(", ")
+          : resumeAnalysis.education || resumeAnalysis.analyzedData?.education?.join(", ") || "",
+        name: resumeAnalysis.analyzedData?.name || "",
+        location: resumeAnalysis.analyzedData?.location || "",
+        technologies: resumeAnalysis.skills?.filter(skill => 
+          skill.toLowerCase().includes('javascript') ||
+          skill.toLowerCase().includes('python') ||
+          skill.toLowerCase().includes('java') ||
+          skill.toLowerCase().includes('react') ||
+          skill.toLowerCase().includes('node')
+        ) || [],
+        industries: [], // Could be extracted from experience if needed
+        resumeText: resumeText || "",
+      };
+
+      // Create job profile for bias detection
+      const jobProfile: JobProfile = {
+        requiredSkills: jobAnalysis.skills || jobAnalysis.analyzedData?.requiredSkills || [],
+        experience: jobAnalysis.experience || "",
+        education: jobAnalysis.analyzedData?.education?.join(", ") || "",
+        location: jobAnalysis.analyzedData?.location || "",
+        technologies: jobAnalysis.skills?.filter(skill => 
+          skill.toLowerCase().includes('javascript') ||
+          skill.toLowerCase().includes('python') ||
+          skill.toLowerCase().includes('java') ||
+          skill.toLowerCase().includes('react') ||
+          skill.toLowerCase().includes('node')
+        ) || [],
+        industries: [], // Could be extracted from job description if needed
+        jobText: jobText || "",
+      };
+
+      const biasResult = await detectMatchingBias(candidateProfile, jobProfile);
+
+      logger.info("✅ BIAS DETECTION COMPLETED", {
+        hasBias: biasResult.hasBias,
+        biasScore: biasResult.biasScore,
+        detectedBiasTypes: biasResult.detectedBiases.length,
+        biasTypes: biasResult.detectedBiases.map(b => b.type),
+        recommendations: biasResult.recommendations.length,
+      });
+
+      return biasResult;
+    } catch (error) {
+      logger.error("❌ BIAS DETECTION FAILED", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        errorStack: error instanceof Error ? error.stack : undefined,
+      });
+      
+      // Return null to indicate bias detection failed - don't fail the entire analysis
+      return null;
+    }
+  }
+
+  /**
+   * Apply bias penalties to match results when bias is detected
+   */
+  private applyBiasPenalties(
+    result: HybridMatchResult,
+    biasDetection: BiasDetectionResult | null,
+  ): HybridMatchResult {
+    if (!biasDetection || !biasDetection.hasBias) {
+      logger.info("🟢 NO BIAS DETECTED - No penalties applied", {
+        biasScore: biasDetection?.biasScore || 0,
+      });
+      
+      return {
+        ...result,
+        biasDetection: biasDetection ? {
+          hasBias: false,
+          biasScore: biasDetection.biasScore,
+          detectedBiases: [],
+          recommendations: biasDetection.recommendations,
+          fairnessMetrics: biasDetection.fairnessMetrics,
+          explanation: biasDetection.explanation,
+        } : undefined,
+      };
+    }
+
+    logger.warn("🚨 BIAS DETECTED - Applying penalties to match score", {
+      originalMatchPercentage: result.matchPercentage,
+      biasScore: biasDetection.biasScore,
+      detectedBiasTypes: biasDetection.detectedBiases.map(b => b.type),
+      criticalBiases: biasDetection.detectedBiases.filter(b => b.severity === 'critical').length,
+      highBiases: biasDetection.detectedBiases.filter(b => b.severity === 'high').length,
+    });
+
+    // Calculate bias penalty based on severity and bias score
+    let biasPenalty = 0;
+    
+    // Base penalty from bias score (0-20% penalty based on bias score)
+    biasPenalty += (biasDetection.biasScore / 100) * 20;
+
+    // Additional penalties for specific bias types and severities
+    for (const bias of biasDetection.detectedBiases) {
+      switch (bias.severity) {
+        case 'critical':
+          biasPenalty += 15; // 15% penalty for critical bias
+          break;
+        case 'high':
+          biasPenalty += 10; // 10% penalty for high bias
+          break;
+        case 'medium':
+          biasPenalty += 5; // 5% penalty for medium bias
+          break;
+        case 'low':
+          biasPenalty += 2; // 2% penalty for low bias
+          break;
+      }
+    }
+
+    // Cap total penalty at 40% to avoid completely destroying valid matches
+    biasPenalty = Math.min(biasPenalty, 40);
+
+    // Apply penalty to match percentage
+    const originalMatchPercentage = result.matchPercentage;
+    const penalizedMatchPercentage = Math.max(0, originalMatchPercentage - biasPenalty);
+
+    // Add bias information to recommendations and weaknesses
+    const biasRecommendations = [
+      `Bias detected in matching process (Score: ${biasDetection.biasScore}/100)`,
+      `Match score reduced by ${biasPenalty.toFixed(1)}% due to bias penalties`,
+      ...biasDetection.recommendations.slice(0, 3), // Include top 3 bias recommendations
+    ];
+
+    const biasWeaknesses = biasDetection.detectedBiases
+      .filter(b => b.severity === 'critical' || b.severity === 'high')
+      .slice(0, 2) // Include top 2 most severe biases
+      .map(b => `${b.type} bias detected: ${b.description}`);
+
+    logger.info("✅ BIAS PENALTIES APPLIED", {
+      originalMatchPercentage,
+      penalizedMatchPercentage,
+      biasPenalty: biasPenalty.toFixed(1),
+      biasScore: biasDetection.biasScore,
+      addedRecommendations: biasRecommendations.length,
+      addedWeaknesses: biasWeaknesses.length,
+    });
+
+    return {
+      ...result,
+      matchPercentage: penalizedMatchPercentage,
+      recommendations: [
+        ...(result.recommendations || []),
+        ...biasRecommendations,
+      ],
+      candidateWeaknesses: [
+        ...(result.candidateWeaknesses || []),
+        ...biasWeaknesses,
+      ],
+      biasDetection: {
+        hasBias: true,
+        biasScore: biasDetection.biasScore,
+        detectedBiases: biasDetection.detectedBiases,
+        recommendations: biasDetection.recommendations,
+        fairnessMetrics: biasDetection.fairnessMetrics,
+        explanation: biasDetection.explanation,
+        penaltyApplied: biasPenalty,
+      },
+    };
+  }
+
+  /**
    * Create fallback result when analysis fails
    */
   private createFallbackResult(
@@ -1165,6 +1351,7 @@ export async function analyzeMatchHybrid(
   const analyzer = new HybridMatchAnalyzer();
   return await analyzer.analyzeMatch(resumeAnalysis, jobAnalysis, userTier, resumeText, jobText);
 }
+
 
 
 
