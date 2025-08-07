@@ -532,7 +532,7 @@ export async function calculateEnhancedMatchWithESCO(
     logger.info('Starting education scoring...');
     const educationMatch = scoreEducation(resumeData.education);
 
-    // 5. Semantic similarity (keeping minimal weight)
+    // 5. Semantic similarity (re-enabled with 5% weight for contextual understanding)
     logger.info('Starting semantic similarity calculation...');
     const semanticScore = await calculateSemanticSimilarity(
       resumeData.content,
@@ -749,5 +749,6 @@ function generateExplanation(
 
   return { strengths, weaknesses, recommendations };
 }
+
 
 
