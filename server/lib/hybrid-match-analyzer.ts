@@ -10,6 +10,7 @@ import {
   calculateEnhancedMatch,
   ScoringWeights,
 } from "./enhanced-scoring";
+import { UNIFIED_SCORING_WEIGHTS } from "./unified-scoring-weights";
 import { UserTierInfo } from "@shared/user-tiers";
 import * as groq from "./groq";
 import * as openai from "./openai";
