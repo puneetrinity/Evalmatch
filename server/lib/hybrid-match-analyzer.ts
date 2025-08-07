@@ -314,6 +314,14 @@ export class HybridMatchAnalyzer {
         // Continue without contamination cleanup - not critical for basic functionality
       }
 
+      // Run bias detection in parallel with match analysis
+      const biasDetectionPromise = this.runBiasDetection(
+        resumeAnalysis,
+        jobAnalysis,
+        resumeText,
+        jobText
+      );
+
       // Apply confidence-based quality gates and validation
       const validatedResult = this.applyConfidenceQualityGates(
         result,
@@ -322,6 +330,10 @@ export class HybridMatchAnalyzer {
         resumeText,
         jobText
       );
+
+      // Wait for bias detection to complete and apply penalties
+      const biasDetectionResult = await biasDetectionPromise;
+      const finalResult = this.applyBiasPenalties(validatedResult, biasDetectionResult);
 
       const processingTime = Date.now() - startTime;
       logger.info(`🎯 HYBRID MATCH ANALYSIS COMPLETED`, {
@@ -1151,6 +1163,7 @@ export async function analyzeMatchHybrid(
   const analyzer = new HybridMatchAnalyzer();
   return await analyzer.analyzeMatch(resumeAnalysis, jobAnalysis, userTier, resumeText, jobText);
 }
+
 
 
 
