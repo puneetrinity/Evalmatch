@@ -7,6 +7,7 @@
 
 import crypto from "crypto";
 import { logger } from "./logger";
+import { UNIFIED_SCORING_WEIGHTS } from "./unified-scoring-weights";
 
 // Scoring rubrics and anchors
 export const SCORING_RUBRICS = {
@@ -306,3 +307,4 @@ export function calculateConfidenceLevel(
   if (overallScore >= 0.4) return "medium";
   return "low";
 }
+
