@@ -61,10 +61,10 @@ export const ENHANCED_SCORING_RUBRICS = {
     NO_FORMAL: 20,
   },
   SEMANTIC: {
-    HIGH_SIMILARITY: 100,
-    MODERATE_SIMILARITY: 70,
-    LOW_SIMILARITY: 40,
-    NO_SIMILARITY: 0,
+    HIGH_SIMILARITY: 100,    // ≥80 similarity score
+    MODERATE_SIMILARITY: 70, // 60-79 similarity score
+    LOW_SIMILARITY: 40,      // 40-59 similarity score
+    NO_SIMILARITY: 0,        // <40 similarity score
   },
 };
 
@@ -749,4 +749,5 @@ function generateExplanation(
 
   return { strengths, weaknesses, recommendations };
 }
+
 
