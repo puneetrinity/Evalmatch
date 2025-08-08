@@ -27,15 +27,27 @@ export default function JobDescriptionPage() {
       return apiRequest("POST", "/api/job-descriptions", data);
     },
     onSuccess: async (response) => {
-      const data = await response.json();
+      const result = await response.json();
+      
       toast({
         title: "Job description submitted",
         description: "Your job description has been saved successfully.",
       });
       
       // Navigate to bias detection page with job ID
-      console.log('Job created with ID:', data.jobDescription?.id);
-      setLocation(`/bias-detection/${data.jobDescription?.id}`);
+      const jobId = result.data?.jobDescription?.id;
+      console.log('Job created with ID:', jobId);
+      
+      if (jobId) {
+        setLocation(`/bias-detection/${jobId}`);
+      } else {
+        console.error('Job ID not found in response:', result);
+        toast({
+          title: "Navigation error",
+          description: "Job created but couldn't navigate to next step. Please try again.",
+          variant: "destructive",
+        });
+      }
     },
     onError: (error) => {
       toast({
