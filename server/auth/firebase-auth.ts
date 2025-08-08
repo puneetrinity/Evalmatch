@@ -85,6 +85,22 @@ export async function initializeFirebaseAuth(): Promise<void> {
     // Use service account credentials (already parsed by unified config)
     const credentials = config.firebase.serviceAccountKey;
 
+    // Debug logging for credentials
+    serverAuthLogger.info("Firebase credentials debug", {
+      operation: "firebase_init_debug",
+      hasCredentials: !!credentials,
+      credentialsType: typeof credentials,
+      projectId: config.firebase.projectId,
+      credentialsKeys: credentials ? Object.keys(credentials) : [],
+      hasPrivateKey: !!(credentials && credentials.private_key),
+      privateKeyLength: credentials?.private_key?.length || 0,
+      clientEmail: credentials?.client_email || 'missing',
+    });
+
+    if (!credentials) {
+      throw new Error("Firebase service account credentials are null");
+    }
+
     // Initialize Firebase Admin
     adminApp = initializeApp({
       credential: cert(credentials),
