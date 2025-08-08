@@ -83,10 +83,10 @@ export default function BiasDetectionPage() {
         const response = await apiRequest("GET", `/api/job-descriptions/${jobId}`);
         const data = await response.json();
         // Extract jobDescription from the response
-        if (data.jobDescription) {
+        if (data.data && data.data.jobDescription) {
           // Add isAnalyzed flag from the parent response
           // Also ensure we map analyzedData.biasAnalysis to analysis.biasAnalysis for backward compatibility
-          const jobData = { ...data.jobDescription, isAnalyzed: data.isAnalyzed };
+          const jobData = { ...data.data.jobDescription, isAnalyzed: data.data.isAnalyzed };
           
           // Create analysis field for backward compatibility
           if (jobData.analyzedData && !jobData.analysis) {
