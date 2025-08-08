@@ -28,11 +28,10 @@ WHERE batch_id IS NOT NULL OR session_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_analysis_results_resume_job
 ON analysis_results(resume_id, job_description_id);
 
--- CRITICAL: Covering index for resume metadata queries
+-- CRITICAL: Index for resume metadata queries
 -- Optimizes: "List resumes with metadata without full table scan"
 CREATE INDEX IF NOT EXISTS idx_resumes_user_metadata
-ON resumes(user_id, id, filename, created_at)
-INCLUDE (file_size, analyzed_data);
+ON resumes(user_id, id, filename, created_at);
 
 -- ============================================================================
 -- PERFORMANCE INDEXES FOR SORTING AND FILTERING
@@ -97,9 +96,9 @@ ANALYZE skill_categories;
 -- PERFORMANCE MONITORING
 -- ============================================================================
 
--- Create extension for monitoring if not exists
-CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
-
--- Log slow queries for monitoring
-ALTER SYSTEM SET log_min_duration_statement = 1000; -- Log queries over 1 second
-SELECT pg_reload_conf();
+-- Note: Extensions and system settings require superuser privileges
+-- These would be configured at the Railway PostgreSQL service level
+-- 
+-- CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+-- ALTER SYSTEM SET log_min_duration_statement = 1000;
+-- SELECT pg_reload_conf();
