@@ -8,6 +8,7 @@ import {
   type User, type InsertUser, type SimpleBiasAnalysis
 } from "@shared/schema";
 import { UserTierInfo } from "@shared/user-tiers";
+import { logger } from "./lib/logger";
 
 // Extended storage interface with all methods needed for the resume analyzer
 export interface IStorage {
@@ -546,8 +547,11 @@ export let storage: IStorage;
 // Get storage instance (throws error if not initialized)
 export function getStorage(): IStorage {
   if (!storage) {
+    logger.error('💥 Storage not initialized when requested!');
+    logger.error('Call stack:', new Error().stack);
     throw new Error('Storage not initialized. Call initializeAppStorage() first.');
   }
+  logger.debug('✅ Storage instance retrieved successfully');
   return storage;
 }
 

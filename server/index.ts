@@ -212,61 +212,63 @@ if (process.env.NODE_ENV === "development") {
       logger.info('🧠 Using in-memory storage (fallback mode)');
     }
 
-  // Register all routes
-  registerRoutes(app);
+    // Register all routes AFTER storage is initialized
+    logger.info('🚗 Registering application routes...');
+    registerRoutes(app);
+    logger.info('✅ Routes registered successfully');
 
-  // Global error handling middleware (replaces basic error handler)
-  app.use(globalErrorHandler);
+    // Global error handling middleware (replaces basic error handler)
+    app.use(globalErrorHandler);
 
-  // Use configured port from unified config
-  const port = config.port;
-  
-  // Start the server
-  const server = app.listen(port, "0.0.0.0", () => {
-    logger.info(`Server started successfully, listening on port ${port}`);
-    log(`serving on port ${port}`); // Keep the original log for vite
-  });
-
-  // Railway-specific graceful shutdown handling
-  const gracefulShutdown = async (signal: string) => {
-    logger.info(`${signal} received, initiating graceful database shutdown...`);
+    // Use configured port from unified config
+    const port = config.port;
     
-    try {
-      // Stop accepting new connections
-      server.close(() => {
-        logger.info('HTTP server closed');
-      });
+    // Start the server AFTER all initialization is complete
+    const server = app.listen(port, "0.0.0.0", () => {
+      logger.info(`Server started successfully, listening on port ${port}`);
+      log(`serving on port ${port}`); // Keep the original log for vite
+    });
 
-      // Close database connections gracefully
-      if (config.database.enabled) {
-        logger.info('Closing database connections gracefully...');
-        const { closeDatabase } = await import('./database');
-        await closeDatabase();
-        logger.info('Database connections closed successfully');
+    // Railway-specific graceful shutdown handling
+    const gracefulShutdown = async (signal: string) => {
+      logger.info(`${signal} received, initiating graceful database shutdown...`);
+      
+      try {
+        // Stop accepting new connections
+        server.close(() => {
+          logger.info('HTTP server closed');
+        });
+
+        // Close database connections gracefully
+        if (config.database.enabled) {
+          logger.info('Closing database connections gracefully...');
+          const { closeDatabase } = await import('./database');
+          await closeDatabase();
+          logger.info('Database connections closed successfully');
+        }
+
+        logger.info('Graceful shutdown completed');
+        process.exit(0);
+      } catch (error) {
+        logger.error('Error during graceful shutdown:', error);
+        process.exit(1);
       }
+    };
 
-      logger.info('Graceful shutdown completed');
-      process.exit(0);
-    } catch (error) {
-      logger.error('Error during graceful shutdown:', error);
-      process.exit(1);
-    }
-  };
+    // Handle Railway SIGTERM signals
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    
+    // Handle uncaught exceptions for Railway stability
+    process.on('uncaughtException', (error) => {
+      logger.error('Uncaught Exception:', error);
+      gracefulShutdown('UNCAUGHT_EXCEPTION');
+    });
 
-  // Handle Railway SIGTERM signals
-  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-  
-  // Handle uncaught exceptions for Railway stability
-  process.on('uncaughtException', (error) => {
-    logger.error('Uncaught Exception:', error);
-    gracefulShutdown('UNCAUGHT_EXCEPTION');
-  });
-
-  process.on('unhandledRejection', (reason, promise) => {
-    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    gracefulShutdown('UNHANDLED_REJECTION');
-  });
+    process.on('unhandledRejection', (reason, promise) => {
+      logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+      gracefulShutdown('UNHANDLED_REJECTION');
+    });
 
     // Setup Vite in development or serve static files in production
     if (config.env === 'development') {
