@@ -1,15 +1,16 @@
 -- Enhanced features migration
 -- This migration ensures the core database schema is in place
+-- Note: Extensions are typically pre-installed on Railway PostgreSQL
 
--- Enable necessary extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+-- Create migration tracking table if it doesn't exist
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    id SERIAL PRIMARY KEY,
+    version VARCHAR(50) UNIQUE NOT NULL,
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    description TEXT
+);
 
--- Core tables should already exist, but this migration is a placeholder
--- to satisfy the migration system that expects this file.
--- Most tables are created by Drizzle ORM schema.
-
--- Add any additional indexes or constraints if needed
--- (This migration primarily exists to resolve the missing file error)
-
-SELECT 1; -- Simple no-op query to make this a valid migration
+-- Record this migration as applied
+INSERT INTO schema_migrations (version, description) 
+VALUES ('0001_add_enhanced_features', 'Enhanced features migration setup')
+ON CONFLICT (version) DO NOTHING;
