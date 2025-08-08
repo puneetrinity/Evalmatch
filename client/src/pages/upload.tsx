@@ -67,6 +67,14 @@ export default function UploadPage() {
   // Track the current batch ID for this upload operation
   const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
   
+  // Cleanup effect to remove queries when component unmounts
+  useEffect(() => {
+    return () => {
+      // Remove resume queries from cache when leaving the upload page
+      queryClient.removeQueries({ queryKey: ["/api/resumes"] });
+    };
+  }, []);
+  
   // Generate a new random session ID
   const createNewSession = useCallback((): SessionId => {
     const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 10)}` as SessionId;
@@ -161,6 +169,16 @@ export default function UploadPage() {
     });
   }, [createNewSession, checkBatchHasResumes]);
   
+  // Track if component is mounted
+  const [isMounted, setIsMounted] = useState(true);
+  
+  useEffect(() => {
+    setIsMounted(true);
+    return () => {
+      setIsMounted(false);
+    };
+  }, []);
+  
   // Fetch existing resumes for current session and batch
   const { data: existingResumes, isLoading, error: resumeLoadError } = useQuery<ResumeListResponse>({
     queryKey: ["/api/resumes", sessionId, currentBatchId],
@@ -186,9 +204,13 @@ export default function UploadPage() {
       }
       throw new Error(data.message || 'Failed to fetch resumes');
     },
-    enabled: !!sessionId && !!currentBatchId, // Only enable when both sessionId and batchId are available
+    enabled: !!sessionId && !!currentBatchId && isMounted, // Only enable when component is mounted and has IDs
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchInterval: false,
     retry: 2,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
   });
 
   useEffect(() => {
