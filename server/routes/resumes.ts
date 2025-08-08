@@ -8,7 +8,6 @@ import { authenticateUser } from "../middleware/auth";
 import { secureUpload, validateUploadedFile } from "../middleware/upload";
 import { uploadRateLimiter } from "../middleware/rate-limiter";
 import { logger } from "../lib/logger";
-import { storage } from "../storage";
 import { resumeService } from "../services/resume-service";
 import { isSuccess, isFailure } from "@shared/result-types";
 import { getErrorStatusCode, getErrorCode, getErrorMessage, getErrorTimestamp } from "@shared/type-utilities";

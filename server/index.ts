@@ -20,7 +20,6 @@ declare global {
 }
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { storage } from "./storage";
 import { config } from "./config/unified-config";
 import { initializeDatabase } from "./database";
 import { initializeFirebaseAuth } from "./auth/firebase-auth";
