@@ -543,6 +543,14 @@ const memStorage = new MemStorage();
 // Export storage initialization function for async initialization
 export let storage: IStorage;
 
+// Get storage instance (throws error if not initialized)
+export function getStorage(): IStorage {
+  if (!storage) {
+    throw new Error('Storage not initialized. Call initializeAppStorage() first.');
+  }
+  return storage;
+}
+
 // Initialize storage asynchronously (called from main app startup)
 export async function initializeAppStorage(): Promise<IStorage> {
   if (!storage) {
