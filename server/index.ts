@@ -212,6 +212,21 @@ if (process.env.NODE_ENV === "development") {
       logger.info('🧠 Using in-memory storage (fallback mode)');
     }
 
+    // Initialize skill learning scheduler if database is enabled
+    if (config.database.enabled) {
+      try {
+        logger.info('🧠 Initializing skill learning scheduler...');
+        const { skillLearningScheduler } = await import('./lib/skill-learning-scheduler');
+        skillLearningScheduler.start();
+        logger.info('✅ Skill learning scheduler started successfully');
+      } catch (error) {
+        logger.warn('Failed to start skill learning scheduler:', error);
+        // Don't fail startup if scheduler fails to start
+      }
+    } else {
+      logger.info('🧠 Skill learning scheduler disabled (no database)');
+    }
+
     // Register all routes AFTER storage is initialized
     logger.info('🚗 Registering application routes...');
     registerRoutes(app);
@@ -238,6 +253,18 @@ if (process.env.NODE_ENV === "development") {
         server.close(() => {
           logger.info('HTTP server closed');
         });
+
+        // Stop skill learning scheduler
+        if (config.database.enabled) {
+          try {
+            logger.info('Stopping skill learning scheduler...');
+            const { skillLearningScheduler } = await import('./lib/skill-learning-scheduler');
+            skillLearningScheduler.stop();
+            logger.info('Skill learning scheduler stopped');
+          } catch (error) {
+            logger.warn('Error stopping skill learning scheduler:', error);
+          }
+        }
 
         // Close database connections gracefully
         if (config.database.enabled) {

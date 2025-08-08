@@ -661,4 +661,214 @@ router.post(
   },
 );
 
+// Skill Memory System Management Endpoints
+
+/**
+ * Get skill memory system statistics and status
+ */
+router.get("/skill-memory/stats", adminAuth, async (req, res) => {
+  try {
+    logger.info('Admin accessing skill memory stats');
+    
+    const { skillMemorySystem } = await import('../lib/skill-memory-system');
+    const { skillLearningScheduler } = await import('../lib/skill-learning-scheduler');
+    
+    const [systemStats, schedulerStatus] = await Promise.all([
+      skillMemorySystem.getSystemStats(),
+      Promise.resolve(skillLearningScheduler.getStatus())
+    ]);
+
+    res.json({
+      status: "success",
+      data: {
+        systemStats,
+        schedulerStatus,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error("Failed to get skill memory stats:", error);
+    res.status(500).json({
+      error: "Failed to get skill memory stats",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+/**
+ * Get recent skill discoveries with pagination
+ */
+router.get("/skill-memory/discoveries", adminAuth, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const offset = (page - 1) * limit;
+    
+    logger.info('Admin accessing skill memory discoveries', { page, limit });
+    
+    const { db } = await import("../db");
+    const { skillMemory } = await import("@shared/schema");
+    const { desc } = await import("drizzle-orm");
+    
+    const discoveries = await db
+      .select({
+        id: skillMemory.id,
+        skillText: skillMemory.skillText,
+        frequency: skillMemory.frequency,
+        escoValidated: skillMemory.escoValidated,
+        groqConfidence: skillMemory.groqConfidence,
+        mlSimilarityScore: skillMemory.mlSimilarityScore,
+        autoApproved: skillMemory.autoApproved,
+        autoApprovalReason: skillMemory.autoApprovalReason,
+        categorySuggestion: skillMemory.categorySuggestion,
+        firstSeen: skillMemory.firstSeen,
+        lastSeen: skillMemory.lastSeen
+      })
+      .from(skillMemory)
+      .orderBy(desc(skillMemory.lastSeen))
+      .limit(limit)
+      .offset(offset);
+
+    const { sql } = await import("drizzle-orm");
+    const totalCount = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(skillMemory);
+
+    res.json({
+      status: "success",
+      data: {
+        discoveries,
+        pagination: {
+          page,
+          limit,
+          total: totalCount[0]?.count || 0,
+          pages: Math.ceil((totalCount[0]?.count || 0) / limit)
+        }
+      }
+    });
+  } catch (error) {
+    logger.error("Failed to get skill memory discoveries:", error);
+    res.status(500).json({
+      error: "Failed to get skill memory discoveries",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+/**
+ * Run skill learning scheduler job manually
+ */
+router.post("/skill-memory/run-job", adminAuth, async (req, res) => {
+  try {
+    const jobType = req.body.jobType as 'promotion' | 'revalidation' | 'maintenance' | 'cleanup';
+    
+    if (!jobType || !['promotion', 'revalidation', 'maintenance', 'cleanup'].includes(jobType)) {
+      return res.status(400).json({
+        error: "Invalid job type",
+        message: "Job type must be one of: promotion, revalidation, maintenance, cleanup"
+      });
+    }
+    
+    logger.info(`Admin manually running skill learning job: ${jobType}`);
+    
+    const { skillLearningScheduler } = await import('../lib/skill-learning-scheduler');
+    
+    // Run the job
+    await skillLearningScheduler.runJob(jobType);
+    
+    res.json({
+      status: "success",
+      message: `Skill learning job '${jobType}' completed successfully`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error("Failed to run skill learning job:", error);
+    res.status(500).json({
+      error: "Failed to run skill learning job",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+/**
+ * Clean up low-frequency skills manually
+ */
+router.post("/skill-memory/cleanup", adminAuth, async (req, res) => {
+  try {
+    logger.info('Admin manually running skill memory cleanup');
+    
+    const { skillMemorySystem } = await import('../lib/skill-memory-system');
+    const cleanedCount = await skillMemorySystem.cleanupLowFrequencySkills();
+    
+    res.json({
+      status: "success",
+      message: `Successfully cleaned up ${cleanedCount} low-frequency skills`,
+      cleanedCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error("Failed to cleanup skill memory:", error);
+    res.status(500).json({
+      error: "Failed to cleanup skill memory",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+/**
+ * Get skill promotion history
+ */
+router.get("/skill-memory/promotions", adminAuth, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const offset = (page - 1) * limit;
+    
+    logger.info('Admin accessing skill promotion history', { page, limit });
+    
+    const { db } = await import("../db");
+    const { skillPromotionLog, skillMemory } = await import("@shared/schema");
+    const { desc, eq } = await import("drizzle-orm");
+    
+    const promotions = await db
+      .select({
+        id: skillPromotionLog.id,
+        skillText: skillMemory.skillText,
+        promotionReason: skillPromotionLog.promotionReason,
+        promotionConfidence: skillPromotionLog.promotionConfidence,
+        promotionData: skillPromotionLog.promotionData,
+        createdAt: skillPromotionLog.createdAt
+      })
+      .from(skillPromotionLog)
+      .innerJoin(skillMemory, eq(skillPromotionLog.skillId, skillMemory.id))
+      .orderBy(desc(skillPromotionLog.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const { sql } = await import("drizzle-orm");
+    const totalCount = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(skillPromotionLog);
+
+    res.json({
+      status: "success",
+      data: {
+        promotions,
+        pagination: {
+          page,
+          limit,
+          total: totalCount[0]?.count || 0,
+          pages: Math.ceil((totalCount[0]?.count || 0) / limit)
+        }
+      }
+    });
+  } catch (error) {
+    logger.error("Failed to get skill promotion history:", error);
+    res.status(500).json({
+      error: "Failed to get skill promotion history",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
 export default router;

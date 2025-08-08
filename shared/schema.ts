@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, json, integer, boolean, varchar, real } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, json, integer, boolean, varchar, real, date } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 import type { UserId, SessionId, ResumeId, JobId, AnalysisId } from './api-contracts';
@@ -296,6 +296,79 @@ export type InsertSkillCategory = typeof skillCategories.$inferInsert;
 
 export type Skill = typeof skillsTable.$inferSelect;
 export type InsertSkill = typeof skillsTable.$inferInsert;
+
+// Skill Memory System tables for automated learning
+export const skillMemory = pgTable("skill_memory", {
+  id: serial("id").primaryKey(),
+  skillText: varchar("skill_text", { length: 255 }).notNull().unique(),
+  normalizedSkillText: varchar("normalized_skill_text", { length: 255 }).notNull(),
+  frequency: integer("frequency").default(1),
+  
+  // Validation layers
+  escoValidated: boolean("esco_validated").default(false),
+  escoId: varchar("esco_id", { length: 100 }),
+  escoCategory: varchar("esco_category", { length: 100 }),
+  
+  groqConfidence: real("groq_confidence").default(0),
+  groqCategory: varchar("groq_category", { length: 100 }),
+  
+  mlSimilarityScore: real("ml_similarity_score").default(0),
+  mlSimilarTo: varchar("ml_similar_to", { length: 255 }),
+  mlCategory: varchar("ml_category", { length: 100 }),
+  
+  // Auto-approval tracking
+  autoApproved: boolean("auto_approved").default(false),
+  autoApprovalReason: varchar("auto_approval_reason", { length: 50 }),
+  autoApprovalConfidence: real("auto_approval_confidence").default(0),
+  
+  // Metadata
+  categorySuggestion: varchar("category_suggestion", { length: 100 }),
+  sourceContexts: json("source_contexts").$type<Array<{
+    type: 'resume' | 'job_description';
+    id: string;
+    context: string;
+    timestamp: string;
+  }>>().default([]),
+  firstSeen: timestamp("first_seen").defaultNow(),
+  lastSeen: timestamp("last_seen").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const skillMemoryStats = pgTable("skill_memory_stats", {
+  id: serial("id").primaryKey(),
+  date: date("date").defaultNow(),
+  totalSkillsDiscovered: integer("total_skills_discovered").default(0),
+  escoValidatedCount: integer("esco_validated_count").default(0),
+  autoApprovedCount: integer("auto_approved_count").default(0),
+  highFrequencyCount: integer("high_frequency_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const skillPromotionLog = pgTable("skill_promotion_log", {
+  id: serial("id").primaryKey(),
+  skillId: integer("skill_id").references(() => skillMemory.id),
+  mainSkillId: integer("main_skill_id"),
+  promotionReason: varchar("promotion_reason", { length: 50 }).notNull(),
+  promotionConfidence: real("promotion_confidence").notNull(),
+  promotionData: json("promotion_data").$type<{
+    originalFrequency?: number;
+    escoMatch?: boolean;
+    mlSimilarity?: number;
+    groqValidation?: number;
+    domainPattern?: boolean;
+  }>().default({}),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type SkillMemory = typeof skillMemory.$inferSelect;
+export type InsertSkillMemory = typeof skillMemory.$inferInsert;
+
+export type SkillMemoryStats = typeof skillMemoryStats.$inferSelect;
+export type InsertSkillMemoryStats = typeof skillMemoryStats.$inferInsert;
+
+export type SkillPromotionLog = typeof skillPromotionLog.$inferSelect;
+export type InsertSkillPromotionLog = typeof skillPromotionLog.$inferInsert;
 
 // Enhanced Zod schemas for runtime validation - MUST be defined before insert schemas
 export const resumeFileSchema = z.object({

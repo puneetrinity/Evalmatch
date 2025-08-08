@@ -5,6 +5,7 @@ import { generateEmbedding, cosineSimilarity } from "./embeddings";
 import { logger } from "./logger";
 import stringSimilarity from "string-similarity";
 import { escoExtractor, type ESCOSkill } from "./esco-skill-extractor";
+import { skillMemorySystem } from "./skill-memory-system";
 
 // Enhanced skill dictionary with categories (comprehensive pharma and tech domains)
 export const SKILL_CATEGORIES = {
@@ -1448,18 +1449,26 @@ export async function findRelatedSkills(
 }
 
 /**
- * Enhanced skill extraction using ESCO taxonomy
- * Combines traditional skill matching with ESCO skill extraction
+ * Enhanced skill extraction using ESCO taxonomy with memory system integration
+ * Combines traditional skill matching with ESCO skill extraction and auto-learning
  */
-export async function extractSkillsWithESCO(text: string): Promise<{
+export async function extractSkillsWithESCO(text: string, context?: {
+  type: 'resume' | 'job_description';
+  id: string;
+}): Promise<{
   skills: string[];
   escoSkills: ESCOSkill[];
   pharmaRelated: boolean;
   categories: string[];
+  memoryStats?: {
+    newSkillsDiscovered: number;
+    autoApproved: number;
+  };
 }> {
   try {
-    logger.info('Starting enhanced skill extraction with ESCO', {
-      textLength: text.length
+    logger.info('Starting enhanced skill extraction with ESCO and memory system', {
+      textLength: text.length,
+      hasContext: !!context
     });
 
     // Run ESCO extraction
@@ -1472,6 +1481,7 @@ export async function extractSkillsWithESCO(text: string): Promise<{
 
     // Get traditional skills using existing normalization
     const traditionalSkills: string[] = [];
+    const unknownSkills: string[] = [];
     
     // Try to normalize each ESCO skill through our existing system
     for (const escoSkillName of escoSkillNames) {
@@ -1482,6 +1492,7 @@ export async function extractSkillsWithESCO(text: string): Promise<{
         } else {
           // Add ESCO skill directly if not found in traditional system
           traditionalSkills.push(escoSkillName);
+          unknownSkills.push(escoSkillName);
         }
       } catch (error) {
         // If database access fails (memory storage mode), add ESCO skill directly
@@ -1490,7 +1501,41 @@ export async function extractSkillsWithESCO(text: string): Promise<{
           error: error instanceof Error ? error.message : 'Unknown error'
         });
         traditionalSkills.push(escoSkillName);
+        unknownSkills.push(escoSkillName);
       }
+    }
+
+    // Process unknown skills through memory system if context provided
+    let memoryStats = undefined;
+    if (context && unknownSkills.length > 0) {
+      let newSkillsDiscovered = 0;
+      let autoApproved = 0;
+
+      for (const unknownSkill of unknownSkills) {
+        try {
+          const result = await skillMemorySystem.processDiscoveredSkill(unknownSkill, {
+            type: context.type,
+            id: context.id,
+            contextSnippet: text.substring(0, 200) // First 200 chars for context
+          });
+
+          if (result.processed) {
+            newSkillsDiscovered++;
+          }
+          if (result.autoApproved) {
+            autoApproved++;
+          }
+        } catch (error) {
+          logger.warn(`Failed to process unknown skill: ${unknownSkill}`, error);
+        }
+      }
+
+      memoryStats = {
+        newSkillsDiscovered,
+        autoApproved
+      };
+
+      logger.debug('Memory system processing completed', memoryStats);
     }
 
     // Combine and deduplicate skills
@@ -1506,15 +1551,18 @@ export async function extractSkillsWithESCO(text: string): Promise<{
       totalSkills: allSkills.length,
       escoSkills: escoSkills.length,
       traditionalSkills: traditionalSkills.length,
+      unknownSkills: unknownSkills.length,
       pharmaRelated,
-      categories: categories.length
+      categories: categories.length,
+      memoryStats
     });
 
     return {
       skills: allSkills,
       escoSkills,
       pharmaRelated,
-      categories
+      categories,
+      memoryStats
     };
   } catch (error) {
     logger.error('Enhanced skill extraction failed', {
@@ -1532,12 +1580,25 @@ export async function extractSkillsWithESCO(text: string): Promise<{
 }
 
 /**
- * Get enhanced skills for resume or job analysis
+ * Get enhanced skills for resume or job analysis with memory learning
  * This replaces the traditional skill extraction in our ML pipeline
  */
-export async function getEnhancedSkills(text: string, existingSkills: string[] = []): Promise<string[]> {
+export async function getEnhancedSkills(
+  text: string, 
+  existingSkills: string[] = [], 
+  context?: {
+    type: 'resume' | 'job_description';
+    id: string;
+  }
+): Promise<{
+  skills: string[];
+  memoryStats?: {
+    newSkillsDiscovered: number;
+    autoApproved: number;
+  };
+}> {
   try {
-    const enhanced = await extractSkillsWithESCO(text);
+    const enhanced = await extractSkillsWithESCO(text, context);
     
     // Combine ESCO skills with existing skills
     const combinedSkills = [...new Set([...existingSkills, ...enhanced.skills])];
@@ -1546,14 +1607,28 @@ export async function getEnhancedSkills(text: string, existingSkills: string[] =
       originalSkills: existingSkills.length,
       escoSkills: enhanced.escoSkills.length,
       finalSkills: combinedSkills.length,
-      pharmaContent: enhanced.pharmaRelated
+      pharmaContent: enhanced.pharmaRelated,
+      memoryStats: enhanced.memoryStats
     });
     
-    return combinedSkills;
+    return {
+      skills: combinedSkills,
+      memoryStats: enhanced.memoryStats
+    };
   } catch (error) {
     logger.error('Failed to get enhanced skills', {
       error: error instanceof Error ? error.message : 'Unknown error'
     });
-    return existingSkills;
+    return {
+      skills: existingSkills
+    };
   }
+}
+
+/**
+ * Backward compatibility wrapper for getEnhancedSkills
+ */
+export async function getEnhancedSkillsList(text: string, existingSkills: string[] = []): Promise<string[]> {
+  const result = await getEnhancedSkills(text, existingSkills);
+  return result.skills;
 }
