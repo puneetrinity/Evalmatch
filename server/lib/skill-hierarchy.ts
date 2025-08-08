@@ -827,6 +827,290 @@ export const ENHANCED_SKILL_DICTIONARY: Record<
     relatedSkills: ["Laboratory Quality", "Analytical Testing", "Quality Systems"],
   },
 
+  // TECHNOLOGY CERTIFICATIONS
+  awssolutionsarchitect: {
+    normalized: "AWS Certified Solutions Architect",
+    category: SKILL_CATEGORIES.CLOUD_PLATFORMS,
+    aliases: ["aws solutions architect", "aws sa associate", "aws certified architect"],
+    relatedSkills: ["AWS", "Cloud Architecture", "System Design"],
+  },
+  azureadministrator: {
+    normalized: "Microsoft Certified Azure Administrator",
+    category: SKILL_CATEGORIES.CLOUD_PLATFORMS,
+    aliases: ["azure administrator", "az-104", "azure certified"],
+    relatedSkills: ["Azure", "Cloud Administration", "Resource Management"],
+  },
+  gcpcloudarchitect: {
+    normalized: "Google Professional Cloud Architect",
+    category: SKILL_CATEGORIES.CLOUD_PLATFORMS,
+    aliases: ["gcp cloud architect", "google cloud architect", "professional cloud architect"],
+    relatedSkills: ["Google Cloud Platform", "Cloud Architecture", "GCP"],
+  },
+  awsdevops: {
+    normalized: "AWS Certified DevOps Engineer",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["aws devops", "aws devops professional", "aws certified devops"],
+    relatedSkills: ["AWS", "DevOps", "CI/CD", "Infrastructure as Code"],
+  },
+  azuresolutionsarchitect: {
+    normalized: "Azure Solutions Architect Expert",
+    category: SKILL_CATEGORIES.CLOUD_PLATFORMS,
+    aliases: ["azure solutions architect", "az-303", "az-304", "azure architect expert"],
+    relatedSkills: ["Azure", "Cloud Architecture", "Enterprise Solutions"],
+  },
+  gcpdataengineer: {
+    normalized: "Google Professional Data Engineer",
+    category: SKILL_CATEGORIES.DATA_SCIENCE,
+    aliases: ["gcp data engineer", "google data engineer", "professional data engineer"],
+    relatedSkills: ["Google Cloud Platform", "Data Engineering", "BigQuery"],
+  },
+  cissp: {
+    normalized: "Certified Information Systems Security Professional",
+    category: SKILL_CATEGORIES.SECURITY,
+    aliases: ["cissp", "isc2 cissp", "information security certification"],
+    relatedSkills: ["Information Security", "Security Architecture", "Risk Management"],
+  },
+  ceh: {
+    normalized: "Certified Ethical Hacker",
+    category: SKILL_CATEGORIES.SECURITY,
+    aliases: ["ceh", "ethical hacker", "penetration testing certification"],
+    relatedSkills: ["Penetration Testing", "Ethical Hacking", "Cybersecurity"],
+  },
+  comptia: {
+    normalized: "CompTIA Security+",
+    category: SKILL_CATEGORIES.SECURITY,
+    aliases: ["comptia security plus", "security+", "comptia certification"],
+    relatedSkills: ["Network Security", "Risk Management", "Compliance"],
+  },
+  ccsp: {
+    normalized: "Certified Cloud Security Professional",
+    category: SKILL_CATEGORIES.SECURITY,
+    aliases: ["ccsp", "cloud security professional", "isc2 ccsp"],
+    relatedSkills: ["Cloud Security", "Security Architecture", "Compliance"],
+  },
+  gsec: {
+    normalized: "GIAC Security Essentials",
+    category: SKILL_CATEGORIES.SECURITY,
+    aliases: ["gsec", "sans gsec", "security essentials"],
+    relatedSkills: ["Information Security", "Security Fundamentals", "Risk Assessment"],
+  },
+  oscp: {
+    normalized: "Offensive Security Certified Professional",
+    category: SKILL_CATEGORIES.SECURITY,
+    aliases: ["oscp", "offensive security", "penetration testing certification"],
+    relatedSkills: ["Penetration Testing", "Exploit Development", "Cybersecurity"],
+  },
+  cka: {
+    normalized: "Certified Kubernetes Administrator",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["cka", "kubernetes administrator", "cncf cka"],
+    relatedSkills: ["Kubernetes", "Container Orchestration", "DevOps"],
+  },
+  terraformassociate: {
+    normalized: "HashiCorp Certified Terraform Associate",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["terraform associate", "hashicorp terraform", "terraform certification"],
+    relatedSkills: ["Terraform", "Infrastructure as Code", "DevOps"],
+  },
+  dockercertified: {
+    normalized: "Docker Certified Associate",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["docker certified", "dca", "docker associate"],
+    relatedSkills: ["Docker", "Containerization", "DevOps"],
+  },
+  rhce: {
+    normalized: "Red Hat Certified Engineer",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["rhce", "red hat certified", "linux engineer"],
+    relatedSkills: ["Linux", "System Administration", "Automation"],
+  },
+  awssysops: {
+    normalized: "AWS Certified SysOps Administrator",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["aws sysops", "sysops administrator", "aws certified sysops"],
+    relatedSkills: ["AWS", "System Operations", "Monitoring"],
+  },
+  vmwarevcp: {
+    normalized: "VMware Certified Professional",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["vcp", "vmware certified", "vcp-dcv"],
+    relatedSkills: ["VMware", "Virtualization", "Data Center"],
+  },
+  azuredatascientist: {
+    normalized: "Microsoft Certified Azure Data Scientist",
+    category: SKILL_CATEGORIES.DATA_SCIENCE,
+    aliases: ["azure data scientist", "dp-100", "azure ml"],
+    relatedSkills: ["Azure", "Machine Learning", "Data Science"],
+  },
+  ibmdatascience: {
+    normalized: "IBM Data Science Professional Certificate",
+    category: SKILL_CATEGORIES.DATA_SCIENCE,
+    aliases: ["ibm data science", "data science professional", "ibm certified"],
+    relatedSkills: ["Data Science", "Python", "Machine Learning"],
+  },
+  sasdatascientist: {
+    normalized: "SAS Certified Data Scientist",
+    category: SKILL_CATEGORIES.DATA_SCIENCE,
+    aliases: ["sas data scientist", "sas certified", "advanced analytics"],
+    relatedSkills: ["SAS", "Data Science", "Statistical Analysis"],
+  },
+  tensorflowdeveloper: {
+    normalized: "TensorFlow Developer Certificate",
+    category: SKILL_CATEGORIES.AI_MACHINE_LEARNING,
+    aliases: ["tensorflow developer", "tensorflow certified", "ml developer"],
+    relatedSkills: ["TensorFlow", "Machine Learning", "Deep Learning"],
+  },
+  databricksdataengineer: {
+    normalized: "Databricks Certified Data Engineer",
+    category: SKILL_CATEGORIES.DATA_SCIENCE,
+    aliases: ["databricks data engineer", "databricks certified", "lakehouse"],
+    relatedSkills: ["Databricks", "Data Engineering", "Apache Spark"],
+  },
+  ccna: {
+    normalized: "Cisco Certified Network Associate",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["ccna", "cisco certified", "network associate"],
+    relatedSkills: ["Networking", "Routing", "Switching"],
+  },
+  ccnp: {
+    normalized: "Cisco Certified Network Professional",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["ccnp", "cisco professional", "network professional"],
+    relatedSkills: ["Advanced Networking", "Routing", "Switching"],
+  },
+  comptinetwork: {
+    normalized: "CompTIA Network+",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["comptia network plus", "network+", "network certification"],
+    relatedSkills: ["Networking", "Troubleshooting", "Network Design"],
+  },
+
+  // EDGE COMPUTING & IOT
+  awsiotcore: {
+    normalized: "AWS IoT Core",
+    category: SKILL_CATEGORIES.CLOUD_PLATFORMS,
+    aliases: ["aws iot", "iot core", "amazon iot"],
+    relatedSkills: ["IoT", "Device Management", "Edge Computing"],
+  },
+  azureiothub: {
+    normalized: "Azure IoT Hub",
+    category: SKILL_CATEGORIES.CLOUD_PLATFORMS,
+    aliases: ["azure iot", "iot hub", "microsoft iot"],
+    relatedSkills: ["IoT", "Device Management", "Cloud Connectivity"],
+  },
+  googlecloudiot: {
+    normalized: "Google Cloud IoT",
+    category: SKILL_CATEGORIES.CLOUD_PLATFORMS,
+    aliases: ["gcp iot", "google iot", "cloud iot"],
+    relatedSkills: ["IoT", "Device Provisioning", "Telemetry"],
+  },
+  edgexfoundry: {
+    normalized: "EdgeX Foundry",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["edgex", "edge computing framework"],
+    relatedSkills: ["Edge Computing", "IoT", "Microservices"],
+  },
+  kubeedge: {
+    normalized: "KubeEdge",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["kube edge", "kubernetes edge"],
+    relatedSkills: ["Kubernetes", "Edge Computing", "IoT"],
+  },
+
+  // OBSERVABILITY & MONITORING
+  datadog: {
+    normalized: "Datadog",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["datadog monitoring", "application monitoring"],
+    relatedSkills: ["Monitoring", "APM", "Log Management"],
+  },
+  newrelic: {
+    normalized: "New Relic",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["new relic apm", "application performance monitoring"],
+    relatedSkills: ["APM", "Performance Monitoring", "Observability"],
+  },
+  dynatrace: {
+    normalized: "Dynatrace",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["dynatrace apm", "aiops platform"],
+    relatedSkills: ["AIOps", "Performance Monitoring", "Root Cause Analysis"],
+  },
+  splunk: {
+    normalized: "Splunk",
+    category: SKILL_CATEGORIES.DATA_SCIENCE,
+    aliases: ["splunk observability", "log analysis"],
+    relatedSkills: ["Log Management", "Analytics", "Security Operations"],
+  },
+  opentelemetry: {
+    normalized: "OpenTelemetry",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["open telemetry", "otel", "observability framework"],
+    relatedSkills: ["Observability", "Tracing", "Metrics"],
+  },
+  jaeger: {
+    normalized: "Jaeger",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["jaeger tracing", "distributed tracing"],
+    relatedSkills: ["Distributed Tracing", "Monitoring", "Observability"],
+  },
+  sentry: {
+    normalized: "Sentry",
+    category: SKILL_CATEGORIES.DEVOPS,
+    aliases: ["sentry error monitoring", "crash reporting"],
+    relatedSkills: ["Error Monitoring", "Performance Alerts", "Debugging"],
+  },
+
+  // BUSINESS INTELLIGENCE & ANALYTICS
+  looker: {
+    normalized: "Looker",
+    category: SKILL_CATEGORIES.DATA_SCIENCE,
+    aliases: ["looker bi", "modern business intelligence"],
+    relatedSkills: ["Business Intelligence", "Data Visualization", "Analytics"],
+  },
+  powerbi: {
+    normalized: "Power BI",
+    category: SKILL_CATEGORIES.DATA_SCIENCE,
+    aliases: ["microsoft power bi", "power bi desktop"],
+    relatedSkills: ["Business Intelligence", "Data Visualization", "Reporting"],
+  },
+  tableau: {
+    normalized: "Tableau",
+    category: SKILL_CATEGORIES.DATA_SCIENCE,
+    aliases: ["tableau desktop", "tableau server"],
+    relatedSkills: ["Data Visualization", "Business Intelligence", "Analytics"],
+  },
+  qliksense: {
+    normalized: "Qlik Sense",
+    category: SKILL_CATEGORIES.DATA_SCIENCE,
+    aliases: ["qlik", "associative analytics"],
+    relatedSkills: ["Business Intelligence", "Data Discovery", "Analytics"],
+  },
+  sisense: {
+    normalized: "Sisense",
+    category: SKILL_CATEGORIES.DATA_SCIENCE,
+    aliases: ["sisense analytics", "embedded analytics"],
+    relatedSkills: ["Embedded Analytics", "Business Intelligence", "Dashboards"],
+  },
+  thoughtspot: {
+    normalized: "ThoughtSpot",
+    category: SKILL_CATEGORIES.DATA_SCIENCE,
+    aliases: ["thoughtspot search", "search driven analytics"],
+    relatedSkills: ["Search-driven BI", "Natural Language Queries", "Analytics"],
+  },
+  alteryx: {
+    normalized: "Alteryx",
+    category: SKILL_CATEGORIES.DATA_SCIENCE,
+    aliases: ["alteryx designer", "data preparation"],
+    relatedSkills: ["Data Preparation", "ETL", "Advanced Analytics"],
+  },
+  databrickssql: {
+    normalized: "Databricks SQL",
+    category: SKILL_CATEGORIES.DATA_SCIENCE,
+    aliases: ["databricks sql analytics", "sql warehouse"],
+    relatedSkills: ["SQL Analytics", "Data Lake", "Business Intelligence"],
+  },
+
   // SOFT SKILLS
   leadership: {
     normalized: "Leadership",
