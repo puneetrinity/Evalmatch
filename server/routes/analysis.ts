@@ -7,8 +7,8 @@
 import { Router, Request, Response } from "express";
 import { authenticateUser } from "../middleware/auth";
 import { logger } from "../lib/logger";
-import { storage } from "../storage";
-import { analysisService } from "../services/analysis-service";
+import { getStorage } from "../storage";
+import { createAnalysisService } from "../services/analysis-service";
 import {
   AnalyzedResumeData,
   AnalyzedJobData,
@@ -52,6 +52,10 @@ router.post(
         });
       }
 
+      // Get storage instance and create analysis service
+      const storage = getStorage();
+      const analysisService = createAnalysisService(storage);
+      
       // Use AnalysisService for batch analysis
       const result = await analysisService.analyzeResumesBatch({
         userId,
@@ -136,6 +140,10 @@ router.get(
         });
       }
 
+      // Get storage instance and create analysis service
+      const storage = getStorage();
+      const analysisService = createAnalysisService(storage);
+      
       // Use AnalysisService to get results
       const result = await analysisService.getAnalysisResults(userId, jobId, sessionId, batchId);
 
@@ -213,6 +221,7 @@ router.get(
         });
       }
 
+      const storage = getStorage();
       const analysisResult = await storage.getAnalysisResultByJobAndResume(
         jobId,
         resumeId,
@@ -269,6 +278,10 @@ router.post(
         });
       }
 
+      // Get storage instance and create analysis service
+      const storage = getStorage();
+      const analysisService = createAnalysisService(storage);
+      
       // Use AnalysisService to generate interview questions
       const result = await analysisService.generateInterviewQuestions({
         userId,
@@ -341,6 +354,10 @@ router.post(
         });
       }
 
+      // Get storage instance and create analysis service
+      const storage = getStorage();
+      const analysisService = createAnalysisService(storage);
+      
       // Use AnalysisService to perform bias analysis
       const result = await analysisService.analyzeBias({
         userId,

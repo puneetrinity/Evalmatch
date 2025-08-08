@@ -25,7 +25,7 @@
  */
 
 import { logger } from '../lib/logger';
-import { storage } from '../storage';
+import type { IStorage } from '../storage';
 import { 
   analyzeResumeWithCache, 
   analyzeJobDescriptionWithCache,
@@ -186,7 +186,7 @@ export interface SingleAnalysisResult {
 export class AnalysisService {
   
   constructor(
-    private storageProvider = storage
+    private storageProvider: IStorage
   ) {}
 
   /**
@@ -900,10 +900,13 @@ export class AnalysisService {
   }
 }
 
-// ===== SINGLETON EXPORT =====
+// ===== SERVICE FACTORY =====
 
 /**
- * Default analysis service instance
- * Uses the default storage provider
+ * Creates a new AnalysisService instance with the provided storage
+ * @param storageProvider - The storage provider to use
+ * @returns A new AnalysisService instance
  */
-export const analysisService = new AnalysisService();
+export function createAnalysisService(storageProvider: IStorage): AnalysisService {
+  return new AnalysisService(storageProvider);
+}
