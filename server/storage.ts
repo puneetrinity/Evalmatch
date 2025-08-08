@@ -151,13 +151,12 @@ export class MemStorage implements IStorage {
     // Filter by userId first
     let userResumes = allResumes.filter(resume => resume.userId === userId);
     
-    // Priority-based filtering: batchId takes precedence over sessionId
-    // This ensures consistent behavior with getAnalysisResultsByJob
+    // Apply both sessionId and batchId filters when provided
     if (batchId) {
-      // Filter by batchId only - ignore sessionId to avoid conflicts
       userResumes = userResumes.filter(resume => resume.batchId === batchId);
-    } else if (sessionId) {
-      // Only filter by sessionId if no batchId is provided
+    }
+    
+    if (sessionId) {
       userResumes = userResumes.filter(resume => resume.sessionId === sessionId);
     }
     
@@ -388,17 +387,16 @@ export class MemStorage implements IStorage {
       result.userId === userId
     );
     
-    // Priority-based filtering: batchId takes precedence over sessionId
-    // This ensures consistent behavior with getResumesByUserId method
+    // Apply both sessionId and batchId filters when provided
     if (batchId) {
-      // Filter by batchId only - ignore sessionId to avoid conflicts
       filteredResults = filteredResults.filter(result => {
         if (result.resumeId === null) return false;
         const resume = this.resumesData.get(result.resumeId);
         return resume && resume.batchId === batchId;
       });
-    } else if (sessionId) {
-      // Only filter by sessionId if no batchId is provided
+    }
+    
+    if (sessionId) {
       filteredResults = filteredResults.filter(result => {
         if (result.resumeId === null) return false;
         const resume = this.resumesData.get(result.resumeId);

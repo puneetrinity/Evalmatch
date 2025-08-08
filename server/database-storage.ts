@@ -73,7 +73,9 @@ export class DatabaseStorage implements IStorage {
       
       if (batchId) {
         conditions.push(eq(resumes.batchId, batchId));
-      } else if (sessionId) {
+      }
+      
+      if (sessionId) {
         conditions.push(eq(resumes.sessionId, sessionId));
       }
       
@@ -301,7 +303,9 @@ export class DatabaseStorage implements IStorage {
       const resumeConditions = [];
       if (batchId) {
         resumeConditions.push(eq(resumes.batchId, batchId));
-      } else if (sessionId) {
+      }
+      
+      if (sessionId) {
         resumeConditions.push(eq(resumes.sessionId, sessionId));
       }
       
