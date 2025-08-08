@@ -129,6 +129,17 @@ export function loadUnifiedConfig(): AppConfig {
     }
   }
 
+  // Parse the service account key into an object for firebase-auth.ts
+  let firebaseServiceAccountObject = null;
+  if (firebaseServiceAccountKey) {
+    try {
+      firebaseServiceAccountObject = JSON.parse(firebaseServiceAccountKey);
+    } catch (error) {
+      logger.warn('Failed to parse Firebase service account key JSON', { error });
+      firebaseServiceAccountKey = null;
+    }
+  }
+
   // Firebase client configuration (for build-time injection)
   const firebaseClientConfig = {
     apiKey: process.env.VITE_FIREBASE_API_KEY || null,
@@ -139,7 +150,7 @@ export function loadUnifiedConfig(): AppConfig {
     appId: process.env.VITE_FIREBASE_APP_ID || null,
   };
 
-  const firebaseConfigured = !!(firebaseProjectId && firebaseServiceAccountKey);
+  const firebaseConfigured = !!(firebaseProjectId && firebaseServiceAccountObject);
 
   // AI Provider configuration
   const groqApiKey = process.env.GROQ_API_KEY || null;
@@ -210,7 +221,7 @@ export function loadUnifiedConfig(): AppConfig {
     },
     firebase: {
       projectId: firebaseProjectId,
-      serviceAccountKey: firebaseServiceAccountKey,
+      serviceAccountKey: firebaseServiceAccountObject,
       clientConfig: firebaseClientConfig,
       configured: firebaseConfigured,
     },

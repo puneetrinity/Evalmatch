@@ -82,15 +82,8 @@ export async function initializeFirebaseAuth(): Promise<void> {
       }
     }
 
-    // Parse service account credentials
-    let credentials;
-    try {
-      credentials = JSON.parse(config.firebase.serviceAccountKey!);
-    } catch (e) {
-      const error = "Invalid FIREBASE_SERVICE_ACCOUNT_KEY - not valid JSON";
-      authStatus.error = error;
-      throw new Error(error);
-    }
+    // Use service account credentials (already parsed by unified config)
+    const credentials = config.firebase.serviceAccountKey;
 
     // Initialize Firebase Admin
     adminApp = initializeApp({
