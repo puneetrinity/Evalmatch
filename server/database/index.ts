@@ -182,7 +182,7 @@ export async function initializeDatabase(): Promise<void> {
     // Also run emergency migrations from migrate.js as a backup
     // This ensures critical columns are added even if SQL migrations fail
     try {
-      const { runMigration } = require('../migrate.js');
+      const { runMigration } = require('../migrate.cjs');
       logger.info("🔧 Running emergency column migrations...");
       await runMigration();
     } catch (error) {
