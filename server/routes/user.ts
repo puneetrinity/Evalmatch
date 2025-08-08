@@ -60,8 +60,8 @@ router.post("/debug/test-auth", async (req: Request, res: Response) => {
       });
     }
 
-    // Verify token with Firebase Admin
-    const { verifyFirebaseToken } = await import("../lib/firebase-admin");
+    // Verify token with unified Firebase auth system
+    const { verifyFirebaseToken } = await import("../auth/firebase-auth");
 
     try {
       const decodedToken = await verifyFirebaseToken(token);

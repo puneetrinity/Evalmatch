@@ -429,11 +429,11 @@ router.get("/debug-auth", requireAdmin, async (req: Request, res: Response) => {
       ? authHeader.slice(7)
       : null;
 
-    // Check Firebase Admin SDK configuration
-    const { verifyFirebaseConfig, verifyFirebaseToken } = await import(
-      "../lib/firebase-admin"
+    // Check Firebase Admin SDK configuration using unified auth system
+    const { verifyFirebaseConfiguration, getFirebaseAuthStatus } = await import(
+      "../auth/firebase-auth"
     );
-    const firebaseStatus = await verifyFirebaseConfig();
+    const firebaseStatus = await verifyFirebaseConfiguration();
 
     // Check environment variables
     const envCheck = {

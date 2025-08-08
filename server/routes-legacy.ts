@@ -399,8 +399,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Test Firebase connection
       try {
         if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-          const { verifyFirebaseConfig } = await import('./lib/firebase-admin.js');
-          const firebaseStatus = await verifyFirebaseConfig();
+          const { verifyFirebaseConfiguration } = await import('./auth/firebase-auth.js');
+          const firebaseStatus = await verifyFirebaseConfiguration();
           debugInfo.firebaseConnection = {
             configured: true,
             connectionTest: firebaseStatus,
@@ -2137,7 +2137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const token = authHeader.split('Bearer ')[1];
       
       // Try to verify the token
-      const { verifyFirebaseToken } = await import('./lib/firebase-admin.js');
+      const { verifyFirebaseToken } = await import('./auth/firebase-auth.js');
       const decodedToken = await verifyFirebaseToken(token);
       
       if (!decodedToken) {

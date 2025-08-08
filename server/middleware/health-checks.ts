@@ -650,87 +650,57 @@ async function checkFirebaseAuth(): Promise<HealthCheckResult> {
       };
     }
 
-    // Import Firebase Admin SDK
-    const { adminAuth } = await import("../lib/firebase-admin");
+    // Import unified Firebase auth system
+    const { isFirebaseAuthAvailable, getFirebaseAuthStatus, verifyFirebaseConfiguration } = await import("../auth/firebase-auth");
 
-    if (!adminAuth) {
+    // Check if Firebase auth is available
+    if (!isFirebaseAuthAvailable()) {
+      const authStatus = getFirebaseAuthStatus();
       return {
         name: checkName,
         status: "unhealthy",
         responseTime: Date.now() - startTime,
-        message:
-          "Firebase Admin Auth not initialized - check service account configuration",
+        message: authStatus.error || "Firebase Admin Auth not initialized - check service account configuration",
         details: {
           configured: true,
-          initialized: false,
-          projectId: config.firebase.projectId,
-          hasServiceAccountKey: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
-          hasCredentialsFile: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
+          initialized: authStatus.initialized,
+          projectId: authStatus.projectId,
+          hasServiceAccountKey: !!(
+            process.env.FIREBASE_SERVICE_ACCOUNT_KEY ||
+            process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64
+          ),
+          authStatus,
         },
         lastChecked: new Date().toISOString(),
       };
     }
 
-    // Test Firebase Auth service connectivity with multiple checks
-    const testResults = {
-      customTokenGeneration: false,
-      userLookup: false,
-      serviceAccess: false,
-      responseTime: 0,
-    };
-
+    // Use the comprehensive Firebase verification from unified auth system
     const testStartTime = Date.now();
-
+    
     try {
-      // Test 1: Custom token generation (basic functionality)
-      const customToken = await Promise.race([
-        adminAuth.createCustomToken("health-check-user", { healthCheck: true }),
-        new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error("Custom token generation timeout")),
-            5000,
-          ),
-        ),
-      ]);
-      testResults.customTokenGeneration = !!customToken;
-      testResults.serviceAccess = true;
+      const verificationResult = await verifyFirebaseConfiguration();
+      const authStatus = getFirebaseAuthStatus();
+      const testResponseTime = Date.now() - testStartTime;
 
-      // Test 2: Try to get user info (this will fail but tests service access)
-      try {
-        await Promise.race([
-          adminAuth.getUser("non-existent-user-health-check"),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("User lookup timeout")), 3000),
-          ),
-        ]);
-      } catch (userError: unknown) {
-        // Expected to fail for non-existent user, but confirms service is accessible
-        if ((userError as any)?.code === "auth/user-not-found") {
-          testResults.userLookup = true; // Service is working
-        }
-      }
-
-      testResults.responseTime = Date.now() - testStartTime;
-
-      // Determine status based on test results
+      // Determine status based on verification result and response time
       let status: "healthy" | "degraded" | "unhealthy";
       let message: string;
 
-      if (testResults.serviceAccess && testResults.customTokenGeneration) {
-        if (testResults.responseTime > 3000) {
+      if (verificationResult.status === "success") {
+        if (testResponseTime > 3000) {
           status = "degraded";
-          message = `Firebase Auth accessible but slow (${testResults.responseTime}ms)`;
+          message = `Firebase Auth accessible but slow (${testResponseTime}ms)`;
         } else {
           status = "healthy";
           message = "Firebase authentication service fully operational";
         }
-      } else if (testResults.serviceAccess) {
+      } else if (verificationResult.status === "not_configured") {
         status = "degraded";
-        message =
-          "Firebase Auth partially accessible - some features may be limited";
+        message = "Firebase not configured - using auth bypass mode";
       } else {
         status = "unhealthy";
-        message = "Firebase Auth service not accessible";
+        message = verificationResult.error || "Firebase Auth service not accessible";
       }
 
       return {
@@ -740,27 +710,28 @@ async function checkFirebaseAuth(): Promise<HealthCheckResult> {
         message,
         details: {
           configured: true,
-          initialized: true,
-          projectId: config.firebase.projectId,
-          tests: {
-            customTokenGeneration: testResults.customTokenGeneration,
-            userLookup: testResults.userLookup,
-            serviceAccess: testResults.serviceAccess,
-            responseTime: testResults.responseTime,
-          },
+          initialized: authStatus.initialized,
+          projectId: authStatus.projectId,
+          verification: verificationResult,
+          authStatus,
+          testResponseTime,
           credentials: {
             hasServiceAccountKey: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+            hasServiceAccountKeyBase64: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64,
             hasCredentialsFile: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
-            type: process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-              ? "service-account-key"
-              : process.env.GOOGLE_APPLICATION_CREDENTIALS
-                ? "credentials-file"
-                : "default",
+            type: process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64
+              ? "service-account-key-base64"
+              : process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+                ? "service-account-key"
+                : process.env.GOOGLE_APPLICATION_CREDENTIALS
+                  ? "credentials-file"
+                  : "default",
           },
         },
         lastChecked: new Date().toISOString(),
       };
     } catch (error) {
+      const authStatus = getFirebaseAuthStatus();
       return {
         name: checkName,
         status: "unhealthy",
@@ -768,11 +739,11 @@ async function checkFirebaseAuth(): Promise<HealthCheckResult> {
         message: `Firebase Auth service test failed: ${getErrorMessage(error)}`,
         details: {
           configured: true,
-          initialized: true,
-          projectId: config.firebase.projectId,
+          initialized: authStatus.initialized,
+          projectId: authStatus.projectId,
           error: getErrorMessage(error),
           errorCode: (error as any)?.code || "unknown",
-          tests: testResults,
+          authStatus,
         },
         lastChecked: new Date().toISOString(),
       };
