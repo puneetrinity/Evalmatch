@@ -1,5 +1,8 @@
 // Emergency database migration for Railway deployment
-// This fixes the missing user_id column issue that's breaking job analysis
+// This fixes critical missing columns including:
+// - user_id column in job_descriptions
+// - analysis column in analysis_results (CRITICAL - causing 404 errors)
+// - Other supporting columns for proper data storage
 
 const { Pool } = require('pg');
 
@@ -58,6 +61,30 @@ async function runMigration() {
       if (checkCol.rows.length === 0) {
         console.log(`📊 Adding missing ${column} column to resumes...`);
         await pool.query(`ALTER TABLE resumes ADD COLUMN ${column} ${type}`);
+      }
+    }
+
+    // Fix analysis_results table - CRITICAL FIX for the missing analysis column
+    const analysisResultsQueries = [
+      { column: 'analysis', type: 'JSON NOT NULL DEFAULT \'{}\'::json' },
+      { column: 'user_id', type: 'TEXT' },
+      { column: 'matched_skills', type: 'JSON DEFAULT \'[]\'::json' },
+      { column: 'missing_skills', type: 'JSON DEFAULT \'[]\'::json' },
+      { column: 'candidate_strengths', type: 'JSON DEFAULT \'[]\'::json' },
+      { column: 'candidate_weaknesses', type: 'JSON DEFAULT \'[]\'::json' },
+      { column: 'recommendations', type: 'JSON DEFAULT \'[]\'::json' }
+    ];
+
+    for (const { column, type } of analysisResultsQueries) {
+      const checkCol = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'analysis_results' AND column_name = $1
+      `, [column]);
+
+      if (checkCol.rows.length === 0) {
+        console.log(`📊 Adding missing ${column} column to analysis_results...`);
+        await pool.query(`ALTER TABLE analysis_results ADD COLUMN ${column} ${type}`);
       }
     }
 
