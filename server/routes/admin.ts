@@ -666,7 +666,7 @@ router.post(
 /**
  * Get skill memory system statistics and status
  */
-router.get("/skill-memory/stats", adminAuth, async (req, res) => {
+router.get("/skill-memory/stats", requireAdmin, async (req, res) => {
   try {
     logger.info('Admin accessing skill memory stats');
     
@@ -698,7 +698,7 @@ router.get("/skill-memory/stats", adminAuth, async (req, res) => {
 /**
  * Get recent skill discoveries with pagination
  */
-router.get("/skill-memory/discoveries", adminAuth, async (req, res) => {
+router.get("/skill-memory/discoveries", requireAdmin, async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
@@ -758,7 +758,7 @@ router.get("/skill-memory/discoveries", adminAuth, async (req, res) => {
 /**
  * Run skill learning scheduler job manually
  */
-router.post("/skill-memory/run-job", adminAuth, async (req, res) => {
+router.post("/skill-memory/run-job", requireAdmin, async (req, res) => {
   try {
     const jobType = req.body.jobType as 'promotion' | 'revalidation' | 'maintenance' | 'cleanup';
     
@@ -793,7 +793,7 @@ router.post("/skill-memory/run-job", adminAuth, async (req, res) => {
 /**
  * Clean up low-frequency skills manually
  */
-router.post("/skill-memory/cleanup", adminAuth, async (req, res) => {
+router.post("/skill-memory/cleanup", requireAdmin, async (req, res) => {
   try {
     logger.info('Admin manually running skill memory cleanup');
     
@@ -818,7 +818,7 @@ router.post("/skill-memory/cleanup", adminAuth, async (req, res) => {
 /**
  * Get skill promotion history
  */
-router.get("/skill-memory/promotions", adminAuth, async (req, res) => {
+router.get("/skill-memory/promotions", requireAdmin, async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);

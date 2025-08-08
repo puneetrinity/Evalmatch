@@ -1315,3 +1315,88 @@ export function resetGroqUsage(): void {
   };
   logger.info("Groq usage statistics reset");
 }
+
+// Generic analysis function for custom prompts
+async function analyzeGeneric(prompt: string): Promise<string> {
+  if (!groq) {
+    throw new Error("Groq API not initialized - missing GROQ_API_KEY");
+  }
+
+  const cacheKey = calculateHash(prompt);
+  const cached = responseCache[cacheKey];
+
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    logger.debug("Returning cached generic analysis response");
+    return cached.data as string;
+  }
+
+  try {
+    logger.debug("Making Groq API call for generic analysis", {
+      promptLength: prompt.length,
+      model: MODELS.FAST
+    });
+
+    const completion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "You are a helpful AI assistant. Provide clear, accurate, and relevant responses."
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      model: MODELS.FAST,
+      temperature: 0.3,
+      max_tokens: 1000,
+    });
+
+    const response = completion.choices[0]?.message?.content || "";
+    
+    if (!response) {
+      throw new Error("Empty response from Groq API");
+    }
+
+    // Update usage statistics
+    if (completion.usage) {
+      apiUsage.promptTokens += completion.usage.prompt_tokens || 0;
+      apiUsage.completionTokens += completion.usage.completion_tokens || 0;
+      apiUsage.totalTokens += completion.usage.total_tokens || 0;
+      
+      const pricing = PRICING[MODELS.FAST as keyof typeof PRICING];
+      if (pricing) {
+        apiUsage.estimatedCost += 
+          ((completion.usage.prompt_tokens || 0) / 1000000) * pricing.input +
+          ((completion.usage.completion_tokens || 0) / 1000000) * pricing.output;
+      }
+    }
+
+    // Cache the response
+    responseCache[cacheKey] = {
+      timestamp: Date.now(),
+      data: response,
+    };
+
+    logger.debug("Generic analysis completed successfully", {
+      responseLength: response.length,
+      tokens: completion.usage?.total_tokens || 0
+    });
+
+    return response;
+  } catch (error) {
+    logger.error("Generic analysis failed", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      promptLength: prompt.length
+    });
+    
+    throw new Error(
+      `Generic analysis failed: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+  }
+}
+
+// Export groqAPI object for compatibility with skill-memory-system
+export const groqAPI = {
+  analyzeGeneric,
+};
