@@ -8,7 +8,8 @@ import { authenticateUser } from "../middleware/auth";
 import { secureUpload, validateUploadedFile } from "../middleware/upload";
 import { uploadRateLimiter } from "../middleware/rate-limiter";
 import { logger } from "../lib/logger";
-import { resumeService } from "../services/resume-service";
+import { createResumeService } from "../services/resume-service";
+import { getStorage } from "../storage";
 import { isSuccess, isFailure } from "@shared/result-types";
 import { getErrorStatusCode, getErrorCode, getErrorMessage, getErrorTimestamp } from "@shared/type-utilities";
 
@@ -25,8 +26,12 @@ router.get("/", authenticateUser, async (req: Request, res: Response) => {
     const fileType = req.query.fileType as string;
     const hasAnalysis = req.query.hasAnalysis === 'true' ? true : req.query.hasAnalysis === 'false' ? false : undefined;
 
+    // Create ResumeService instance with current storage
+    const storage = getStorage();
+    const resumeServiceInstance = createResumeService(storage);
+    
     // Use ResumeService to get user's resumes
-    const result = await resumeService.getUserResumes({
+    const result = await resumeServiceInstance.getUserResumes({
       userId,
       sessionId,
       batchId,
@@ -84,8 +89,12 @@ router.get("/:id", authenticateUser, async (req: Request, res: Response) => {
       });
     }
 
+    // Create ResumeService instance with current storage
+    const storage = getStorage();
+    const resumeServiceInstance = createResumeService(storage);
+    
     // Use ResumeService to get resume by ID
-    const result = await resumeService.getResumeById(userId, resumeId);
+    const result = await resumeServiceInstance.getResumeById(userId, resumeId);
 
     if (isFailure(result)) {
       const statusCode = getErrorStatusCode(result.error, 500);
@@ -141,8 +150,12 @@ router.post(
       const fileBuffer = file.buffer || 
         (await import("fs").then((fs) => fs.promises.readFile(file.path!)));
 
+      // Create ResumeService instance with current storage
+      const storage = getStorage();
+      const resumeServiceInstance = createResumeService(storage);
+      
       // Use ResumeService to upload and process resume
-      const result = await resumeService.uploadResume({
+      const result = await resumeServiceInstance.uploadResume({
         userId,
         file: {
           originalname: file.originalname,
@@ -238,8 +251,12 @@ router.post(
         });
       }
 
+      // Create ResumeService instance with current storage
+      const storage = getStorage();
+      const resumeServiceInstance = createResumeService(storage);
+      
       // Use ResumeService to upload batch of resumes
-      const result = await resumeService.uploadResumesBatch({
+      const result = await resumeServiceInstance.uploadResumesBatch({
         userId,
         files: processedFiles,
         sessionId,

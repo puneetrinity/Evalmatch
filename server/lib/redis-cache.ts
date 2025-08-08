@@ -24,10 +24,20 @@ export class CacheManager {
   };
 
   constructor() {
+    // Allow explicit Redis disabling via environment variable
+    if (process.env.REDIS_ENABLED === 'false') {
+      logger.info('Redis explicitly disabled via REDIS_ENABLED=false');
+      return;
+    }
     this.connect();
   }
 
   private async connect(): Promise<void> {
+    // Skip connection if Redis is explicitly disabled
+    if (process.env.REDIS_ENABLED === 'false') {
+      return;
+    }
+    
     if (this.connectionAttempts >= this.MAX_RETRIES) {
       logger.warn("Redis connection failed after max retries, cache disabled");
       return;

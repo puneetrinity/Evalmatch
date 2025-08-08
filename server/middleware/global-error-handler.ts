@@ -308,28 +308,48 @@ export function globalErrorHandler(
         : "[Request Body]",
   };
 
-  // Log error with appropriate level
+  // Enhanced error logging with storage diagnostics for initialization errors
   const logLevel =
     statusCode >= 500 ? "error" : statusCode >= 400 ? "warn" : "info";
 
-  logger[logLevel](
-    {
-      error: {
-        message: error.message,
-        code: error.code,
-        type: errorType,
-        statusCode,
-        stack: config.env !== "production" ? error.stack : undefined,
-        isOperational: error.isOperational,
-        details:
-          config.env !== "production"
-            ? redactSensitiveData(error.details)
-            : undefined,
-      },
-      request: requestContext,
+  // Check if this is a storage initialization error
+  const isStorageError = error.message?.includes('Storage not initialized') || 
+                        error.message?.includes('getStorage') ||
+                        error.stack?.includes('storage.ts');
+
+  const errorLogData = {
+    error: {
+      message: error.message,
+      code: error.code,
+      type: errorType,
+      statusCode,
+      stack: config.env !== "production" ? error.stack : undefined,
+      isOperational: error.isOperational,
+      isStorageError,
+      details:
+        config.env !== "production"
+          ? redactSensitiveData(error.details)
+          : undefined,
     },
-    `${errorType}: ${error.message}`,
-  );
+    request: requestContext,
+  };
+
+  // Add storage diagnostics for storage-related errors
+  if (isStorageError) {
+    const { storage } = require("../storage");
+    errorLogData.error.details = {
+      ...errorLogData.error.details,
+      storageInitialized: !!storage,
+      storageType: storage ? storage.constructor.name : 'null',
+      timestamp: new Date().toISOString(),
+      routePath: req.route?.path || 'unknown',
+      serviceCalled: error.stack?.includes('Service') ? 'yes' : 'no'
+    };
+    
+    logger.error("🔥 CRITICAL STORAGE ERROR DETECTED", errorLogData);
+  } else {
+    logger[logLevel](errorLogData, `${errorType}: ${error.message}`);
+  }
 
   // Create and send error response
   const errorResponse = createErrorResponse(

@@ -548,17 +548,40 @@ export let storage: IStorage;
 export function getStorage(): IStorage {
   if (!storage) {
     logger.error('💥 Storage not initialized when requested!');
+    logger.error('Current timestamp:', new Date().toISOString());
     logger.error('Call stack:', new Error().stack);
+    logger.error('Storage initialization status:', {
+      storageIsNull: storage === null,
+      storageIsUndefined: storage === undefined,
+      typeof: typeof storage
+    });
     throw new Error('Storage not initialized. Call initializeAppStorage() first.');
   }
-  logger.debug('✅ Storage instance retrieved successfully');
+  logger.debug('✅ Storage instance retrieved successfully', {
+    storageType: storage.constructor.name,
+    timestamp: new Date().toISOString()
+  });
   return storage;
 }
 
 // Initialize storage asynchronously (called from main app startup)
 export async function initializeAppStorage(): Promise<IStorage> {
+  logger.info('initializeAppStorage called', {
+    storageAlreadyInitialized: !!storage,
+    timestamp: new Date().toISOString()
+  });
+  
   if (!storage) {
+    logger.info('Storage not initialized, calling initializeStorage()...');
     storage = await initializeStorage();
+    logger.info('Storage initialized successfully', {
+      storageType: storage.constructor.name,
+      timestamp: new Date().toISOString()
+    });
+  } else {
+    logger.info('Storage already initialized', {
+      storageType: storage.constructor.name
+    });
   }
   return storage;
 }

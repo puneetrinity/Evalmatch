@@ -246,7 +246,20 @@ export class ResumeService {
   ) {}
 
   private getStorageProvider(): IStorage {
-    return this.storageProvider || getStorage();
+    logger.debug('ResumeService: Attempting to get storage provider', {
+      hasInjectectedStorage: !!this.storageProvider,
+      timestamp: new Date().toISOString()
+    });
+    
+    if (this.storageProvider) {
+      logger.debug('ResumeService: Using injected storage provider', {
+        storageType: this.storageProvider.constructor.name
+      });
+      return this.storageProvider;
+    }
+    
+    logger.debug('ResumeService: Getting global storage instance...');
+    return getStorage();
   }
 
   /**
@@ -733,10 +746,23 @@ export class ResumeService {
   }
 }
 
-// ===== SINGLETON EXPORT =====
+// ===== SERVICE FACTORY =====
 
 /**
- * Default resume service instance
- * Uses the default storage provider
+ * Create a resume service instance with the provided or default storage
+ * This prevents initialization order issues by deferring storage access
  */
-export const resumeService = new ResumeService();
+export function createResumeService(storageProvider?: IStorage): ResumeService {
+  return new ResumeService(storageProvider);
+}
+
+/**
+ * Get the default resume service instance
+ * Creates a new instance that uses the global storage provider
+ * @deprecated Use createResumeService() in new code to avoid initialization issues
+ */
+export const resumeService = {
+  get instance(): ResumeService {
+    return new ResumeService();
+  }
+};

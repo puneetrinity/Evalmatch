@@ -659,12 +659,26 @@ export class JobService {
   }
 }
 
-// ===== SINGLETON EXPORT =====
+// ===== SERVICE FACTORY =====
 
 /**
- * Singleton JobService instance
+ * Create a job service instance with the provided or default storage
+ * This prevents initialization order issues by deferring storage access
  */
-export const jobService = new JobService();
+export function createJobService(storageProvider?: IStorage): JobService {
+  return new JobService(storageProvider);
+}
+
+/**
+ * Get the default job service instance
+ * Creates a new instance that uses the global storage provider
+ * @deprecated Use createJobService() in new code to avoid initialization issues
+ */
+export const jobService = {
+  get instance(): JobService {
+    return new JobService();
+  }
+};
 
 /**
  * Convenience functions for common operations
@@ -675,7 +689,7 @@ export async function createJobWithAnalysis(
   description: string,
   requirements?: string[]
 ): Promise<JobAnalysisResult<JobCreationResult>> {
-  return await jobService.createJobDescription({
+  return await jobService.instance.createJobDescription({
     userId,
     title,
     description,
@@ -690,7 +704,7 @@ export async function getUserJobs(
   page: number = 1,
   limit: number = 20
 ): Promise<JobAnalysisResult<PaginatedJobsResult>> {
-  return await jobService.getUserJobDescriptions({
+  return await jobService.instance.getUserJobDescriptions({
     userId,
     page,
     limit

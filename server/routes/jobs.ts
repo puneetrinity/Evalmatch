@@ -9,7 +9,8 @@ import { authenticateUser } from "../middleware/auth";
 import { validateRequest } from "../middleware/validation";
 import { insertJobDescriptionSchema } from "@shared/schema";
 import { logger } from "../lib/logger";
-import { jobService } from "../services/job-service";
+import { createJobService } from "../services/job-service";
+import { getStorage } from "../storage";
 import { isSuccess, isFailure } from "@shared/result-types";
 import { getErrorStatusCode, getErrorCode, getErrorMessage, getErrorTimestamp } from "@shared/type-utilities";
 
@@ -22,8 +23,12 @@ router.post("/", authenticateUser, async (req: Request, res: Response) => {
     const jobDescData = validateRequest(insertJobDescriptionSchema, req.body);
     const userId = req.user!.uid;
 
+    // Create JobService instance with current storage
+    const storage = getStorage();
+    const jobServiceInstance = createJobService(storage);
+    
     // Use JobService to create job with analysis
-    const result = await jobService.createJobDescription({
+    const result = await jobServiceInstance.createJobDescription({
       userId,
       title: jobDescData.title,
       description: jobDescData.description,
@@ -89,8 +94,12 @@ router.get("/", authenticateUser, async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const searchQuery = req.query.search as string;
 
+    // Create JobService instance with current storage
+    const storage = getStorage();
+    const jobServiceInstance = createJobService(storage);
+    
     // Use JobService to get paginated results
-    const result = await jobService.getUserJobDescriptions({
+    const result = await jobServiceInstance.getUserJobDescriptions({
       userId,
       page,
       limit,
@@ -150,8 +159,12 @@ router.get("/:id", authenticateUser, async (req: Request, res: Response) => {
       });
     }
 
+    // Create JobService instance with current storage
+    const storage = getStorage();
+    const jobServiceInstance = createJobService(storage);
+    
     // Use JobService to get job by ID
-    const result = await jobService.getJobDescriptionById(userId, jobId);
+    const result = await jobServiceInstance.getJobDescriptionById(userId, jobId);
 
     if (isFailure(result)) {
       const statusCode = getErrorStatusCode(result.error, 500);
@@ -198,8 +211,12 @@ router.patch("/:id", authenticateUser, async (req: Request, res: Response) => {
       });
     }
 
+    // Create JobService instance with current storage
+    const storage = getStorage();
+    const jobServiceInstance = createJobService(storage);
+    
     // Use JobService to update job description
-    const result = await jobService.updateJobDescription({
+    const result = await jobServiceInstance.updateJobDescription({
       userId,
       jobId,
       title: req.body.title,
@@ -253,8 +270,12 @@ router.delete("/:id", authenticateUser, async (req: Request, res: Response) => {
       });
     }
 
+    // Create JobService instance with current storage
+    const storage = getStorage();
+    const jobServiceInstance = createJobService(storage);
+    
     // Use JobService to delete job description
-    const result = await jobService.deleteJobDescription(userId, jobId);
+    const result = await jobServiceInstance.deleteJobDescription(userId, jobId);
 
     if (isFailure(result)) {
       const statusCode = getErrorStatusCode(result.error, 500);
