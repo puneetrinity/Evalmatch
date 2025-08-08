@@ -551,62 +551,30 @@ router.post(
       const { db } = await import("../db");
       const { sql } = await import("drizzle-orm");
       const { skillCategories, skillsTable } = await import("@shared/schema");
+      
+      // Import comprehensive enhanced skills dictionary
+      const { SKILL_CATEGORIES, ENHANCED_SKILL_DICTIONARY } = await import("../lib/skill-hierarchy");
 
-      // Define skill categories
-      const categories = [
-        {
-          name: "Frontend Development",
-          description: "Client-side web development technologies",
-        },
-        {
-          name: "Backend Development",
-          description: "Server-side development and APIs",
-        },
-        {
-          name: "Mobile Development",
-          description: "Mobile application development",
-        },
-        {
-          name: "Database Technologies",
-          description: "Database systems and data management",
-        },
-        {
-          name: "Cloud & DevOps",
-          description: "Cloud platforms and deployment technologies",
-        },
-        {
-          name: "Machine Learning & AI",
-          description: "Artificial intelligence and data science",
-        },
-        {
-          name: "Programming Languages",
-          description: "Programming and scripting languages",
-        },
-        {
-          name: "Testing & Quality Assurance",
-          description: "Software testing and QA practices",
-        },
-        {
-          name: "Design & UX",
-          description: "User experience and interface design",
-        },
-        {
-          name: "Soft Skills",
-          description: "Communication and interpersonal skills",
-        },
-      ];
+      // Clear existing data first
+      logger.info("Clearing existing skills data...");
+      await db.delete(skillsTable);
+      await db.delete(skillCategories);
 
-      // Insert categories
+      // Convert SKILL_CATEGORIES to array format for insertion
+      const categories = Object.values(SKILL_CATEGORIES).map(name => ({
+        name,
+        description: `${name} related skills and technologies`,
+        level: 0
+      }));
+
+      // Insert categories with transaction
+      logger.info(`Inserting ${categories.length} skill categories...`);
       let categoriesInserted = 0;
       for (const category of categories) {
         try {
           await db
             .insert(skillCategories)
-            .values({
-              name: category.name,
-              level: 0,
-              description: category.description,
-            })
+            .values(category)
             .onConflictDoNothing();
           categoriesInserted++;
         } catch (error) {
@@ -614,354 +582,80 @@ router.post(
         }
       }
 
-      // Define skills with their categories and aliases
-      const skillsData = [
-        // Frontend Development
-        {
-          name: "React",
-          category: "Frontend Development",
-          aliases: ["ReactJS", "React.js", "React Native"],
-        },
-        {
-          name: "Angular",
-          category: "Frontend Development",
-          aliases: ["AngularJS", "Angular2+"],
-        },
-        {
-          name: "Vue.js",
-          category: "Frontend Development",
-          aliases: ["Vue", "VueJS", "Vuejs"],
-        },
-        {
-          name: "JavaScript",
-          category: "Frontend Development",
-          aliases: ["JS", "ECMAScript", "ES6", "ES2015+"],
-        },
-        {
-          name: "TypeScript",
-          category: "Frontend Development",
-          aliases: ["TS"],
-        },
-        { name: "HTML", category: "Frontend Development", aliases: ["HTML5"] },
-        {
-          name: "CSS",
-          category: "Frontend Development",
-          aliases: ["CSS3", "Stylesheets"],
-        },
-        { name: "Sass", category: "Frontend Development", aliases: ["SCSS"] },
-        {
-          name: "Tailwind CSS",
-          category: "Frontend Development",
-          aliases: ["TailwindCSS"],
-        },
-
-        // Backend Development
-        {
-          name: "Node.js",
-          category: "Backend Development",
-          aliases: ["NodeJS", "Node"],
-        },
-        {
-          name: "Express.js",
-          category: "Backend Development",
-          aliases: ["Express", "ExpressJS"],
-        },
-        {
-          name: "Python",
-          category: "Backend Development",
-          aliases: ["Python3"],
-        },
-        {
-          name: "Django",
-          category: "Backend Development",
-          aliases: ["Django Framework"],
-        },
-        {
-          name: "Flask",
-          category: "Backend Development",
-          aliases: ["Flask Framework"],
-        },
-        {
-          name: "FastAPI",
-          category: "Backend Development",
-          aliases: ["Fast API"],
-        },
-        {
-          name: "Java",
-          category: "Backend Development",
-          aliases: ["Java SE", "Java EE"],
-        },
-        {
-          name: "Spring Boot",
-          category: "Backend Development",
-          aliases: ["Spring", "Spring Framework"],
-        },
-
-        // Programming Languages
-        { name: "Go", category: "Programming Languages", aliases: ["Golang"] },
-        {
-          name: "Rust",
-          category: "Programming Languages",
-          aliases: ["Rust Lang"],
-        },
-        {
-          name: "C++",
-          category: "Programming Languages",
-          aliases: ["CPP", "C Plus Plus"],
-        },
-        {
-          name: "C#",
-          category: "Programming Languages",
-          aliases: ["C Sharp", "CSharp"],
-        },
-        {
-          name: "PHP",
-          category: "Programming Languages",
-          aliases: ["PHP7", "PHP8"],
-        },
-        {
-          name: "Ruby",
-          category: "Programming Languages",
-          aliases: ["Ruby on Rails", "RoR"],
-        },
-
-        // Database Technologies
-        {
-          name: "PostgreSQL",
-          category: "Database Technologies",
-          aliases: ["Postgres", "psql"],
-        },
-        {
-          name: "MySQL",
-          category: "Database Technologies",
-          aliases: ["MySQL Server"],
-        },
-        {
-          name: "MongoDB",
-          category: "Database Technologies",
-          aliases: ["Mongo", "NoSQL"],
-        },
-        {
-          name: "Redis",
-          category: "Database Technologies",
-          aliases: ["Redis Cache"],
-        },
-        {
-          name: "SQLite",
-          category: "Database Technologies",
-          aliases: ["SQLite3"],
-        },
-
-        // Cloud & DevOps
-        {
-          name: "AWS",
-          category: "Cloud & DevOps",
-          aliases: ["Amazon Web Services", "Amazon AWS"],
-        },
-        {
-          name: "Google Cloud",
-          category: "Cloud & DevOps",
-          aliases: ["GCP", "Google Cloud Platform"],
-        },
-        {
-          name: "Microsoft Azure",
-          category: "Cloud & DevOps",
-          aliases: ["Azure", "Azure Cloud"],
-        },
-        {
-          name: "Docker",
-          category: "Cloud & DevOps",
-          aliases: ["Containerization"],
-        },
-        {
-          name: "Kubernetes",
-          category: "Cloud & DevOps",
-          aliases: ["K8s", "Container Orchestration"],
-        },
-        {
-          name: "Jenkins",
-          category: "Cloud & DevOps",
-          aliases: ["CI/CD", "Continuous Integration"],
-        },
-        {
-          name: "Terraform",
-          category: "Cloud & DevOps",
-          aliases: ["Infrastructure as Code", "IaC"],
-        },
-
-        // Mobile Development
-        {
-          name: "iOS Development",
-          category: "Mobile Development",
-          aliases: ["iOS", "iPhone Development"],
-        },
-        {
-          name: "Android Development",
-          category: "Mobile Development",
-          aliases: ["Android"],
-        },
-        {
-          name: "React Native",
-          category: "Mobile Development",
-          aliases: ["RN"],
-        },
-        {
-          name: "Flutter",
-          category: "Mobile Development",
-          aliases: ["Dart", "Flutter Framework"],
-        },
-        {
-          name: "Swift",
-          category: "Mobile Development",
-          aliases: ["Swift Programming"],
-        },
-        {
-          name: "Kotlin",
-          category: "Mobile Development",
-          aliases: ["Kotlin Programming"],
-        },
-
-        // Machine Learning & AI
-        {
-          name: "Machine Learning",
-          category: "Machine Learning & AI",
-          aliases: ["ML", "Artificial Intelligence", "AI"],
-        },
-        {
-          name: "TensorFlow",
-          category: "Machine Learning & AI",
-          aliases: ["TF"],
-        },
-        {
-          name: "PyTorch",
-          category: "Machine Learning & AI",
-          aliases: ["Torch"],
-        },
-        {
-          name: "scikit-learn",
-          category: "Machine Learning & AI",
-          aliases: ["sklearn", "scikit learn"],
-        },
-        {
-          name: "Pandas",
-          category: "Machine Learning & AI",
-          aliases: ["Data Analysis"],
-        },
-        {
-          name: "NumPy",
-          category: "Machine Learning & AI",
-          aliases: ["Numerical Python"],
-        },
-
-        // Testing & QA
-        {
-          name: "Jest",
-          category: "Testing & Quality Assurance",
-          aliases: ["JavaScript Testing"],
-        },
-        {
-          name: "Cypress",
-          category: "Testing & Quality Assurance",
-          aliases: ["E2E Testing"],
-        },
-        {
-          name: "Selenium",
-          category: "Testing & Quality Assurance",
-          aliases: ["Web Testing"],
-        },
-        {
-          name: "Unit Testing",
-          category: "Testing & Quality Assurance",
-          aliases: ["TDD", "Test Driven Development"],
-        },
-
-        // Design & UX
-        {
-          name: "UI/UX Design",
-          category: "Design & UX",
-          aliases: ["User Experience", "User Interface", "UX/UI"],
-        },
-        { name: "Figma", category: "Design & UX", aliases: ["Design Tools"] },
-        {
-          name: "Adobe Creative Suite",
-          category: "Design & UX",
-          aliases: ["Photoshop", "Illustrator"],
-        },
-
-        // Soft Skills
-        {
-          name: "Communication",
-          category: "Soft Skills",
-          aliases: ["Verbal Communication", "Written Communication"],
-        },
-        {
-          name: "Leadership",
-          category: "Soft Skills",
-          aliases: ["Team Leadership", "Project Leadership"],
-        },
-        {
-          name: "Problem Solving",
-          category: "Soft Skills",
-          aliases: ["Critical Thinking", "Analytical Skills"],
-        },
-        {
-          name: "Project Management",
-          category: "Soft Skills",
-          aliases: ["Agile", "Scrum", "Kanban"],
-        },
-        {
-          name: "Teamwork",
-          category: "Soft Skills",
-          aliases: ["Collaboration", "Team Player"],
-        },
-      ];
-
-      // Get category IDs
+      // Get category IDs mapping
       const categoryMap = new Map();
       const allCategories = await db.select().from(skillCategories);
       for (const cat of allCategories) {
         categoryMap.set(cat.name, cat.id);
       }
+      logger.info(`Created category mapping for ${categoryMap.size} categories`);
 
-      // Insert skills
+      // Convert enhanced skills dictionary to insertion format
+      const skillsData = Object.entries(ENHANCED_SKILL_DICTIONARY).map(([key, skillInfo]) => ({
+        name: skillInfo.normalized,
+        normalizedName: skillInfo.normalized.toLowerCase(),
+        categoryId: categoryMap.get(skillInfo.category),
+        aliases: skillInfo.aliases || [],
+        description: `${skillInfo.normalized} - ${skillInfo.category}`,
+        relatedSkills: skillInfo.relatedSkills || []
+      }));
+
+      // Insert skills with better error handling
+      logger.info(`Inserting ${skillsData.length} skills...`);
       let skillsInserted = 0;
+      let skillsSkipped = 0;
       for (const skillData of skillsData) {
         try {
-          const categoryId = categoryMap.get(skillData.category);
-          if (categoryId) {
+          if (skillData.categoryId) {
             await db
               .insert(skillsTable)
               .values({
                 name: skillData.name,
-                normalizedName: skillData.name.toLowerCase(),
-                categoryId,
+                normalizedName: skillData.normalizedName,
+                categoryId: skillData.categoryId,
                 aliases: skillData.aliases,
-                description: `${skillData.name} - ${skillData.category}`,
+                description: skillData.description,
               })
               .onConflictDoNothing();
             skillsInserted++;
+          } else {
+            logger.warn(`Skipping skill ${skillData.name} - no category ID found`);
+            skillsSkipped++;
           }
         } catch (error) {
-          logger.warn(`Failed to insert skill ${skillData.name}:`, error);
+          logger.error(`Failed to insert skill ${skillData.name}:`, error);
+          skillsSkipped++;
         }
       }
 
+      // Verify the results
+      const finalCategoryCount = await db.execute(sql`SELECT COUNT(*) as count FROM skill_categories`);
+      const finalSkillCount = await db.execute(sql`SELECT COUNT(*) as count FROM skills`);
+      
+      const actualCategoryCount = Array.isArray(finalCategoryCount) && finalCategoryCount[0] 
+        ? (finalCategoryCount[0] as any).count : 0;
+      const actualSkillCount = Array.isArray(finalSkillCount) && finalSkillCount[0] 
+        ? (finalSkillCount[0] as any).count : 0;
+
       logger.info(
-        `Skills population completed: ${categoriesInserted} categories, ${skillsInserted} skills`,
+        `Skills population completed: ${actualCategoryCount} categories, ${actualSkillCount} skills (${skillsSkipped} skipped)`,
       );
 
       res.json({
         status: "success",
-        message: "Skills database populated successfully!",
-        categories: categoriesInserted,
-        skills: skillsInserted,
+        message: "Comprehensive skills database populated successfully!",
+        categories: actualCategoryCount,
+        skills: actualSkillCount,
+        categoriesInserted,
+        skillsInserted,
+        skillsSkipped,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
       logger.error("Skills population failed:", error);
       res.status(500).json({
         error: "Skills population failed",
-        message: error instanceof Error ? error instanceof Error ? error.message : String(error) : "Unknown error",
+        message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   },
