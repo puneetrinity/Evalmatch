@@ -93,6 +93,9 @@ export default function AnalysisPage() {
   const [match, routeParams] = useRoute("/analysis/:jobId");
   const jobId = match ? parseInt(routeParams.jobId) as JobId : 0 as JobId;
   
+  // Early validation of jobId
+  const isValidJobId = match && routeParams.jobId && routeParams.jobId !== 'undefined' && !isNaN(Number(routeParams.jobId));
+  
   const [expanded, setExpanded] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
@@ -157,7 +160,7 @@ export default function AnalysisPage() {
       }
       return data;
     },
-    enabled: !!jobId,
+    enabled: isValidJobId && !!jobId,
     retry: 1
   });
   
@@ -350,7 +353,7 @@ export default function AnalysisPage() {
       console.log(`Analysis data received, count: ${data.results?.length || 0} results`);
       return data as AnalysisResponse;
     },
-    enabled: !!jobId && sessionId !== null && currentBatchId !== null && isInitialized, // Only fetch when initialized and have all required IDs
+    enabled: isValidJobId && !!jobId && sessionId !== null && currentBatchId !== null && isInitialized, // Only fetch when initialized and have all required IDs
     retry: 1
   });
   
@@ -557,14 +560,20 @@ export default function AnalysisPage() {
   const hasResumes = noResults && !isAnalyzing && !isError;
   const shouldShowJobError = isJobError || !jobData;
   
-  if (!jobId) {
+  if (!isValidJobId || !jobId) {
+    // Clear stale localStorage data when jobId is invalid
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('currentUploadSession');
+      localStorage.removeItem('currentBatchId');
+    }
+    
     return (
       <div className="flex flex-col min-h-screen">
         <Header />
         <main className="flex-grow container mx-auto px-4 py-8">
           <div className="text-center p-12">
             <h1 className="text-3xl font-bold mb-6">Invalid Job ID</h1>
-            <p className="mb-6">No job description ID was provided.</p>
+            <p className="mb-6">No valid job description ID was provided.</p>
             <Button onClick={() => setLocation("/job-description")}>
               Add a Job Description
             </Button>
