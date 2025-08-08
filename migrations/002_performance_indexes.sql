@@ -72,13 +72,13 @@ WHERE analyzed_data IS NULL;
 -- JSON INDEXES FOR SKILL QUERIES
 -- ============================================================================
 
--- GIN index for skill aliases JSON queries
-CREATE INDEX IF NOT EXISTS idx_skills_aliases_gin
-ON skills USING gin(aliases);
+-- GIN index for skill aliases JSON queries (commented - requires jsonb_path_ops operator class)
+-- CREATE INDEX IF NOT EXISTS idx_skills_aliases_gin
+-- ON skills USING gin(aliases jsonb_path_ops);
 
--- GIN index for interview questions JSON queries
-CREATE INDEX IF NOT EXISTS idx_interview_questions_gin
-ON interview_questions USING gin(questions);
+-- GIN index for interview questions JSON queries (commented - requires jsonb_path_ops operator class)  
+-- CREATE INDEX IF NOT EXISTS idx_interview_questions_gin
+-- ON interview_questions USING gin(questions jsonb_path_ops);
 
 -- ============================================================================
 -- ANALYZE TABLES FOR QUERY PLANNER
