@@ -28,7 +28,7 @@
  */
 
 import { logger } from '../lib/logger';
-import { storage } from '../storage';
+import { getStorage, IStorage } from '../storage';
 import { QueryBuilder, ResumeQueryBuilder } from '../lib/query-builder';
 import { analyzeResumeWithCache } from '../lib/cached-ai-operations';
 import { getUserTierInfo } from '../lib/user-tiers';
@@ -242,8 +242,12 @@ export interface BatchUploadResult {
 export class ResumeService {
   
   constructor(
-    private storageProvider = storage
+    private storageProvider?: IStorage
   ) {}
+
+  private getStorageProvider(): IStorage {
+    return this.storageProvider || getStorage();
+  }
 
   /**
    * Uploads and processes a single resume
@@ -300,7 +304,7 @@ export class ResumeService {
         content: extractedText
       };
 
-      const resume = await this.storageProvider.createResume(resumeData);
+      const resume = await this.getStorageProvider().createResume(resumeData);
 
       let analyzedData: AnalyzedResumeData | undefined;
       
@@ -322,7 +326,7 @@ export class ResumeService {
               Date.now() - startTime,
               0.8
             );
-            await this.storageProvider.updateResumeAnalysis(resume.id, analysisResponse);
+            await this.getStorageProvider().updateResumeAnalysis(resume.id, analysisResponse);
           } catch (error) {
             logger.error('Failed to update resume with analysis', {
               resumeId: resume.id,
@@ -508,7 +512,7 @@ export class ResumeService {
       }
 
       // Execute query using storage provider
-      const resumes = await this.storageProvider.getResumesByUserId(userId, sessionId, batchId);
+      const resumes = await this.getStorageProvider().getResumesByUserId(userId, sessionId, batchId);
       
       if (!resumes || resumes.length === 0) {
         return failure(mapNotFoundToBusinessLogic(AppNotFoundError.resourceNotFound('resumes')));
@@ -571,7 +575,7 @@ export class ResumeService {
     logger.info('Getting resume by ID', { userId, resumeId });
 
     try {
-      const resume = await this.storageProvider.getResumeById(resumeId, userId);
+      const resume = await this.getStorageProvider().getResumeById(resumeId, userId);
       
       if (!resume) {
         return failure(mapNotFoundToBusinessLogic(AppNotFoundError.resume(resumeId)));
@@ -641,7 +645,7 @@ export class ResumeService {
 
     // Update resume with analysis
     try {
-      await this.storageProvider.updateResumeAnalysis(resumeId, analysisResult.data);
+      await this.getStorageProvider().updateResumeAnalysis(resumeId, analysisResult.data);
     } catch (error) {
       logger.error('Failed to update resume with analysis', { resumeId, error });
       // Return analysis result anyway - storage update failure is not critical
