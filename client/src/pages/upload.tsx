@@ -70,8 +70,14 @@ export default function UploadPage() {
   // Cleanup effect to remove queries when component unmounts
   useEffect(() => {
     return () => {
-      // Remove resume queries from cache when leaving the upload page
+      // Cancel any active queries and remove them from cache
+      queryClient.cancelQueries({ queryKey: ["/api/resumes"] });
       queryClient.removeQueries({ queryKey: ["/api/resumes"] });
+      // Also invalidate to ensure no background refetches
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/resumes"],
+        refetchType: 'none' // Don't refetch, just mark as invalid
+      });
     };
   }, []);
   
@@ -182,7 +188,12 @@ export default function UploadPage() {
   // Fetch existing resumes for current session and batch
   const { data: existingResumes, isLoading, error: resumeLoadError } = useQuery<ResumeListResponse>({
     queryKey: ["/api/resumes", sessionId, currentBatchId],
-    queryFn: async ({ queryKey }): Promise<ResumeListResponse> => {
+    queryFn: async ({ queryKey, signal }): Promise<ResumeListResponse> => {
+      // Abort if component is unmounted
+      if (!isMounted) {
+        throw new Error('Component unmounted');
+      }
+      
       const endpoint = queryKey[0] as string;
       const currentSessionId = queryKey[1] as SessionId;
       const currentBatch = queryKey[2] as string;
@@ -193,7 +204,7 @@ export default function UploadPage() {
       if (currentBatch) params.append('batchId', currentBatch);
       
       const url = `${endpoint}?${params.toString()}`;
-      const response = await apiRequest("GET", url);
+      const response = await apiRequest("GET", url, undefined, { signal });
       const data = await response.json() as ApiResult<ResumeListResponse>;
       
       if (isApiSuccess(data)) {
@@ -208,7 +219,8 @@ export default function UploadPage() {
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchInterval: false,
-    retry: 2,
+    retry: false, // Disable retries completely
+    retryOnMount: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
   });

@@ -46,7 +46,7 @@ export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
+  async ({ queryKey, signal }) => {
     // Get auth token using simplified auth manager
     const token = await authManager.getAuthToken();
     
@@ -58,6 +58,7 @@ export const getQueryFn: <T>(options: {
     const res = await fetch(queryKey[0] as string, {
       headers,
       credentials: "include",
+      signal, // Pass abort signal to fetch
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
