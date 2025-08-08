@@ -764,10 +764,21 @@ async function runMigrations(): Promise<void> {
       const migrationPath = path.join(migrationsDir, migrationFile);
       logger.info(`🔄 Running migration: ${migrationFile}`);
 
-      const migrationSQL = fs.readFileSync(migrationPath, "utf-8");
-      await executeQuery(migrationSQL);
-
-      logger.info(`✅ Migration completed: ${migrationFile}`);
+      try {
+        const migrationSQL = fs.readFileSync(migrationPath, "utf-8");
+        logger.debug(`Migration SQL length: ${migrationSQL.length} characters`);
+        
+        await executeQuery(migrationSQL);
+        logger.info(`✅ Migration completed: ${migrationFile}`);
+      } catch (error) {
+        logger.error(`❌ Migration failed for file: ${migrationFile}`, {
+          error: error.message,
+          errorCode: error.code,
+          errorDetail: error.detail,
+          migrationFile
+        });
+        throw error;
+      }
     }
 
     logger.info("✅ All database migrations completed successfully");
