@@ -28,7 +28,7 @@
  */
 
 import { logger } from '../lib/logger';
-import { storage } from '../storage';
+import { getStorage, IStorage } from '../storage';
 import { QueryBuilder } from '../lib/query-builder';
 import { analyzeJobDescriptionWithCache } from '../lib/cached-ai-operations';
 import { getUserTierInfo } from '../lib/user-tiers';
@@ -123,8 +123,12 @@ export interface PaginatedJobsResult {
  * Job Service - Handles all job description-related business logic
  */
 export class JobService {
-  constructor(private storageProvider = storage) {
+  constructor(private storageProvider?: IStorage) {
     logger.info('JobService initialized');
+  }
+
+  private getStorageProvider(): IStorage {
+    return this.storageProvider || getStorage();
   }
 
   /**
@@ -155,7 +159,7 @@ export class JobService {
       // Create job description record
       let jobDescription;
       try {
-        jobDescription = await this.storageProvider.createJobDescription({
+        jobDescription = await this.getStorageProvider().createJobDescription({
           userId: options.userId,
           title: options.title,
           description: options.description,
@@ -201,7 +205,7 @@ export class JobService {
             summary: analysisResult.data.summary || ''
           };
           
-          await this.storageProvider.updateJobDescription(jobDescription.id, {
+          await this.getStorageProvider().updateJobDescription(jobDescription.id, {
             analyzedData
           });
         } else {
@@ -352,7 +356,7 @@ export class JobService {
 
       let job;
       try {
-        job = await this.storageProvider.getJobDescriptionById(jobId, userId);
+        job = await this.getStorageProvider().getJobDescriptionById(jobId, userId);
         if (!job) {
           return failure(AppNotFoundError.jobDescription(jobId));
         }
@@ -418,7 +422,7 @@ export class JobService {
       // Update job description
       let updatedJob;
       try {
-        updatedJob = await this.storageProvider.updateJobDescription(
+        updatedJob = await this.getStorageProvider().updateJobDescription(
           options.jobId, 
           updateData
         );
@@ -459,7 +463,7 @@ export class JobService {
             summary: analysisResult.data.summary || ''
           };
           
-          await this.storageProvider.updateJobDescription(options.jobId, {
+          await this.getStorageProvider().updateJobDescription(options.jobId, {
             analyzedData
           });
         }
@@ -510,7 +514,7 @@ export class JobService {
 
       // Delete job description
       try {
-        await this.storageProvider.deleteJobDescription(jobId);
+        await this.getStorageProvider().deleteJobDescription(jobId);
         // The storage layer doesn't return a boolean for confirmation
         // If no error is thrown, deletion was successful
       } catch (error) {
@@ -593,7 +597,7 @@ export class JobService {
         summary: analysisResult.data.summary || ''
       };
       
-      await this.storageProvider.updateJobDescription(jobId, {
+      await this.getStorageProvider().updateJobDescription(jobId, {
         analyzedData
       });
 
@@ -660,7 +664,7 @@ export class JobService {
 /**
  * Singleton JobService instance
  */
-export const jobService = new JobService(storage);
+export const jobService = new JobService();
 
 /**
  * Convenience functions for common operations
