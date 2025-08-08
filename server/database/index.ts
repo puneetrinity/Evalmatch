@@ -768,7 +768,22 @@ async function runMigrations(): Promise<void> {
         const migrationSQL = fs.readFileSync(migrationPath, "utf-8");
         logger.debug(`Migration SQL length: ${migrationSQL.length} characters`);
         
-        await executeQuery(migrationSQL);
+        // Split SQL into individual statements and execute each one
+        const statements = migrationSQL
+          .split(';')
+          .map(stmt => stmt.trim())
+          .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
+        
+        logger.debug(`Executing ${statements.length} SQL statements`);
+        
+        for (let i = 0; i < statements.length; i++) {
+          const statement = statements[i];
+          if (statement) {
+            logger.debug(`Executing statement ${i + 1}: ${statement.substring(0, 100)}...`);
+            await executeQuery(statement);
+          }
+        }
+        
         logger.info(`✅ Migration completed: ${migrationFile}`);
       } catch (error) {
         logger.error(`❌ Migration failed for file: ${migrationFile}`, {
