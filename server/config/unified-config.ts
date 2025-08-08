@@ -133,10 +133,48 @@ export function loadUnifiedConfig(): AppConfig {
   let firebaseServiceAccountObject = null;
   if (firebaseServiceAccountKey) {
     try {
+      logger.debug('Attempting to parse Firebase service account key', {
+        keyLength: firebaseServiceAccountKey.length,
+        keyStart: firebaseServiceAccountKey.substring(0, 50),
+        keyEnd: firebaseServiceAccountKey.substring(firebaseServiceAccountKey.length - 50),
+        isString: typeof firebaseServiceAccountKey === 'string'
+      });
       firebaseServiceAccountObject = JSON.parse(firebaseServiceAccountKey);
+      
+      // Validate the parsed object has required fields
+      const requiredFields = ['type', 'project_id', 'private_key', 'client_email'];
+      const missingFields = requiredFields.filter(field => !firebaseServiceAccountObject[field]);
+      
+      if (missingFields.length > 0) {
+        logger.error('Firebase service account missing required fields', { 
+          missingFields,
+          hasPrivateKey: !!firebaseServiceAccountObject.private_key,
+          privateKeyLength: firebaseServiceAccountObject.private_key?.length || 0
+        });
+        firebaseServiceAccountObject = null;
+      } else {
+        // Fix common private key formatting issues
+        if (firebaseServiceAccountObject.private_key.includes('\\n')) {
+          firebaseServiceAccountObject.private_key = firebaseServiceAccountObject.private_key.replace(/\\n/g, '\n');
+          logger.debug('Fixed escaped newlines in Firebase private key');
+        }
+        
+        // Basic validation of private key format
+        const privateKey = firebaseServiceAccountObject.private_key;
+        if (!privateKey.includes('-----BEGIN PRIVATE KEY-----') || !privateKey.includes('-----END PRIVATE KEY-----')) {
+          logger.error('Firebase private key appears to be malformed - missing BEGIN/END markers');
+          firebaseServiceAccountObject = null;
+        }
+      }
     } catch (error) {
-      logger.warn('Failed to parse Firebase service account key JSON', { error });
+      logger.error('Failed to parse Firebase service account key JSON', { 
+        error: error.message,
+        keyLength: firebaseServiceAccountKey?.length,
+        keyType: typeof firebaseServiceAccountKey,
+        keyPreview: firebaseServiceAccountKey?.substring(0, 100) + '...'
+      });
       firebaseServiceAccountKey = null;
+      firebaseServiceAccountObject = null;
     }
   }
 
