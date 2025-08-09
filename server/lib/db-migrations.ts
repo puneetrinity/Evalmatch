@@ -43,6 +43,11 @@ const MIGRATIONS: Migration[] = [
     description: "Fix missing questions column in interview_questions table",
     filename: "002_fix_interview_questions_column.sql",
   },
+  {
+    version: "005_skill_memory_system",
+    description: "Create skill memory system tables for automated skill learning",
+    filename: "005_skill_memory_system.sql",
+  },
 ];
 
 /**
