@@ -827,7 +827,7 @@ export async function executeQuery<T = unknown>(
 
     // Get connection with enhanced timeout handling
     client = await withTimeout(
-      () => pool.connect(),
+      () => pool!.connect(),
       'CONNECTION_ACQUISITION',
       `query: ${query.substring(0, 50)}...`,
     );
@@ -1039,7 +1039,7 @@ async function performHealthCheck(): Promise<void> {
     );
     const responseTime = Date.now() - startTime;
 
-    if (result[0]?.health_check === 1) {
+    if ((result[0] as any)?.health_check === 1) {
       logger.debug(`Health check passed in ${responseTime}ms`);
     } else {
       throw new Error("Health check returned unexpected result");
@@ -1068,6 +1068,26 @@ export function getConnectionStats(): ConnectionStats & {
     averageTime: number;
     maxTime: number;
     slowQueries: number;
+  };
+  timeoutConfiguration: {
+    environment: string;
+    connectionAcquisition: number;
+    queryExecution: number;
+    healthCheck: number;
+  };
+  timeoutStatistics: {
+    connectionTimeouts: number;
+    queryTimeouts: number;
+    totalTimeouts: number;
+  };
+  connectionLeaks: {
+    potentialLeaks: number;
+    leaksDetected: number;
+    leaksResolved: number;
+    longestConnectionAge: number;
+    staleConnections: number;
+    forcedCleanups: number;
+    currentlyTracked: number;
   };
 } {
   const poolInfo = pool

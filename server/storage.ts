@@ -539,7 +539,7 @@ import { initializeStorage } from './storage-switcher';
 const memStorage = new MemStorage();
 
 // Export storage initialization function for async initialization
-export let storage: IStorage;
+export let storage: IStorage | null = null;
 
 // Enhanced storage retrieval with initialization validation
 export function getStorage(): IStorage {

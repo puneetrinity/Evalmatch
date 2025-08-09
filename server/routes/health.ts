@@ -97,23 +97,23 @@ router.get("/db-status", async (req: Request, res: Response) => {
     }
 
     // Check for specific issues
-    if (leaks?.summary.potentialLeaks > 0) {
-      if (leaks.summary.potentialLeaks > 5) {
+    if ((leaks as any)?.summary?.potentialLeaks > 0) {
+      if ((leaks as any).summary.potentialLeaks > 5) {
         overallStatus = 'unhealthy';
       } else if (overallStatus === 'healthy') {
         overallStatus = 'degraded';
       }
-      issues.push(`${leaks.summary.potentialLeaks} potential connection leaks detected`);
+      issues.push(`${(leaks as any).summary.potentialLeaks} potential connection leaks detected`);
     }
 
-    if (stats?.connectionSuccessRate < 95) {
+    if ((stats as any)?.connectionSuccessRate < 95) {
       if (overallStatus === 'healthy') overallStatus = 'degraded';
-      issues.push(`Low connection success rate: ${stats.connectionSuccessRate}%`);
+      issues.push(`Low connection success rate: ${(stats as any).connectionSuccessRate}%`);
     }
 
-    if (stats?.querySuccessRate < 90) {
+    if ((stats as any)?.querySuccessRate < 90) {
       overallStatus = 'unhealthy';
-      issues.push(`Low query success rate: ${stats.querySuccessRate}%`);
+      issues.push(`Low query success rate: ${(stats as any).querySuccessRate}%`);
     }
 
     const response = {
@@ -268,7 +268,7 @@ router.get("/connection-leaks", async (req: Request, res: Response) => {
           totalConnections: stats.totalConnections,
           activeConnections: stats.activeConnections,
           poolInfo: stats.poolInfo,
-          connectionLeaks: stats.connectionLeaks,
+          connectionLeaks: (stats as any).connectionLeaks,
         } : null,
         recommendations: recommendations.length > 0 ? recommendations : undefined,
       },

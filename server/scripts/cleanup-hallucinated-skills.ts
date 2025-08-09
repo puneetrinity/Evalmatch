@@ -116,6 +116,11 @@ async function cleanupResumeSkills(resumeId: number): Promise<{
   patterns: string[];
 }> {
   try {
+    // Ensure storage is available
+    if (!storage) {
+      throw new Error('Storage not initialized');
+    }
+    
     // Get resume data
     const resume = await storage.getResumeById(resumeId, 'system');
     if (!resume) {
@@ -224,6 +229,11 @@ export async function cleanupHallucinatedSkills(
     specificResumeId,
   });
 
+  // Ensure storage is available
+  if (!storage) {
+    throw new Error('Storage not initialized');
+  }
+
   const stats: SkillCleanupStats = {
     resumesProcessed: 0,
     totalSkillsRemoved: 0,
@@ -315,6 +325,11 @@ async function analyzeResumeSkills(resumeId: number): Promise<{
   hadHallucinations: boolean;
   patterns: string[];
 }> {
+  // Ensure storage is available
+  if (!storage) {
+    throw new Error('Storage not initialized');
+  }
+  
   const resume = await storage.getResumeById(resumeId, 'system');
   if (!resume) {
     throw new Error(`Resume ${resumeId} not found`);

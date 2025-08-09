@@ -410,7 +410,7 @@ export function validateRequest(schema: ZodSchema) {
           field: err.path.join("."),
           message: err.message,
           code: err.code,
-          receivedValue: err.input ? String(err.input).substring(0, 100) : undefined,
+          receivedValue: (err as any).input ? String((err as any).input).substring(0, 100) : undefined,
         }));
 
         logger.warn("Request validation failed", {

@@ -160,6 +160,10 @@ export async function processBatchResumes(
         
         // Update the resume with embeddings via storage layer
         const dbUpdatePromise = (async () => {
+          if (!storage) {
+            throw new Error("Storage not initialized");
+          }
+          
           // First update the analysis
           await storage.updateResumeAnalysis(resume.id, analysis);
           
@@ -481,6 +485,11 @@ export async function processBatchMatches(
 
             // Store analysis result asynchronously (don't wait)
             logger.debug(`Starting database store for match ${matchId}`);
+            
+            if (!storage) {
+              throw new Error("Storage not initialized");
+            }
+            
             const dbStorePromise = storage.createAnalysisResult({
               userId: null, // Will be set by caller
               resumeId: resumes[i].id,

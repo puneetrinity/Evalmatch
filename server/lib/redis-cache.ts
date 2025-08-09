@@ -234,8 +234,8 @@ export class CacheManager {
     
     try {
       // Get memory info and cleanup if needed
-      const info = await this.redis.memory('usage');
-      const memoryMB = info ? parseInt(info.toString()) / (1024 * 1024) : 0;
+      const info = await this.redis.memory('STATS') as unknown as string;
+      const memoryMB = info ? parseInt(info) / (1024 * 1024) : 0;
       
       if (memoryMB > CacheManager.MAX_CACHE_SIZE_MB * 0.8) {
         logger.warn(`Cache memory usage high: ${memoryMB}MB, performing cleanup`);

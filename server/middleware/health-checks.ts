@@ -247,33 +247,33 @@ async function checkDatabase(): Promise<HealthCheckResult> {
       const hasPerformanceIssues =
         responseTime > 2000 ||
         performanceTests.queryPerformance > 500 ||
-        connectionStatsValue?.querySuccessRate < 95;
+        (connectionStatsValue as any)?.querySuccessRate < 95;
 
       const hasConnectionIssues =
-        connectionStatsValue?.activeConnections === 0 ||
-        (connectionStatsValue?.failedConnections || 0) >
-          (connectionStatsValue?.totalConnections || 1) * 0.1;
+        (connectionStatsValue as any)?.activeConnections === 0 ||
+        ((connectionStatsValue as any)?.failedConnections || 0) >
+          ((connectionStatsValue as any)?.totalConnections || 1) * 0.1;
 
       // Check for connection leak issues
       const hasLeakIssues = leakDetailsValue && (
-        leakDetailsValue.summary.potentialLeaks > 5 ||
-        leakDetailsValue.summary.staleConnections > 0
+        (leakDetailsValue as any).summary?.potentialLeaks > 5 ||
+        (leakDetailsValue as any).summary?.staleConnections > 0
       );
 
       // Check pool health
-      const hasPoolIssues = poolHealthValue && !poolHealthValue.healthy;
+      const hasPoolIssues = poolHealthValue && !(poolHealthValue as any).healthy;
 
       // Determine status based on severity
-      if (hasPoolIssues || (leakDetailsValue?.summary.potentialLeaks || 0) > 10) {
+      if (hasPoolIssues || ((leakDetailsValue as any)?.summary?.potentialLeaks || 0) > 10) {
         status = "unhealthy";
         if (hasPoolIssues) issues.push("Connection pool unhealthy");
-        if ((leakDetailsValue?.summary.potentialLeaks || 0) > 10) {
-          issues.push(`Critical connection leaks: ${leakDetailsValue?.summary.potentialLeaks}`);
+        if (((leakDetailsValue as any)?.summary?.potentialLeaks || 0) > 10) {
+          issues.push(`Critical connection leaks: ${(leakDetailsValue as any)?.summary?.potentialLeaks}`);
         }
       } else if (hasConnectionIssues || hasLeakIssues || hasPerformanceIssues) {
         status = "degraded";
         if (hasConnectionIssues) issues.push("Connection pool issues detected");
-        if (hasLeakIssues) issues.push(`Connection leaks detected: ${leakDetailsValue?.summary.potentialLeaks || 0}`);
+        if (hasLeakIssues) issues.push(`Connection leaks detected: ${(leakDetailsValue as any)?.summary?.potentialLeaks || 0}`);
         if (hasPerformanceIssues) issues.push("Performance issues detected");
       } else {
         status = "healthy";
@@ -300,14 +300,14 @@ async function checkDatabase(): Promise<HealthCheckResult> {
           connectionCount: (connectivityResult as any).details?.connectionCount,
         },
         connectionPool: connectionStatsValue ? {
-          total: connectionStatsValue.totalConnections,
-          active: connectionStatsValue.activeConnections,
-          failed: connectionStatsValue.failedConnections,
-          successRate: connectionStatsValue.querySuccessRate,
-          uptime: connectionStatsValue.uptime,
-          lastSuccessfulQuery: connectionStatsValue.lastSuccessfulQuery,
-          poolInfo: connectionStatsValue.poolInfo,
-          circuitBreakerState: connectionStatsValue.circuitBreakerState,
+          total: (connectionStatsValue as any).totalConnections,
+          active: (connectionStatsValue as any).activeConnections,
+          failed: (connectionStatsValue as any).failedConnections,
+          successRate: (connectionStatsValue as any).querySuccessRate,
+          uptime: (connectionStatsValue as any).uptime,
+          lastSuccessfulQuery: (connectionStatsValue as any).lastSuccessfulQuery,
+          poolInfo: (connectionStatsValue as any).poolInfo,
+          circuitBreakerState: (connectionStatsValue as any).circuitBreakerState,
         } : null,
         performance: {
           tests: performanceTests,
@@ -319,13 +319,13 @@ async function checkDatabase(): Promise<HealthCheckResult> {
           },
         },
         connectionLeaks: leakDetailsValue ? {
-          summary: leakDetailsValue.summary,
-          thresholds: leakDetailsValue.thresholds,
+          summary: (leakDetailsValue as any).summary,
+          thresholds: (leakDetailsValue as any).thresholds,
           issues: issues.filter(issue => issue.includes('leak')),
         } : null,
         poolHealth: poolHealthValue ? {
-          healthy: poolHealthValue.healthy,
-          metrics: poolHealthValue.metrics,
+          healthy: (poolHealthValue as any).healthy,
+          metrics: (poolHealthValue as any).metrics,
         } : null,
         configuration: {
           url: config.database.url ? "configured" : "missing",

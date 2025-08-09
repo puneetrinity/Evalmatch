@@ -6,7 +6,7 @@ import * as path from "path";
 import * as crypto from "crypto";
 import { exec } from "child_process";
 import { promisify } from "util";
-import pdfParse from "pdf-parse";
+// import pdfParse from "pdf-parse"; // Moved to dynamic import to avoid ESM issues
 
 // PDF.js will be dynamically imported with legacy build for Node.js compatibility
 // pdf-lib removed due to instanceof errors in production
@@ -611,6 +611,8 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
       try {
         console.log("[ResumeParser] Attempting primary extraction: pdf-parse");
 
+        // Dynamic import to avoid ESM module initialization issues
+        const pdfParse = (await import("pdf-parse")).default;
         const data = await pdfParse(buffer);
         extractedText = data.text || "";
 

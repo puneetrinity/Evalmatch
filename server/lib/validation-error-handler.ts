@@ -508,23 +508,25 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
   // Check blocked IP
   if (ValidationErrorHandler.isIPBlocked(ip)) {
     logger.warn('Blocked IP attempted access', { ip, endpoint: req.path });
-    return res.status(403).json({
+    res.status(403).json({
       success: false,
       error: 'Access Denied',
       message: 'Access temporarily restricted.',
       code: 'IP_BLOCKED'
     });
+    return;
   }
 
   // Check suspicious user
   if (userId && ValidationErrorHandler.isUserSuspicious(userId)) {
     logger.warn('Suspicious user attempted access', { userId, ip, endpoint: req.path });
-    return res.status(429).json({
+    res.status(429).json({
       success: false,
       error: 'Rate Limited',
       message: 'Please wait before making more requests.',
       code: 'USER_SUSPICIOUS'
     });
+    return;
   }
 
   next();

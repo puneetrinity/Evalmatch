@@ -19,6 +19,9 @@ interface LogContext {
   success?: boolean;
   errorCode?: string;
   errorType?: string;
+  hasCredentials?: boolean;
+  credentialsType?: string;
+  configuredCorrectly?: boolean;
 }
 
 class ServerAuthLogger {
