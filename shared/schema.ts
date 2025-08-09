@@ -140,7 +140,6 @@ export interface MatchAnalysisResult {
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: varchar("username", { length: 100 }).notNull().unique(),
-  password: text("password"),
   email: varchar("email", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -486,7 +485,6 @@ export const interviewQuestionDataSchema = z.object({
 export const insertUserSchema = createInsertSchema(users, {
   username: z.string().min(3).max(50),
   email: z.string().email().optional(),
-  password: z.string().min(8).optional(),
 });
 export const selectUserSchema = createSelectSchema(users);
 

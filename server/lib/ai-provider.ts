@@ -1,7 +1,7 @@
 import * as openai from "./openai";
 import * as anthropic from "./anthropic";
 import * as groq from "./groq";
-import { config } from "../config";
+import { config } from "../config/unified-config";
 import { logger } from "./logger";
 import {
   AnalyzeResumeResponse,

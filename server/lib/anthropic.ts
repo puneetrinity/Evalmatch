@@ -11,7 +11,7 @@ import {
   AnalyzedJobData,
   InterviewQuestionData,
 } from "../../shared/schema";
-import { config } from "../config";
+import { config } from "../config/unified-config";
 
 // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
 const MODEL = "claude-3-7-sonnet-20250219";

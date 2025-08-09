@@ -260,8 +260,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { getDatabaseRateLimiterStatus } = await import('./lib/db-retry.js');
       const rateLimiterStats = getDatabaseRateLimiterStatus();
       
-      // Get connection stats from db.ts
-      const { getConnectionStats } = await import('./db.js');
+      // Get connection stats from database
+      const { getConnectionStats } = await import('./database');
       const connectionStats = getConnectionStats();
       
       // Try to access the hybrid storage health status

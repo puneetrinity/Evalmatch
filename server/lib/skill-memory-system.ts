@@ -8,7 +8,7 @@
  * 4. Auto-promotion based on frequency + confidence thresholds
  */
 
-import { db } from "../db";
+import { getDatabase } from "../database";
 import { eq, sql, and, or, gte, lt, desc } from "drizzle-orm";
 import { 
   skillMemory, 
@@ -251,6 +251,7 @@ export class SkillMemorySystem {
       }]
     };
 
+    const db = getDatabase();
     await db.insert(skillMemory).values(memoryRecord);
     
     // If auto-approved, promote to main dictionary
@@ -375,6 +376,7 @@ export class SkillMemorySystem {
     }
 
     // Update the record
+    const db = getDatabase();
     await db
       .update(skillMemory)
       .set({
@@ -452,6 +454,7 @@ export class SkillMemorySystem {
       }
       
       // Also check exact match in skills table
+      const db = getDatabase();
       const existing = await db
         .select()
         .from(skillsTable)
@@ -473,6 +476,7 @@ export class SkillMemorySystem {
    */
   private async getExistingSkillMemory(normalizedSkill: string): Promise<SkillMemory | null> {
     try {
+      const db = getDatabase();
       const existing = await db
         .select()
         .from(skillMemory)
@@ -496,6 +500,7 @@ export class SkillMemorySystem {
   } | null> {
     try {
       // Get all skills from main dictionary
+      const db = getDatabase();
       const allSkills = await db
         .select({
           name: skillsTable.name,
@@ -609,6 +614,7 @@ Examples of INVALID: "asdf", "123", "good person", "hard worker"`;
       // Find appropriate category
       let categoryId: number | undefined;
       if (skillRecord.categorySuggestion) {
+        const db = getDatabase();
         const category = await db
           .select()
           .from(skillCategories)
@@ -671,6 +677,7 @@ Examples of INVALID: "asdf", "123", "good person", "hard worker"`;
       const today = new Date().toISOString().split('T')[0];
       
       // Get counts for today
+      const db = getDatabase();
       const stats = await db
         .select({
           total: sql<number>`count(*)`,
@@ -716,6 +723,7 @@ Examples of INVALID: "asdf", "123", "good person", "hard worker"`;
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       
       // Delete skills that haven't been seen in 30 days and have low frequency
+      const db = getDatabase();
       const deleted = await db
         .delete(skillMemory)
         .where(
@@ -747,6 +755,7 @@ Examples of INVALID: "asdf", "123", "good person", "hard worker"`;
     recentActivity: number;
   }> {
     try {
+      const db = getDatabase();
       const stats = await db
         .select({
           total: sql<number>`count(*)`,

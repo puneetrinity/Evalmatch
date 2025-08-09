@@ -23,7 +23,7 @@ import { UserTierInfo } from "@shared/user-tiers";
 import * as groq from "./groq";
 import * as openai from "./openai";
 import * as anthropic from "./anthropic";
-import { config } from "../config";
+import { config } from "../config/unified-config";
 import { 
   detectMatchingBias, 
   BiasDetectionResult,

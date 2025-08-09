@@ -54,7 +54,10 @@ export default function CandidateResultCard({
             filename={result.filename}
           />
           <div className="ml-4">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 
+              className="text-lg font-semibold text-gray-900"
+              id={`candidate-name-${result.resumeId}`}
+            >
               {result.candidateName || "Unknown Candidate"}
             </h3>
             <p className="text-sm text-gray-500">{result.filename}</p>
@@ -68,11 +71,14 @@ export default function CandidateResultCard({
           </div>
           
           {result.confidenceLevel && (
-            <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-              result.confidenceLevel === 'high' ? 'bg-green-100 text-green-800' :
-              result.confidenceLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-              'bg-red-100 text-red-800'
-            }`}>
+            <div 
+              className={`px-3 py-1 rounded-full text-sm font-medium ${
+                result.confidenceLevel === 'high' ? 'bg-green-100 text-green-800' :
+                result.confidenceLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-red-100 text-red-800'
+              }`}
+              aria-label={`Confidence level: ${result.confidenceLevel}`}
+            >
               {result.confidenceLevel} confidence
             </div>
           )}
@@ -81,6 +87,8 @@ export default function CandidateResultCard({
             onClick={() => onViewDetails(result.resumeId)}
             variant={expanded ? "default" : "outline"}
             className="ml-4"
+            aria-expanded={expanded}
+            aria-controls={`candidate-details-${result.resumeId}`}
           >
             {expanded ? "Hide Details" : "View Details"}
           </Button>
@@ -88,7 +96,12 @@ export default function CandidateResultCard({
       </div>
       
       {expanded && (
-        <CardContent className="p-6">
+        <CardContent 
+          className="p-6" 
+          id={`candidate-details-${result.resumeId}`}
+          role="region"
+          aria-labelledby={`candidate-name-${result.resumeId}`}
+        >
           {/* Match Summary Section */}
           <CandidateMatchSummary
             matchPercentage={result.matchPercentage}

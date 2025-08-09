@@ -2,7 +2,7 @@ import { AnalyzeResumeResponse, MatchAnalysisResponse } from "@shared/schema";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import Groq from "groq-sdk";
-import { config } from "../config";
+import { config } from "../config/unified-config";
 
 /**
  * Result of fairness analysis on resume analysis

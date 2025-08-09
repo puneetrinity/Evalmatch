@@ -97,7 +97,7 @@ export function RegisterForm({ onToggleMode, onSuccess }: RegisterFormProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" role="alert">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -164,16 +164,17 @@ export function RegisterForm({ onToggleMode, onSuccess }: RegisterFormProps) {
               id="terms"
               checked={agreedToTerms}
               onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
+              aria-describedby="terms-description"
             />
             <Label htmlFor="terms" className="text-sm">
-              I agree to the{' '}
+              <span id="terms-description">I agree to the{' '}
               <a href="/terms-of-service" className="text-primary hover:underline" target="_blank">
                 Terms of Service
               </a>{' '}
               and{' '}
               <a href="/privacy-policy" className="text-primary hover:underline" target="_blank">
                 Privacy Policy
-              </a>
+              </a></span>
             </Label>
           </div>
 

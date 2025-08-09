@@ -12,8 +12,8 @@
  */
 
 import { IStorage, MemStorage } from './storage';
-import { config } from './config';
-import { pool, getConnectionStats } from './db';
+import { config } from './config/unified-config';
+import { getPool, getConnectionStats } from './database';
 import {
   type Resume, type InsertResume,
   type JobDescription, type InsertJobDescription,
@@ -71,7 +71,12 @@ export class HybridStorage implements IStorage {
   private async checkDatabaseHealth(): Promise<boolean> {
     try {
       // Simple health check query
-      await pool.query('SELECT 1');
+      const pool = getPool();
+      if (pool) {
+        await pool.query('SELECT 1');
+      } else {
+        throw new Error('Pool not available');
+      }
       
       // Update health status
       if (!dbHealth.isAvailable) {

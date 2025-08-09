@@ -7,7 +7,7 @@
  */
 import { IStorage } from './storage';
 import { MemStorage } from './storage';
-import { config } from './config';
+import { config } from './config/unified-config';
 import { logger } from './config/logger';
 
 let storageImplementation: IStorage | null = null;

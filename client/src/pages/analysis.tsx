@@ -154,8 +154,9 @@ export default function AnalysisPage() {
         />
         
         {isLoading ? (
-          <div className="flex justify-center p-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          <div className="flex justify-center p-12" aria-live="polite" aria-label="Loading analysis data">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" aria-hidden="true"></div>
+            <span className="sr-only">Loading analysis data...</span>
           </div>
         ) : (
           <AnalysisControls 
@@ -173,7 +174,13 @@ export default function AnalysisPage() {
             onTryAgain={handleReAnalyze}
           />
         ) : (
-          <div className="space-y-6 mb-8">
+          <div className="space-y-6 mb-8" aria-live="polite" aria-label="Analysis results">
+            <div className="sr-only">
+              {analysisData?.results?.length ? 
+                `Found ${analysisData.results.length} candidate${analysisData.results.length === 1 ? '' : 's'}` : 
+                'No candidates found'
+              }
+            </div>
             {analysisData?.results && analysisData.results.map((result: any) => (
               <CandidateResultCard
                 key={`resume-${result.resumeId}-analysis-${result.analysisId || 'unknown'}`}

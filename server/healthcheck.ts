@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { pool } from './db';
+import { getPool } from './database';
 
 /**
  * Health check handler for Render
@@ -37,10 +37,19 @@ export async function healthCheck(req: Request, res: Response) {
   // Check database connection if DATABASE_URL is set
   if (process.env.DATABASE_URL) {
     try {
-      const client = await pool.connect();
-      await client.query('SELECT 1');
-      client.release();
-      health.checks.database = { status: 'UP' };
+      const pool = getPool();
+      if (!pool) {
+        health.checks.database = { 
+          status: 'DOWN',
+          error: 'Database pool not initialized'
+        };
+        health.status = 'DEGRADED';
+      } else {
+        const client = await pool.connect();
+        await client.query('SELECT 1');
+        client.release();
+        health.checks.database = { status: 'UP' };
+      }
     } catch (error) {
       health.checks.database = { 
         status: 'DOWN',

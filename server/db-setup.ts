@@ -4,7 +4,7 @@
  * This module handles initializing the PostgreSQL database schema
  * for the EvalMatchAI application.
  */
-import { db } from './db';
+import { getDatabase } from './database';
 import * as schema from '@shared/schema';
 import { sql } from 'drizzle-orm';
 
@@ -39,7 +39,7 @@ export async function initializeDatabase(): Promise<{ success: boolean; message:
 // Create users table
 async function createUsersTable() {
   try {
-    await db.execute(sql`
+    await getDatabase().execute(sql`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username TEXT NOT NULL UNIQUE,
@@ -57,7 +57,7 @@ async function createUsersTable() {
 // Create resumes table
 async function createResumesTable() {
   try {
-    await db.execute(sql`
+    await getDatabase().execute(sql`
       CREATE TABLE IF NOT EXISTS resumes (
         id SERIAL PRIMARY KEY,
         filename TEXT NOT NULL,
@@ -80,7 +80,7 @@ async function createResumesTable() {
 // Create job_descriptions table
 async function createJobDescriptionsTable() {
   try {
-    await db.execute(sql`
+    await getDatabase().execute(sql`
       CREATE TABLE IF NOT EXISTS job_descriptions (
         id SERIAL PRIMARY KEY,
         title TEXT NOT NULL,
@@ -100,7 +100,7 @@ async function createJobDescriptionsTable() {
 // Create analysis_results table
 async function createAnalysisResultsTable() {
   try {
-    await db.execute(sql`
+    await getDatabase().execute(sql`
       CREATE TABLE IF NOT EXISTS analysis_results (
         id SERIAL PRIMARY KEY,
         resume_id INTEGER NOT NULL,
@@ -123,7 +123,7 @@ async function createAnalysisResultsTable() {
 // Create interview_questions table
 async function createInterviewQuestionsTable() {
   try {
-    await db.execute(sql`
+    await getDatabase().execute(sql`
       CREATE TABLE IF NOT EXISTS interview_questions (
         id SERIAL PRIMARY KEY,
         resume_id INTEGER NOT NULL,

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { db } from "../db";
+import { getDatabase } from "../database";
 import { sql } from "drizzle-orm";
 
 const router = Router();
@@ -8,7 +8,7 @@ const router = Router();
 router.get("/db-type", async (req: Request, res: Response) => {
   try {
     // Get database version (works for both PostgreSQL and MySQL)
-    const versionResult = await db.execute(sql`SELECT version()`);
+    const versionResult = await getDatabase().execute(sql`SELECT version()`);
     const version = versionResult.rows[0]?.version || "Unknown";
 
     // Try PostgreSQL-specific function
@@ -16,7 +16,7 @@ router.get("/db-type", async (req: Request, res: Response) => {
     let pgInfo = null;
 
     try {
-      const pgResult = await db.execute(
+      const pgResult = await getDatabase().execute(
         sql`SELECT pg_backend_pid(), current_database()`,
       );
       dbType = "PostgreSQL";
@@ -24,7 +24,7 @@ router.get("/db-type", async (req: Request, res: Response) => {
     } catch (pgError) {
       // Try MySQL-specific function
       try {
-        const mysqlResult = await db.execute(
+        const mysqlResult = await getDatabase().execute(
           sql`SELECT CONNECTION_ID(), DATABASE()`,
         );
         dbType = "MySQL";

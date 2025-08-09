@@ -26,6 +26,7 @@ import { initializeFirebaseAuth } from "./auth/firebase-auth";
 import { initializeMonitoring, logger } from "./monitoring";
 import { globalErrorHandler, initializeGlobalErrorHandling } from "./middleware/global-error-handler";
 import { initializeHealthChecks } from "./middleware/health-checks";
+import { apiVersioningMiddleware } from './middleware/api-versioning';
 import { validateEnvironmentOrExit } from "./lib/env-validator";
 
 const app = express();
@@ -104,6 +105,9 @@ const corsOptions = {
 
 // Apply CORS to all API routes (handles OPTIONS automatically)
 app.use('/api', cors(corsOptions));
+
+// Add API versioning middleware
+app.use('/api', apiVersioningMiddleware);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));

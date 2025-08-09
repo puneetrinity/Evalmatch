@@ -500,7 +500,7 @@ export default function UploadPage() {
           {currentBatchId && (
             <div className="mb-6 p-3 border border-green-200 bg-green-50 rounded-md text-sm text-green-800">
               <p className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <polyline points="20,6 9,17 4,12"></polyline>
                 </svg>
                 <span><strong>Upload Session Active</strong> - {files.filter(f => f.status === "success").length} files ready for analysis. All uploads will be processed together.</span>
@@ -542,7 +542,7 @@ export default function UploadPage() {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            <div className="text-primary mb-4">
+            <div className="text-primary mb-4" aria-hidden="true">
               <i className="fas fa-file-upload text-5xl"></i>
             </div>
             <p className="text-lg font-medium text-gray-700 mb-2">Drag and drop your resumes here</p>
@@ -556,13 +556,14 @@ export default function UploadPage() {
               accept=".pdf,.doc,.docx" 
               ref={fileInputRef}
               onChange={handleFileInputChange}
+              aria-label="Choose resume files to upload"
             />
           </div>
           
           {/* Uploaded files */}
           <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Uploaded Resumes</h3>
+              <h2 className="text-lg font-semibold text-gray-900">Uploaded Resumes</h2>
               <Button 
                 onClick={() => {
                   createNewSession();
@@ -586,7 +587,7 @@ export default function UploadPage() {
             {/* Empty state */}
             {isLoading ? (
               <div className="py-8 text-center">
-                <div className="animate-spin mb-4 mx-auto">
+                <div className="animate-spin mb-4 mx-auto" aria-hidden="true">
                   <i className="fas fa-spinner text-3xl text-primary"></i>
                 </div>
                 <p className="text-gray-500">Loading resumes...</p>
@@ -600,7 +601,7 @@ export default function UploadPage() {
                 {files.map((file, index) => (
                   <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
                     <div className="flex items-center">
-                      <i className={`fas ${getFileIcon(file.type)} mr-3`}></i>
+                      <i className={`fas ${getFileIcon(file.type)} mr-3`} aria-hidden="true"></i>
                       <div>
                         <p className="font-medium text-gray-900">{file.name}</p>
                         <p className="text-sm text-gray-500">{formatFileSize(file.size)}</p>
@@ -616,8 +617,9 @@ export default function UploadPage() {
                       <button 
                         className="text-gray-400 hover:text-gray-600" 
                         onClick={() => handleRemoveFile(file.name)}
+                        aria-label={`Remove ${file.name}`}
                       >
-                        <i className="fas fa-times"></i>
+                        <i className="fas fa-times" aria-hidden="true"></i>
                       </button>
                     </div>
                   </div>

@@ -1,5 +1,5 @@
 import { eq, like, or, sql } from "drizzle-orm";
-import { db } from "../db";
+import { getDatabase } from "../database";
 import { skillCategories, skillsTable, type Skill } from "@shared/schema";
 import { generateEmbedding, cosineSimilarity } from "./embeddings";
 import { logger } from "./logger";
@@ -1153,6 +1153,7 @@ export async function initializeSkillHierarchy(): Promise<void> {
     logger.info("Initializing skill hierarchy...");
 
     // Create skill categories
+    const db = getDatabase();
     for (const [key, categoryName] of Object.entries(SKILL_CATEGORIES)) {
       await db
         .insert(skillCategories)
@@ -1230,6 +1231,7 @@ export async function normalizeSkillWithHierarchy(skill: string): Promise<{
 
   try {
     // 1. Try exact match
+    const db = getDatabase();
     const exactMatch = await db
       .select()
       .from(skillsTable)
@@ -1373,6 +1375,7 @@ export async function getSkillsByCategory(
   categoryName: string,
 ): Promise<Skill[]> {
   try {
+    const db = getDatabase();
     const category = await db
       .select()
       .from(skillCategories)
@@ -1408,6 +1411,7 @@ export async function findRelatedSkills(
 > {
   try {
     const queryEmbedding = await generateEmbedding(skill);
+    const db = getDatabase();
     const allSkills = await db.select().from(skillsTable);
 
     const similarities: Array<{

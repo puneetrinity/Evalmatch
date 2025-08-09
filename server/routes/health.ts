@@ -107,12 +107,12 @@ router.get("/db-status", async (req: Request, res: Response) => {
 // Debug endpoint - System debugging information
 router.get("/debug", async (req: Request, res: Response) => {
   try {
-    const { config } = await import("../config");
+    const { config } = await import("../config/unified-config");
 
     const debugInfo = {
       timestamp: new Date().toISOString(),
       nodeEnv: process.env.NODE_ENV,
-      isDatabaseEnabled: config.isDatabaseEnabled,
+      isDatabaseEnabled: config.database.enabled,
       platform: process.platform,
       nodeVersion: process.version,
       uptime: process.uptime(),

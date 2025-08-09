@@ -1,5 +1,5 @@
 import { users, type User, type InsertUser } from "@shared/schema";
-import { db } from "./db";
+import { getDatabase } from "./database";
 import { eq, and } from "drizzle-orm";
 import {
   type Resume, type InsertResume,
@@ -15,11 +15,14 @@ import { resumes, jobDescriptions, analysisResults, interviewQuestions } from "@
  * PostgreSQL implementation of the storage interface
  */
 export class DatabaseStorage implements IStorage {
+  private get db() {
+    return getDatabase();
+  }
   // User methods
   async getUser(id: number): Promise<User | undefined> {
     try {
       console.log(`DatabaseStorage: Getting user with ID ${id}`);
-      const [user] = await db.select().from(users).where(eq(users.id, id));
+      const [user] = await this.db.select().from(users).where(eq(users.id, id));
       return user || undefined;
     } catch (error) {
       console.error(`Error in DatabaseStorage.getUser(${id}):`, error);
@@ -30,7 +33,7 @@ export class DatabaseStorage implements IStorage {
   async getUserByUsername(username: string): Promise<User | undefined> {
     try {
       console.log(`DatabaseStorage: Getting user with username ${username}`);
-      const [user] = await db.select().from(users).where(eq(users.username, username));
+      const [user] = await this.db.select().from(users).where(eq(users.username, username));
       return user || undefined;
     } catch (error) {
       console.error(`Error in DatabaseStorage.getUserByUsername(${username}):`, error);
@@ -56,7 +59,7 @@ export class DatabaseStorage implements IStorage {
   async getResumeById(id: number, userId: string): Promise<Resume | undefined> {
     try {
       console.log(`DatabaseStorage: Getting resume ${id} for user ${userId}`);
-      const [resume] = await db.select().from(resumes)
+      const [resume] = await this.db.select().from(resumes)
         .where(eq(resumes.id, id));
       
       if (resume && resume.userId === userId) {
@@ -72,7 +75,7 @@ export class DatabaseStorage implements IStorage {
   async getResumesByUserId(userId: string, sessionId?: string, batchId?: string): Promise<Resume[]> {
     try {
       console.log(`DatabaseStorage: Getting resumes for user ${userId}, session: ${sessionId}, batch: ${batchId}`);
-      let query = db.select().from(resumes).where(eq(resumes.userId, userId));
+      let query = this.db.select().from(resumes).where(eq(resumes.userId, userId));
       
       // Priority-based filtering: batchId takes precedence over sessionId
       // This ensures consistent behavior with other storage implementations
@@ -91,7 +94,7 @@ export class DatabaseStorage implements IStorage {
   async getResume(id: number): Promise<Resume | undefined> {
     try {
       console.log(`DatabaseStorage: Getting resume with ID ${id}`);
-      const [resume] = await db.select().from(resumes).where(eq(resumes.id, id));
+      const [resume] = await this.db.select().from(resumes).where(eq(resumes.id, id));
       return resume || undefined;
     } catch (error) {
       console.error(`Error in DatabaseStorage.getResume(${id}):`, error);
@@ -103,10 +106,10 @@ export class DatabaseStorage implements IStorage {
     try {
       if (sessionId) {
         console.log(`DatabaseStorage: Filtering resumes by sessionId: ${sessionId}`);
-        return await db.select().from(resumes).where(eq(resumes.sessionId, sessionId));
+        return await this.db.select().from(resumes).where(eq(resumes.sessionId, sessionId));
       } else {
         console.log('DatabaseStorage: Retrieving all resumes');
-        return await db.select().from(resumes);
+        return await this.db.select().from(resumes);
       }
     } catch (error) {
       console.error(`Error in DatabaseStorage.getResumes:`, error);
@@ -152,7 +155,7 @@ export class DatabaseStorage implements IStorage {
   async getJobDescription(id: number): Promise<JobDescription | undefined> {
     try {
       console.log(`DatabaseStorage: Getting job description with ID ${id}`);
-      const [jobDescription] = await db.select().from(jobDescriptions).where(eq(jobDescriptions.id, id));
+      const [jobDescription] = await this.db.select().from(jobDescriptions).where(eq(jobDescriptions.id, id));
       return jobDescription || undefined;
     } catch (error) {
       console.error(`Error in DatabaseStorage.getJobDescription(${id}):`, error);
@@ -163,7 +166,7 @@ export class DatabaseStorage implements IStorage {
   async getJobDescriptions(): Promise<JobDescription[]> {
     try {
       console.log('DatabaseStorage: Retrieving all job descriptions');
-      return await db.select().from(jobDescriptions);
+      return await this.db.select().from(jobDescriptions);
     } catch (error) {
       console.error(`Error in DatabaseStorage.getJobDescriptions:`, error);
       throw error;
@@ -187,7 +190,7 @@ export class DatabaseStorage implements IStorage {
   async getJobDescriptionById(id: number, userId: string): Promise<JobDescription | undefined> {
     try {
       console.log(`DatabaseStorage: Getting job description ${id} for user ${userId}`);
-      const [jobDescription] = await db.select().from(jobDescriptions)
+      const [jobDescription] = await this.db.select().from(jobDescriptions)
         .where(eq(jobDescriptions.id, id));
       
       if (jobDescription && jobDescription.userId === userId) {
@@ -203,7 +206,7 @@ export class DatabaseStorage implements IStorage {
   async getJobDescriptionsByUserId(userId: string): Promise<JobDescription[]> {
     try {
       console.log(`DatabaseStorage: Getting job descriptions for user ${userId}`);
-      return await db.select().from(jobDescriptions)
+      return await this.db.select().from(jobDescriptions)
         .where(eq(jobDescriptions.userId, userId));
     } catch (error) {
       console.error(`Error in DatabaseStorage.getJobDescriptionsByUserId(${userId}):`, error);
@@ -284,7 +287,7 @@ export class DatabaseStorage implements IStorage {
   async deleteJobDescription(id: number): Promise<void> {
     try {
       console.log(`DatabaseStorage: Deleting job description ${id}`);
-      await db.delete(jobDescriptions).where(eq(jobDescriptions.id, id));
+      await this.db.delete(jobDescriptions).where(eq(jobDescriptions.id, id));
     } catch (error) {
       console.error(`Error in DatabaseStorage.deleteJobDescription(${id}):`, error);
       throw error;
@@ -295,7 +298,7 @@ export class DatabaseStorage implements IStorage {
   async getAnalysisResult(id: number): Promise<AnalysisResult | undefined> {
     try {
       console.log(`DatabaseStorage: Getting analysis result with ID ${id}`);
-      const [analysisResult] = await db.select().from(analysisResults).where(eq(analysisResults.id, id));
+      const [analysisResult] = await this.db.select().from(analysisResults).where(eq(analysisResults.id, id));
       return analysisResult || undefined;
     } catch (error) {
       console.error(`Error in DatabaseStorage.getAnalysisResult(${id}):`, error);
@@ -306,7 +309,7 @@ export class DatabaseStorage implements IStorage {
   async getAnalysisResultsByResumeId(resumeId: number): Promise<AnalysisResult[]> {
     try {
       console.log(`DatabaseStorage: Getting analysis results for resume ID ${resumeId}`);
-      return await db.select().from(analysisResults).where(eq(analysisResults.resumeId, resumeId));
+      return await this.db.select().from(analysisResults).where(eq(analysisResults.resumeId, resumeId));
     } catch (error) {
       console.error(`Error in DatabaseStorage.getAnalysisResultsByResumeId(${resumeId}):`, error);
       throw error;
@@ -316,7 +319,7 @@ export class DatabaseStorage implements IStorage {
   async getAnalysisResultsByJobDescriptionId(jobDescriptionId: number): Promise<AnalysisResult[]> {
     try {
       console.log(`DatabaseStorage: Getting analysis results for job description ID ${jobDescriptionId}`);
-      return await db.select().from(analysisResults).where(eq(analysisResults.jobDescriptionId, jobDescriptionId));
+      return await this.db.select().from(analysisResults).where(eq(analysisResults.jobDescriptionId, jobDescriptionId));
     } catch (error) {
       console.error(`Error in DatabaseStorage.getAnalysisResultsByJobDescriptionId(${jobDescriptionId}):`, error);
       throw error;
@@ -326,7 +329,7 @@ export class DatabaseStorage implements IStorage {
   async getAnalysisResultByJobAndResume(jobId: number, resumeId: number, userId: string): Promise<AnalysisResult | undefined> {
     try {
       console.log(`DatabaseStorage: Getting analysis result for job ${jobId}, resume ${resumeId}, user ${userId}`);
-      const [result] = await db.select().from(analysisResults)
+      const [result] = await this.db.select().from(analysisResults)
         .where(eq(analysisResults.jobDescriptionId, jobId))
         .where(eq(analysisResults.resumeId, resumeId))
         .where(eq(analysisResults.userId, userId));
@@ -357,13 +360,13 @@ export class DatabaseStorage implements IStorage {
         }
         
         // Join with resumes to apply session/batch filters
-        return await db.select()
+        return await this.db.select()
           .from(analysisResults)
           .innerJoin(resumes, eq(analysisResults.resumeId, resumes.id))
           .where(and(...whereConditions));
       } else {
         // No session/batch filtering needed
-        return await db.select()
+        return await this.db.select()
           .from(analysisResults)
           .where(and(...whereConditions));
       }
@@ -391,7 +394,7 @@ export class DatabaseStorage implements IStorage {
   async getInterviewQuestions(id: number): Promise<InterviewQuestions | undefined> {
     try {
       console.log(`DatabaseStorage: Getting interview questions with ID ${id}`);
-      const [interviewQuestion] = await db.select().from(interviewQuestions).where(eq(interviewQuestions.id, id));
+      const [interviewQuestion] = await this.db.select().from(interviewQuestions).where(eq(interviewQuestions.id, id));
       return interviewQuestion || undefined;
     } catch (error) {
       console.error(`Error in DatabaseStorage.getInterviewQuestions(${id}):`, error);
@@ -402,7 +405,7 @@ export class DatabaseStorage implements IStorage {
   async getInterviewQuestionsByResumeId(resumeId: number): Promise<InterviewQuestions[]> {
     try {
       console.log(`DatabaseStorage: Getting interview questions for resume ID ${resumeId}`);
-      return await db.select().from(interviewQuestions).where(eq(interviewQuestions.resumeId, resumeId));
+      return await this.db.select().from(interviewQuestions).where(eq(interviewQuestions.resumeId, resumeId));
     } catch (error) {
       console.error(`Error in DatabaseStorage.getInterviewQuestionsByResumeId(${resumeId}):`, error);
       throw error;
@@ -412,7 +415,7 @@ export class DatabaseStorage implements IStorage {
   async getInterviewQuestionsByJobDescriptionId(jobDescriptionId: number): Promise<InterviewQuestions[]> {
     try {
       console.log(`DatabaseStorage: Getting interview questions for job description ID ${jobDescriptionId}`);
-      return await db.select().from(interviewQuestions).where(eq(interviewQuestions.jobDescriptionId, jobDescriptionId));
+      return await this.db.select().from(interviewQuestions).where(eq(interviewQuestions.jobDescriptionId, jobDescriptionId));
     } catch (error) {
       console.error(`Error in DatabaseStorage.getInterviewQuestionsByJobDescriptionId(${jobDescriptionId}):`, error);
       throw error;
@@ -422,7 +425,7 @@ export class DatabaseStorage implements IStorage {
   async getInterviewQuestionByResumeAndJob(resumeId: number, jobDescriptionId: number): Promise<InterviewQuestions | undefined> {
     try {
       console.log(`DatabaseStorage: Getting interview questions for resume ID ${resumeId} and job description ID ${jobDescriptionId}`);
-      const results = await db.select().from(interviewQuestions)
+      const results = await this.db.select().from(interviewQuestions)
         .where(eq(interviewQuestions.resumeId, resumeId))
         .where(eq(interviewQuestions.jobDescriptionId, jobDescriptionId));
       
@@ -504,7 +507,7 @@ export class DatabaseStorage implements IStorage {
   
   // Missing embedding methods required by IStorage interface
   async updateResumeEmbeddings(id: number, embedding: number[] | null, skillsEmbedding: number[] | null): Promise<Resume> {
-    const [updatedResume] = await db.update(resumes)
+    const [updatedResume] = await this.db.update(resumes)
       .set({
         embedding,
         skillsEmbedding
@@ -520,7 +523,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateJobDescriptionEmbeddings(id: number, embedding: number[] | null, requirementsEmbedding: number[] | null): Promise<JobDescription> {
-    const [updatedJobDescription] = await db.update(jobDescriptions)
+    const [updatedJobDescription] = await this.db.update(jobDescriptions)
       .set({
         embedding,
         requirementsEmbedding

@@ -1,4 +1,4 @@
-import { db } from "../db";
+import { getDatabase } from "../database";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
 import fs from "fs";
@@ -48,6 +48,16 @@ const MIGRATIONS: Migration[] = [
     description: "Create skill memory system tables for automated skill learning",
     filename: "005_skill_memory_system.sql",
   },
+  {
+    version: "006_remove_password_field",
+    description: "Remove legacy password field from users table (Firebase auth only)",
+    filename: "006_remove_password_field.sql",
+  },
+  {
+    version: "007_add_foreign_key_constraints",
+    description: "Add foreign key constraints and indexes for referential integrity",
+    filename: "007_add_foreign_key_constraints.sql",
+  },
 ];
 
 /**
@@ -55,6 +65,7 @@ const MIGRATIONS: Migration[] = [
  */
 async function isMigrationApplied(version: string): Promise<boolean> {
   try {
+    const db = getDatabase();
     const result = await db.execute(sql`
       SELECT 1 FROM schema_migrations WHERE version = ${version} LIMIT 1
     `);
@@ -119,6 +130,7 @@ async function executeMigration(migration: Migration): Promise<void> {
 
   // Execute the entire migration as a single transaction
   try {
+    const db = getDatabase();
     await db.execute(sql.raw(migrationSQL));
     logger.info(`Migration ${migration.version} completed successfully`);
   } catch (error: unknown) {
@@ -135,6 +147,7 @@ export async function runMigrations(): Promise<void> {
     logger.info("Starting consolidated database migration system...");
 
     // Test database connection
+    const db = getDatabase();
     await db.execute(sql`SELECT 1`);
     logger.info("Database connection verified");
 
@@ -221,6 +234,7 @@ export async function getMigrationStatus(): Promise<{
   lastMigration?: { version: string; appliedAt: string };
 }> {
   try {
+    const db = getDatabase();
     const appliedResult = await db.execute(sql`
       SELECT version, applied_at 
       FROM schema_migrations 

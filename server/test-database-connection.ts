@@ -1,4 +1,4 @@
-import { db } from './db';
+import { getDatabase } from './database';
 import { withRetry } from './lib/db-retry';
 
 /**
@@ -11,7 +11,7 @@ async function testDatabaseConnection() {
   try {
     // Simple test query that doesn't modify any data
     const result = await withRetry(async () => {
-      return await db.execute('SELECT 1 as test');
+      return await getDatabase().execute('SELECT 1 as test');
     }, 'test-database-connection');
     
     console.log('Database connection successful!');
@@ -19,7 +19,7 @@ async function testDatabaseConnection() {
     
     // Try to get the PostgreSQL version for more information
     const versionResult = await withRetry(async () => {
-      return await db.execute('SELECT version()');
+      return await getDatabase().execute('SELECT version()');
     }, 'check-database-version');
     
     console.log('Database version:');

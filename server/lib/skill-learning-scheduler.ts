@@ -9,7 +9,7 @@
  */
 
 import cron from 'node-cron';
-import { db } from "../db";
+import { getDatabase } from "../database";
 import { eq, sql, and, or, gte, lt, desc } from "drizzle-orm";
 import { 
   skillMemory, 
@@ -94,6 +94,7 @@ export class SkillLearningScheduler {
       let totalPromoted = 0;
 
       // Rule 1: High frequency + Groq validated
+      const db = getDatabase();
       const highFrequencySkills = await db
         .select()
         .from(skillMemory)
@@ -174,6 +175,7 @@ export class SkillLearningScheduler {
       logger.info('Starting ESCO revalidation job...');
 
       // Get skills that haven't been ESCO validated yet but have some frequency
+      const db = getDatabase();
       const pendingSkills = await db
         .select()
         .from(skillMemory)
@@ -262,6 +264,7 @@ export class SkillLearningScheduler {
 
       // Clean up very low frequency skills (frequency = 1, older than 7 days)
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const db = getDatabase();
       const lightCleanup = await db
         .delete(skillMemory)
         .where(
@@ -313,6 +316,7 @@ export class SkillLearningScheduler {
 
       // Clean up old promotion logs (keep only last 90 days)
       const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+      const db = getDatabase();
       const oldLogs = await db
         .delete(skillPromotionLog)
         .where(lt(skillPromotionLog.createdAt, ninetyDaysAgo));
@@ -353,6 +357,7 @@ export class SkillLearningScheduler {
       // Find or create category
       let categoryId: number | undefined;
       if (skill.categorySuggestion) {
+        const db = getDatabase();
         const category = await db
           .select()
           .from(skillCategories)
@@ -478,6 +483,7 @@ export class SkillLearningScheduler {
     try {
       const today = new Date().toISOString().split('T')[0];
       
+      const db = getDatabase();
       const stats = await db
         .select({
           totalSkillsDiscovered: sql<number>`count(*)`,
