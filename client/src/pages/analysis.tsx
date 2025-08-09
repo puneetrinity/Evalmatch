@@ -84,7 +84,7 @@ export default function AnalysisPage() {
     jobData, 
     isJobLoading, 
     shouldShowJobError 
-  } = useJobData({ jobId, isValidJobId });
+  } = useJobData({ jobId, isValidJobId: Boolean(isValidJobId) });
 
   const {
     analysisData,
@@ -97,7 +97,7 @@ export default function AnalysisPage() {
     jobId,
     sessionId,
     currentBatchId,
-    isValidJobId,
+    isValidJobId: Boolean(isValidJobId),
     isInitialized
   });
   

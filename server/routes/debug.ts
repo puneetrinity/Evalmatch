@@ -419,7 +419,8 @@ router.get("/auth-status", async (req: Request, res: Response) => {
 // Database schema inspection endpoint
 router.get("/db-schema", async (req: Request, res: Response) => {
   try {
-    const { db } = await import("../db");
+    const { getDatabase } = await import("../database");
+    const db = getDatabase();
     const { sql } = await import("drizzle-orm");
 
     // Check resumes table schema

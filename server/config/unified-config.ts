@@ -130,7 +130,7 @@ export function loadUnifiedConfig(): AppConfig {
   }
 
   // Parse the service account key into an object for firebase-auth.ts
-  let firebaseServiceAccountObject = null;
+  let firebaseServiceAccountObject: any = null;
   if (firebaseServiceAccountKey) {
     try {
       logger.debug('Attempting to parse Firebase service account key', {
@@ -168,7 +168,7 @@ export function loadUnifiedConfig(): AppConfig {
       }
     } catch (error) {
       logger.error('Failed to parse Firebase service account key JSON', { 
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         keyLength: firebaseServiceAccountKey?.length,
         keyType: typeof firebaseServiceAccountKey,
         keyPreview: firebaseServiceAccountKey?.substring(0, 100) + '...'

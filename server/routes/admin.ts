@@ -149,7 +149,8 @@ router.post(
 
       try {
         // Import database utilities
-        const { db } = await import("../db");
+        const { getDatabase } = await import("../database");
+        const db = getDatabase();
         const { sql } = await import("drizzle-orm");
 
         // Test database connection
@@ -289,7 +290,8 @@ router.get(
   requireAdmin,
   async (req: Request, res: Response) => {
     try {
-      const { db } = await import("../db");
+      const { getDatabase } = await import("../database");
+      const db = getDatabase();
       const { sql } = await import("drizzle-orm");
 
       // Get table structure
@@ -341,7 +343,8 @@ router.get(
   requireAdmin,
   async (req: Request, res: Response) => {
     try {
-      const { db } = await import("../db");
+      const { getDatabase } = await import("../database");
+      const db = getDatabase();
       const { sql } = await import("drizzle-orm");
 
       const tables = [
@@ -448,6 +451,7 @@ router.get("/debug-auth", requireAdmin, async (req: Request, res: Response) => {
     let tokenVerification = null;
     if (token) {
       try {
+        const { verifyFirebaseToken } = await import("../auth/firebase-auth");
         const decodedToken = await verifyFirebaseToken(token);
         tokenVerification = {
           status: "success",
@@ -548,7 +552,8 @@ router.post(
     try {
       logger.info("Admin skills population requested");
 
-      const { db } = await import("../db");
+      const { getDatabase } = await import("../database");
+      const db = getDatabase();
       const { sql } = await import("drizzle-orm");
       const { skillCategories, skillsTable } = await import("@shared/schema");
       

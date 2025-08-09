@@ -252,7 +252,7 @@ export class SkillMemorySystem {
     };
 
     const db = getDatabase();
-    await db.insert(skillMemory).values(memoryRecord);
+    await getDatabase().insert(skillMemory).values(memoryRecord);
     
     // If auto-approved, promote to main dictionary
     if (autoApproval.approved) {
@@ -624,7 +624,7 @@ Examples of INVALID: "asdf", "123", "good person", "hard worker"`;
       }
 
       // Insert into main skills table
-      const insertResult = await db
+      const insertResult = await getDatabase()
         .insert(skillsTable)
         .values({
           name: skillRecord.skillText!,

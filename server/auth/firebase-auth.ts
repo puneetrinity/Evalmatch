@@ -92,9 +92,9 @@ export async function initializeFirebaseAuth(): Promise<void> {
       credentialsType: typeof credentials,
       projectId: config.firebase.projectId,
       credentialsKeys: credentials ? Object.keys(credentials) : [],
-      hasPrivateKey: !!(credentials && credentials.private_key),
-      privateKeyLength: credentials?.private_key?.length || 0,
-      clientEmail: credentials?.client_email || 'missing',
+      hasPrivateKey: !!(credentials && (credentials as any).private_key),
+      privateKeyLength: (credentials as any)?.private_key?.length || 0,
+      clientEmail: (credentials as any)?.client_email || 'missing',
     });
 
     if (!credentials) {
