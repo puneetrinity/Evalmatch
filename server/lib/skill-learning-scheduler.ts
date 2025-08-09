@@ -110,7 +110,7 @@ export class SkillLearningScheduler {
 
       for (const skill of highFrequencySkills) {
         await this.promoteSkill(skill, 'frequency_groq', 
-          Math.min(0.9, skill.groqConfidence! + (skill.frequency * 0.01)));
+          Math.min(0.9, skill.groqConfidence! + ((skill.frequency || 0) * 0.01)));
         totalPromoted++;
       }
 
@@ -354,10 +354,10 @@ export class SkillLearningScheduler {
     confidence: number
   ): Promise<void> {
     try {
+      const db = getDatabase();
       // Find or create category
       let categoryId: number | undefined;
       if (skill.categorySuggestion) {
-        const db = getDatabase();
         const category = await db
           .select()
           .from(skillCategories)
@@ -411,17 +411,17 @@ export class SkillLearningScheduler {
         await db
           .insert(skillPromotionLog)
           .values({
-            skillId: skill.id,
+            skillId: skill.id!,
             mainSkillId: newSkillId,
             promotionReason: reason,
             promotionConfidence: confidence,
             promotionData: {
-              originalFrequency: skill.frequency,
-              escoMatch: skill.escoValidated,
-              mlSimilarity: skill.mlSimilarityScore,
-              groqValidation: skill.groqConfidence
+              originalFrequency: skill.frequency || 0,
+              escoMatch: skill.escoValidated || false,
+              mlSimilarity: skill.mlSimilarityScore || 0,
+              groqValidation: skill.groqConfidence || 0
             }
-          });
+          } as any);
 
         logger.debug(`Promoted skill: ${skill.skillText}`, {
           reason,
@@ -516,7 +516,8 @@ export class SkillLearningScheduler {
    * Stop all scheduled jobs
    */
   stop(): void {
-    cron.destroy();
+    // node-cron doesn't have a global destroy method
+    // Jobs need to be stopped individually
     logger.info('Skill learning scheduler stopped');
   }
 

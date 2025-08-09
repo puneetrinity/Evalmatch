@@ -23,7 +23,12 @@ async function testDatabaseConnection() {
     }, 'check-database-version');
     
     console.log('Database version:');
-    console.log(versionResult[0].version);
+    const rows = (versionResult as any).rows || [];
+    if (rows.length > 0) {
+      console.log(rows[0].version);
+    } else {
+      console.log('Version information not available');
+    }
     
     return true;
   } catch (error) {

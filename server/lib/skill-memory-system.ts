@@ -339,7 +339,7 @@ export class SkillMemorySystem {
     confidence?: number;
   }> {
     
-    const newFrequency = existingMemory.frequency + 1;
+    const newFrequency = (existingMemory.frequency || 0) + 1;
     const newContext = {
       type: context.type,
       id: context.id,
@@ -404,13 +404,13 @@ export class SkillMemorySystem {
 
     logger.debug(`Updated existing skill memory: ${existingMemory.skillText}`, {
       newFrequency,
-      autoApproved: autoApproved && !existingMemory.autoApproved,
+      autoApproved: autoApproved && !(existingMemory.autoApproved ?? false),
       reason: autoApprovalReason
     });
 
     return {
       processed: true,
-      autoApproved: autoApproved && !existingMemory.autoApproved,
+      autoApproved: Boolean(autoApproved && !(existingMemory.autoApproved ?? false)),
       reason: autoApprovalReason || undefined,
       confidence: autoApprovalConfidence || undefined
     };
@@ -448,8 +448,8 @@ export class SkillMemorySystem {
    */
   private async isInMainDictionary(skillText: string): Promise<boolean> {
     try {
-      const normalized = normalizeSkillWithHierarchy(skillText);
-      if (normalized.isKnown) {
+      const normalized = await normalizeSkillWithHierarchy(skillText);
+      if ((normalized as any).isKnown) {
         return true;
       }
       
@@ -639,7 +639,8 @@ Examples of INVALID: "asdf", "123", "good person", "hard worker"`;
 
       // Log the promotion
       if (skillRecord.id && newSkillId) {
-        await db
+        const dbInstance = getDatabase();
+        await dbInstance
           .insert(skillPromotionLog)
           .values({
             skillId: skillRecord.id,
@@ -652,7 +653,7 @@ Examples of INVALID: "asdf", "123", "good person", "hard worker"`;
               mlSimilarity: skillRecord.mlSimilarityScore,
               groqValidation: skillRecord.groqConfidence
             }
-          });
+          } as any);
       }
 
       logger.info(`Promoted skill to main dictionary: ${skillRecord.skillText}`, {
@@ -758,7 +759,7 @@ Examples of INVALID: "asdf", "123", "good person", "hard worker"`;
       const db = getDatabase();
       const stats = await db
         .select({
-          total: sql<number>`count(*)`,
+          totalSkills: sql<number>`count(*)`,
           autoApproved: sql<number>`count(*) filter (where auto_approved = true)`,
           pendingReview: sql<number>`count(*) filter (where auto_approved = false and frequency >= 5)`,
           escoValidated: sql<number>`count(*) filter (where esco_validated = true)`,

@@ -25,7 +25,7 @@ import {
 } from "@shared/user-tiers";
 
 // Verify if providers are configured
-const isAnthropicConfigured = !!config.anthropicApiKey;
+const isAnthropicConfigured = !!config.ai.providers.anthropic.apiKey;
 const isGroqConfigured = !!process.env.GROQ_API_KEY;
 const isOpenAIConfigured = !!process.env.OPENAI_API_KEY;
 

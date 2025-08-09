@@ -186,7 +186,7 @@ export async function initializeDatabase(): Promise<void> {
       logger.info("🔧 Running emergency column migrations...");
       await runMigration();
     } catch (error) {
-      logger.warn("Emergency migration script not available or failed:", error.message);
+      logger.warn("Emergency migration script not available or failed:", (error as Error).message);
       // Non-fatal - SQL migrations should handle everything
     }
 
@@ -787,9 +787,9 @@ async function runMigrations(): Promise<void> {
         logger.info(`✅ Migration completed: ${migrationFile}`);
       } catch (error) {
         logger.error(`❌ Migration failed for file: ${migrationFile}`, {
-          error: error.message,
-          errorCode: error.code,
-          errorDetail: error.detail,
+          error: (error as any).message,
+          errorCode: (error as any).code,
+          errorDetail: (error as any).detail,
           migrationFile
         });
         throw error;

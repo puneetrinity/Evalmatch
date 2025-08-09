@@ -338,7 +338,7 @@ export function globalErrorHandler(
   if (isStorageError) {
     const { storage } = require("../storage");
     errorLogData.error.details = {
-      ...errorLogData.error.details,
+      ...(typeof errorLogData.error.details === 'object' && errorLogData.error.details !== null ? errorLogData.error.details : {}),
       storageInitialized: !!storage,
       storageType: storage ? storage.constructor.name : 'null',
       timestamp: new Date().toISOString(),

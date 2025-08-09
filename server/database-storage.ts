@@ -121,7 +121,7 @@ export class DatabaseStorage implements IStorage {
     return withRetry(async () => {
       const [updatedResume] = await this.db.update(resumes)
         .set({
-          analyzedData: analysis
+          analyzedData: analysis.analyzedData
         })
         .where(eq(resumes.id, id))
         .returning();
@@ -227,7 +227,7 @@ export class DatabaseStorage implements IStorage {
     return withRetry(async () => {
       const [updatedJobDescription] = await this.db.update(jobDescriptions)
         .set({
-          analyzedData: analysis
+          analyzedData: analysis.analyzedData
         })
         .where(eq(jobDescriptions.id, id))
         .returning();
@@ -249,7 +249,13 @@ export class DatabaseStorage implements IStorage {
       
       // Safely merge bias analysis into existing analyzedData
       // Handle case where analyzedData is null
-      const currentAnalyzedData = existingJob.analyzedData || {};
+      const currentAnalyzedData = existingJob.analyzedData || {
+        requiredSkills: [],
+        preferredSkills: [],
+        experienceLevel: '',
+        responsibilities: [],
+        summary: ''
+      };
       const updatedAnalyzedData = {
         ...currentAnalyzedData,
         biasAnalysis: biasAnalysis
@@ -312,23 +318,12 @@ export class DatabaseStorage implements IStorage {
         resumeConditions.push(eq(resumes.sessionId, sessionId));
       }
       
-      // First, get the most recent analysis result for each resume
-      // We use a subquery to find the latest createdAt for each resumeId
-      const latestAnalysisSubquery = db
-        .select({
-          resumeId: analysisResults.resumeId,
-          maxCreatedAt: this.db.selectDistinct({ max: analysisResults.createdAt }).from(analysisResults)
-        })
-        .from(analysisResults)
-        .where(and(
-          eq(analysisResults.jobDescriptionId, jobId),
-          eq(analysisResults.userId, userId)
-        ))
-        .groupBy(analysisResults.resumeId);
+      // Get analysis results ordered by creation time (most recent first)
+      // This is a simpler approach than the complex subquery
       
       // Build the main query with deduplication
       let query = this.db.select({
-        ...analysisResults,
+        analysisResults,
         resume: resumes
       })
         .from(analysisResults)

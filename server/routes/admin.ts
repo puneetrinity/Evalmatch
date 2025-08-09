@@ -711,7 +711,8 @@ router.get("/skill-memory/discoveries", requireAdmin, async (req, res) => {
     
     logger.info('Admin accessing skill memory discoveries', { page, limit });
     
-    const { db } = await import("../db");
+    const { getDatabase } = await import("../database");
+    const db = getDatabase();
     const { skillMemory } = await import("@shared/schema");
     const { desc } = await import("drizzle-orm");
     
@@ -831,7 +832,8 @@ router.get("/skill-memory/promotions", requireAdmin, async (req, res) => {
     
     logger.info('Admin accessing skill promotion history', { page, limit });
     
-    const { db } = await import("../db");
+    const { getDatabase } = await import("../database");
+    const db = getDatabase();
     const { skillPromotionLog, skillMemory } = await import("@shared/schema");
     const { desc, eq } = await import("drizzle-orm");
     

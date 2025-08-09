@@ -88,14 +88,19 @@ export async function initializeFirebaseAuth(): Promise<void> {
     // Debug logging for credentials
     serverAuthLogger.info("Firebase credentials debug", {
       operation: "firebase_init_debug",
-      hasCredentials: !!credentials,
-      credentialsType: typeof credentials,
-      projectId: config.firebase.projectId,
-      credentialsKeys: credentials ? Object.keys(credentials) : [],
-      hasPrivateKey: !!(credentials && (credentials as any).private_key),
-      privateKeyLength: (credentials as any)?.private_key?.length || 0,
-      clientEmail: (credentials as any)?.client_email || 'missing',
     });
+    
+    if (import.meta.env?.DEV) {
+      console.log('Firebase debug:', {
+        hasCredentials: !!credentials,
+        credentialsType: typeof credentials,
+        projectId: config.firebase.projectId || undefined,
+        credentialsKeys: credentials ? Object.keys(credentials).length : 0,
+        hasPrivateKey: !!(credentials && (credentials as any).private_key),
+        privateKeyLength: (credentials as any)?.private_key?.length || 0,
+        clientEmail: (credentials as any)?.client_email || 'not-set',
+      });
+    }
 
     if (!credentials) {
       throw new Error("Firebase service account credentials are null");

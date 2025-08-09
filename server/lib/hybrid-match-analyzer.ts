@@ -109,7 +109,7 @@ export class HybridMatchAnalyzer {
 
   constructor() {
     this.isGroqConfigured = !!process.env.GROQ_API_KEY;
-    this.isAnthropicConfigured = !!config.anthropicApiKey;
+    this.isAnthropicConfigured = !!config.ai.providers.anthropic.apiKey;
   }
 
   /**

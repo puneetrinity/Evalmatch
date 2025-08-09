@@ -483,6 +483,11 @@ router.get("/storage", async (req: Request, res: Response) => {
       storageSystem: {
         initialized: !!storage,
         type: storage ? storage.constructor.name : 'null',
+        accessSuccessful: false,
+        basicOperationsWorking: false,
+        testData: null as any,
+        operationError: null as any,
+        accessError: null as any,
       }
     };
 

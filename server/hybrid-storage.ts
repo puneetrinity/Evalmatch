@@ -47,7 +47,7 @@ export class HybridStorage implements IStorage {
     this.memStorage = new MemStorage();
     
     // Start health check process if database is enabled
-    if (config.isDatabaseEnabled) {
+    if (config.database.enabled) {
       this.startHealthChecks();
     }
   }

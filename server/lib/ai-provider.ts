@@ -105,7 +105,7 @@ import { initializeSkillHierarchy } from "./skill-hierarchy";
 import { analyzeResumeFairness } from "./fairness-analyzer";
 
 // Verify if providers are configured
-const isAnthropicConfigured = !!config.anthropicApiKey;
+const isAnthropicConfigured = !!config.ai.providers.anthropic.apiKey;
 const isGroqConfigured = !!process.env.GROQ_API_KEY;
 
 // Initialize skill hierarchy on first load

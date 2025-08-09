@@ -69,7 +69,7 @@ async function isMigrationApplied(version: string): Promise<boolean> {
     const result = await db.execute(sql`
       SELECT 1 FROM schema_migrations WHERE version = ${version} LIMIT 1
     `);
-    return result.length > 0;
+    return (result as any).rows && (result as any).rows.length > 0;
   } catch (error) {
     // If schema_migrations table doesn't exist, no migrations have been applied
     return false;
@@ -241,17 +241,18 @@ export async function getMigrationStatus(): Promise<{
       ORDER BY applied_at DESC
     `);
 
-    const appliedMigrations = appliedResult.map(
+    const appliedMigrations = ((appliedResult as any).rows || []).map(
       (row: Record<string, unknown>) => row.version as string,
     );
     const pendingMigrations = MIGRATIONS.filter(
       (m) => !appliedMigrations.includes(m.version),
     ).map((m) => m.version);
 
-    const lastMigration = appliedResult[0]
+    const rows = (appliedResult as any).rows || [];
+    const lastMigration = rows[0]
       ? {
-          version: appliedResult[0].version,
-          appliedAt: appliedResult[0].applied_at,
+          version: rows[0].version,
+          appliedAt: rows[0].applied_at,
         }
       : undefined;
 

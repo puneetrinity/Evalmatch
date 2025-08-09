@@ -18,7 +18,7 @@ const MODEL = "claude-3-7-sonnet-20250219";
 
 // Initialize Anthropic client with API key from config
 const anthropic = new Anthropic({
-  apiKey: config.anthropicApiKey || "",
+  apiKey: config.ai.providers.anthropic.apiKey || "",
 });
 
 /**
@@ -1159,7 +1159,7 @@ export async function generateInterviewScript(
   candidateName?: string,
 ): Promise<InterviewScriptResponse> {
   // First, check if service is available
-  if (!config.anthropicApiKey) {
+  if (!config.ai.providers.anthropic.apiKey) {
     throw new Error("Anthropic API key not configured");
   }
 

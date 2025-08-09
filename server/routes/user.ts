@@ -81,15 +81,15 @@ router.post("/debug/test-auth", validators.rateLimitStrict, async (req: Request,
         user: {
           uid: decodedToken.uid,
           email: decodedToken.email,
-          emailVerified: decodedToken.email_verified,
-          authTime: new Date(decodedToken.auth_time * 1000).toISOString(),
-          iat: new Date(decodedToken.iat * 1000).toISOString(),
-          exp: new Date(decodedToken.exp * 1000).toISOString(),
+          emailVerified: decodedToken.emailVerified,
+          authTime: new Date((decodedToken as any).auth_time * 1000).toISOString(),
+          iat: new Date((decodedToken as any).iat * 1000).toISOString(),
+          exp: new Date((decodedToken as any).exp * 1000).toISOString(),
         },
         tokenInfo: {
           length: token.length,
-          issuer: decodedToken.iss,
-          audience: decodedToken.aud,
+          issuer: (decodedToken as any).iss,
+          audience: (decodedToken as any).aud,
         },
       });
     } catch (tokenError: unknown) {

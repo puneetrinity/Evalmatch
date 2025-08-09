@@ -66,7 +66,7 @@ export default function BiasDetectionPage() {
   // Get job description with proper caching strategy
   const { data: jobData, isLoading } = useQuery<JobData>({
     queryKey: [`/api/job-descriptions/${jobId}`],
-    enabled: isValidJobId,
+    enabled: Boolean(isValidJobId),
     // Reasonable refetch settings to prevent infinite loops
     refetchInterval: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -89,9 +89,9 @@ export default function BiasDetectionPage() {
           const jobData = { ...data.data.jobDescription, isAnalyzed: data.data.isAnalyzed };
           
           // Create analysis field for backward compatibility
-          if (jobData.analyzedData && !jobData.analysis) {
-            jobData.analysis = {
-              biasAnalysis: jobData.analyzedData.biasAnalysis
+          if ((jobData as JobData).analyzedData && !(jobData as JobData).analysis) {
+            (jobData as JobData).analysis = {
+              biasAnalysis: (jobData as JobData).analyzedData?.biasAnalysis
             };
           }
           
@@ -192,13 +192,13 @@ export default function BiasDetectionPage() {
   useEffect(() => {
     if (jobData) {
       if (import.meta.env.DEV) {
-        console.log(`Job data fetched. Job ID: ${jobId}, ID: ${jobData.id}, Title: ${jobData.title}, Analyzed: ${jobData.isAnalyzed}`);
+        console.log(`Job data fetched. Job ID: ${jobId}, ID: ${(jobData as JobData).id}, Title: ${(jobData as JobData).title}, Analyzed: ${(jobData as JobData).isAnalyzed}`);
       }
       
       // Check for existing bias analysis in both possible locations
-      const existingBiasAnalysis = jobData.analysis?.biasAnalysis || jobData.analyzedData?.biasAnalysis;
+      const existingBiasAnalysis = (jobData as JobData).analysis?.biasAnalysis || (jobData as JobData).analyzedData?.biasAnalysis;
       if (import.meta.env.DEV) {
-        console.log(`Analysis exists: ${!!jobData.analysis?.biasAnalysis}, AnalyzedData Bias Analysis exists: ${!!jobData.analyzedData?.biasAnalysis}`);
+        console.log(`Analysis exists: ${!!(jobData as JobData).analysis?.biasAnalysis}, AnalyzedData Bias Analysis exists: ${!!(jobData as JobData).analyzedData?.biasAnalysis}`);
       }
       
       // If we found existing bias analysis, set it immediately and stop the loop
@@ -211,7 +211,7 @@ export default function BiasDetectionPage() {
           biasTypes: existingBiasAnalysis.biasTypes || [],
           biasedPhrases: existingBiasAnalysis.biasedPhrases || [],
           suggestions: existingBiasAnalysis.suggestions || [],
-          improvedDescription: existingBiasAnalysis.improvedDescription || jobData.description,
+          improvedDescription: existingBiasAnalysis.improvedDescription || (jobData as JobData).description,
           biasConfidenceScore: (existingBiasAnalysis as any).biasConfidenceScore || 95,
           fairnessAssessment: (existingBiasAnalysis as any).fairnessAssessment || 'Analysis completed'
         });
@@ -224,7 +224,7 @@ export default function BiasDetectionPage() {
       // 2. No existing bias analysis found
       // 3. Haven't attempted bias analysis yet
       // 4. Not currently analyzing
-      if (jobData.isAnalyzed && !existingBiasAnalysis && !hasAttemptedBiasAnalysis && !isBiasAnalyzing) {
+      if ((jobData as JobData).isAnalyzed && !existingBiasAnalysis && !hasAttemptedBiasAnalysis && !isBiasAnalyzing) {
         if (import.meta.env.DEV) {
           console.log("Job analysis complete, automatically starting new bias analysis via API");
         }
@@ -313,11 +313,11 @@ export default function BiasDetectionPage() {
           <div className="grid gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>{jobData.title || 'Job Description'}</CardTitle>
+                <CardTitle>{(jobData as JobData).title || 'Job Description'}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="whitespace-pre-wrap">
-                  {jobData.description || ''}
+                  {(jobData as JobData).description || ''}
                 </div>
               </CardContent>
             </Card>

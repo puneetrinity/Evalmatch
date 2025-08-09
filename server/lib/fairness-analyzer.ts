@@ -17,11 +17,11 @@ export interface FairnessAnalysisResult {
 const groqClient = process.env.GROQ_API_KEY
   ? new Groq({ apiKey: process.env.GROQ_API_KEY })
   : null;
-const openaiClient = config.openaiApiKey
-  ? new OpenAI({ apiKey: config.openaiApiKey })
+const openaiClient = config.ai.providers.openai.apiKey
+  ? new OpenAI({ apiKey: config.ai.providers.openai.apiKey })
   : null;
-const anthropicClient = config.anthropicApiKey
-  ? new Anthropic({ apiKey: config.anthropicApiKey })
+const anthropicClient = config.ai.providers.anthropic.apiKey
+  ? new Anthropic({ apiKey: config.ai.providers.anthropic.apiKey })
   : null;
 
 // Constants for model names
