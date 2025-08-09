@@ -614,7 +614,6 @@ export const validators = {
   largeRequest: validateRequestSize(50 * 1024 * 1024), // 50MB for bulk operations
   
   // Legacy compatibility (deprecated - use enhanced versions above)
-  rateLimitGenerous: createRateLimit(60 * 1000, 100),
   jsonOnly: validateContentType(["application/json"]),
   multipartOnly: validateContentType(["multipart/form-data"]),
   jsonOrMultipart: validateContentType(["application/json", "multipart/form-data"]),

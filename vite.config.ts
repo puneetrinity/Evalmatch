@@ -152,7 +152,6 @@ export default defineConfig({
           }
         }
       },
-      }
     },
     // PERFORMANCE: Optimized build settings
     chunkSizeWarningLimit: 500, // Stricter chunk size limit
