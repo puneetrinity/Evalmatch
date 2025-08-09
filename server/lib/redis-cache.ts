@@ -22,6 +22,11 @@ export class CacheManager {
     SKILL_MATCH: 2 * 60 * 60,             // 2 hours
     INTERVIEW_QUESTIONS: 30 * 60,         // 30 minutes
   };
+  
+  // PERFORMANCE FIX: Memory management constants
+  private static readonly MAX_CACHE_SIZE_MB = 512; // 512MB limit
+  private static readonly CLEANUP_INTERVAL = 10 * 60 * 1000; // 10 minutes
+  private cleanupTimer: NodeJS.Timeout | null = null;
 
   constructor() {
     // Allow explicit Redis disabling via environment variable
@@ -30,6 +35,9 @@ export class CacheManager {
       return;
     }
     this.connect();
+    
+    // PERFORMANCE FIX: Start periodic cleanup to prevent memory leaks
+    this.startPeriodicCleanup();
   }
 
   private async connect(): Promise<void> {
@@ -210,9 +218,59 @@ export class CacheManager {
   }
 
   /**
+   * PERFORMANCE FIX: Start periodic cleanup to prevent unbounded cache growth
+   */
+  private startPeriodicCleanup(): void {
+    this.cleanupTimer = setInterval(async () => {
+      await this.performMaintenanceCleanup();
+    }, CacheManager.CLEANUP_INTERVAL);
+  }
+  
+  /**
+   * PERFORMANCE FIX: Perform maintenance cleanup
+   */
+  private async performMaintenanceCleanup(): Promise<void> {
+    if (!this.isConnected || !this.redis) return;
+    
+    try {
+      // Get memory info and cleanup if needed
+      const info = await this.redis.memory('usage');
+      const memoryMB = info ? parseInt(info.toString()) / (1024 * 1024) : 0;
+      
+      if (memoryMB > CacheManager.MAX_CACHE_SIZE_MB * 0.8) {
+        logger.warn(`Cache memory usage high: ${memoryMB}MB, performing cleanup`);
+        
+        // Remove keys with shortest TTL first
+        const keys = await this.redis.keys('evalmatch:*');
+        const keysToDelete: string[] = [];
+        
+        for (const key of keys.slice(0, Math.min(100, keys.length * 0.1))) {
+          const ttl = await this.redis.ttl(key);
+          if (ttl < 300) { // Remove keys expiring in < 5 minutes
+            keysToDelete.push(key);
+          }
+        }
+        
+        if (keysToDelete.length > 0) {
+          await this.redis.del(...keysToDelete);
+          logger.info(`Cache cleanup: removed ${keysToDelete.length} expiring keys`);
+        }
+      }
+    } catch (error) {
+      logger.warn('Cache cleanup failed:', error);
+    }
+  }
+
+  /**
    * Graceful shutdown
    */
   async shutdown(): Promise<void> {
+    // PERFORMANCE FIX: Clear cleanup timer
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+    
     if (this.redis) {
       logger.info("Shutting down Redis cache");
       await this.redis.quit();

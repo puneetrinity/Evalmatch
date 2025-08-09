@@ -40,65 +40,64 @@ export async function authenticateUser(
   try {
     // Auth bypass mode for testing (NEVER allowed in production)
     if (process.env.AUTH_BYPASS_MODE === "true") {
-      // ENHANCED SECURITY: Multiple layers of production detection
-      const productionIndicators = [
+      // SECURITY FIX: Stricter production detection with fail-safe approach
+      // Primary check: explicit production environment variables
+      const isProduction = [
         config.env === "production",
         process.env.NODE_ENV === "production",
         process.env.RAILWAY_ENVIRONMENT === "production",
-        process.env.VERCEL_ENV === "production",
-        // Additional production domain checks
-        req.get('host')?.includes('.railway.app') && !req.get('host')?.includes('dev'),
-        req.get('host')?.includes('.vercel.app') && !req.get('host')?.includes('dev'),
-        req.get('host')?.includes('.herokuapp.com'),
-        // Custom production domain detection
-        req.get('host') && !req.get('host')?.includes('localhost') && 
-        !req.get('host')?.includes('127.0.0.1') && 
-        !req.get('host')?.includes('.local')
-      ];
+        process.env.VERCEL_ENV === "production"
+      ].some(Boolean);
       
-      if (productionIndicators.some(Boolean)) {
-        logger.error("🚨 CRITICAL SECURITY VIOLATION: AUTH_BYPASS_MODE detected in production environment", {
+      // Secondary check: fail-safe - any non-development context
+      const isDevelopment = [
+        config.env === "development",
+        config.env === "test",
+        process.env.NODE_ENV === "development",
+        process.env.NODE_ENV === "test"
+      ].some(Boolean);
+      
+      // CRITICAL: If not explicitly development OR if any production indicator, DENY
+      if (isProduction || !isDevelopment) {
+        logger.error("🚨 CRITICAL SECURITY VIOLATION: AUTH_BYPASS_MODE blocked - production/unknown environment", {
           configEnv: config.env,
           nodeEnv: process.env.NODE_ENV,
           railwayEnv: process.env.RAILWAY_ENVIRONMENT,
           vercelEnv: process.env.VERCEL_ENV,
-          host: req.get('host'),
-          userAgent: req.get('User-Agent'),
-          ip: req.ip,
-          forwardedFor: req.get('X-Forwarded-For'),
-          productionIndicators: productionIndicators.map((indicator, index) => ({
-            check: index,
-            result: indicator
-          })),
+          isProduction,
+          isDevelopment,
+          // Only log safe host information for security
+          hostSafe: req.get('host')?.includes('localhost') ? 'localhost' : 'external',
+          ip: req.ip?.startsWith('127.') || req.ip?.startsWith('::1') ? 'local' : 'external',
           timestamp: new Date().toISOString(),
-          severity: 'CRITICAL'
+          severity: 'CRITICAL',
+          action: 'TERMINATING_PROCESS'
         });
         
         // Immediate process termination to prevent security breach
         process.exit(1);
       }
       
-      // ENHANCED: Verify we're in a legitimate development environment
-      const isDevelopment = [
-        config.env === "development",
-        config.env === "test", 
+      // Additional localhost verification for extra security
+      const isLocalhost = [
         req.get('host')?.includes('localhost'),
         req.get('host')?.includes('127.0.0.1'),
-        req.get('host')?.includes('.local')
+        req.get('host')?.includes('.local'),
+        req.ip?.startsWith('127.'),
+        req.ip?.startsWith('::1')
       ].some(Boolean);
       
-      if (!isDevelopment) {
-        logger.error("🛡️ AUTH_BYPASS_MODE security violation: Not in valid development environment", {
+      if (!isLocalhost) {
+        logger.error("🛡️ AUTH_BYPASS_MODE security violation: Not connecting from localhost", {
           currentEnv: config.env,
-          host: req.get('host'),
-          ip: req.ip,
-          userAgent: req.get('User-Agent'),
+          hostSafe: 'external-host',
+          ipSafe: 'external-ip',
           timestamp: new Date().toISOString(),
         });
         
         return res.status(403).json({
           error: "Authentication bypass not allowed",
-          message: "Auth bypass only permitted in development environments",
+          message: "Auth bypass only permitted from localhost in development",
           code: "AUTH_BYPASS_FORBIDDEN",
         });
       }

@@ -133,11 +133,11 @@ export function loadUnifiedConfig(): AppConfig {
   let firebaseServiceAccountObject: any = null;
   if (firebaseServiceAccountKey) {
     try {
+      // SECURITY FIX: Safe logging without exposing sensitive key content
       logger.debug('Attempting to parse Firebase service account key', {
         keyLength: firebaseServiceAccountKey.length,
-        keyStart: firebaseServiceAccountKey.substring(0, 50),
-        keyEnd: firebaseServiceAccountKey.substring(firebaseServiceAccountKey.length - 50),
-        isString: typeof firebaseServiceAccountKey === 'string'
+        isString: typeof firebaseServiceAccountKey === 'string',
+        looksLikeJson: firebaseServiceAccountKey.startsWith('{') && firebaseServiceAccountKey.endsWith('}')
       });
       firebaseServiceAccountObject = JSON.parse(firebaseServiceAccountKey);
       
@@ -167,11 +167,12 @@ export function loadUnifiedConfig(): AppConfig {
         }
       }
     } catch (error) {
+      // SECURITY FIX: Safe error logging without exposing key content
       logger.error('Failed to parse Firebase service account key JSON', { 
         error: error instanceof Error ? error.message : String(error),
         keyLength: firebaseServiceAccountKey?.length,
         keyType: typeof firebaseServiceAccountKey,
-        keyPreview: firebaseServiceAccountKey?.substring(0, 100) + '...'
+        // REMOVED: keyPreview that could expose sensitive data
       });
       firebaseServiceAccountKey = null;
       firebaseServiceAccountObject = null;

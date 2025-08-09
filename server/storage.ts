@@ -541,19 +541,42 @@ const memStorage = new MemStorage();
 // Export storage initialization function for async initialization
 export let storage: IStorage;
 
-// Get storage instance (throws error if not initialized)
+// Enhanced storage retrieval with initialization validation
 export function getStorage(): IStorage {
   if (!storage) {
     logger.error('💥 Storage not initialized when requested!');
     logger.error('Current timestamp:', new Date().toISOString());
     logger.error('Call stack:', new Error().stack);
+    
+    // Get storage initialization status for better debugging
+    const initStatus = getStorageInitializationStatus();
     logger.error('Storage initialization status:', {
       storageIsNull: storage === null,
       storageIsUndefined: storage === undefined,
-      typeof: typeof storage
+      typeof: typeof storage,
+      initializationState: initStatus
     });
-    throw new Error('Storage not initialized. Call initializeAppStorage() first.');
+    
+    // Provide more helpful error messages based on state
+    if (initStatus.isInitializing) {
+      throw new Error('Storage is currently being initialized. Please wait for initialization to complete.');
+    } else if (initStatus.lastInitializationError) {
+      throw new Error(`Storage initialization failed: ${initStatus.lastInitializationError.message}. Call initializeAppStorage() again.`);
+    } else {
+      throw new Error('Storage not initialized. Call initializeAppStorage() first.');
+    }
   }
+  
+  // Validate storage instance
+  if (typeof storage !== 'object' || !storage.getJobDescriptions) {
+    logger.error('💥 Storage instance is invalid!', {
+      storageType: typeof storage,
+      hasGetJobDescriptions: !!(storage as any)?.getJobDescriptions,
+      constructorName: storage?.constructor?.name
+    });
+    throw new Error('Storage instance is invalid or corrupted. Re-initialization required.');
+  }
+  
   logger.debug('✅ Storage instance retrieved successfully', {
     storageType: storage.constructor.name,
     timestamp: new Date().toISOString()
@@ -561,24 +584,129 @@ export function getStorage(): IStorage {
   return storage;
 }
 
-// Initialize storage asynchronously (called from main app startup)
+// Mutex for storage initialization to prevent concurrent calls
+let storageInitializationPromise: Promise<IStorage> | null = null;
+
+// Initialize storage asynchronously with proper synchronization
 export async function initializeAppStorage(): Promise<IStorage> {
   logger.info('initializeAppStorage called', {
     storageAlreadyInitialized: !!storage,
+    initializationInProgress: !!storageInitializationPromise,
     timestamp: new Date().toISOString()
   });
   
-  if (!storage) {
-    logger.info('Storage not initialized, calling initializeStorage()...');
-    storage = await initializeStorage();
-    logger.info('Storage initialized successfully', {
-      storageType: storage.constructor.name,
+  // If storage is already initialized and valid, return it
+  if (storage) {
+    try {
+      // Quick validation to ensure storage is still functional
+      await storage.getJobDescriptions();
+      logger.info('Storage already initialized and functional', {
+        storageType: storage.constructor.name
+      });
+      return storage;
+    } catch (error) {
+      logger.warn('Existing storage instance failed validation, reinitializing', error);
+      storage = null; // Clear invalid storage
+    }
+  }
+  
+  // If initialization is already in progress, wait for it
+  if (storageInitializationPromise) {
+    logger.info('Storage initialization already in progress, waiting for completion');
+    try {
+      return await storageInitializationPromise;
+    } catch (error) {
+      // If previous initialization failed, we'll try again
+      logger.warn('Previous storage initialization promise failed, attempting new initialization', error);
+      storageInitializationPromise = null;
+    }
+  }
+  
+  // Start new initialization
+  storageInitializationPromise = performStorageInitialization();
+  
+  try {
+    const result = await storageInitializationPromise;
+    storage = result; // Cache the result
+    logger.info('Storage initialization completed successfully', {
+      storageType: result.constructor.name,
       timestamp: new Date().toISOString()
     });
-  } else {
-    logger.info('Storage already initialized', {
-      storageType: storage.constructor.name
-    });
+    return result;
+  } catch (error) {
+    logger.error('Storage initialization failed', error);
+    throw error;
+  } finally {
+    // Clear the promise whether it succeeded or failed
+    storageInitializationPromise = null;
   }
-  return storage;
+}
+
+// Perform the actual storage initialization
+async function performStorageInitialization(): Promise<IStorage> {
+  logger.info('Starting storage initialization process');
+  
+  try {
+    const storage = await initializeStorage();
+    
+    // Post-initialization validation
+    logger.info('Validating initialized storage');
+    await storage.getJobDescriptions(); // Basic functional test
+    
+    logger.info('Storage validation successful');
+    return storage;
+  } catch (error) {
+    logger.error('Storage initialization process failed', error);
+    throw new Error(`Storage initialization failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+// Import storage initialization status function
+import { getStorageInitializationStatus } from './storage-switcher';
+
+/**
+ * Get current storage status for monitoring and debugging
+ */
+export function getStorageStatus(): {
+  isInitialized: boolean;
+  storageType: string | null;
+  initializationInProgress: boolean;
+  hasErrors: boolean;
+  lastError: string | null;
+  canRetry: boolean;
+} {
+  const initStatus = getStorageInitializationStatus();
+  
+  return {
+    isInitialized: !!storage && initStatus.isInitialized,
+    storageType: storage?.constructor?.name || null,
+    initializationInProgress: !!storageInitializationPromise || initStatus.isInitializing,
+    hasErrors: !!initStatus.lastInitializationError,
+    lastError: initStatus.lastInitializationError?.message || null,
+    canRetry: initStatus.initializationAttempts < initStatus.maxRetries,
+  };
+}
+
+/**
+ * Force storage reinitialization (use with caution)
+ */
+export async function reinitializeAppStorage(): Promise<IStorage> {
+  logger.warn('Forcing complete storage reinitialization');
+  
+  // Clear current state
+  storage = null;
+  storageInitializationPromise = null;
+  
+  // Force reinitialization in storage-switcher
+  const { reinitializeStorage } = await import('./storage-switcher');
+  const newStorage = await reinitializeStorage();
+  
+  // Update our cached storage
+  storage = newStorage;
+  
+  logger.info('Storage reinitialization completed', {
+    storageType: newStorage.constructor.name
+  });
+  
+  return newStorage;
 }

@@ -11,6 +11,17 @@ type CacheItem<T> = {
 class AnalysisCache {
   private cache: Map<string, CacheItem<unknown>> = new Map();
   private readonly defaultTTL: number = 15 * 60 * 1000; // 15 minutes
+  
+  // PERFORMANCE FIX: Prevent memory leaks with size limits
+  private readonly maxSize: number = 1000;
+  private readonly maxMemoryMB: number = 100;
+  private accessCount = new Map<string, number>();
+  private cleanupTimer: NodeJS.Timeout;
+  
+  constructor() {
+    // PERFORMANCE: Automatic cleanup every 5 minutes
+    this.cleanupTimer = setInterval(() => this.performCleanup(), 5 * 60 * 1000);
+  }
 
   /**
    * Store an item in the cache
@@ -19,8 +30,24 @@ class AnalysisCache {
    * @param ttl - Time to live in ms, defaults to 15 minutes
    */
   set<T>(key: string, data: T, ttl: number = this.defaultTTL): void {
+    // PERFORMANCE FIX: Check size limits before adding
+    const serialized = JSON.stringify(data);
+    const sizeBytes = new Blob([serialized]).size;
+    
+    // Don't cache excessively large items
+    if (sizeBytes > 1024 * 1024) { // 1MB limit per item
+      console.warn(`[CACHE] Item too large to cache: ${key} (${Math.round(sizeBytes / 1024)}KB)`);
+      return;
+    }
+    
+    // Evict items if we're at capacity
+    if (this.cache.size >= this.maxSize) {
+      this.evictLRU();
+    }
+    
     const expiresAt = Date.now() + ttl;
     this.cache.set(key, { data, expiresAt });
+    this.accessCount.set(key, 0);
   }
 
   /**
@@ -36,9 +63,14 @@ class AnalysisCache {
       if (item) {
         // Remove expired item
         this.cache.delete(key);
+        this.accessCount.delete(key);
       }
       return undefined;
     }
+
+    // PERFORMANCE: Track access for LRU eviction
+    const currentAccess = this.accessCount.get(key) || 0;
+    this.accessCount.set(key, currentAccess + 1);
 
     return item.data as T;
   }
@@ -69,6 +101,79 @@ class AnalysisCache {
    */
   clear(): void {
     this.cache.clear();
+    this.accessCount.clear();
+  }
+  
+  // PERFORMANCE FIX: Add memory management methods
+  
+  /**
+   * Perform LRU eviction to prevent memory leaks
+   */
+  private evictLRU(): void {
+    let lruKey: string | null = null;
+    let minAccess = Infinity;
+    
+    for (const [key, accessCount] of this.accessCount.entries()) {
+      if (accessCount < minAccess) {
+        minAccess = accessCount;
+        lruKey = key;
+      }
+    }
+    
+    if (lruKey) {
+      this.cache.delete(lruKey);
+      this.accessCount.delete(lruKey);
+    }
+  }
+  
+  /**
+   * Perform periodic cleanup of expired items
+   */
+  private performCleanup(): void {
+    const now = Date.now();
+    const expiredKeys: string[] = [];
+    
+    for (const [key, item] of this.cache.entries()) {
+      if (item.expiresAt < now) {
+        expiredKeys.push(key);
+      }
+    }
+    
+    expiredKeys.forEach(key => {
+      this.cache.delete(key);
+      this.accessCount.delete(key);
+    });
+    
+    if (expiredKeys.length > 0) {
+      console.log(`[CACHE] Cleanup: removed ${expiredKeys.length} expired items`);
+    }
+  }
+  
+  /**
+   * Get current memory usage estimate
+   */
+  getMemoryUsage(): { items: number; estimatedSizeMB: number } {
+    let totalSize = 0;
+    
+    for (const [key, item] of this.cache.entries()) {
+      const serialized = JSON.stringify({ key, data: item });
+      totalSize += new Blob([serialized]).size;
+    }
+    
+    return {
+      items: this.cache.size,
+      estimatedSizeMB: totalSize / (1024 * 1024)
+    };
+  }
+  
+  /**
+   * Destroy cache and cleanup timers
+   */
+  destroy(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+    }
+    this.clear();
   }
 
   /**
@@ -94,6 +199,10 @@ class AnalysisCache {
 
 // Export singleton instance
 export const analysisCache = new AnalysisCache();
+
+// PERFORMANCE FIX: Cleanup on process exit
+process.on('SIGTERM', () => analysisCache.destroy());
+process.on('SIGINT', () => analysisCache.destroy());
 
 /**
  * Generate a cache key for resume analysis

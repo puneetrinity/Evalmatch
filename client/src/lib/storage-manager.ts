@@ -456,13 +456,14 @@ class MemoryStorageManager implements IStorageManager {
   private cache = new Map<string, CacheEntry<BatchPersistenceState>>();
   private maxSize: number;
   private ttl: number;
+  private cleanupInterval: NodeJS.Timeout | null = null; // MEMORY LEAK FIX
 
   constructor(maxSize = 50, ttl = 30 * 60 * 1000) { // 50 items, 30 min TTL
     this.maxSize = maxSize;
     this.ttl = ttl;
     
-    // Cleanup expired entries every 5 minutes
-    setInterval(() => this.cleanup(), 5 * 60 * 1000);
+    // PERFORMANCE FIX: Store interval reference for cleanup
+    this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
   }
 
   isAvailable(): boolean {
@@ -593,6 +594,15 @@ class MemoryStorageManager implements IStorageManager {
       this.cache.delete(oldestKey);
       console.log(`[MEMORY_STORAGE] Evicted LRU: ${oldestKey}`);
     }
+  }
+  
+  // PERFORMANCE FIX: Add destroy method to cleanup timers
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    this.cache.clear();
   }
 }
 

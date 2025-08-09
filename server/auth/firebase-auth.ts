@@ -85,22 +85,17 @@ export async function initializeFirebaseAuth(): Promise<void> {
     // Use service account credentials (already parsed by unified config)
     const credentials = config.firebase.serviceAccountKey;
 
-    // Debug logging for credentials
+    // SECURITY FIX: Safe debug logging - no sensitive data exposure
     serverAuthLogger.info("Firebase credentials debug", {
       operation: "firebase_init_debug",
+      hasCredentials: !!credentials,
+      credentialsType: typeof credentials,
+      // Only log safe metadata, never actual credentials
+      configuredCorrectly: !!(credentials && config.firebase.projectId),
     });
     
-    if (import.meta.env?.DEV) {
-      console.log('Firebase debug:', {
-        hasCredentials: !!credentials,
-        credentialsType: typeof credentials,
-        projectId: config.firebase.projectId || undefined,
-        credentialsKeys: credentials ? Object.keys(credentials).length : 0,
-        hasPrivateKey: !!(credentials && (credentials as any).private_key),
-        privateKeyLength: (credentials as any)?.private_key?.length || 0,
-        clientEmail: (credentials as any)?.client_email || 'not-set',
-      });
-    }
+    // REMOVED: No debug console.log that could expose sensitive Firebase config
+    // Previously logged private keys, client emails, and other sensitive data
 
     if (!credentials) {
       throw new Error("Firebase service account credentials are null");

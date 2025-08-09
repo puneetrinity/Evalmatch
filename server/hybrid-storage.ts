@@ -23,14 +23,43 @@ import {
   type User, type InsertUser, type SimpleBiasAnalysis
 } from "@shared/schema";
 
-// Keep track of database health
-const dbHealth = {
-  isAvailable: true,              // Current database availability status
-  lastAvailableTime: Date.now(),  // Last time database was verified as available
-  failedOperations: 0,            // Count of consecutive failed operations
-  successfulOperations: 0,        // Count of consecutive successful operations
-  recoveryMode: false,            // Whether we're actively trying to recover
-  queuedWrites: [] as (() => Promise<void>)[],  // Operations to replay on recovery
+// Enhanced database health tracking with recovery mechanisms
+interface DatabaseHealthStatus {
+  isAvailable: boolean;
+  lastAvailableTime: number;
+  failedOperations: number;
+  successfulOperations: number;
+  recoveryMode: boolean;
+  queuedWrites: Array<() => Promise<void>>;
+  // Enhanced tracking
+  lastFailureTime: number | null;
+  totalFailures: number;
+  totalSuccesses: number;
+  recoveryAttempts: number;
+  maxRecoveryAttempts: number;
+  backoffMultiplier: number;
+  lastBackoffDelay: number;
+  consecutiveSuccesses: number;
+  requiredSuccessesForRecovery: number;
+}
+
+const dbHealth: DatabaseHealthStatus = {
+  isAvailable: true,
+  lastAvailableTime: Date.now(),
+  failedOperations: 0,
+  successfulOperations: 0,
+  recoveryMode: false,
+  queuedWrites: [],
+  // Enhanced tracking
+  lastFailureTime: null,
+  totalFailures: 0,
+  totalSuccesses: 0,
+  recoveryAttempts: 0,
+  maxRecoveryAttempts: 5,
+  backoffMultiplier: 1.5,
+  lastBackoffDelay: 1000,
+  consecutiveSuccesses: 0,
+  requiredSuccessesForRecovery: 3,
 };
 
 /**
@@ -66,38 +95,89 @@ export class HybridStorage implements IStorage {
   }
   
   /**
-   * Check if the database is available
+   * Enhanced database health check with recovery logic
    */
   private async checkDatabaseHealth(): Promise<boolean> {
+    const startTime = Date.now();
+    
     try {
-      // Simple health check query
+      // Progressive health check with timeout
       const pool = getPool();
-      if (pool) {
-        await pool.query('SELECT 1');
-      } else {
+      if (!pool) {
         throw new Error('Pool not available');
       }
       
-      // Update health status
-      if (!dbHealth.isAvailable) {
-        console.log('Database connection recovered, switching back to database storage');
+      // Use a timeout for health check operations
+      const healthCheckPromise = pool.query('SELECT 1, NOW() as check_time');
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Health check timeout')), 5000);
+      });
+      
+      await Promise.race([healthCheckPromise, timeoutPromise]);
+      
+      // Successful health check - update metrics
+      const responseTime = Date.now() - startTime;
+      dbHealth.successfulOperations++;
+      dbHealth.totalSuccesses++;
+      dbHealth.consecutiveSuccesses++;
+      
+      // Reset failure counters on success
+      if (dbHealth.failedOperations > 0) {
+        console.log(`Database health check recovered after ${dbHealth.failedOperations} failures`, {
+          responseTime,
+          consecutiveSuccesses: dbHealth.consecutiveSuccesses,
+        });
+      }
+      dbHealth.failedOperations = 0;
+      
+      // Check if we should exit recovery mode
+      if (!dbHealth.isAvailable && dbHealth.consecutiveSuccesses >= dbHealth.requiredSuccessesForRecovery) {
+        console.log(`Database fully recovered - ${dbHealth.consecutiveSuccesses} consecutive successes`);
         dbHealth.isAvailable = true;
+        dbHealth.recoveryMode = false;
         dbHealth.lastAvailableTime = Date.now();
+        dbHealth.recoveryAttempts = 0;
+        dbHealth.lastBackoffDelay = 1000; // Reset backoff
         
         // Process any queued writes
         await this.processQueuedWrites();
+      } else if (dbHealth.isAvailable) {
+        // Still available, just update timestamp
+        dbHealth.lastAvailableTime = Date.now();
       }
       
-      dbHealth.successfulOperations++;
-      dbHealth.failedOperations = 0;
       return true;
     } catch (error) {
-      dbHealth.failedOperations++;
-      dbHealth.successfulOperations = 0;
+      const responseTime = Date.now() - startTime;
       
-      if (dbHealth.isAvailable) {
-        console.warn('Database connection lost, falling back to in-memory storage');
+      // Failed health check - update failure metrics
+      dbHealth.failedOperations++;
+      dbHealth.totalFailures++;
+      dbHealth.lastFailureTime = Date.now();
+      dbHealth.consecutiveSuccesses = 0; // Reset success counter
+      
+      console.warn(`Database health check failed`, {
+        error: (error as Error).message,
+        responseTime,
+        consecutiveFailures: dbHealth.failedOperations,
+        totalFailures: dbHealth.totalFailures,
+      });
+      
+      // Determine if we should mark as unavailable
+      const shouldMarkUnavailable = dbHealth.isAvailable && (
+        dbHealth.failedOperations >= 3 || // 3 consecutive failures
+        (error as Error).message.includes('timeout') // Immediate timeout
+      );
+      
+      if (shouldMarkUnavailable) {
+        console.error('Database marked as unavailable - falling back to in-memory storage', {
+          reason: (error as Error).message.includes('timeout') ? 'timeout' : 'consecutive_failures',
+          failedOperations: dbHealth.failedOperations,
+        });
+        
         dbHealth.isAvailable = false;
+        dbHealth.recoveryMode = true;
+        dbHealth.recoveryAttempts = 0;
       }
       
       return false;
@@ -105,28 +185,112 @@ export class HybridStorage implements IStorage {
   }
   
   /**
-   * Process any queued write operations after database recovery
+   * Process any queued write operations after database recovery with enhanced error handling
    */
   private async processQueuedWrites() {
     if (dbHealth.queuedWrites.length === 0) return;
     
-    console.log(`Attempting to process ${dbHealth.queuedWrites.length} queued write operations`);
+    const totalOperations = dbHealth.queuedWrites.length;
+    console.log(`Attempting to process ${totalOperations} queued write operations`);
     
     // Process in order, but don't let one failure block others
     const operations = [...dbHealth.queuedWrites];
     dbHealth.queuedWrites = []; // Clear the queue
     
-    for (const operation of operations) {
-      try {
-        await operation();
-      } catch (error) {
-        console.error('Failed to replay queued operation:', error);
+    let successCount = 0;
+    let failureCount = 0;
+    const startTime = Date.now();
+    
+    // Process operations with limited concurrency to avoid overwhelming the database
+    const batchSize = 5;
+    for (let i = 0; i < operations.length; i += batchSize) {
+      const batch = operations.slice(i, i + batchSize);
+      
+      const results = await Promise.allSettled(
+        batch.map(async (operation, index) => {
+          try {
+            await operation();
+            return { success: true, index: i + index };
+          } catch (error) {
+            console.warn(`Failed to replay queued operation ${i + index}:`, {
+              error: (error as Error).message,
+              operationIndex: i + index,
+            });
+            return { success: false, index: i + index, error };
+          }
+        })
+      );
+      
+      // Count results
+      results.forEach(result => {
+        if (result.status === 'fulfilled' && result.value.success) {
+          successCount++;
+        } else {
+          failureCount++;
+          // Re-queue failed operations that aren't critical errors
+          const error = result.status === 'fulfilled' ? result.value.error : result.reason;
+          if (error && !this.isCriticalError(error)) {
+            // Add back to queue with exponential backoff
+            const originalOperation = operations[result.status === 'fulfilled' ? result.value.index : -1];
+            if (originalOperation && dbHealth.queuedWrites.length < 100) { // Prevent infinite queue growth
+              setTimeout(() => {
+                dbHealth.queuedWrites.push(originalOperation);
+              }, Math.min(5000 * Math.pow(2, failureCount), 60000)); // Max 60s delay
+            }
+          }
+        }
+      });
+      
+      // Add delay between batches to avoid overwhelming the database
+      if (i + batchSize < operations.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
+    }
+    
+    const duration = Date.now() - startTime;
+    
+    console.log(`Queued write processing completed`, {
+      totalOperations,
+      successCount,
+      failureCount,
+      duration,
+      remainingInQueue: dbHealth.queuedWrites.length,
+    });
+    
+    // If too many failures, something might be wrong with the database
+    if (failureCount > totalOperations * 0.5) {
+      console.warn('High failure rate in queued write processing - database may still have issues', {
+        failureRate: Math.round((failureCount / totalOperations) * 100),
+        totalFailures: failureCount,
+      });
     }
   }
   
   /**
-   * Execute a storage operation with fallback to in-memory storage if database fails
+   * Determine if an error is critical and shouldn't be retried
+   */
+  private isCriticalError(error: any): boolean {
+    const errorMessage = error?.message || String(error);
+    
+    // Critical errors that shouldn't be retried
+    const criticalPatterns = [
+      'unique constraint',
+      'foreign key constraint',
+      'check constraint',
+      'duplicate key',
+      'invalid input syntax',
+      'column does not exist',
+      'table does not exist',
+      'permission denied',
+    ];
+    
+    return criticalPatterns.some(pattern => 
+      errorMessage.toLowerCase().includes(pattern)
+    );
+  }
+  
+  /**
+   * Execute a storage operation with enhanced fallback logic and recovery mechanisms
    */
   private async executeWithFallback<T>(
     operation: string,
@@ -134,62 +298,155 @@ export class HybridStorage implements IStorage {
     memOperation: () => Promise<T>,
     isWrite = false
   ): Promise<T> {
-    // If we know the database is down, use memory directly
+    const startTime = Date.now();
+    
+    // If database is known to be unavailable, use memory storage directly
     if (!dbHealth.isAvailable) {
+      console.debug(`Database unavailable, using memory storage for ${operation}`);
       const result = await memOperation();
       
-      // For write operations, queue for eventual replay
-      if (isWrite) {
-        dbHealth.queuedWrites.push(async () => {
+      // For write operations, queue for eventual replay if queue isn't full
+      if (isWrite && dbHealth.queuedWrites.length < 1000) { // Prevent memory issues
+        const queuedOperation = async () => {
           try {
             await dbOperation();
+            console.debug(`Successfully replayed queued operation: ${operation}`);
           } catch (error) {
-            console.error(`Failed to replay operation ${operation}:`, error);
+            console.warn(`Failed to replay queued operation ${operation}:`, {
+              error: error instanceof Error ? error.message : String(error),
+              isCritical: this.isCriticalError(error),
+            });
+            
+            // If not a critical error, re-queue with backoff
+            if (!this.isCriticalError(error)) {
+              throw error; // Let the queue processor handle retry logic
+            }
           }
-        });
+        };
+        
+        dbHealth.queuedWrites.push(queuedOperation);
+        
+        // Limit queue size logging
+        if (dbHealth.queuedWrites.length % 50 === 0) {
+          console.info(`Write queue size: ${dbHealth.queuedWrites.length} operations`);
+        }
       }
       
       return result;
     }
     
-    // Attempt database operation first
+    // Attempt database operation with enhanced error handling
     try {
       const result = await dbOperation();
+      const duration = Date.now() - startTime;
+      
+      // Successful operation - update health metrics
       dbHealth.successfulOperations++;
-      dbHealth.failedOperations = 0;
+      dbHealth.totalSuccesses++;
+      dbHealth.consecutiveSuccesses++;
+      
+      // Reset failure counters on success
+      if (dbHealth.failedOperations > 0) {
+        console.debug(`Database operation ${operation} succeeded after ${dbHealth.failedOperations} failures`, {
+          duration,
+          consecutiveSuccesses: dbHealth.consecutiveSuccesses,
+        });
+        dbHealth.failedOperations = 0;
+      }
+      
       return result;
     } catch (error) {
-      console.error(`🚨 Database operation ${operation} failed, falling back to memory:`, error);
-      if (operation === 'createAnalysisResult') {
-        console.error('🔍 Analysis result creation failed - detailed error:', {
-          error: error instanceof Error ? error.message : error,
-          stack: error instanceof Error ? error.stack : 'No stack'
-        });
-      }
+      const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : String(error);
       
-      // Update health tracking
+      console.warn(`Database operation ${operation} failed, falling back to memory storage`, {
+        error: errorMessage,
+        duration,
+        consecutiveFailures: dbHealth.failedOperations + 1,
+        totalFailures: dbHealth.totalFailures + 1,
+      });
+      
+      // Enhanced error analysis
+      const isTimeoutError = errorMessage.includes('timeout');
+      const isConnectionError = errorMessage.includes('connection') || errorMessage.includes('pool');
+      const isCritical = this.isCriticalError(error);
+      
+      // Update health tracking with error categorization
       dbHealth.failedOperations++;
-      if (dbHealth.failedOperations >= 3) {
+      dbHealth.totalFailures++;
+      dbHealth.lastFailureTime = Date.now();
+      dbHealth.consecutiveSuccesses = 0;
+      
+      // Determine if database should be marked unavailable
+      let shouldMarkUnavailable = false;
+      
+      if (isTimeoutError) {
+        // Immediate failover for timeouts
+        shouldMarkUnavailable = true;
+        console.warn(`Database timeout detected, immediate failover for ${operation}`);
+      } else if (isConnectionError && dbHealth.failedOperations >= 2) {
+        // Quick failover for connection issues
+        shouldMarkUnavailable = true;
+        console.warn(`Connection issues detected, failover after ${dbHealth.failedOperations} failures`);
+      } else if (dbHealth.failedOperations >= 5) {
+        // General failover threshold
+        shouldMarkUnavailable = true;
+        console.error(`High failure rate detected, failover after ${dbHealth.failedOperations} failures`);
+      }
+      
+      if (shouldMarkUnavailable && dbHealth.isAvailable) {
         dbHealth.isAvailable = false;
-        // Trigger an immediate health check to verify
-        setTimeout(() => this.checkDatabaseHealth(), 5000);
-      }
-      
-      // Execute the in-memory version
-      const result = await memOperation();
-      
-      // For write operations, queue for eventual replay
-      if (isWrite) {
-        dbHealth.queuedWrites.push(async () => {
-          try {
-            await dbOperation();
-          } catch (error) {
-            console.error(`Failed to replay operation ${operation}:`, error);
-          }
+        dbHealth.recoveryMode = true;
+        dbHealth.recoveryAttempts = 0;
+        
+        console.error(`Database marked as unavailable`, {
+          reason: isTimeoutError ? 'timeout' : isConnectionError ? 'connection_error' : 'consecutive_failures',
+          failedOperations: dbHealth.failedOperations,
+          operation,
         });
+        
+        // Schedule immediate health check with backoff
+        const backoffDelay = Math.min(dbHealth.lastBackoffDelay * dbHealth.backoffMultiplier, 30000);
+        dbHealth.lastBackoffDelay = backoffDelay;
+        
+        setTimeout(() => {
+          this.checkDatabaseHealth().catch(err => {
+            console.warn('Scheduled health check failed:', err);
+          });
+        }, backoffDelay);
       }
       
-      return result;
+      // Execute fallback operation
+      try {
+        const result = await memOperation();
+        
+        // Queue write operations for replay (if not critical error)
+        if (isWrite && !isCritical && dbHealth.queuedWrites.length < 1000) {
+          const queuedOperation = async () => {
+            try {
+              await dbOperation();
+            } catch (replayError) {
+              console.warn(`Queued operation ${operation} failed on replay:`, {
+                error: replayError instanceof Error ? replayError.message : String(replayError),
+                originalError: errorMessage,
+              });
+              throw replayError;
+            }
+          };
+          
+          dbHealth.queuedWrites.push(queuedOperation);
+        }
+        
+        return result;
+      } catch (memoryError) {
+        console.error(`Both database and memory operations failed for ${operation}:`, {
+          databaseError: errorMessage,
+          memoryError: memoryError instanceof Error ? memoryError.message : String(memoryError),
+        });
+        
+        // Re-throw the original database error as it's more relevant
+        throw error;
+      }
     }
   }
   
@@ -463,14 +720,117 @@ export class HybridStorage implements IStorage {
   }
   
   /**
-   * Get current database health status
+   * Get comprehensive database health status for monitoring
    */
   getDbHealthStatus() {
+    const now = Date.now();
+    const uptime = dbHealth.lastAvailableTime ? now - dbHealth.lastAvailableTime : 0;
+    const downtime = dbHealth.lastFailureTime && !dbHealth.isAvailable ? 
+      now - dbHealth.lastFailureTime : 0;
+    
+    // Calculate health metrics
+    const totalOperations = dbHealth.totalSuccesses + dbHealth.totalFailures;
+    const successRate = totalOperations > 0 ? 
+      (dbHealth.totalSuccesses / totalOperations) * 100 : 100;
+    
+    // Determine overall health status
+    let healthStatus: 'healthy' | 'degraded' | 'unhealthy' | 'recovering';
+    
+    if (!dbHealth.isAvailable) {
+      healthStatus = dbHealth.recoveryMode ? 'recovering' : 'unhealthy';
+    } else if (dbHealth.failedOperations > 0 || successRate < 95) {
+      healthStatus = 'degraded';
+    } else {
+      healthStatus = 'healthy';
+    }
+    
     return {
-      ...dbHealth,
-      connectionStats: getConnectionStats(),
+      // Current status
+      status: healthStatus,
+      isAvailable: dbHealth.isAvailable,
+      recoveryMode: dbHealth.recoveryMode,
+      
+      // Timing information
+      lastAvailableTime: dbHealth.lastAvailableTime,
+      lastFailureTime: dbHealth.lastFailureTime,
+      uptime: Math.round(uptime / 1000), // seconds
+      downtime: Math.round(downtime / 1000), // seconds
+      
+      // Operation counters
+      successfulOperations: dbHealth.successfulOperations,
+      failedOperations: dbHealth.failedOperations,
+      totalSuccesses: dbHealth.totalSuccesses,
+      totalFailures: dbHealth.totalFailures,
+      consecutiveSuccesses: dbHealth.consecutiveSuccesses,
+      
+      // Health metrics
+      successRate: Math.round(successRate * 100) / 100,
+      failureRate: Math.round((100 - successRate) * 100) / 100,
+      
+      // Recovery information
+      recoveryAttempts: dbHealth.recoveryAttempts,
+      maxRecoveryAttempts: dbHealth.maxRecoveryAttempts,
+      requiredSuccessesForRecovery: dbHealth.requiredSuccessesForRecovery,
+      lastBackoffDelay: dbHealth.lastBackoffDelay,
+      
+      // Write queue
       queuedWritesCount: dbHealth.queuedWrites.length,
+      queueStatus: dbHealth.queuedWrites.length === 0 ? 'empty' :
+                   dbHealth.queuedWrites.length < 100 ? 'normal' :
+                   dbHealth.queuedWrites.length < 500 ? 'high' : 'critical',
+      
+      // Connection statistics (if available)
+      connectionStats: (() => {
+        try {
+          return getConnectionStats();
+        } catch (error) {
+          return null;
+        }
+      })(),
+      
+      // Recommendations
+      recommendations: this.getHealthRecommendations(healthStatus, successRate),
     };
+  }
+  
+  /**
+   * Get health-based recommendations for monitoring
+   */
+  private getHealthRecommendations(
+    healthStatus: string, 
+    successRate: number
+  ): string[] {
+    const recommendations = [];
+    
+    if (healthStatus === 'unhealthy') {
+      recommendations.push('Database is unavailable - investigate connection issues immediately');
+      recommendations.push('Check database server status and network connectivity');
+      if (dbHealth.queuedWrites.length > 0) {
+        recommendations.push(`${dbHealth.queuedWrites.length} operations are queued for replay`);
+      }
+    } else if (healthStatus === 'recovering') {
+      recommendations.push('Database is in recovery mode - monitor closely');
+      recommendations.push(`Need ${dbHealth.requiredSuccessesForRecovery - dbHealth.consecutiveSuccesses} more successes for full recovery`);
+    } else if (healthStatus === 'degraded') {
+      if (successRate < 90) {
+        recommendations.push('Low success rate - investigate query performance and connection stability');
+      }
+      if (dbHealth.failedOperations > 0) {
+        recommendations.push(`${dbHealth.failedOperations} recent failures detected - monitor for patterns`);
+      }
+    }
+    
+    if (dbHealth.queuedWrites.length > 100) {
+      recommendations.push('High number of queued writes - may indicate persistent database issues');
+    } else if (dbHealth.queuedWrites.length > 500) {
+      recommendations.push('Critical queue size - immediate attention required to prevent data loss');
+    }
+    
+    if (dbHealth.recoveryAttempts > 3) {
+      recommendations.push('Multiple recovery attempts - consider manual intervention');
+    }
+    
+    return recommendations;
   }
   
   // Missing embedding methods required by IStorage interface

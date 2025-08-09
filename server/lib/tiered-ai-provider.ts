@@ -36,9 +36,56 @@ interface CircuitBreakerState {
   state: 'closed' | 'open' | 'half-open';
 }
 
+// PERFORMANCE FIX: Memory-safe circuit breaker with automatic cleanup
 const circuitBreakers = new Map<string, CircuitBreakerState>();
 const CIRCUIT_BREAKER_THRESHOLD = 5; // failures before opening
 const CIRCUIT_BREAKER_TIMEOUT = 60000; // 1 minute before retry
+const CIRCUIT_BREAKER_MAX_ENTRIES = 1000; // Prevent memory leaks
+const CIRCUIT_BREAKER_CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+// Cleanup stale circuit breaker entries to prevent memory leaks
+setInterval(() => {
+  const now = Date.now();
+  const staleEntries: string[] = [];
+  
+  for (const [key, breaker] of circuitBreakers.entries()) {
+    // Remove entries older than 1 hour or if we exceed max entries
+    const isStale = breaker.lastFailureTime && (now - breaker.lastFailureTime) > 60 * 60 * 1000;
+    if (isStale || circuitBreakers.size > CIRCUIT_BREAKER_MAX_ENTRIES) {
+      staleEntries.push(key);
+    }
+  }
+  
+  staleEntries.forEach(key => circuitBreakers.delete(key));
+  
+  if (staleEntries.length > 0) {
+    logger.info(`Circuit breaker cleanup: removed ${staleEntries.length} stale entries`, {
+      totalEntries: circuitBreakers.size,
+      maxEntries: CIRCUIT_BREAKER_MAX_ENTRIES
+    });
+  }
+}, CIRCUIT_BREAKER_CLEANUP_INTERVAL);
+
+// PERFORMANCE: Implement LRU eviction when approaching memory limits
+function evictOldestCircuitBreaker(): void {
+  if (circuitBreakers.size <= CIRCUIT_BREAKER_MAX_ENTRIES) return;
+  
+  let oldestKey: string | null = null;
+  let oldestTime = Date.now();
+  
+  for (const [key, breaker] of circuitBreakers.entries()) {
+    const lastTime = breaker.lastFailureTime || 0;
+    if (lastTime < oldestTime) {
+      oldestTime = lastTime;
+      oldestKey = key;
+    }
+  }
+  
+  if (oldestKey) {
+    circuitBreakers.delete(oldestKey);
+    logger.debug(`Circuit breaker: evicted oldest entry ${oldestKey}`);
+  }
+}
 
 function getCircuitBreakerKey(provider: string, userTier: string): string {
   return `${provider}:${userTier}`;
@@ -77,6 +124,8 @@ function recordProviderFailure(provider: string, userTier: string): void {
     });
   }
   
+  // PERFORMANCE FIX: Prevent memory leaks by evicting old entries
+  evictOldestCircuitBreaker();
   circuitBreakers.set(key, breaker);
 }
 

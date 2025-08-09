@@ -33,8 +33,21 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "build/public"),
     emptyOutDir: true,
+    // PERFORMANCE: Optimize build settings
+    cssCodeSplit: true,
+    sourcemap: process.env.NODE_ENV === 'development',
+    minify: process.env.NODE_ENV === 'production' ? 'esbuild' : false,
     rollupOptions: {
+      // PERFORMANCE: External dependencies to reduce bundle size
+      external: process.env.NODE_ENV === 'production' ? [] : [
+        // Keep all deps internal for production, external for dev
+      ],
       output: {
+        // PERFORMANCE: Better compression and caching
+        format: 'es',
+        entryFileNames: '[name]-[hash].js',
+        chunkFileNames: '[name]-[hash].js',
+        assetFileNames: '[name]-[hash].[ext]',
         manualChunks(id) {
           // Core vendor dependencies
           if (id.includes('node_modules')) {
@@ -76,30 +89,61 @@ export default defineConfig({
             // Other large libraries get their own chunks
             if (id.includes('wouter')) return 'vendor-router';
             
+            // PERFORMANCE: Heavy libraries get separate chunks
+            if (id.includes('tesseract.js') || id.includes('pdf')) {
+              return 'vendor-pdf';
+            }
+            
+            if (id.includes('framer-motion')) {
+              return 'vendor-animation';
+            }
+            
             // Everything else goes to common vendor chunk
             return 'vendor-common';
           }
           
-          // Application code chunking
+          // PERFORMANCE: Smart application code chunking
           if (id.includes('src/pages/')) {
             const pageName = id.match(/src\/pages\/([^/]+)\./)?.[1];
             if (pageName) {
+              // Group related pages together
+              if (['upload', 'analysis'].includes(pageName)) {
+                return 'page-core';
+              }
               return `page-${pageName}`;
             }
           }
           
           if (id.includes('src/components/')) {
-            // Group related components
-            if (id.includes('ui/')) return 'components-ui';
+            // PERFORMANCE: More granular component chunking
+            if (id.includes('ui/')) {
+              // Split large UI components
+              if (id.includes('sidebar') || id.includes('dialog') || id.includes('sheet')) {
+                return 'components-ui-heavy';
+              }
+              return 'components-ui';
+            }
             if (id.includes('layout/')) return 'components-layout';
+            if (id.includes('onboarding/')) return 'components-onboarding';
             return 'components-common';
           }
           
           if (id.includes('src/hooks/')) {
+            // Split heavy hooks
+            if (id.includes('useBatchManager') || id.includes('use-analysis')) {
+              return 'hooks-heavy';
+            }
             return 'hooks';
           }
           
           if (id.includes('src/lib/')) {
+            // PERFORMANCE: Split heavy libraries
+            if (id.includes('storage-manager') || id.includes('batch')) {
+              return 'lib-storage';
+            }
+            if (id.includes('error') || id.includes('global-error-handler')) {
+              return 'lib-errors';
+            }
             return 'lib';
           }
           
@@ -108,9 +152,41 @@ export default defineConfig({
           }
         }
       },
+      }
     },
-    chunkSizeWarningLimit: 1000,
+    // PERFORMANCE: Optimized build settings
+    chunkSizeWarningLimit: 500, // Stricter chunk size limit
     target: 'esnext',
-    minify: 'esbuild'
+    reportCompressedSize: false, // Speed up build
+    // Tree shaking optimization
+    terserOptions: process.env.NODE_ENV === 'production' ? {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    } : undefined,
+  },
+  
+  // PERFORMANCE: Optimize dev server
+  server: {
+    hmr: {
+      overlay: false, // Reduce dev overhead
+    },
+  },
+  
+  // PERFORMANCE: Optimize dependencies
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      '@tanstack/react-query',
+      'wouter',
+      'lucide-react',
+    ],
+    exclude: [
+      // Exclude heavy dev-only dependencies
+      '@replit/vite-plugin-runtime-error-modal',
+      '@replit/vite-plugin-cartographer',
+    ],
   },
 });

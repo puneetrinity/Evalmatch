@@ -24,7 +24,7 @@ const __dirname = path.dirname(__filename);
 let pool: Pool | null = null;
 let db: ReturnType<typeof drizzle> | null = null;
 
-// Connection statistics
+// Connection statistics with leak detection
 interface ConnectionStats {
   totalConnections: number;
   activeConnections: number;
@@ -41,6 +41,13 @@ interface ConnectionStats {
   averageQueryTime: number;
   maxQueryTime: number;
   healthCheckFailures: number;
+  // Leak detection metrics
+  potentialLeaks: number;
+  leaksDetected: number;
+  leaksResolved: number;
+  longestConnectionAge: number;
+  staleConnections: number;
+  forcedConnectionCleanups: number;
 }
 
 const stats: ConnectionStats = {
@@ -59,11 +66,211 @@ const stats: ConnectionStats = {
   averageQueryTime: 0,
   maxQueryTime: 0,
   healthCheckFailures: 0,
+  // Leak detection metrics
+  potentialLeaks: 0,
+  leaksDetected: 0,
+  leaksResolved: 0,
+  longestConnectionAge: 0,
+  staleConnections: 0,
+  forcedConnectionCleanups: 0,
 };
 
 // Query timing tracking
 const queryTimes: number[] = [];
 const MAX_QUERY_TIME_SAMPLES = 100;
+
+// Connection leak detection and tracking
+interface TrackedConnection {
+  id: string;
+  acquiredAt: number;
+  lastUsedAt: number;
+  stackTrace: string;
+  queryCount: number;
+  isHealthCheck: boolean;
+  warningIssued: boolean;
+}
+
+const trackedConnections = new Map<string, TrackedConnection>();
+const CONNECTION_LEAK_THRESHOLD = 60000; // 60 seconds
+const CONNECTION_STALE_THRESHOLD = 300000; // 5 minutes
+const CONNECTION_CLEANUP_INTERVAL = 30000; // 30 seconds
+
+let connectionCleanupTimer: NodeJS.Timeout | null = null;
+let connectionIdCounter = 0;
+
+/**
+ * Generate unique connection ID for tracking
+ */
+function generateConnectionId(): string {
+  return `conn_${Date.now()}_${++connectionIdCounter}`;
+}
+
+/**
+ * Track a connection acquisition for leak detection
+ */
+function trackConnectionAcquisition(connectionId: string, isHealthCheck = false): void {
+  const stackTrace = new Error().stack || 'No stack trace available';
+  
+  trackedConnections.set(connectionId, {
+    id: connectionId,
+    acquiredAt: Date.now(),
+    lastUsedAt: Date.now(),
+    stackTrace,
+    queryCount: 0,
+    isHealthCheck,
+    warningIssued: false,
+  });
+  
+  logger.debug(`Connection acquired and tracked: ${connectionId}`, {
+    totalTracked: trackedConnections.size,
+    isHealthCheck,
+  });
+}
+
+/**
+ * Track connection usage (queries)
+ */
+function trackConnectionUsage(connectionId: string): void {
+  const tracked = trackedConnections.get(connectionId);
+  if (tracked) {
+    tracked.lastUsedAt = Date.now();
+    tracked.queryCount++;
+  }
+}
+
+/**
+ * Track connection release and remove from tracking
+ */
+function trackConnectionRelease(connectionId: string): void {
+  const tracked = trackedConnections.get(connectionId);
+  if (tracked) {
+    const lifespan = Date.now() - tracked.acquiredAt;
+    logger.debug(`Connection released: ${connectionId}`, {
+      lifespan,
+      queryCount: tracked.queryCount,
+      isHealthCheck: tracked.isHealthCheck,
+    });
+    
+    trackedConnections.delete(connectionId);
+    
+    // Update statistics if connection was held too long
+    if (lifespan > CONNECTION_LEAK_THRESHOLD && !tracked.isHealthCheck) {
+      stats.potentialLeaks++;
+      if (lifespan > CONNECTION_STALE_THRESHOLD) {
+        stats.staleConnections++;
+      }
+    }
+  }
+}
+
+/**
+ * Detect and handle connection leaks
+ */
+async function detectAndHandleConnectionLeaks(): Promise<void> {
+  if (!pool) return;
+  
+  const now = Date.now();
+  const leakedConnections: TrackedConnection[] = [];
+  const staleConnections: TrackedConnection[] = [];
+  
+  for (const [id, tracked] of trackedConnections) {
+    const age = now - tracked.acquiredAt;
+    const timeSinceLastUse = now - tracked.lastUsedAt;
+    
+    // Skip health check connections (they're expected to be short-lived)
+    if (tracked.isHealthCheck) continue;
+    
+    // Detect potential leaks
+    if (age > CONNECTION_LEAK_THRESHOLD) {
+      if (!tracked.warningIssued) {
+        logger.warn(`Potential connection leak detected`, {
+          connectionId: id,
+          age,
+          timeSinceLastUse,
+          queryCount: tracked.queryCount,
+          stackTrace: tracked.stackTrace.split('\n').slice(0, 5).join('\n'), // First 5 lines only
+        });
+        tracked.warningIssued = true;
+      }
+      
+      leakedConnections.push(tracked);
+      stats.leaksDetected++;
+      
+      // Mark as stale if it's been inactive for too long
+      if (timeSinceLastUse > CONNECTION_STALE_THRESHOLD) {
+        staleConnections.push(tracked);
+      }
+    }
+    
+    // Update longest connection age metric
+    if (age > stats.longestConnectionAge) {
+      stats.longestConnectionAge = age;
+    }
+  }
+  
+  // Handle stale connections
+  if (staleConnections.length > 0) {
+    logger.error(`Detected ${staleConnections.length} stale connections that need cleanup`, {
+      staleConnectionIds: staleConnections.map(c => c.id),
+      ages: staleConnections.map(c => now - c.acquiredAt),
+    });
+    
+    // In a real PostgreSQL environment, we might need to kill these connections
+    // For now, we'll remove them from tracking as they're likely already dead
+    for (const staleConn of staleConnections) {
+      trackedConnections.delete(staleConn.id);
+      stats.leaksResolved++;
+      stats.forcedConnectionCleanups++;
+    }
+  }
+  
+  // Log summary if there are any leaks
+  if (leakedConnections.length > 0) {
+    logger.warn(`Connection leak detection summary`, {
+      totalLeaks: leakedConnections.length,
+      staleConnections: staleConnections.length,
+      poolStats: {
+        totalCount: pool.totalCount,
+        idleCount: pool.idleCount,
+        waitingCount: pool.waitingCount,
+      },
+    });
+  }
+}
+
+/**
+ * Start connection leak detection monitoring
+ */
+function startConnectionLeakDetection(): void {
+  if (connectionCleanupTimer) {
+    clearInterval(connectionCleanupTimer);
+  }
+  
+  connectionCleanupTimer = setInterval(async () => {
+    try {
+      await detectAndHandleConnectionLeaks();
+    } catch (error) {
+      logger.error('Connection leak detection failed:', error);
+    }
+  }, CONNECTION_CLEANUP_INTERVAL);
+  
+  logger.info('Connection leak detection started', {
+    cleanupInterval: CONNECTION_CLEANUP_INTERVAL,
+    leakThreshold: CONNECTION_LEAK_THRESHOLD,
+    staleThreshold: CONNECTION_STALE_THRESHOLD,
+  });
+}
+
+/**
+ * Stop connection leak detection monitoring
+ */
+function stopConnectionLeakDetection(): void {
+  if (connectionCleanupTimer) {
+    clearInterval(connectionCleanupTimer);
+    connectionCleanupTimer = null;
+    logger.info('Connection leak detection stopped');
+  }
+}
 
 // Circuit breaker state
 interface CircuitBreakerState {
@@ -87,8 +294,137 @@ const CIRCUIT_BREAKER = {
   RETRY_INTERVAL_MS: 60000, // 1 minute
 };
 
+// Enhanced timeout configuration
+const TIMEOUT_CONFIG = {
+  CONNECTION_ACQUISITION: {
+    PRODUCTION: 8000,   // 8 seconds in production
+    DEVELOPMENT: 15000, // 15 seconds in development
+    TEST: 5000,         // 5 seconds in test
+  },
+  QUERY_EXECUTION: {
+    PRODUCTION: 30000,  // 30 seconds in production
+    DEVELOPMENT: 60000, // 60 seconds in development
+    TEST: 10000,        // 10 seconds in test
+  },
+  HEALTH_CHECK: {
+    PRODUCTION: 5000,   // 5 seconds for health checks
+    DEVELOPMENT: 10000, // 10 seconds in development
+    TEST: 3000,         // 3 seconds in test
+  },
+};
+
 const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
 let healthCheckTimer: NodeJS.Timeout | null = null;
+
+// Timeout utilities and enhanced error handling
+interface TimeoutError extends Error {
+  isTimeout: true;
+  timeoutType: 'connection' | 'query' | 'health_check';
+  duration: number;
+  context?: string;
+}
+
+/**
+ * Create a timeout error with enhanced information
+ */
+function createTimeoutError(
+  type: 'connection' | 'query' | 'health_check',
+  duration: number,
+  context?: string,
+): TimeoutError {
+  const error = new Error(
+    `${type.charAt(0).toUpperCase() + type.slice(1)} timeout after ${duration}ms${context ? ` (${context})` : ''}`
+  ) as TimeoutError;
+  
+  error.isTimeout = true;
+  error.timeoutType = type;
+  error.duration = duration;
+  error.context = context;
+  error.name = 'TimeoutError';
+  
+  return error;
+}
+
+/**
+ * Get environment-specific timeout value
+ */
+function getTimeout(
+  category: keyof typeof TIMEOUT_CONFIG,
+  environment: string = config.env
+): number {
+  const timeoutConfig = TIMEOUT_CONFIG[category];
+  
+  switch (environment) {
+    case 'production':
+      return timeoutConfig.PRODUCTION;
+    case 'test':
+      return timeoutConfig.TEST;
+    case 'development':
+    default:
+      return timeoutConfig.DEVELOPMENT;
+  }
+}
+
+/**
+ * Create a timeout promise with enhanced error information
+ */
+function createTimeoutPromise<T = never>(
+  timeoutMs: number,
+  type: 'connection' | 'query' | 'health_check',
+  context?: string,
+): Promise<T> {
+  return new Promise<T>((_, reject) => {
+    setTimeout(() => {
+      reject(createTimeoutError(type, timeoutMs, context));
+    }, timeoutMs);
+  });
+}
+
+/**
+ * Execute an operation with environment-specific timeout and enhanced error handling
+ */
+async function withTimeout<T>(
+  operation: () => Promise<T>,
+  category: keyof typeof TIMEOUT_CONFIG,
+  context?: string,
+  customTimeoutMs?: number,
+): Promise<T> {
+  const timeoutMs = customTimeoutMs || getTimeout(category);
+  const type = category === 'CONNECTION_ACQUISITION' ? 'connection' :
+               category === 'HEALTH_CHECK' ? 'health_check' : 'query';
+  
+  const timeoutPromise = createTimeoutPromise<T>(timeoutMs, type, context);
+  
+  try {
+    const result = await Promise.race([
+      operation(),
+      timeoutPromise,
+    ]);
+    return result;
+  } catch (error) {
+    // Enhanced timeout error logging
+    if (error && typeof error === 'object' && 'isTimeout' in error && error.isTimeout) {
+      const timeoutError = error as TimeoutError;
+      
+      // Update timeout statistics
+      if (timeoutError.timeoutType === 'connection') {
+        stats.connectionTimeouts++;
+      } else if (timeoutError.timeoutType === 'query') {
+        stats.queryTimeouts++;
+      }
+      
+      logger.warn(`${timeoutError.timeoutType} timeout detected`, {
+        type: timeoutError.timeoutType,
+        duration: timeoutError.duration,
+        context: timeoutError.context,
+        environment: config.env,
+        timeoutConfig: TIMEOUT_CONFIG[category],
+      });
+    }
+    
+    throw error;
+  }
+}
 
 // Query caching with generic types
 interface CachedQuery<T = unknown> {
@@ -195,6 +531,9 @@ export async function initializeDatabase(): Promise<void> {
 
     // Start cache cleanup
     startCacheCleanup();
+
+    // Start connection leak detection
+    startConnectionLeakDetection();
   } catch (error) {
     logger.error("❌ Failed to initialize database:", error);
 
@@ -458,11 +797,12 @@ function checkCircuitBreaker(): void {
 }
 
 /**
- * Execute a raw SQL query with enhanced error handling, timeouts, and monitoring
+ * Execute a raw SQL query with enhanced error handling, timeouts, and leak detection
  */
 export async function executeQuery<T = unknown>(
   query: string,
   params?: unknown[],
+  isHealthCheck = false,
 ): Promise<T[]> {
   if (!pool) {
     if (!config.database.enabled) {
@@ -479,32 +819,31 @@ export async function executeQuery<T = unknown>(
   checkCircuitBreaker();
 
   const startTime = Date.now();
+  const connectionId = generateConnectionId();
   let client: PoolClient | null = null;
 
   try {
     stats.totalQueries++;
 
-    // Get connection with timeout
-    const connectionPromise = pool.connect();
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(
-        () => reject(new Error("Connection acquisition timeout")),
-        config.database.connectionTimeout,
-      );
-    });
+    // Get connection with enhanced timeout handling
+    client = await withTimeout(
+      () => pool.connect(),
+      'CONNECTION_ACQUISITION',
+      `query: ${query.substring(0, 50)}...`,
+    );
+    
+    // Track connection acquisition for leak detection
+    trackConnectionAcquisition(connectionId, isHealthCheck);
 
-    client = await Promise.race([connectionPromise, timeoutPromise]);
+    // Execute query with enhanced timeout and usage tracking
+    trackConnectionUsage(connectionId);
 
-    // Execute query with timeout
-    const queryPromise = client.query(query, params);
-    const queryTimeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(
-        () => reject(new Error("Query execution timeout")),
-        config.env === "production" ? 30000 : 60000,
-      );
-    });
-
-    const result = await Promise.race([queryPromise, queryTimeoutPromise]);
+    const timeoutCategory = isHealthCheck ? 'HEALTH_CHECK' : 'QUERY_EXECUTION';
+    const result = await withTimeout(
+      () => client!.query(query, params),
+      timeoutCategory,
+      `${isHealthCheck ? 'health_check' : 'query'}: ${query.substring(0, 50)}...`,
+    );
 
     // Track query performance
     const queryTime = Date.now() - startTime;
@@ -520,33 +859,62 @@ export async function executeQuery<T = unknown>(
 
     stats.failedQueries++;
 
-    // Track timeout errors
-    if ((error as Error).message.includes("timeout")) {
-      stats.queryTimeouts++;
-      logger.warn(`Query timeout after ${queryTime}ms:`, {
+    // Enhanced timeout error handling
+    if (error && typeof error === 'object' && 'isTimeout' in error && error.isTimeout) {
+      const timeoutError = error as TimeoutError;
+      
+      logger.error(`Database operation timeout`, {
+        timeoutType: timeoutError.timeoutType,
+        duration: timeoutError.duration,
+        context: timeoutError.context,
         query: query.substring(0, 100),
+        connectionId,
+        environment: config.env,
       });
+      
+      // Don't trigger circuit breaker for timeouts in development (might be debugging)
+      if (config.env !== 'development') {
+        handleConnectionError(timeoutError);
+      }
+    } else {
+      // Handle other error types
+      const errorMessage = (error as Error).message;
+      
+      if (errorMessage.includes("timeout")) {
+        // Legacy timeout handling for non-enhanced timeouts
+        stats.queryTimeouts++;
+        logger.warn(`Legacy timeout detected after ${queryTime}ms:`, {
+          query: query.substring(0, 100),
+          connectionId,
+        });
+      }
+      
+      // Handle pool exhaustion
+      if (errorMessage.includes("pool") && errorMessage.includes("exhausted")) {
+        stats.poolExhausted++;
+        logger.error("Connection pool exhausted", { connectionId });
+      }
+      
+      handleConnectionError(error as Error);
     }
 
-    // Handle pool exhaustion
-    if (
-      (error as Error).message.includes("pool") &&
-      (error as Error).message.includes("exhausted")
-    ) {
-      stats.poolExhausted++;
-      logger.error("Connection pool exhausted");
-    }
-
-    handleConnectionError(error as Error);
+    // Comprehensive error logging
     logger.error("Query execution failed:", {
       query: query.substring(0, 200),
       error: (error as Error).message,
+      errorType: (error as Error).name,
+      isTimeout: error && typeof error === 'object' && 'isTimeout' in error,
       queryTime,
+      connectionId,
+      isHealthCheck,
     });
+    
     throw error;
   } finally {
     if (client) {
       client.release();
+      // Track connection release for leak detection
+      trackConnectionRelease(connectionId);
     }
   }
 }
@@ -663,12 +1031,15 @@ async function performHealthCheck(): Promise<void> {
 
   try {
     const startTime = Date.now();
-    const result = await pool.query(
+    // Use executeQuery with health check flag for proper tracking
+    const result = await executeQuery(
       "SELECT 1 as health_check, NOW() as server_time",
+      [],
+      true // Mark as health check
     );
     const responseTime = Date.now() - startTime;
 
-    if (result.rows[0]?.health_check === 1) {
+    if (result[0]?.health_check === 1) {
       logger.debug(`Health check passed in ${responseTime}ms`);
     } else {
       throw new Error("Health check returned unexpected result");
@@ -734,6 +1105,26 @@ export function getConnectionStats(): ConnectionStats & {
       averageTime: Math.round(stats.averageQueryTime),
       maxTime: stats.maxQueryTime,
       slowQueries: queryTimes.filter((time) => time > 1000).length, // Queries over 1s
+    },
+    timeoutConfiguration: {
+      environment: config.env,
+      connectionAcquisition: getTimeout('CONNECTION_ACQUISITION'),
+      queryExecution: getTimeout('QUERY_EXECUTION'),
+      healthCheck: getTimeout('HEALTH_CHECK'),
+    },
+    timeoutStatistics: {
+      connectionTimeouts: stats.connectionTimeouts,
+      queryTimeouts: stats.queryTimeouts,
+      totalTimeouts: stats.connectionTimeouts + stats.queryTimeouts,
+    },
+    connectionLeaks: {
+      potentialLeaks: stats.potentialLeaks,
+      leaksDetected: stats.leaksDetected,
+      leaksResolved: stats.leaksResolved,
+      longestConnectionAge: stats.longestConnectionAge,
+      staleConnections: stats.staleConnections,
+      forcedCleanups: stats.forcedConnectionCleanups,
+      currentlyTracked: trackedConnections.size,
     },
   };
 }
@@ -818,6 +1209,9 @@ export async function closeDatabase(): Promise<void> {
     clearInterval(cacheCleanupTimer);
     cacheCleanupTimer = null;
   }
+
+  // Stop connection leak detection
+  stopConnectionLeakDetection();
 
   // Clear caches
   queryCache.clear();
@@ -1131,6 +1525,125 @@ export function clearQueryCache(): void {
   const size = queryCache.size;
   queryCache.clear();
   logger.info(`Cleared query cache (${size} entries)`);
+}
+
+/**
+ * Get detailed connection leak information for monitoring
+ */
+export function getConnectionLeakDetails(): {
+  activeConnections: Array<{
+    id: string;
+    age: number;
+    timeSinceLastUse: number;
+    queryCount: number;
+    isHealthCheck: boolean;
+    warningIssued: boolean;
+    isPotentialLeak: boolean;
+    isStale: boolean;
+  }>;
+  summary: {
+    total: number;
+    potentialLeaks: number;
+    staleConnections: number;
+    healthCheckConnections: number;
+    oldestConnectionAge: number;
+  };
+  thresholds: {
+    leakThreshold: number;
+    staleThreshold: number;
+  };
+} {
+  const now = Date.now();
+  const connections = [];
+  let potentialLeaks = 0;
+  let staleConnections = 0;
+  let healthCheckConnections = 0;
+  let oldestAge = 0;
+
+  for (const [id, tracked] of trackedConnections) {
+    const age = now - tracked.acquiredAt;
+    const timeSinceLastUse = now - tracked.lastUsedAt;
+    const isPotentialLeak = age > CONNECTION_LEAK_THRESHOLD;
+    const isStale = timeSinceLastUse > CONNECTION_STALE_THRESHOLD;
+
+    if (isPotentialLeak) potentialLeaks++;
+    if (isStale) staleConnections++;
+    if (tracked.isHealthCheck) healthCheckConnections++;
+    if (age > oldestAge) oldestAge = age;
+
+    connections.push({
+      id,
+      age,
+      timeSinceLastUse,
+      queryCount: tracked.queryCount,
+      isHealthCheck: tracked.isHealthCheck,
+      warningIssued: tracked.warningIssued,
+      isPotentialLeak,
+      isStale,
+    });
+  }
+
+  return {
+    activeConnections: connections.sort((a, b) => b.age - a.age), // Sort by age descending
+    summary: {
+      total: connections.length,
+      potentialLeaks,
+      staleConnections,
+      healthCheckConnections,
+      oldestConnectionAge: oldestAge,
+    },
+    thresholds: {
+      leakThreshold: CONNECTION_LEAK_THRESHOLD,
+      staleThreshold: CONNECTION_STALE_THRESHOLD,
+    },
+  };
+}
+
+/**
+ * Get timeout configuration and statistics for monitoring
+ */
+export function getTimeoutConfiguration(): {
+  configuration: {
+    environment: string;
+    connectionAcquisition: number;
+    queryExecution: number;
+    healthCheck: number;
+  };
+  statistics: {
+    connectionTimeouts: number;
+    queryTimeouts: number;
+    totalTimeouts: number;
+    timeoutRate: number;
+  };
+  thresholds: {
+    connectionAcquisitionWarning: number;
+    queryExecutionWarning: number;
+    healthCheckWarning: number;
+  };
+} {
+  const totalOperations = stats.totalQueries + stats.totalConnections;
+  const totalTimeouts = stats.connectionTimeouts + stats.queryTimeouts;
+  const timeoutRate = totalOperations > 0 ? (totalTimeouts / totalOperations) * 100 : 0;
+
+  return {
+    configuration: {
+      environment: config.env,
+      connectionAcquisition: getTimeout('CONNECTION_ACQUISITION'),
+      queryExecution: getTimeout('QUERY_EXECUTION'),
+      healthCheck: getTimeout('HEALTH_CHECK'),
+    },
+    statistics: {
+      connectionTimeouts: stats.connectionTimeouts,
+      queryTimeouts: stats.queryTimeouts,
+      totalTimeouts,
+      timeoutRate: Math.round(timeoutRate * 100) / 100,
+    },
+    thresholds: {
+      connectionAcquisitionWarning: getTimeout('CONNECTION_ACQUISITION') * 0.8,
+      queryExecutionWarning: getTimeout('QUERY_EXECUTION') * 0.8,
+      healthCheckWarning: getTimeout('HEALTH_CHECK') * 0.8,
+    },
+  };
 }
 
 /**
