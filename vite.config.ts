@@ -157,13 +157,6 @@ export default defineConfig({
     chunkSizeWarningLimit: 500, // Stricter chunk size limit
     target: 'esnext',
     reportCompressedSize: false, // Speed up build
-    // Tree shaking optimization
-    terserOptions: process.env.NODE_ENV === 'production' ? {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-      },
-    } : undefined,
   },
   
   // PERFORMANCE: Optimize dev server
