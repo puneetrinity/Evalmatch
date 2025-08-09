@@ -42,13 +42,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// Security middleware with improved CSP
+// Security middleware with improved CSP (nonce-based)
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "https://www.gstatic.com", "https://www.googleapis.com", "'unsafe-inline'"],
+      styleSrc: ["'self'", "https://fonts.googleapis.com", (req, res) => `'nonce-${res.locals.nonce}'`],
+      scriptSrc: ["'self'", "https://www.gstatic.com", "https://www.googleapis.com", (req, res) => `'nonce-${res.locals.nonce}'`],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
       connectSrc: ["'self'", "https:", "wss:", "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],

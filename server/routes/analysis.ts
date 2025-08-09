@@ -9,6 +9,7 @@ import { authenticateUser } from "../middleware/auth";
 import { logger } from "../lib/logger";
 import { getStorage } from "../storage";
 import { createAnalysisService } from "../services/analysis-service";
+import { validators } from "../middleware/input-validation";
 import {
   AnalyzedResumeData,
   AnalyzedJobData,
@@ -35,6 +36,7 @@ const router = Router();
 router.post(
   "/analyze/:jobId",
   authenticateUser,
+  validators.analyzeResume,
   async (req: Request, res: Response) => {
     try {
       const jobId = parseInt(req.params.jobId);
@@ -124,6 +126,7 @@ router.post(
 router.get(
   "/analyze/:jobId",
   authenticateUser,
+  validators.getAnalysis,
   async (req: Request, res: Response) => {
     try {
       const jobId = parseInt(req.params.jobId);
@@ -208,6 +211,7 @@ router.get(
 router.get(
   "/analyze/:jobId/:resumeId",
   authenticateUser,
+  validators.rateLimitModerate,
   async (req: Request, res: Response) => {
     try {
       const jobId = parseInt(req.params.jobId);
@@ -262,6 +266,7 @@ router.get(
 router.post(
   "/interview-questions/:resumeId/:jobId",
   authenticateUser,
+  validators.generateQuestions,
   async (req: Request, res: Response) => {
     try {
       const resumeId = parseInt(req.params.resumeId);
@@ -340,6 +345,7 @@ router.post(
 router.post(
   "/analyze-bias/:jobId",
   authenticateUser,
+  validators.rateLimitModerate,
   async (req: Request, res: Response) => {
     try {
       const jobId = parseInt(req.params.jobId);

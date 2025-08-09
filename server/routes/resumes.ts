@@ -7,6 +7,7 @@ import { Router, Request, Response } from "express";
 import { authenticateUser } from "../middleware/auth";
 import { secureUpload, validateUploadedFile } from "../middleware/upload";
 import { uploadRateLimiter } from "../middleware/rate-limiter";
+import { validators } from "../middleware/input-validation";
 import { logger } from "../lib/logger";
 import { createResumeService } from "../services/resume-service";
 import { getStorage } from "../storage";
@@ -16,7 +17,7 @@ import { getErrorStatusCode, getErrorCode, getErrorMessage, getErrorTimestamp } 
 const router = Router();
 
 // Get all resumes for the authenticated user
-router.get("/", authenticateUser, async (req: Request, res: Response) => {
+router.get("/", authenticateUser, validators.getAnalysis, async (req: Request, res: Response) => {
   try {
     const sessionId = req.query.sessionId as string;
     const batchId = req.query.batchId as string;
@@ -75,7 +76,7 @@ router.get("/", authenticateUser, async (req: Request, res: Response) => {
 });
 
 // Get specific resume by ID
-router.get("/:id", authenticateUser, async (req: Request, res: Response) => {
+router.get("/:id", authenticateUser, validators.getResume, async (req: Request, res: Response) => {
   try {
     const resumeId = parseInt(req.params.id);
     const userId = req.user!.uid;
@@ -129,6 +130,7 @@ router.post(
   uploadRateLimiter,
   secureUpload.single("file"),
   validateUploadedFile,
+  validators.uploadResume,
   async (req: Request, res: Response) => {
     const file = req.file;
     const userId = req.user!.uid;
@@ -214,6 +216,7 @@ router.post(
   authenticateUser,
   uploadRateLimiter,
   secureUpload.array("files", 10), // Max 10 files
+  validators.rateLimitModerate,
   async (req: Request, res: Response) => {
     const files = req.files as Express.Multer.File[];
     const userId = req.user!.uid;

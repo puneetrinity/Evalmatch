@@ -5,6 +5,7 @@
 
 import { Router, Request, Response } from "express";
 import { authenticateUser } from "../middleware/auth";
+import { validators } from "../middleware/input-validation";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -35,7 +36,7 @@ router.get(
 );
 
 // Test authentication endpoint - Debug authentication issues
-router.post("/debug/test-auth", async (req: Request, res: Response) => {
+router.post("/debug/test-auth", validators.rateLimitStrict, async (req: Request, res: Response) => {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader?.startsWith("Bearer ")

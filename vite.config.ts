@@ -35,13 +35,77 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-slot', '@radix-ui/react-toast'],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-firebase': ['firebase/app', 'firebase/auth'],
-          'vendor-ai': ['@anthropic-ai/sdk', 'groq-sdk', 'openai'],
-          'vendor-charts': ['recharts'],
-          'vendor-utils': ['clsx', 'tailwind-merge', 'class-variance-authority']
+        manualChunks(id) {
+          // Core vendor dependencies
+          if (id.includes('node_modules')) {
+            // React ecosystem
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor-react';
+            }
+            
+            // UI components (keep together for better caching)
+            if (id.includes('@radix-ui') || id.includes('lucide-react')) {
+              return 'vendor-ui';
+            }
+            
+            // Data fetching
+            if (id.includes('@tanstack/react-query')) {
+              return 'vendor-query';
+            }
+            
+            // Firebase (heavy - separate chunk)
+            if (id.includes('firebase')) {
+              return 'vendor-firebase';
+            }
+            
+            // AI SDK (heavy - separate chunk)
+            if (id.includes('@anthropic-ai') || id.includes('groq-sdk') || id.includes('openai')) {
+              return 'vendor-ai';
+            }
+            
+            // Charts (heavy - separate chunk)
+            if (id.includes('recharts') || id.includes('d3-')) {
+              return 'vendor-charts';
+            }
+            
+            // Utilities (small - can be combined)
+            if (id.includes('clsx') || id.includes('tailwind-merge') || id.includes('class-variance-authority') || id.includes('date-fns')) {
+              return 'vendor-utils';
+            }
+            
+            // Other large libraries get their own chunks
+            if (id.includes('wouter')) return 'vendor-router';
+            
+            // Everything else goes to common vendor chunk
+            return 'vendor-common';
+          }
+          
+          // Application code chunking
+          if (id.includes('src/pages/')) {
+            const pageName = id.match(/src\/pages\/([^/]+)\./)?.[1];
+            if (pageName) {
+              return `page-${pageName}`;
+            }
+          }
+          
+          if (id.includes('src/components/')) {
+            // Group related components
+            if (id.includes('ui/')) return 'components-ui';
+            if (id.includes('layout/')) return 'components-layout';
+            return 'components-common';
+          }
+          
+          if (id.includes('src/hooks/')) {
+            return 'hooks';
+          }
+          
+          if (id.includes('src/lib/')) {
+            return 'lib';
+          }
+          
+          if (id.includes('shared/')) {
+            return 'shared';
+          }
         }
       },
     },

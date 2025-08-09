@@ -230,7 +230,9 @@ export function useErrorHandler() {
   const [error, setError] = React.useState<Error | null>(null);
   
   const handleError = React.useCallback((error: Error | unknown) => {
-    console.error('Error caught by handler:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error caught by handler:', error);
+    }
     
     if (error instanceof Error) {
       setError(error);
@@ -271,7 +273,9 @@ class ErrorBoundary extends React.Component<
   }
   
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Error boundary caught:', error, errorInfo);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error boundary caught:', error, errorInfo);
+    }
   }
   
   render() {

@@ -7,6 +7,7 @@
 import { Router, Request, Response } from "express";
 import { authenticateUser } from "../middleware/auth";
 import { validateRequest } from "../middleware/validation";
+import { validators } from "../middleware/input-validation";
 import { insertJobDescriptionSchema } from "@shared/schema";
 import { logger } from "../lib/logger";
 import { createJobService } from "../services/job-service";
@@ -17,7 +18,7 @@ import { getErrorStatusCode, getErrorCode, getErrorMessage, getErrorTimestamp } 
 const router = Router();
 
 // Create new job description
-router.post("/", authenticateUser, async (req: Request, res: Response) => {
+router.post("/", authenticateUser, validators.createJob, async (req: Request, res: Response) => {
   try {
     // Validate request body
     const jobDescData = validateRequest(insertJobDescriptionSchema, req.body);
@@ -87,7 +88,7 @@ router.post("/", authenticateUser, async (req: Request, res: Response) => {
 });
 
 // Get all job descriptions for the authenticated user
-router.get("/", authenticateUser, async (req: Request, res: Response) => {
+router.get("/", authenticateUser, validators.getAnalysis, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
     const limit = parseInt(req.query.limit as string) || 20;
@@ -145,7 +146,7 @@ router.get("/", authenticateUser, async (req: Request, res: Response) => {
 });
 
 // Get specific job description by ID
-router.get("/:id", authenticateUser, async (req: Request, res: Response) => {
+router.get("/:id", authenticateUser, validators.getResume, async (req: Request, res: Response) => {
   try {
     const jobId = parseInt(req.params.id);
     const userId = req.user!.uid;
@@ -197,7 +198,7 @@ router.get("/:id", authenticateUser, async (req: Request, res: Response) => {
 });
 
 // Update job description
-router.patch("/:id", authenticateUser, async (req: Request, res: Response) => {
+router.patch("/:id", authenticateUser, validators.updateJob, async (req: Request, res: Response) => {
   try {
     const jobId = parseInt(req.params.id);
     const userId = req.user!.uid;
@@ -256,7 +257,7 @@ router.patch("/:id", authenticateUser, async (req: Request, res: Response) => {
 });
 
 // Delete job description
-router.delete("/:id", authenticateUser, async (req: Request, res: Response) => {
+router.delete("/:id", authenticateUser, validators.getResume, async (req: Request, res: Response) => {
   try {
     const jobId = parseInt(req.params.id);
     const userId = req.user!.uid;

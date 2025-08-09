@@ -30,13 +30,26 @@
   "rules": {
     "no-unused-vars": "off",
     "@typescript-eslint/no-unused-vars": "warn",
-    "no-console": "off",
+    "no-console": "warn",
     "no-undef": "off",
     "no-redeclare": "off",
     "@typescript-eslint/no-redeclare": "warn",
     "no-empty": "warn",
-    "@typescript-eslint/no-explicit-any": "off",
-    "@typescript-eslint/ban-ts-comment": "off"
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/ban-ts-comment": "warn",
+    "@typescript-eslint/explicit-function-return-type": ["warn", {
+      "allowExpressions": true,
+      "allowTypedFunctionExpressions": true,
+      "allowHigherOrderFunctions": true,
+      "allowDirectConstAssertionInArrowFunctions": true
+    }],
+    "@typescript-eslint/strict-boolean-expressions": ["warn", {
+      "allowNullableObject": true,
+      "allowNullableBoolean": true,
+      "allowNullableString": true,
+      "allowNullableNumber": true,
+      "allowAny": false
+    }]
   },
   "overrides": [
     {

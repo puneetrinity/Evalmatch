@@ -12,8 +12,10 @@ export default function SkillRadarChart({ matchedSkills, height = 300 }: SkillRa
   
   // Format data for the radar chart - use top 5 skills
   const chartData = useMemo(() => {
-    // Log to help debug
-    console.log('Skills data received by chart:', matchedSkills);
+    // Log to help debug (development only)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Skills data received by chart:', matchedSkills);
+    }
     
     // Handle null/undefined matchedSkills
     if (!matchedSkills || !Array.isArray(matchedSkills)) {
