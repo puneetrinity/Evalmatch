@@ -8,7 +8,8 @@ import {
   calculateConfidenceLevel,
   validateScoreConsistency,
 } from "./consistent-scoring";
-import { normalizeSkillWithHierarchy } from "./skill-hierarchy";
+// Consolidated skill system import
+import { normalizeSkillWithHierarchy } from "./skill-processor";
 import {
   type AnalyzeResumeResponse,
   type AnalyzeJobDescriptionResponse,
@@ -18,6 +19,9 @@ import {
   type BiasAnalysisResponse,
 } from "@shared/schema";
 import type { ResumeId, JobId } from "@shared/api-contracts";
+import { GroqErrorHandler, logApiServiceStatus } from "./shared/error-handler";
+import { GroqResponseParser } from "./shared/response-parser";
+import { PromptTemplateEngine, type ResumeAnalysisContext, type JobAnalysisContext, type MatchAnalysisContext } from "./shared/prompt-templates";
 
 // Initialize Groq client only if API key is available
 const groq = process.env.GROQ_API_KEY
@@ -313,6 +317,83 @@ async function callGroqAPI(
   }
 }
 
+// Result-based version of Groq API call
+import { Result, success, failure, fromPromise, isFailure, type ExternalServiceError, type AppError } from '../../shared/result-types';
+import { AppExternalServiceError } from '../../shared/errors';
+
+async function callGroqAPIWithResult(
+  prompt: string,
+  model: string = MODELS.DEFAULT,
+  temperature: number = 0.0,
+  seed?: number,
+): Promise<Result<string, ExternalServiceError>> {
+  if (!groq) {
+    return failure({
+      code: 'EXTERNAL_SERVICE_ERROR' as const,
+      service: 'groq',
+      message: 'Groq API key is not configured',
+      statusCode: 503,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  const result = await fromPromise(
+    (async () => {
+      const requestParams = {
+        messages: [
+          {
+            role: "user" as const,
+            content: prompt,
+          },
+        ],
+        model,
+        temperature,
+        max_tokens: 4000,
+        stream: false,
+        top_p: 1.0,
+        ...(seed !== undefined ? { seed } : {}),
+      };
+
+      const response = await groq.chat.completions.create(requestParams);
+      const content =
+        "choices" in response ? response.choices[0]?.message?.content : null;
+      
+      if (!content) {
+        throw new Error("No response content from Groq API");
+      }
+
+      // Update usage statistics
+      if ("usage" in response && response.usage) {
+        updateUsage(
+          model,
+          response.usage.prompt_tokens || 0,
+          response.usage.completion_tokens || 0,
+        );
+      }
+
+      return content;
+    })(),
+    (error) => AppExternalServiceError.aiProviderFailure('Groq', 'api-call', error instanceof Error ? error.message : String(error))
+  );
+
+  if (result.success) {
+    logger.debug("Groq API call succeeded", { model, prompt: prompt.substring(0, 100) });
+    return result;
+  } else {
+    logger.error("Groq API call failed", result.error);
+    // Convert AppError to ExternalServiceError to match return type
+    const externalServiceError: ExternalServiceError = {
+      code: 'AI_PROVIDER_ERROR' as const,
+      service: 'groq',
+      message: result.error.message,
+      statusCode: result.error.statusCode,
+      timestamp: result.error.timestamp,
+      originalError: result.error instanceof Error ? result.error.message : undefined
+    };
+    return failure(externalServiceError);
+  }
+}
+
 // Get service status
 export function getGroqServiceStatus() {
   return {
@@ -329,87 +410,140 @@ export function getGroqServiceStatus() {
 // Parallel extraction functions for optimized token usage
 
 // Analyze resume using parallel extraction (optimized token usage)
+// Uses Wrapper Pattern: maintains existing API while using Result pattern internally
 export async function analyzeResumeParallel(
   resumeText: string,
 ): Promise<AnalyzeResumeResponse> {
+  const result = await analyzeResumeParallelInternal(resumeText);
+  
+  if (result.success) {
+    return result.data;
+  } else {
+    // Convert Result error back to exception for backward compatibility
+    const error = result.error;
+    logger.error("Resume analysis failed", error);
+    throw new Error(`Groq resume analysis failed: ${error.message}`);
+  }
+}
+
+// Result-based internal function using Wrapper Pattern
+async function analyzeResumeParallelInternal(
+  resumeText: string,
+): Promise<Result<AnalyzeResumeResponse, ExternalServiceError>> {
   const cacheKey = calculateHash(`groq_resume_parallel_${resumeText}`);
   const cached = getCachedResponse<AnalyzeResumeResponse>(cacheKey);
   if (cached) {
     logger.info("Resume parallel analysis: Cache hit - 0 tokens used");
-    return cached;
+    return success(cached);
   }
 
   const startTime = Date.now();
   const textLength = resumeText.length;
 
-  try {
-    logger.info(
-      `Starting parallel resume analysis - text length: ${textLength} chars`,
-    );
+  logger.info(
+    `Starting parallel resume analysis - text length: ${textLength} chars`,
+  );
 
-    // Track token usage before parallel extraction
-    const usageBefore = { ...apiUsage };
+  // Track token usage before parallel extraction
+  const usageBefore = { ...apiUsage };
 
-    // Use parallel function calls to reduce token usage by ~22%
-    const [contact, skills, experience, education] = await Promise.all([
-      extractContact(resumeText),
-      extractSkills(resumeText, "resume"),
-      extractExperience(resumeText),
-      extractEducation(resumeText),
-    ]);
+  // Use Result pattern for parallel extraction  
+  const [contactResultApp, skillsResultApp, experienceResultApp, educationResultApp] = await Promise.all([
+    fromPromise(extractContact(resumeText), (error) => AppExternalServiceError.aiProviderFailure('Groq', 'contact-extraction', error instanceof Error ? error.message : String(error))),
+    fromPromise(extractSkills(resumeText, "resume"), (error) => AppExternalServiceError.aiProviderFailure('Groq', 'skills-extraction', error instanceof Error ? error.message : String(error))),
+    fromPromise(extractExperience(resumeText), (error) => AppExternalServiceError.aiProviderFailure('Groq', 'experience-extraction', error instanceof Error ? error.message : String(error))),
+    fromPromise(extractEducation(resumeText), (error) => AppExternalServiceError.aiProviderFailure('Groq', 'education-extraction', error instanceof Error ? error.message : String(error)))
+  ]);
 
-    // Calculate token savings and performance metrics
-    const usageAfter = { ...apiUsage };
-    const tokensUsed = usageAfter.totalTokens - usageBefore.totalTokens;
-    const timeTaken = Date.now() - startTime;
-
-    // Combine results into expected format
-    const skillsArray = Array.isArray(skills) ? skills : [];
-    const parsedResponse: AnalyzeResumeResponse = {
-      id: 0 as ResumeId, // Will be set by caller
-      filename: "resume.txt", // Will be set by caller
-      analyzedData: {
-        name: "Unknown",
-        skills: skillsArray,
-        experience: experience?.totalYears || "0 years",
-        education: Array.isArray(education) ? education : [],
-        summary: experience?.summary || "Professional with diverse background",
-        keyStrengths: skillsArray.slice(0, 3),
-      },
-      processingTime: timeTaken,
-      confidence: 0.8,
-      // Convenience properties for backward compatibility
-      skills: skillsArray,
-      experience: [{
-        company: "Unknown",
-        position: "Unknown",
-        duration: experience?.totalYears || "0 years",
-        description: ""
-      }],
-    };
-
-    // Only cache if we have meaningful results (at least some skills)
-    if (skills && skills.length > 0) {
-      setCachedResponse(cacheKey, parsedResponse);
+  // Convert AppError results to ExternalServiceError results
+  const convertAppErrorResult = <T>(result: Result<T, AppError>): Result<T, ExternalServiceError> => {
+    if (result.success) {
+      return result;
     } else {
-      logger.warn("Not caching resume analysis - no skills extracted");
+      const externalServiceError: ExternalServiceError = {
+        code: 'AI_PROVIDER_ERROR' as const,
+        service: 'groq',
+        message: result.error.message,
+        statusCode: result.error.statusCode,
+        timestamp: result.error.timestamp,
+        originalError: result.error instanceof Error ? result.error.message : undefined
+      };
+      return failure(externalServiceError);
     }
+  };
 
-    // Log optimization metrics
-    logger.info("Resume analyzed successfully with Groq (parallel)", {
-      textLength,
-      tokensUsed,
-      timeTaken: `${timeTaken}ms`,
-      estimatedSavings: "~22% tokens vs sequential",
-      parallelCalls: 4,
-      cacheKey: cacheKey.substring(0, 8),
-    });
+  const contactResult = convertAppErrorResult(contactResultApp);
+  const skillsResult = convertAppErrorResult(skillsResultApp);
+  const experienceResult = convertAppErrorResult(experienceResultApp);
+  const educationResult = convertAppErrorResult(educationResultApp);
 
-    return parsedResponse;
-  } catch (error) {
-    logger.error("Error analyzing resume with Groq (parallel)", error);
-    throw error;
+  // Check if any extraction failed
+  if (isFailure(contactResult)) return contactResult;
+  if (isFailure(skillsResult)) return skillsResult;  
+  if (isFailure(experienceResult)) return experienceResult;
+  if (isFailure(educationResult)) return educationResult;
+
+  // All extractions succeeded, build response
+  const contact = contactResult.data;
+  const skills = skillsResult.data;
+  const experience = experienceResult.data;
+  const education = educationResult.data;
+
+  // Calculate token savings and performance metrics
+  const usageAfter = { ...apiUsage };
+  const tokensUsed = usageAfter.totalTokens - usageBefore.totalTokens;
+  const timeTaken = Date.now() - startTime;
+
+  // Combine results into expected format
+  const skillsArray = Array.isArray(skills) ? skills : [];
+  const parsedResponse: AnalyzeResumeResponse = {
+    id: 0 as ResumeId, // Will be set by caller
+    filename: "resume.txt", // Will be set by caller
+    analyzedData: {
+      name: "Unknown",
+      skills: skillsArray,
+      experience: experience?.totalYears || "0 years",
+      education: Array.isArray(education) ? education : [],
+      summary: experience?.summary || "Professional with diverse background",
+      keyStrengths: skillsArray.slice(0, 3),
+    },
+    processingTime: timeTaken,
+    confidence: 0.8,
+    // Convenience properties for backward compatibility
+    skills: skillsArray,
+    experience: [{
+      company: "Unknown",
+      position: "Unknown",
+      duration: experience?.totalYears || "0 years",
+      description: ""
+    }],
+  };
+
+  // Only cache if we have meaningful results (at least some skills)
+  if (skills && skills.length > 0) {
+    setCachedResponse(cacheKey, parsedResponse);
+  } else {
+    logger.warn("Not caching resume analysis - no skills extracted");
   }
+
+  // Log optimization metrics
+  logger.info("Resume analyzed successfully with Groq (parallel)", {
+    textLength,
+    tokensUsed,
+    timeTaken: `${timeTaken}ms`,
+    estimatedSavings: "~22% tokens vs sequential",
+    parallelCalls: 4,
+    cacheKey: cacheKey.substring(0, 8),
+  });
+
+  return success(parsedResponse);
+}
+
+// New Result-based public API for consumers who want Result pattern
+export async function analyzeResumeParallelResult(
+  resumeText: string,
+): Promise<Result<AnalyzeResumeResponse, ExternalServiceError>> {
+  return analyzeResumeParallelInternal(resumeText);
 }
 
 // Legacy single-call method (fallback)
@@ -1077,21 +1211,24 @@ async function normalizeExtractedSkills(
       }
 
       const normalized = await normalizeSkillWithHierarchy(skill);
+      
+      // normalizeSkillWithHierarchy returns a string, not an object
+      const normalizedStr = typeof normalized === 'string' ? normalized : String(normalized);
 
       // Only include high-confidence matches and avoid duplicates
       if (
-        normalized.confidence >= 0.7 &&
-        !seenSkills.has(normalized.normalized.toLowerCase()) &&
-        normalized.normalized.length <= 50 // Ensure normalized skill isn't too long
+        normalizedStr.length > 0 &&
+        normalizedStr.length <= 50 && // Ensure normalized skill isn't too long
+        !seenSkills.has(normalizedStr.toLowerCase())
       ) {
-        normalizedSkills.push(normalized.normalized);
-        seenSkills.add(normalized.normalized.toLowerCase());
+        normalizedSkills.push(normalizedStr);
+        seenSkills.add(normalizedStr.toLowerCase());
 
         logger.debug(
-          `Normalized skill: "${skill}" -> "${normalized.normalized}" (${normalized.method}, confidence: ${normalized.confidence})`,
+          `Normalized skill: "${skill}" -> "${normalizedStr}"`,
         );
-      } else if (normalized.confidence < 0.7) {
-        // For low-confidence matches, keep the original if it looks like a valid skill
+      } else {
+        // For empty or invalid normalized results, keep the original if it looks like a valid skill
         const originalTrimmed = skill.trim();
         if (
           originalTrimmed.length > 2 &&
@@ -1103,7 +1240,7 @@ async function normalizeExtractedSkills(
           normalizedSkills.push(originalTrimmed);
           seenSkills.add(originalTrimmed.toLowerCase());
           logger.debug(
-            `Kept original skill: "${skill}" (low confidence: ${normalized.confidence})`,
+            `Kept original skill: "${skill}" (normalization result: ${String(normalized)})`,
           );
         }
       }

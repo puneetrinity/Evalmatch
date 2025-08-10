@@ -6,6 +6,8 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { logger } from "../lib/logger";
 import crypto from "crypto";
+import { createAdminService } from "../services/admin-service";
+import { handleRouteResult } from "../lib/route-error-handler";
 
 const router = Router();
 
@@ -142,149 +144,47 @@ router.post(
   "/fix-database",
   requireAdmin,
   async (req: Request, res: Response) => {
-    try {
-      logger.info("Admin database fix requested");
+    logger.info("Admin database fix requested", { 
+      ip: req.ip,
+      userAgent: req.headers['user-agent']
+    });
 
-      const fixes = [];
+    const adminService = createAdminService();
+    const result = await adminService.fixDatabase();
 
-      try {
-        // Import database utilities
-        const { getDatabase } = await import("../database");
-        const db = getDatabase();
-        const { sql } = await import("drizzle-orm");
-
-        // Test database connection
-        await db.execute(sql`SELECT 1`);
-        fixes.push("✅ Database connection verified");
-
-        // Check and fix missing columns
-        const missingColumnFixes = [
-          "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS user_id TEXT",
-          "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS session_id TEXT",
-          "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS analyzed_data JSON",
-          "ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS user_id TEXT",
-          "ALTER TABLE job_descriptions ADD COLUMN IF NOT EXISTS analyzed_data JSON",
-          "ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS candidate_strengths JSON",
-          "ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS candidate_weaknesses JSON",
-          "ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS confidence_level VARCHAR(10)",
-          "ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS fairness_metrics JSON",
-          "ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS recommendations JSON DEFAULT '[]'::json",
-          "ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS processing_time INTEGER",
-          "ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS ai_provider TEXT",
-          "ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS model_version TEXT",
-          "ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS processing_flags JSON DEFAULT '{}'::json",
-          "ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
-          "ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
-          "ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS user_id TEXT",
-          "ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS metadata JSON DEFAULT '{}'::json",
-          "ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
-          "ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
-        ];
-
-        for (const fixQuery of missingColumnFixes) {
-          try {
-            await db.execute(sql.raw(fixQuery));
-            fixes.push(`✅ ${fixQuery}`);
-          } catch (error: unknown) {
-            if (
-              (error instanceof Error ? error.message : String(error))?.includes("already exists") ||
-              (error instanceof Error ? error.message : String(error))?.includes("duplicate column")
-            ) {
-              fixes.push(
-                `ℹ️ Column already exists: ${fixQuery.split(" ADD COLUMN IF NOT EXISTS ")[1]}`,
-              );
-            } else {
-              fixes.push(`❌ Failed: ${fixQuery} - ${error instanceof Error ? error.message : String(error)}`);
-            }
-          }
-        }
-
-        // Fix data types
-        const dataTypeFixes = [
-          "ALTER TABLE analysis_results ALTER COLUMN match_percentage TYPE REAL",
-          "ALTER TABLE analysis_results ALTER COLUMN user_id TYPE TEXT",
-          "ALTER TABLE job_descriptions ALTER COLUMN user_id TYPE TEXT",
-          "ALTER TABLE resumes ALTER COLUMN user_id TYPE TEXT",
-        ];
-
-        for (const fixQuery of dataTypeFixes) {
-          try {
-            await db.execute(sql.raw(fixQuery));
-            fixes.push(`✅ ${fixQuery}`);
-          } catch (error: unknown) {
-            fixes.push(
-              `ℹ️ Type fix not needed or failed: ${fixQuery} - ${error instanceof Error ? error.message : String(error)}`,
-            );
-          }
-        }
-
-        // Add batch_id column for batch-based analysis
-        const batchIdFixes = [
-          "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS batch_id TEXT",
-          "CREATE INDEX IF NOT EXISTS idx_resumes_batch_id ON resumes(batch_id)",
-          "CREATE INDEX IF NOT EXISTS idx_resumes_user_batch ON resumes(user_id, batch_id)",
-          "CREATE INDEX IF NOT EXISTS idx_resumes_session_batch ON resumes(session_id, batch_id)",
-        ];
-
-        for (const batchQuery of batchIdFixes) {
-          try {
-            await db.execute(sql.raw(batchQuery));
-            fixes.push(`✅ ${batchQuery}`);
-          } catch (error: unknown) {
-            fixes.push(
-              `ℹ️ Batch ID fix not needed or failed: ${batchQuery} - ${error instanceof Error ? error.message : String(error)}`,
-            );
-          }
-        }
-
-        // Add indexes if missing
-        const indexFixes = [
-          "CREATE INDEX IF NOT EXISTS idx_resumes_user_id ON resumes(user_id)",
-          "CREATE INDEX IF NOT EXISTS idx_job_descriptions_user_id ON job_descriptions(user_id)",
-          "CREATE INDEX IF NOT EXISTS idx_analysis_results_user_id ON analysis_results(user_id)",
-          "CREATE INDEX IF NOT EXISTS idx_analysis_results_resume_id ON analysis_results(resume_id)",
-          "CREATE INDEX IF NOT EXISTS idx_analysis_results_job_id ON analysis_results(job_description_id)",
-          "CREATE INDEX IF NOT EXISTS idx_interview_questions_user_id ON interview_questions(user_id)",
-          "CREATE INDEX IF NOT EXISTS idx_interview_questions_resume_id ON interview_questions(resume_id)",
-          "CREATE INDEX IF NOT EXISTS idx_interview_questions_job_id ON interview_questions(job_description_id)",
-        ];
-
-        for (const indexQuery of indexFixes) {
-          try {
-            await db.execute(sql.raw(indexQuery));
-            fixes.push(`✅ ${indexQuery}`);
-          } catch (error: unknown) {
-            fixes.push(
-              `ℹ️ Index already exists or failed: ${indexQuery.split(" ON ")[0]} - ${error instanceof Error ? error.message : String(error)}`,
-            );
-          }
-        }
-      } catch (error) {
-        fixes.push(
-          `❌ Database operation failed: ${error instanceof Error ? error instanceof Error ? error.message : String(error) : "Unknown error"}`,
-        );
-      }
-
-      logger.info(`Database fix completed with ${fixes.length} operations`);
-
+    handleRouteResult(result, res, (data) => {
       res.json({
-        status: "completed",
-        message: `Database fix completed with ${fixes.length} operations`,
-        fixes,
-        timestamp: new Date().toISOString(),
+        success: true,
+        data,
+        timestamp: new Date().toISOString()
       });
-    } catch (error) {
-      logger.error("Database fix failed:", error);
-      res.status(500).json({
-        error: "Database fix failed",
-        message: error instanceof Error ? error instanceof Error ? error.message : String(error) : "Unknown error",
-        timestamp: new Date().toISOString(),
-      });
-    }
+    });
   },
 );
 
-// Check analysis table structure
+// System status endpoint - Overall system health check
+router.get(
+  "/system-status",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    logger.info("Admin system status requested", { 
+      ip: req.ip,
+      userAgent: req.headers['user-agent']
+    });
+
+    const adminService = createAdminService();
+    const result = await adminService.getSystemStatus();
+
+    handleRouteResult(result, res, (data) => {
+      res.json({
+        success: true,
+        data,
+        timestamp: new Date().toISOString()
+      });
+    });
+  },
+);
+
 router.get(
   "/check-analysis-table",
   requireAdmin,
@@ -558,7 +458,9 @@ router.post(
       const { skillCategories, skillsTable } = await import("@shared/schema");
       
       // Import comprehensive enhanced skills dictionary
-      const { SKILL_CATEGORIES, ENHANCED_SKILL_DICTIONARY } = await import("../lib/skill-hierarchy");
+      const { getSkillHierarchy } = await import("../lib/skill-processor");
+      const ENHANCED_SKILL_DICTIONARY = getSkillHierarchy();
+      const SKILL_CATEGORIES = Object.keys(ENHANCED_SKILL_DICTIONARY);
 
       // Clear existing data first
       logger.info("Clearing existing skills data...");
@@ -596,14 +498,21 @@ router.post(
       logger.info(`Created category mapping for ${categoryMap.size} categories`);
 
       // Convert enhanced skills dictionary to insertion format
-      const skillsData = Object.entries(ENHANCED_SKILL_DICTIONARY).map(([_key, skillInfo]) => ({
-        name: skillInfo.normalized,
-        normalizedName: skillInfo.normalized.toLowerCase(),
-        categoryId: categoryMap.get(skillInfo.category),
-        aliases: skillInfo.aliases || [],
-        description: `${skillInfo.normalized} - ${skillInfo.category}`,
-        relatedSkills: skillInfo.relatedSkills || []
-      }));
+      const skillsData: any[] = [];
+      Object.entries(ENHANCED_SKILL_DICTIONARY).forEach(([categoryKey, categoryData]) => {
+        if (typeof categoryData === 'object' && categoryData !== null) {
+          Object.entries(categoryData).forEach(([skillName, skillInfo]: [string, any]) => {
+            skillsData.push({
+              name: skillName,
+              normalizedName: skillName.toLowerCase(),
+              categoryId: categoryMap.get(skillInfo.category),
+              aliases: skillInfo.aliases || [],
+              description: `${skillName} - ${skillInfo.category}`,
+              relatedSkills: skillInfo.related || []
+            });
+          });
+        }
+      });
 
       // Insert skills with better error handling
       logger.info(`Inserting ${skillsData.length} skills...`);
@@ -675,12 +584,11 @@ router.get("/skill-memory/stats", requireAdmin, async (req, res) => {
   try {
     logger.info('Admin accessing skill memory stats');
     
-    const { skillMemorySystem } = await import('../lib/skill-memory-system');
-    const { skillLearningScheduler } = await import('../lib/skill-learning-scheduler');
+    const { SkillLearningSystem, getSkillLearningStats } = await import('../lib/skill-learning');
     
     const [systemStats, schedulerStatus] = await Promise.all([
-      skillMemorySystem.getSystemStats(),
-      Promise.resolve(skillLearningScheduler.getStatus())
+      Promise.resolve(getSkillLearningStats()),
+      Promise.resolve(SkillLearningSystem.getInstance().getValidationQueueStatus())
     ]);
 
     res.json({
@@ -777,10 +685,16 @@ router.post("/skill-memory/run-job", requireAdmin, async (req, res) => {
     
     logger.info(`Admin manually running skill learning job: ${jobType}`);
     
-    const { skillLearningScheduler } = await import('../lib/skill-learning-scheduler');
+    const { SkillLearningSystem } = await import('../lib/skill-learning');
+    const learningSystem = SkillLearningSystem.getInstance();
     
-    // Run the job
-    await skillLearningScheduler.runJob(jobType);
+    // Run the appropriate job type
+    if (jobType === 'promotion' || jobType === 'revalidation' || jobType === 'maintenance' || jobType === 'cleanup') {
+      await learningSystem.forceProcessQueue();
+    } else {
+      logger.warn(`Unknown job type: ${jobType}, running validation queue`);
+      await learningSystem.forceProcessQueue();
+    }
     
     res.json({
       status: "success",
@@ -803,8 +717,13 @@ router.post("/skill-memory/cleanup", requireAdmin, async (req, res) => {
   try {
     logger.info('Admin manually running skill memory cleanup');
     
-    const { skillMemorySystem } = await import('../lib/skill-memory-system');
-    const cleanedCount = await skillMemorySystem.cleanupLowFrequencySkills();
+    const { SkillLearningSystem } = await import('../lib/skill-learning');
+    const learningSystem = SkillLearningSystem.getInstance();
+    
+    // Run cleanup - the consolidated system handles this internally
+    await learningSystem.forceProcessQueue();
+    const stats = learningSystem.getLearningStats();
+    const cleanedCount = stats.rejectedSkills;
     
     res.json({
       status: "success",

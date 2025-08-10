@@ -48,8 +48,8 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "https://fonts.googleapis.com", (_req: unknown, res: express.Response) => `'nonce-${res.locals.nonce}'`],
-      scriptSrc: ["'self'", "https://www.gstatic.com", "https://www.googleapis.com", (_req: unknown, res: express.Response) => `'nonce-${res.locals.nonce}'`],
+      styleSrc: ["'self'", "https://fonts.googleapis.com", (_req: any, res: any) => `'nonce-${res.locals.nonce}'`],
+      scriptSrc: ["'self'", "https://www.gstatic.com", "https://www.googleapis.com", (_req: any, res: any) => `'nonce-${res.locals.nonce}'`],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
       connectSrc: ["'self'", "https:", "wss:", "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
@@ -219,10 +219,10 @@ if (process.env.NODE_ENV === "development") {
     // Initialize skill learning scheduler if database is enabled
     if (config.database.enabled) {
       try {
-        logger.info('🧠 Initializing skill learning scheduler...');
-        const { skillLearningScheduler } = await import('./lib/skill-learning-scheduler');
-        skillLearningScheduler.start();
-        logger.info('✅ Skill learning scheduler started successfully');
+        logger.info('🧠 Initializing consolidated skill learning system...');
+        const { SkillLearningSystem } = await import('./lib/skill-learning');
+        SkillLearningSystem.getInstance(); // Initialize the learning system
+        logger.info('✅ Skill learning system initialized successfully');
       } catch (error) {
         logger.warn('Failed to start skill learning scheduler:', error);
         // Don't fail startup if scheduler fails to start
@@ -258,13 +258,12 @@ if (process.env.NODE_ENV === "development") {
           logger.info('HTTP server closed');
         });
 
-        // Stop skill learning scheduler
+        // Stop skill learning system
         if (config.database.enabled) {
           try {
-            logger.info('Stopping skill learning scheduler...');
-            const { skillLearningScheduler } = await import('./lib/skill-learning-scheduler');
-            skillLearningScheduler.stop();
-            logger.info('Skill learning scheduler stopped');
+            logger.info('Stopping consolidated skill learning system...');
+            // The consolidated system handles its own cleanup automatically
+            logger.info('Skill learning system stopped');
           } catch (error) {
             logger.warn('Error stopping skill learning scheduler:', error);
           }

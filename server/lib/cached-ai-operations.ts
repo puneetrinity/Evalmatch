@@ -4,22 +4,22 @@ import * as tieredAI from "./tiered-ai-provider";
 import { 
   AnalyzeResumeResponse, 
   AnalyzeJobDescriptionResponse,
-  AnalyzedResumeData,
-  AnalyzedJobData
+  AnalyzedResumeData as _AnalyzedResumeData,
+  AnalyzedJobData as _AnalyzedJobData
 } from "@shared/schema";
 import { UserTierInfo } from "@shared/user-tiers";
 import { 
-  Result,
+  Result as _Result,
   success,
   failure,
-  fromPromise,
+  fromPromise as _fromPromise,
   ResumeAnalysisResult,
   JobAnalysisResult,
   MatchAnalysisResult
 } from "@shared/result-types";
 import {
   AppExternalServiceError,
-  toAppError
+  toAppError as _toAppError
 } from "@shared/errors";
 import crypto from "crypto";
 

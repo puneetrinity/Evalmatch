@@ -104,20 +104,22 @@ import {
 } from "./enhanced-scoring";
 // Embeddings functions available but not currently used in this module
 // import { generateEmbedding, calculateSemanticSimilarity } from "./embeddings";
-import { initializeSkillHierarchy } from "./skill-hierarchy";
+// Consolidated skill system imports
+import { SkillProcessor } from "./skill-processor";
 import { analyzeResumeFairness } from "./fairness-analyzer";
 
 // Verify if providers are configured
 const isAnthropicConfigured = !!config.ai.providers.anthropic.apiKey;
 const isGroqConfigured = !!process.env.GROQ_API_KEY;
 
-// Initialize skill hierarchy on first load
-let skillHierarchyInitialized = false;
+// Initialize skill processor on first load
+let skillProcessorInitialized = false;
 async function initializeEnhancements() {
-  if (!skillHierarchyInitialized) {
+  if (!skillProcessorInitialized) {
     try {
-      await initializeSkillHierarchy();
-      skillHierarchyInitialized = true;
+      // Initialize skill processor singleton
+      SkillProcessor.getInstance();
+      skillProcessorInitialized = true;
       logger.info("Enhanced AI features initialized successfully");
     } catch (error) {
       logger.warn("Failed to initialize enhanced AI features:", error);

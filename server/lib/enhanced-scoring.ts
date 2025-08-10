@@ -5,12 +5,13 @@ import {
   generateEmbedding,
   generateBatchEmbeddings,
 } from "./embeddings";
+// Consolidated skill system imports
 import {
   normalizeSkillWithHierarchy,
-  findRelatedSkills,
-  extractSkillsWithESCO,
-  getEnhancedSkills,
-} from "./skill-hierarchy";
+  processSkills,
+  getSkillHierarchy,
+} from "./skill-processor";
+import { SkillLearningSystem, learnSkill } from "./skill-learning";
 import { scoreExperienceEnhanced } from "./enhanced-experience-matching";
 import {
   UNIFIED_SCORING_WEIGHTS,
@@ -103,7 +104,8 @@ export async function matchSkillsEnhanced(
       const normalized = await normalizeSkillWithHierarchy(skill);
       return {
         original: skill,
-        ...normalized,
+        normalized: typeof normalized === 'string' ? normalized : normalized,
+        category: 'general',
       };
     }),
   );
@@ -113,7 +115,8 @@ export async function matchSkillsEnhanced(
       const normalized = await normalizeSkillWithHierarchy(skill);
       return {
         original: skill,
-        ...normalized,
+        normalized: typeof normalized === 'string' ? normalized : normalized,
+        category: 'general',
       };
     }),
   );
@@ -180,10 +183,12 @@ export async function matchSkillsEnhanced(
       };
     } else {
       // 2. Related skills match
-      const relatedSkills = await findRelatedSkills(jobSkill.normalized, 10);
+      // Get related skills from skill hierarchy
+      const skillHierarchy = getSkillHierarchy();
+      const relatedSkills = findRelatedSkillsFromHierarchy(jobSkill.normalized, skillHierarchy, 10);
       const relatedMatch = normalizedResumeSkills.find((resumeSkill) =>
         relatedSkills.some(
-          (related) =>
+          (related: any) =>
             related.skill.toLowerCase() ===
               resumeSkill.normalized.toLowerCase() && related.similarity > 0.7,
         ),
@@ -191,7 +196,7 @@ export async function matchSkillsEnhanced(
 
       if (relatedMatch) {
         const relation = relatedSkills.find(
-          (r) =>
+          (r: any) =>
             r.skill.toLowerCase() === relatedMatch.normalized.toLowerCase(),
         );
         const score =
@@ -477,37 +482,37 @@ export async function calculateEnhancedMatchWithESCO(
       scoringWeights: weights
     });
 
-    // 1. ESCO-Enhanced skill extraction and matching
-    logger.info('Calling ESCO skill extraction...');
-    const [resumeESCO, jobESCO] = await Promise.all([
-      extractSkillsWithESCO(resumeData.content).catch(error => {
-        logger.error('Resume ESCO extraction failed:', error);
-        return { skills: [], escoSkills: [], pharmaRelated: false, categories: [] };
+    // 1. Enhanced skill extraction and matching using consolidated system
+    logger.info('Calling enhanced skill processing...');
+    const [resumeSkills, jobSkills] = await Promise.all([
+      processSkills(resumeData.content, 'auto').catch(error => {
+        logger.error('Resume skill processing failed:', error);
+        return [];
       }),
-      extractSkillsWithESCO(jobData.description).catch(error => {
-        logger.error('Job ESCO extraction failed:', error);
-        return { skills: [], escoSkills: [], pharmaRelated: false, categories: [] };
+      processSkills(jobData.description, 'auto').catch(error => {
+        logger.error('Job skill processing failed:', error);
+        return [];
       })
     ]);
 
-    // Combine traditional skills with ESCO skills
+    // Combine traditional skills with processed skills
     const enhancedResumeSkills = [...new Set([
       ...resumeData.skills,
-      ...resumeESCO.skills
+      ...resumeSkills.map(skill => skill.normalized)
     ])];
 
     const enhancedJobSkills = [...new Set([
       ...jobData.skills,
-      ...jobESCO.skills
+      ...jobSkills.map(skill => skill.normalized)
     ])];
 
-    logger.info('ESCO skill enhancement completed', {
+    logger.info('Enhanced skill processing completed', {
       originalResumeSkills: resumeData.skills.length,
       enhancedResumeSkills: enhancedResumeSkills.length,
       originalJobSkills: jobData.skills.length,
       enhancedJobSkills: enhancedJobSkills.length,
-      resumePharmaRelated: resumeESCO.pharmaRelated,
-      jobPharmaRelated: jobESCO.pharmaRelated
+      processedResumeSkills: resumeSkills.length,
+      processedJobSkills: jobSkills.length
     });
 
     // 2. Enhanced skill matching with ESCO skills
@@ -544,11 +549,14 @@ export async function calculateEnhancedMatchWithESCO(
       return 50;
     });
 
-    // 6. Pharma domain bonus
-    let pharmaBonus = 0;
-    if (resumeESCO.pharmaRelated && jobESCO.pharmaRelated) {
-      pharmaBonus = 5; // 5% bonus for pharma-pharma matches
-      logger.info('Applied pharma domain matching bonus', { bonus: pharmaBonus });
+    // 6. Domain-specific bonus (pharmaceutical skills detected)
+    let domainBonus = 0;
+    const hasPharmaDomainSkills = (skills: any[]) => 
+      skills.some(skill => skill.category === 'pharmaceutical' || skill.category === 'domain');
+    
+    if (hasPharmaDomainSkills(resumeSkills) && hasPharmaDomainSkills(jobSkills)) {
+      domainBonus = 5; // 5% bonus for matching domain expertise
+      logger.info('Applied domain matching bonus', { bonus: domainBonus });
     }
 
     const baseScore =
@@ -557,7 +565,7 @@ export async function calculateEnhancedMatchWithESCO(
       educationMatch.score * weights.education +
       semanticScore * weights.semantic;
 
-    const totalScore = Math.min(100, baseScore + pharmaBonus);
+    const totalScore = Math.min(100, baseScore + domainBonus);
 
     // Calculate weighted total
     const dimensionScores = {
@@ -750,4 +758,48 @@ function generateExplanation(
   }
 
   return { strengths, weaknesses, recommendations };
+}
+
+/**
+ * Helper function to find related skills from skill hierarchy
+ */
+function findRelatedSkillsFromHierarchy(skillName: string, skillHierarchy: any, limit: number = 10): any[] {
+  const relatedSkills: any[] = [];
+  const normalizedSkillName = skillName.toLowerCase().trim();
+  
+  // Search through all categories in the skill hierarchy
+  for (const [category, skills] of Object.entries(skillHierarchy)) {
+    for (const [skill, skillData] of Object.entries(skills as any)) {
+      const data = skillData as any;
+      
+      // Check if this skill has related skills that match our target
+      if (data.related && Array.isArray(data.related)) {
+        if (data.related.some((related: string) => related.toLowerCase().includes(normalizedSkillName))) {
+          relatedSkills.push({
+            skill,
+            category,
+            similarity: 0.8, // High similarity for hierarchical relations
+            reason: 'hierarchical'
+          });
+        }
+      }
+      
+      // Check aliases
+      if (data.aliases && Array.isArray(data.aliases)) {
+        if (data.aliases.some((alias: string) => alias.toLowerCase().includes(normalizedSkillName))) {
+          relatedSkills.push({
+            skill,
+            category, 
+            similarity: 0.9, // Very high similarity for aliases
+            reason: 'alias'
+          });
+        }
+      }
+      
+      if (relatedSkills.length >= limit) break;
+    }
+    if (relatedSkills.length >= limit) break;
+  }
+  
+  return relatedSkills.slice(0, limit);
 }

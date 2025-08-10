@@ -4,7 +4,16 @@
  */
 
 import { logger } from './logger';
-import { ESCOSkill } from './esco-skill-extractor';
+// Consolidated skill system types
+import { NormalizedSkill } from './skill-processor';
+
+// Define ESCOSkill type locally until skill-matcher is implemented
+interface ESCOSkill {
+  skill: string;
+  category: string;
+  normalized: string;
+  domain?: string;
+}
 
 export interface MatchInsights {
   matchStrength: 'EXCELLENT' | 'STRONG' | 'MODERATE' | 'WEAK';

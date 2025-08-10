@@ -12,6 +12,20 @@ import {
   InterviewQuestionData,
 } from "../../shared/schema";
 import { config } from "../config/unified-config";
+import { logger } from "../config/logger";
+import { AnthropicErrorHandler } from "./shared/error-handler";
+import { 
+  Result, 
+  success as _success, 
+  failure, 
+  fromPromise, 
+  isFailure as _isFailure, 
+  type ExternalServiceError, 
+  type AppError as _AppError 
+} from '../../shared/result-types';
+import { AppExternalServiceError } from '../../shared/errors';
+import { AnthropicResponseParser } from "./shared/response-parser";
+import { PromptTemplateEngine, type ResumeAnalysisContext, type JobAnalysisContext, type MatchAnalysisContext } from "./shared/prompt-templates";
 
 // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
 const MODEL = "claude-3-7-sonnet-20250219";
@@ -21,32 +35,44 @@ const anthropic = new Anthropic({
   apiKey: config.ai.providers.anthropic.apiKey || "",
 });
 
+// Initialize shared error handler for Anthropic
+const errorHandler = new AnthropicErrorHandler();
+
 /**
- * Service status tracker for Anthropic
+ * Legacy service status interface for backward compatibility
+ * @deprecated Use errorHandler.getStatus() instead
  */
 export const serviceStatus = {
-  isAnthropicAvailable: true,
-  consecutiveFailures: 0,
-  lastErrorTime: 0,
-  timeElapsedSinceLastError: 0,
-  retry: {
-    currentBackoff: 5000, // Start with 5 seconds
-    maxBackoff: 300000, // Max 5 minutes
+  get isAnthropicAvailable() {
+    return errorHandler.isAvailable;
   },
-  apiUsageStats: {
-    totalTokens: 0,
-    promptTokens: 0,
-    completionTokens: 0,
-    estimatedCost: 0,
+  get consecutiveFailures() {
+    return errorHandler.getStatus().consecutiveFailures;
   },
-  cacheSize: 0,
-
+  get lastErrorTime() {
+    return errorHandler.getStatus().lastErrorTime;
+  },
+  get timeElapsedSinceLastError() {
+    return errorHandler.getStatus().timeElapsedSinceLastError;
+  },
+  get retry() {
+    const status = errorHandler.getStatus();
+    return {
+      currentBackoff: status.retry.currentBackoff,
+      maxBackoff: status.retry.maxBackoff,
+    };
+  },
+  get apiUsageStats() {
+    return errorHandler.getStatus().apiUsageStats;
+  },
+  get cacheSize() {
+    return errorHandler.getStatus().cacheSize;
+  },
   get currentBackoff() {
-    return `${Math.round(this.retry.currentBackoff / 1000)}s`;
+    return errorHandler.currentBackoff;
   },
-
   get isAvailable() {
-    return this.isAnthropicAvailable;
+    return errorHandler.isAvailable;
   },
 };
 
@@ -59,26 +85,22 @@ function logApiServiceStatus(message: string, isError: boolean = false) {
   const timestamp = new Date().toISOString();
   const prefix = isError ? "ERROR" : "INFO";
   const servicePrefix = "ANTHROPIC_API";
-  console[isError ? "error" : "log"](
-    `[${timestamp}] [${servicePrefix}] [${prefix}] ${message}`,
-  );
+  if (isError) {
+    logger.error(`[${servicePrefix}] ${message}`);
+  } else {
+    logger.info(`[${servicePrefix}] ${message}`);
+  }
 }
 
 /**
  * Record and track service success to potentially reset error counters
  */
 function recordApiSuccess() {
-  // If we've had some failures but not enough to mark service as unavailable,
-  // reset the counter on a successful call
-  if (
-    serviceStatus.consecutiveFailures > 0 &&
-    serviceStatus.isAnthropicAvailable
-  ) {
-    logApiServiceStatus(
-      `Resetting failure counter after successful API call (was at ${serviceStatus.consecutiveFailures})`,
-    );
-    serviceStatus.consecutiveFailures = 0;
-  }
+  // Use error handler to record success (which will reset counters)
+  errorHandler.recordSuccess();
+  logApiServiceStatus(
+    `API call succeeded - error counters reset`,
+  );
 }
 
 /**
@@ -87,251 +109,203 @@ function recordApiSuccess() {
  * after a failure period
  */
 function checkServiceRecovery() {
-  if (!serviceStatus.isAnthropicAvailable && serviceStatus.lastErrorTime) {
+  const status = errorHandler.getStatus();
+  if (!status.isAvailable && status.lastErrorTime) {
     const now = Date.now();
-    const elapsed = now - serviceStatus.lastErrorTime;
-    serviceStatus.timeElapsedSinceLastError = elapsed;
+    const elapsed = now - status.lastErrorTime;
 
     // If we've waited long enough, try to recover
-    if (elapsed > serviceStatus.retry.currentBackoff) {
+    if (elapsed > status.retry.currentBackoff) {
       logApiServiceStatus(
         `Attempting service recovery after ${Math.round(elapsed / 1000)}s backoff`,
       );
-      serviceStatus.isAnthropicAvailable = true;
+      // Note: Recovery will be handled by the next successful API call
     }
   }
 }
 
 /**
- * Analyzes a resume to extract structured information using Anthropic Claude
+ * Result-based internal function for resume analysis using Wrapper Pattern
  */
-export async function analyzeResume(
+async function analyzeResumeInternal(
   resumeText: string,
-): Promise<AnalyzeResumeResponse> {
+): Promise<Result<AnalyzeResumeResponse, ExternalServiceError>> {
   // Check if we should attempt service recovery
   checkServiceRecovery();
 
-  // Fallback response if Anthropic API is unavailable
-  const fallbackAnalyzedData: AnalyzedResumeData = {
-    name: "Analysis temporarily unavailable",
-    skills: ["Communication", "Problem Solving", "Teamwork"],
-    experience: "",
-    education: ["Education extraction temporarily unavailable"],
-    summary: "Analysis temporarily unavailable",
-    keyStrengths: ["Service temporarily unavailable"],
-    contactInfo: {
-      email: "",
-      phone: "",
-      location: "",
-    },
-    workExperience: [
-      {
-        company: "Please try again later",
-        position: "Experience extraction temporarily unavailable",
-        duration: "",
-        description: "",
-      },
-    ],
+  const context: ResumeAnalysisContext = {
+    text: resumeText || "",
   };
 
-  const fallbackResponse: AnalyzeResumeResponse = {
-    id: Date.now() as any,
-    filename: "fallback.pdf",
-    analyzedData: fallbackAnalyzedData,
-    processingTime: 0,
-    confidence: 0,
-    warnings: ["Service temporarily unavailable"],
-    // Convenience properties for backward compatibility
-    name: fallbackAnalyzedData.name,
-    skills: fallbackAnalyzedData.skills,
-    experience: fallbackAnalyzedData.workExperience || [],
-    education: fallbackAnalyzedData.education.map((edu) => ({
-      degree: edu,
-      institution: "",
-      year: undefined,
-    })),
-    contact: fallbackAnalyzedData.contactInfo || {
-      email: "",
-      phone: "",
-      location: "",
-    },
-  };
+  const result = await fromPromise(
+    (async () => {
+      // Generate prompt using shared template engine
+      const prompt = PromptTemplateEngine.generateResumeAnalysisPrompt(context, {
+        format: 'anthropic'
+      });
 
-  // If Anthropic API is marked as unavailable, return fallback immediately
-  if (!serviceStatus.isAnthropicAvailable) {
-    logApiServiceStatus(
-      "Service unavailable, returning fallback resume analysis",
-    );
-    return fallbackResponse;
-  }
+      const response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 2000,
+        messages: [{ role: "user", content: prompt }],
+        system:
+          "You are a resume parser that extracts structured information from resume text. Always respond with valid JSON only, no explanations.",
+      });
 
-  try {
-    const prompt = `Please analyze this resume and extract the following information in JSON format:
-1. Name of the candidate
-2. Contact information (email, phone, location)
-3. Skills (as an array of strings)
-4. Experience (as an array of objects with title, company, duration, and description)
-5. Education (as an array of objects with degree, institution, and graduation year)
-
-Resume text:
-${resumeText || ""}
-
-Format the response as valid JSON with the following structure:
-{
-  "name": "Full Name",
-  "contact": {
-    "email": "email@example.com",
-    "phone": "123-456-7890",
-    "location": "City, State"
-  },
-  "skills": ["Skill 1", "Skill 2", "Skill 3", ...],
-  "experience": [
-    {
-      "title": "Job Title",
-      "company": "Company Name",
-      "duration": "Start Date - End Date",
-      "description": "Job description"
-    },
-    ...
-  ],
-  "education": [
-    {
-      "degree": "Degree Name",
-      "institution": "Institution Name",
-      "year": "Graduation Year"
-    },
-    ...
-  ]
-}`;
-
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 2000,
-      messages: [{ role: "user", content: prompt }],
-      system:
-        "You are a resume parser that extracts structured information from resume text. Always respond with valid JSON only, no explanations.",
-    });
-
-    // Record successful API call
-    recordApiSuccess();
-
-    // Parse JSON response from Anthropic
-    try {
       // Extract JSON from the response content
       const contentBlock = response.content[0];
       if (contentBlock.type !== "text") {
         throw new Error("Unexpected response type from Anthropic");
       }
       const responseText = contentBlock.text;
-      const jsonMatch = responseText.match(/({[\s\S]*})/);
-      const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
-
-      const parsedResponse = JSON.parse(jsonStr);
-
-      // Track token usage
-      if (response.usage) {
-        serviceStatus.apiUsageStats.promptTokens +=
-          response.usage.input_tokens || 0;
-        serviceStatus.apiUsageStats.completionTokens +=
-          response.usage.output_tokens || 0;
-        serviceStatus.apiUsageStats.totalTokens +=
-          (response.usage.input_tokens || 0) +
-          (response.usage.output_tokens || 0);
-        // Update estimated cost - Claude pricing is approximately $3 per million input tokens, $15 per million output tokens
-        const inputCost = (response.usage.input_tokens || 0) * 0.000003;
-        const outputCost = (response.usage.output_tokens || 0) * 0.000015;
-        serviceStatus.apiUsageStats.estimatedCost += inputCost + outputCost;
+      
+      // Parse response using shared response parser
+      const parseResult = AnthropicResponseParser.parseAnalysisResponse<any>(responseText);
+      if (!parseResult.success || !parseResult.data) {
+        throw new Error(parseResult.error || "Failed to parse Anthropic response");
       }
+      const parsedResponse = parseResult.data;
 
-      // Return normalized response matching AnalyzeResumeResponse interface
-      const skills: string[] = Array.isArray(parsedResponse.skills)
-        ? parsedResponse.skills
-        : [];
-      const workExperience = Array.isArray(parsedResponse.experience)
-        ? parsedResponse.experience.map((exp: any) => ({
-            company: exp?.company || "",
-            position: exp?.title || "",
-            duration: exp?.duration || "",
-            description: exp?.description || "",
-            technologies: exp?.technologies || [],
-          }))
-        : [];
-      const education: string[] = Array.isArray(parsedResponse.education)
-        ? parsedResponse.education.map((edu: any) =>
-            typeof edu === "string"
-              ? edu
-              : edu?.degree || edu?.institution || "",
-          )
-        : [];
-      const contactInfo = {
-        email: parsedResponse.contact?.email || "",
-        phone: parsedResponse.contact?.phone || "",
-        location: parsedResponse.contact?.location || "",
-      };
+      // Record successful API call and track token usage
+      errorHandler.recordSuccess({
+        input_tokens: response.usage?.input_tokens,
+        output_tokens: response.usage?.output_tokens
+      });
 
+      recordApiSuccess();
+
+      // Transform to expected response format
       const analyzedData: AnalyzedResumeData = {
-        name: parsedResponse.name || "",
-        skills,
+        name: parsedResponse.personalInfo?.name || "Unknown",
+        skills: parsedResponse.skills || [],
         experience:
-          workExperience
-            .map(
-              (exp: any) =>
-                `${exp.position} at ${exp.company} (${exp.duration})`,
-            )
-            .join("; ") || "",
-        education,
+          parsedResponse.experience?.[0]?.duration ||
+          parsedResponse.experience?.totalYears ||
+          "Unknown",
+        education: parsedResponse.education || [],
         summary: parsedResponse.summary || "",
-        keyStrengths: parsedResponse.keyStrengths || skills.slice(0, 3),
-        contactInfo,
-        workExperience,
+        keyStrengths: parsedResponse.keyStrengths || parsedResponse.skills?.slice(0, 3) || [],
+        contactInfo: parsedResponse.personalInfo || {
+          email: "",
+          phone: "",
+          location: "",
+        },
+        workExperience:
+          parsedResponse.experience?.map((exp: any) => ({
+            company: exp.company || "",
+            position: exp.title || "",
+            duration: exp.duration || "",
+            description: exp.responsibilities?.join("; ") || "",
+          })) || [],
       };
 
-      return {
-        id: Date.now() as any, // Generate a unique ID
+      const fullResponse: AnalyzeResumeResponse = {
+        id: Date.now() as any,
         filename: "resume.pdf",
         analyzedData,
-        processingTime: Date.now() - performance.now(),
-        confidence: 0.8,
+        processingTime: Date.now(),
+        confidence: 0.9,
         warnings: [],
-        // Convenience properties for backward compatibility
         name: analyzedData.name,
-        skills,
-        experience: workExperience,
-        education: education.map((edu) => ({
-          degree: edu,
-          institution: "",
-          year: undefined,
+        skills: analyzedData.skills,
+        experience: analyzedData.workExperience,
+        education: (parsedResponse.education || []).map((edu: any) => ({
+          degree: typeof edu === "string" ? edu : edu.degree || "",
+          institution: typeof edu === "string" ? "" : edu.institution || "",
+          year: typeof edu === "string" ? undefined : edu.year,
         })),
-        contact: contactInfo,
+        contact: analyzedData.contactInfo,
       };
-    } catch (parseError) {
-      logApiServiceStatus(
-        `Error parsing Anthropic response: ${parseError instanceof Error ? parseError.message : "Unknown error"}`,
-        true,
-      );
-      return fallbackResponse;
-    }
-  } catch (error) {
-    // Track API failure
-    serviceStatus.lastErrorTime = Date.now();
-    serviceStatus.consecutiveFailures++;
 
-    // After 3 consecutive failures, consider service unavailable with exponential backoff
-    if (serviceStatus.consecutiveFailures >= 3) {
-      serviceStatus.isAnthropicAvailable = false;
-      serviceStatus.retry.currentBackoff = Math.min(
-        serviceStatus.retry.currentBackoff * 2,
-        serviceStatus.retry.maxBackoff,
-      );
-      logApiServiceStatus(
-        `Service marked as unavailable after ${serviceStatus.consecutiveFailures} resume analysis failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`,
-        true,
-      );
-    }
-
-    // Return the fallback response
-    return fallbackResponse;
+      return fullResponse;
+    })(),
+    (error) => AppExternalServiceError.aiProviderFailure('Anthropic', 'resume-analysis', error instanceof Error ? error.message : String(error))
+  );
+  
+  // Convert AppError to ExternalServiceError to match return type
+  if (result.success) {
+    return result;
+  } else {
+    const externalServiceError: ExternalServiceError = {
+      code: 'AI_PROVIDER_ERROR' as const,
+      service: 'anthropic',
+      message: result.error.message,
+      statusCode: result.error.statusCode,
+      timestamp: result.error.timestamp,
+      originalError: result.error instanceof Error ? result.error.message : undefined
+    };
+    return failure(externalServiceError);
   }
+}
+
+/**
+ * Analyzes a resume to extract structured information using Anthropic Claude
+ * Uses Wrapper Pattern: maintains existing API while using Result pattern internally
+ */
+export async function analyzeResume(
+  resumeText: string,
+): Promise<AnalyzeResumeResponse> {
+  const result = await analyzeResumeInternal(resumeText);
+  
+  if (result.success) {
+    return result.data;
+  } else {
+    // Convert Result error back to exception for backward compatibility
+    const error = result.error;
+    logger.error("Anthropic resume analysis failed", error);
+    
+    // Return fallback response instead of throwing for better UX
+    const fallbackAnalyzedData: AnalyzedResumeData = {
+      name: "Analysis temporarily unavailable",
+      skills: ["Communication", "Problem Solving", "Teamwork"],
+      experience: "",
+      education: ["Education extraction temporarily unavailable"],
+      summary: "Analysis temporarily unavailable",
+      keyStrengths: ["Service temporarily unavailable"],
+      contactInfo: {
+        email: "",
+        phone: "",
+        location: "",
+      },
+      workExperience: [
+        {
+          company: "Please try again later",
+          position: "Experience extraction temporarily unavailable",
+          duration: "",
+          description: "",
+        },
+      ],
+    };
+
+    return {
+      id: Date.now() as any,
+      filename: "fallback.pdf",
+      analyzedData: fallbackAnalyzedData,
+      processingTime: 0,
+      confidence: 0,
+      warnings: ["Service temporarily unavailable"],
+      name: fallbackAnalyzedData.name,
+      skills: fallbackAnalyzedData.skills,
+      experience: fallbackAnalyzedData.workExperience || [],
+      education: fallbackAnalyzedData.education.map((edu) => ({
+        degree: edu,
+        institution: "",
+        year: undefined,
+      })),
+      contact: fallbackAnalyzedData.contactInfo || {
+        email: "",
+        phone: "",
+        location: "",
+      },
+    };
+  }
+}
+
+// New Result-based public API for consumers who want Result pattern
+export async function analyzeResumeResult(
+  resumeText: string,
+): Promise<Result<AnalyzeResumeResponse, ExternalServiceError>> {
+  return analyzeResumeInternal(resumeText);
 }
 
 /**
@@ -422,13 +396,13 @@ export async function analyzeMatch(
     logApiServiceStatus("Performing match analysis with Anthropic Claude");
 
     // Prepare resume and job data for the prompt
-    const resumeSkills = resumeAnalysis.skills?.join(", ") || "";
-    const jobSkills = Array.isArray(jobAnalysis.requiredSkills)
+    const _resumeSkills = resumeAnalysis.skills?.join(", ") || "";
+    const _jobSkills = Array.isArray(jobAnalysis.requiredSkills)
       ? jobAnalysis.requiredSkills.join(", ")
       : "Not specified";
 
     // Create a meaningful summary of resume experience
-    const resumeExperience =
+    const _resumeExperience =
       resumeAnalysis.experience
         ?.map(
           (exp) =>
@@ -437,7 +411,7 @@ export async function analyzeMatch(
         .join("; ") || "";
 
     // Format education
-    const resumeEducation = Array.isArray(resumeAnalysis.education)
+    const _resumeEducation = Array.isArray(resumeAnalysis.education)
       ? resumeAnalysis.education
           .map((edu) =>
             typeof edu === "object" && edu !== null
@@ -447,39 +421,14 @@ export async function analyzeMatch(
           .join("; ")
       : "Not specified";
 
-    // Create prompt
-    const prompt = `Please analyze how well this candidate's resume matches the job requirements.
-
-RESUME INFORMATION:
-- Name: ${resumeAnalysis.name || "Not specified"}
-- Skills: ${resumeSkills}
-- Experience: ${resumeExperience}
-- Education: ${resumeEducation}
-
-JOB REQUIREMENTS:
-- Title: ${jobAnalysis.title}
-- Required Skills: ${jobSkills}
-- Experience Required: ${jobAnalysis.experience || jobAnalysis.experienceLevel || "Not specified"}
-- Education Required: "Not specified"
-
-Analyze the match and provide:
-1. An overall match percentage (0-100)
-2. A list of matched skills with how strong the match is for each (percentage)
-3. A list of missing or weak skills the candidate should develop
-4. The candidate's key strengths for this position
-5. The candidate's key weaknesses for this position
-
-Format your response as valid JSON with this structure:
-{
-  "matchPercentage": 75,
-  "matchedSkills": [
-    {"skill": "Skill Name", "matchPercentage": 90},
-    {"skill": "Another Skill", "matchPercentage": 85}
-  ],
-  "missingSkills": ["Missing Skill 1", "Missing Skill 2"],
-  "candidateStrengths": ["Strength 1", "Strength 2"],
-  "candidateWeaknesses": ["Weakness 1", "Weakness 2"]
-}`;
+    // Generate prompt using shared template engine
+    const context: MatchAnalysisContext = {
+      resumeAnalysis,
+      jobAnalysis,
+    };
+    const prompt = PromptTemplateEngine.generateMatchAnalysisPrompt(context, {
+      format: 'anthropic'
+    });
 
     const response = await anthropic.messages.create({
       model: MODEL,
@@ -489,36 +438,26 @@ Format your response as valid JSON with this structure:
         "You are a candidate-job matching specialist. Analyze how well a candidate matches job requirements. Respond with valid JSON only, no explanations.",
     });
 
-    // Record successful API call
-    recordApiSuccess();
-
-    // Parse JSON response from Anthropic
+    // Extract JSON from the response content
+    const contentBlock = response.content[0];
+    if (contentBlock.type !== "text") {
+      throw new Error("Unexpected response type from Anthropic");
+    }
+    const responseText = contentBlock.text;
+    
+    // Parse response using shared response parser
     try {
-      // Extract JSON from the response content
-      const contentBlock = response.content[0];
-      if (contentBlock.type !== "text") {
-        throw new Error("Unexpected response type from Anthropic");
+      const parseResult = AnthropicResponseParser.parseAnalysisResponse<any>(responseText);
+      if (!parseResult.success || !parseResult.data) {
+        throw new Error(parseResult.error || "Failed to parse Anthropic response");
       }
-      const responseText = contentBlock.text;
-      const jsonMatch = responseText.match(/({[\s\S]*})/);
-      const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
+      const parsedResponse = parseResult.data;
 
-      const parsedResponse = JSON.parse(jsonStr);
-
-      // Track token usage
-      if (response.usage) {
-        serviceStatus.apiUsageStats.promptTokens +=
-          response.usage.input_tokens || 0;
-        serviceStatus.apiUsageStats.completionTokens +=
-          response.usage.output_tokens || 0;
-        serviceStatus.apiUsageStats.totalTokens +=
-          (response.usage.input_tokens || 0) +
-          (response.usage.output_tokens || 0);
-        // Update estimated cost - Claude pricing is approximately $3 per million input tokens, $15 per million output tokens
-        const inputCost = (response.usage.input_tokens || 0) * 0.000003;
-        const outputCost = (response.usage.output_tokens || 0) * 0.000015;
-        serviceStatus.apiUsageStats.estimatedCost += inputCost + outputCost;
-      }
+      // Record successful API call and track token usage
+      errorHandler.recordSuccess({
+        input_tokens: response.usage?.input_tokens,
+        output_tokens: response.usage?.output_tokens
+      });
 
       // Return normalized response
       const normalizedMatchedSkills: SkillMatch[] = Array.isArray(
@@ -670,22 +609,13 @@ Format your response as valid JSON with this structure:
       };
     }
   } catch (error) {
-    // Track API failure
-    serviceStatus.lastErrorTime = Date.now();
-    serviceStatus.consecutiveFailures++;
-
-    // After 3 consecutive failures, consider service unavailable with exponential backoff
-    if (serviceStatus.consecutiveFailures >= 3) {
-      serviceStatus.isAnthropicAvailable = false;
-      serviceStatus.retry.currentBackoff = Math.min(
-        serviceStatus.retry.currentBackoff * 2,
-        serviceStatus.retry.maxBackoff,
-      );
-      logApiServiceStatus(
-        `Service marked as unavailable after ${serviceStatus.consecutiveFailures} match analysis failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`,
-        true,
-      );
-    }
+    // Record failure using shared error handler
+    const errorClassification = errorHandler.recordFailure(error instanceof Error ? error : new Error(String(error)));
+    
+    logApiServiceStatus(
+      `Match analysis failed: ${error instanceof Error ? error.message : String(error)}`,
+      true,
+    );
 
     // Return the fallback response
     const finalFallbackMatchedSkills: SkillMatch[] = [
@@ -813,34 +743,14 @@ export async function analyzeJobDescription(
   }
 
   try {
-    const prompt = `Please analyze this job description and extract the following information in JSON format:
-1. Job title (if not already provided)
-2. Company name
-3. Location
-4. Job type (full-time, part-time, contract, etc.)
-5. Seniority level (entry, mid, senior, etc.)
-6. Required skills (as an array of strings)
-7. Responsibilities (as an array of strings)
-8. Requirements (as an array of strings)
-9. Qualifications (as an array of strings)
-
-Job Title: ${title || ""}
-
-Job Description:
-${description || ""}
-
-Format the response as valid JSON with the following structure:
-{
-  "title": "Job Title",
-  "company": "Company Name",
-  "location": "Job Location",
-  "jobType": "Job Type",
-  "seniority": "Seniority Level",
-  "skills": ["Skill 1", "Skill 2", "Skill 3", ...],
-  "responsibilities": ["Responsibility 1", "Responsibility 2", ...],
-  "requirements": ["Requirement 1", "Requirement 2", ...],
-  "qualifications": ["Qualification 1", "Qualification 2", ...]
-}`;
+    // Generate prompt using shared template engine
+    const context: JobAnalysisContext = {
+      title: title || "",
+      description: description || "",
+    };
+    const prompt = PromptTemplateEngine.generateJobAnalysisPrompt(context, {
+      format: 'anthropic'
+    });
 
     const response = await anthropic.messages.create({
       model: MODEL,
@@ -850,36 +760,26 @@ Format the response as valid JSON with the following structure:
         "You are a job description analyzer that extracts structured information from job postings. Always respond with valid JSON only, no explanations.",
     });
 
-    // Record successful API call
-    recordApiSuccess();
-
-    // Parse JSON response from Anthropic
+    // Extract JSON from the response content
+    const contentBlock = response.content[0];
+    if (contentBlock.type !== "text") {
+      throw new Error("Unexpected response type from Anthropic");
+    }
+    const responseText = contentBlock.text;
+    
+    // Parse response using shared response parser
     try {
-      // Extract JSON from the response content
-      const contentBlock = response.content[0];
-      if (contentBlock.type !== "text") {
-        throw new Error("Unexpected response type from Anthropic");
+      const parseResult = AnthropicResponseParser.parseAnalysisResponse<any>(responseText);
+      if (!parseResult.success || !parseResult.data) {
+        throw new Error(parseResult.error || "Failed to parse Anthropic response");
       }
-      const responseText = contentBlock.text;
-      const jsonMatch = responseText.match(/({[\s\S]*})/);
-      const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
+      const parsedResponse = parseResult.data;
 
-      const parsedResponse = JSON.parse(jsonStr);
-
-      // Track token usage
-      if (response.usage) {
-        serviceStatus.apiUsageStats.promptTokens +=
-          response.usage.input_tokens || 0;
-        serviceStatus.apiUsageStats.completionTokens +=
-          response.usage.output_tokens || 0;
-        serviceStatus.apiUsageStats.totalTokens +=
-          (response.usage.input_tokens || 0) +
-          (response.usage.output_tokens || 0);
-        // Update estimated cost - Claude pricing is approximately $3 per million input tokens, $15 per million output tokens
-        const inputCost = (response.usage.input_tokens || 0) * 0.000003;
-        const outputCost = (response.usage.output_tokens || 0) * 0.000015;
-        serviceStatus.apiUsageStats.estimatedCost += inputCost + outputCost;
-      }
+      // Record successful API call and track token usage
+      errorHandler.recordSuccess({
+        input_tokens: response.usage?.input_tokens,
+        output_tokens: response.usage?.output_tokens
+      });
 
       // Return normalized response matching AnalyzeJobDescriptionResponse interface
       const requiredSkills = Array.isArray(parsedResponse.skills)
@@ -931,25 +831,16 @@ Format the response as valid JSON with the following structure:
       return fallbackResponse;
     }
   } catch (error) {
-    // Track API failure
-    serviceStatus.lastErrorTime = Date.now();
-    serviceStatus.consecutiveFailures++;
+    // Record failure using shared error handler
+    const errorClassification = errorHandler.recordFailure(error instanceof Error ? error : new Error(String(error)));
+    
+    logApiServiceStatus(
+      `Job description analysis failed: ${error instanceof Error ? error.message : String(error)}`,
+      true,
+    );
 
-    // After 3 consecutive failures, consider service unavailable with exponential backoff
-    if (serviceStatus.consecutiveFailures >= 3) {
-      serviceStatus.isAnthropicAvailable = false;
-      serviceStatus.retry.currentBackoff = Math.min(
-        serviceStatus.retry.currentBackoff * 2,
-        serviceStatus.retry.maxBackoff,
-      );
-      logApiServiceStatus(
-        `Service marked as unavailable after ${serviceStatus.consecutiveFailures} job description analysis failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`,
-        true,
-      );
-    }
-
-    // Return the fallback response
-    return fallbackResponse;
+    // Return fallback response using shared error handler
+    return errorHandler.createFallbackResponse<AnalyzeJobDescriptionResponse>(fallbackResponse, 'job analysis');
   }
 }
 
@@ -1105,22 +996,14 @@ Format your response as valid JSON with this structure:
       };
     }
   } catch (error) {
-    // Track API failure
-    serviceStatus.lastErrorTime = Date.now();
-    serviceStatus.consecutiveFailures++;
-
-    // After 3 consecutive failures, consider service unavailable with exponential backoff
-    if (serviceStatus.consecutiveFailures >= 3) {
-      serviceStatus.isAnthropicAvailable = false;
-      serviceStatus.retry.currentBackoff = Math.min(
-        serviceStatus.retry.currentBackoff * 2,
-        serviceStatus.retry.maxBackoff,
-      );
-      logApiServiceStatus(
-        `Service marked as unavailable after ${serviceStatus.consecutiveFailures} bias analysis failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`,
-        true,
-      );
-    }
+    // Track API failure using error handler
+    errorHandler.recordFailure(error as Error);
+    
+    const status = errorHandler.getStatus();
+    logApiServiceStatus(
+      `Bias analysis failed (${status.consecutiveFailures} consecutive failures)${!status.isAvailable ? ` - service unavailable, retry in ${status.retry.currentBackoff / 1000}s` : ''}`,
+      true,
+    );
 
     // Return the fallback response
     return {
@@ -1221,20 +1104,16 @@ Return a JSON object with the complete interview flow including natural transiti
       true,
     );
 
-    // Update service status
-    serviceStatus.lastErrorTime = Date.now();
-    serviceStatus.consecutiveFailures++;
-
+    // Update service status using error handler
+    errorHandler.recordFailure(error as Error);
+    
+    const status = errorHandler.getStatus();
     // After 3 consecutive failures, consider the service unavailable
-    if (serviceStatus.consecutiveFailures >= 3) {
-      serviceStatus.isAnthropicAvailable = false;
+    if (!status.isAvailable) {
       // Exponential backoff with max limit
-      serviceStatus.retry.currentBackoff = Math.min(
-        serviceStatus.retry.currentBackoff * 2,
-        serviceStatus.retry.maxBackoff,
-      );
+      // Backoff is now handled by the error handler
       logApiServiceStatus(
-        `Service marked as unavailable after ${serviceStatus.consecutiveFailures} interview script generation failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`,
+        `Interview script generation failed - service marked as unavailable, will retry after backoff period`,
         true,
       );
     }
@@ -1511,18 +1390,15 @@ Format your response as valid JSON with this structure:
     }
   } catch (error) {
     // Track API failure
-    serviceStatus.lastErrorTime = Date.now();
-    serviceStatus.consecutiveFailures++;
-
-    // After 3 consecutive failures, consider service unavailable with exponential backoff
-    if (serviceStatus.consecutiveFailures >= 3) {
-      serviceStatus.isAnthropicAvailable = false;
-      serviceStatus.retry.currentBackoff = Math.min(
-        serviceStatus.retry.currentBackoff * 2,
-        serviceStatus.retry.maxBackoff,
-      );
+    // Track API failure using error handler
+    errorHandler.recordFailure(error as Error);
+    
+    const status = errorHandler.getStatus();
+    // After 3 consecutive failures, service is marked unavailable by errorHandler
+    if (!status.isAvailable) {
+      // Backoff is now handled by the error handler
       logApiServiceStatus(
-        `Service marked as unavailable after ${serviceStatus.consecutiveFailures} interview questions generation failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`,
+        `Interview questions generation failed - service marked as unavailable, will retry after backoff period`,
         true,
       );
     }
@@ -1676,18 +1552,15 @@ Format your response as:
     }
   } catch (error) {
     // Track API failure
-    serviceStatus.lastErrorTime = Date.now();
-    serviceStatus.consecutiveFailures++;
-
-    // After 3 consecutive failures, consider service unavailable with exponential backoff
-    if (serviceStatus.consecutiveFailures >= 3) {
-      serviceStatus.isAnthropicAvailable = false;
-      serviceStatus.retry.currentBackoff = Math.min(
-        serviceStatus.retry.currentBackoff * 2,
-        serviceStatus.retry.maxBackoff,
-      );
+    // Track API failure using error handler
+    errorHandler.recordFailure(error as Error);
+    
+    const status = errorHandler.getStatus();
+    // After 3 consecutive failures, service is marked unavailable by errorHandler
+    if (!status.isAvailable) {
+      // Backoff is now handled by the error handler
       logApiServiceStatus(
-        `Service marked as unavailable after ${serviceStatus.consecutiveFailures} skills extraction failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`,
+        `Skills extraction failed - service marked as unavailable, will retry after backoff period`,
         true,
       );
     }
@@ -1803,18 +1676,15 @@ Format your response as valid JSON with this structure:
     }
   } catch (error) {
     // Track API failure
-    serviceStatus.lastErrorTime = Date.now();
-    serviceStatus.consecutiveFailures++;
-
-    // After 3 consecutive failures, consider service unavailable with exponential backoff
-    if (serviceStatus.consecutiveFailures >= 3) {
-      serviceStatus.isAnthropicAvailable = false;
-      serviceStatus.retry.currentBackoff = Math.min(
-        serviceStatus.retry.currentBackoff * 2,
-        serviceStatus.retry.maxBackoff,
-      );
+    // Track API failure using error handler
+    errorHandler.recordFailure(error as Error);
+    
+    const status = errorHandler.getStatus();
+    // After 3 consecutive failures, service is marked unavailable by errorHandler
+    if (!status.isAvailable) {
+      // Backoff is now handled by the error handler
       logApiServiceStatus(
-        `Service marked as unavailable after ${serviceStatus.consecutiveFailures} skill gap analysis failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`,
+        `Skill gap analysis failed - service marked as unavailable, will retry after backoff period`,
         true,
       );
     }

@@ -35,6 +35,12 @@ export default {
   coverageReporters: ['text', 'lcov', 'html'],
   verbose: true,
   silent: false,
-  maxWorkers: '50%',
-  testTimeout: 10000
+  maxWorkers: 1, // Sequential execution for unit tests to prevent memory conflicts
+  workerIdleMemoryLimit: '128MB', // Lower limit for unit tests
+  testTimeout: 10000,
+  
+  // Additional memory optimization for unit tests
+  logHeapUsage: true,
+  forceExit: true,
+  detectOpenHandles: false, // Disable for unit tests to improve performance
 };

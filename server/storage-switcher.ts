@@ -35,8 +35,8 @@ let initializationState: StorageInitializationState = {
   initializationStartTime: null,
   lastInitializationError: null,
   initializationAttempts: 0,
-  maxRetries: 3,
-  initializationTimeout: 30000, // 30 seconds
+  maxRetries: config.storage.initialization.maxRetries,
+  initializationTimeout: config.storage.initialization.timeoutMs,
 };
 
 // Initialization mutex using a promise-based semaphore
@@ -301,8 +301,8 @@ export async function reinitializeStorage(): Promise<IStorage> {
     initializationStartTime: null,
     lastInitializationError: null,
     initializationAttempts: 0,
-    maxRetries: 3,
-    initializationTimeout: 30000,
+    maxRetries: config.storage.initialization.maxRetries,
+    initializationTimeout: config.storage.initialization.timeoutMs,
   };
   initializationMutex = null;
   

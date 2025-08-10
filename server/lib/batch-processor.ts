@@ -660,7 +660,7 @@ export async function processBatchMatches(
  */
 export async function processSmartBatch<T, R>(
   items: T[],
-  processor: (item: T) => Promise<R>,
+  processor: (_item: T) => Promise<R>,
   maxConcurrency: number = 10,
 ): Promise<{
   results: (R | undefined)[];

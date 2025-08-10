@@ -69,6 +69,15 @@ global.importMeta = {
   }
 };
 
+// Mock import.meta globally for all modules
+Object.defineProperty(global, 'import', {
+  value: {
+    meta: global.importMeta
+  },
+  writable: true,
+  configurable: true
+});
+
 // Global test utilities
 global.testUtils = {
   mockDatabase: !process.env.DATABASE_URL || process.env.TEST_TYPE === 'unit',

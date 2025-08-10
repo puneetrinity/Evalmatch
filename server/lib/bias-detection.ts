@@ -250,7 +250,7 @@ function detectAgeBias(
 function detectGenderBias(
   candidate: CandidateProfile,
   job: JobProfile,
-  scoringBreakdown: { [dimension: string]: number }
+  _scoringBreakdown: { [dimension: string]: number }
 ): BiasType | null {
   const evidence: string[] = [];
   let severity: BiasType['severity'] = 'low';

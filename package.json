@@ -20,14 +20,14 @@
     "lint": "eslint server/ --max-warnings 0",
     "lint:fix": "eslint server/ --fix",
     "lint:check": "eslint server/",
-    "test": "jest",
-    "test:unit": "jest --config jest.config.unit.mjs --testPathPattern=\"scoring-constants|api-contracts|schema-validation\"",
-    "test:unit:watch": "jest --config jest.config.unit.mjs --watch",
-    "test:unit:coverage": "jest --config jest.config.unit.mjs --coverage",
-    "test:integration": "jest --config jest.config.integration.mjs tests/api-integration.test.ts",
-    "test:integration:watch": "jest --config jest.config.integration.mjs tests/api-integration.test.ts --watch",
-    "test:schema": "jest --config jest.config.integration.mjs tests/schema-validation.test.ts",
-    "test:e2e": "jest tests/e2e-workflow.test.ts --no-coverage --runInBand --verbose --detectOpenHandles --forceExit",
+    "test": "node --max_old_space_size=2048 node_modules/.bin/jest",
+    "test:unit": "node --max_old_space_size=1024 node_modules/.bin/jest --config jest.config.unit.mjs --testPathPattern=\"scoring-constants|api-contracts|schema-validation\"",
+    "test:unit:watch": "node --max_old_space_size=1024 node_modules/.bin/jest --config jest.config.unit.mjs --watch",
+    "test:unit:coverage": "node --max_old_space_size=1024 node_modules/.bin/jest --config jest.config.unit.mjs --coverage",
+    "test:integration": "node --max_old_space_size=2048 node_modules/.bin/jest --config jest.config.integration.mjs tests/api-integration.test.ts --runInBand",
+    "test:integration:watch": "node --max_old_space_size=2048 node_modules/.bin/jest --config jest.config.integration.mjs tests/api-integration.test.ts --watch",
+    "test:schema": "node --max_old_space_size=1024 node_modules/.bin/jest --config jest.config.integration.mjs tests/schema-validation.test.ts",
+    "test:e2e": "node --max_old_space_size=3072 node_modules/.bin/jest tests/e2e-workflow.test.ts --no-coverage --runInBand --verbose --detectOpenHandles --forceExit",
     "test:all": "npm run test:unit && npm run test:integration && npm run test:schema",
     "test:full": "npm run test:all && npm run test:e2e",
     "test:quick": "npm run test:unit",
@@ -35,6 +35,12 @@
     "test:runner": "node scripts/test-runner.js",
     "test:runner:ci": "node scripts/test-runner.js --ci --skip-e2e",
     "test:runner:coverage": "node scripts/test-runner.js --coverage --skip-e2e",
+    "test:memory-optimized": "node scripts/test-memory-optimized.js",
+    "test:memory-optimized:coverage": "node scripts/test-memory-optimized.js --coverage",
+    "test:memory-optimized:unit": "node scripts/test-memory-optimized.js --batch unit",
+    "test:memory-optimized:integration": "node scripts/test-memory-optimized.js --batch integration,integration-large",
+    "test:monitor": "node scripts/monitor-test-memory.js",
+    "test:monitor:unit": "node scripts/monitor-test-memory.js --config jest.config.unit.mjs",
     "test:railway": "jest --config jest.config.integration.mjs tests/railway-deployment.test.ts",
     "test:railway:setup": "node scripts/railway-test-setup.js",
     "test:railway:full": "npm run test:railway:setup && npm run test:railway",
@@ -190,6 +196,12 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8",
+    "canvas": "^2.11.2"
+  },
+  "resolutions": {
+    "canvas": "^2.11.2"
+  },
+  "overrides": {
     "canvas": "^2.11.2"
   }
 }

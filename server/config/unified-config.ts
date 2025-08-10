@@ -38,6 +38,20 @@ export interface AppConfig {
     };
   };
 
+  // Storage
+  storage: {
+    type: 'database' | 'hybrid' | 'memory';
+    initialization: {
+      maxRetries: number;
+      timeoutMs: number;
+      retryDelayMs: number;
+    };
+    fallback: {
+      enabled: boolean;
+      type: 'memory' | 'readonly';
+    };
+  };
+
   // Firebase Authentication
   firebase: {
     projectId: string | null;
@@ -226,6 +240,10 @@ export function loadUnifiedConfig(): AppConfig {
     uploads: true, // Always enabled for now
   };
 
+  // Storage configuration
+  const storageType = process.env.STORAGE_TYPE as 'database' | 'hybrid' | 'memory' || 
+    (databaseEnabled ? 'hybrid' : 'memory'); // Default to hybrid if database available, memory otherwise
+
   // Build configuration object (validation status is managed by env-validator)
   const config: AppConfig = {
     env,
@@ -259,6 +277,18 @@ export function loadUnifiedConfig(): AppConfig {
         enabled: env === Environment.Production,
         failureThreshold: 5,
         retryInterval: 60000,
+      },
+    },
+    storage: {
+      type: storageType,
+      initialization: {
+        maxRetries: parseInt(process.env.STORAGE_MAX_RETRIES || '3', 10),
+        timeoutMs: parseInt(process.env.STORAGE_TIMEOUT_MS || '30000', 10),
+        retryDelayMs: parseInt(process.env.STORAGE_RETRY_DELAY_MS || '1000', 10),
+      },
+      fallback: {
+        enabled: env !== Environment.Test, // Always enable fallback except in tests
+        type: 'memory' as const,
       },
     },
     firebase: {
@@ -365,6 +395,7 @@ function logConfigurationSummary(config: AppConfig): void {
     environment: config.env,
     port: config.port,
     database: config.database.enabled ? "PostgreSQL" : "Memory Storage",
+    storage: `${config.storage.type} (${config.storage.fallback.enabled ? 'with fallback' : 'no fallback'})`,
     firebase: config.firebase.configured ? "Configured" : "Not Configured",
     aiProviders: Object.entries(config.ai.providers)
       .map(([name, provider]) => `${name}: ${provider.enabled ? "✅" : "❌"}`)
