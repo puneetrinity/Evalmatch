@@ -55,7 +55,18 @@ export interface AppConfig {
   // Firebase Authentication
   firebase: {
     projectId: string | null;
-    serviceAccountKey: string | null;
+    serviceAccountKey: {
+      type: string;
+      project_id: string;
+      private_key_id: string;
+      private_key: string;
+      client_email: string;
+      client_id: string;
+      auth_uri: string;
+      token_uri: string;
+      auth_provider_x509_cert_url: string;
+      client_x509_cert_url: string;
+    } | null;
     clientConfig: {
       apiKey: string | null;
       authDomain: string | null;
@@ -293,7 +304,7 @@ export function loadUnifiedConfig(): AppConfig {
     },
     firebase: {
       projectId: firebaseProjectId,
-      serviceAccountKey: firebaseServiceAccountObject ? firebaseServiceAccountKey : null,
+      serviceAccountKey: firebaseServiceAccountObject,
       clientConfig: firebaseClientConfig,
       configured: firebaseConfigured,
     },
