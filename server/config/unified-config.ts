@@ -11,6 +11,7 @@
 
 import { logger } from "./logger";
 import { Environment } from "../types/environment";
+import { ServiceAccount } from "firebase-admin/app";
 
 // Re-export for backward compatibility
 export { Environment };
@@ -55,18 +56,7 @@ export interface AppConfig {
   // Firebase Authentication
   firebase: {
     projectId: string | null;
-    serviceAccountKey: {
-      type: string;
-      project_id: string;
-      private_key_id: string;
-      private_key: string;
-      client_email: string;
-      client_id: string;
-      auth_uri: string;
-      token_uri: string;
-      auth_provider_x509_cert_url: string;
-      client_x509_cert_url: string;
-    } | null;
+    serviceAccountKey: any; // Use any to allow both file path string or service account object
     clientConfig: {
       apiKey: string | null;
       authDomain: string | null;
@@ -146,19 +136,7 @@ export function loadUnifiedConfig(): AppConfig {
   }
 
   // Parse the service account key into an object for firebase-auth.ts
-  interface FirebaseServiceAccount {
-    type: string;
-    project_id: string;
-    private_key_id: string;
-    private_key: string;
-    client_email: string;
-    client_id: string;
-    auth_uri: string;
-    token_uri: string;
-    auth_provider_x509_cert_url: string;
-    client_x509_cert_url: string;
-  }
-  let firebaseServiceAccountObject: FirebaseServiceAccount | null = null;
+  let firebaseServiceAccountObject: any = null;
   if (firebaseServiceAccountKey) {
     try {
       // SECURITY FIX: Safe logging without exposing sensitive key content
@@ -167,31 +145,34 @@ export function loadUnifiedConfig(): AppConfig {
         isString: typeof firebaseServiceAccountKey === 'string',
         looksLikeJson: firebaseServiceAccountKey.startsWith('{') && firebaseServiceAccountKey.endsWith('}')
       });
-      firebaseServiceAccountObject = JSON.parse(firebaseServiceAccountKey);
+      const parsedKey = JSON.parse(firebaseServiceAccountKey);
       
       // Validate the parsed object has required fields
       const requiredFields = ['type', 'project_id', 'private_key', 'client_email'];
-      const missingFields = requiredFields.filter(field => !firebaseServiceAccountObject?.[field as keyof FirebaseServiceAccount]);
+      const missingFields = requiredFields.filter(field => !parsedKey?.[field]);
       
       if (missingFields.length > 0) {
         logger.error('Firebase service account missing required fields', { 
           missingFields,
-          hasPrivateKey: !!firebaseServiceAccountObject?.private_key,
-          privateKeyLength: firebaseServiceAccountObject?.private_key?.length || 0
+          hasPrivateKey: !!parsedKey?.private_key,
+          privateKeyLength: parsedKey?.private_key?.length || 0
         });
         firebaseServiceAccountObject = null;
-      } else if (firebaseServiceAccountObject) {
+      } else if (parsedKey) {
         // Fix common private key formatting issues
-        if (firebaseServiceAccountObject.private_key.includes('\\n')) {
-          firebaseServiceAccountObject.private_key = firebaseServiceAccountObject.private_key.replace(/\\n/g, '\n');
+        if (parsedKey.private_key.includes('\\n')) {
+          parsedKey.private_key = parsedKey.private_key.replace(/\\n/g, '\n');
           logger.debug('Fixed escaped newlines in Firebase private key');
         }
         
         // Basic validation of private key format
-        const privateKey = firebaseServiceAccountObject.private_key;
+        const privateKey = parsedKey.private_key;
         if (!privateKey.includes('-----BEGIN PRIVATE KEY-----') || !privateKey.includes('-----END PRIVATE KEY-----')) {
           logger.error('Firebase private key appears to be malformed - missing BEGIN/END markers');
           firebaseServiceAccountObject = null;
+        } else {
+          // Use the parsed object directly - Firebase cert() handles both formats
+          firebaseServiceAccountObject = parsedKey;
         }
       }
     } catch (error) {

@@ -155,7 +155,7 @@ async function checkDatabase(): Promise<HealthCheckResult> {
       getConnectionLeakDetails,
       getPoolHealth,
       getPool 
-    } = await import("../database");
+    } = await import("../database/index");
 
     // Run multiple database tests in parallel
     const testPromises = [

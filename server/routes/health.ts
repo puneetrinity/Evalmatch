@@ -60,7 +60,7 @@ router.get("/db-status", async (req: Request, res: Response) => {
       getConnectionLeakDetails, 
       testDatabaseConnection,
       isDatabaseAvailable 
-    } = await import("../database");
+    } = await import("../database/index");
 
     const startTime = Date.now();
     
@@ -196,7 +196,7 @@ router.get("/db-status", async (req: Request, res: Response) => {
 // Connection leak monitoring endpoint - Detailed leak detection information
 router.get("/connection-leaks", async (req: Request, res: Response) => {
   try {
-    const { getConnectionLeakDetails, getConnectionStats } = await import("../database");
+    const { getConnectionLeakDetails, getConnectionStats } = await import("../database/index");
     
     const startTime = Date.now();
     const [leakDetails, connectionStats] = await Promise.allSettled([
