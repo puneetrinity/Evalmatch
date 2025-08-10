@@ -28,10 +28,10 @@ CREATE TABLE IF NOT EXISTS skill_memory (
   -- Metadata
   category_suggestion VARCHAR(100),
   source_contexts JSONB DEFAULT '[]'::jsonb, -- Track where skills were found
-  first_seen TIMESTAMP DEFAULT NOW(),
-  last_seen TIMESTAMP DEFAULT NOW(),
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes for performance
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS skill_memory_stats (
   esco_validated_count INTEGER DEFAULT 0,
   auto_approved_count INTEGER DEFAULT 0,
   high_frequency_count INTEGER DEFAULT 0,
-  created_at TIMESTAMP DEFAULT NOW()
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create unique constraint for daily stats
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS skill_promotion_log (
   promotion_reason VARCHAR(50) NOT NULL,
   promotion_confidence REAL NOT NULL,
   promotion_data JSONB DEFAULT '{}'::jsonb,
-  created_at TIMESTAMP DEFAULT NOW()
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes for promotion log
@@ -76,7 +76,7 @@ CREATE INDEX IF NOT EXISTS idx_skill_promotion_log_created_at ON skill_promotion
 CREATE OR REPLACE FUNCTION update_skill_memory_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW.updated_at = NOW();
+  NEW.updated_at = CURRENT_TIMESTAMP;
   RETURN NEW;
 END;
 $$ language 'plpgsql';

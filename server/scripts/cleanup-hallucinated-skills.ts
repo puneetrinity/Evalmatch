@@ -128,7 +128,7 @@ async function cleanupResumeSkills(resumeId: number): Promise<{
     }
 
     // Extract skills from various sources
-    let allSkills: string[] = [];
+    const allSkills: string[] = [];
     
     // Skills from direct field
     if (Array.isArray(resume.skills)) {
@@ -335,7 +335,7 @@ async function analyzeResumeSkills(resumeId: number): Promise<{
     throw new Error(`Resume ${resumeId} not found`);
   }
 
-  let allSkills: string[] = [];
+  const allSkills: string[] = [];
   
   if (Array.isArray(resume.skills)) {
     allSkills.push(...resume.skills);

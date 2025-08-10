@@ -2,7 +2,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import express, { type Request, Response, NextFunction } from "express";
+import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 
@@ -48,8 +48,8 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "https://fonts.googleapis.com", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
-      scriptSrc: ["'self'", "https://www.gstatic.com", "https://www.googleapis.com", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
+      styleSrc: ["'self'", "https://fonts.googleapis.com", (_req: unknown, res: express.Response) => `'nonce-${res.locals.nonce}'`],
+      scriptSrc: ["'self'", "https://www.gstatic.com", "https://www.googleapis.com", (_req: unknown, res: express.Response) => `'nonce-${res.locals.nonce}'`],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
       connectSrc: ["'self'", "https:", "wss:", "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],

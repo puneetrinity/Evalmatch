@@ -83,7 +83,7 @@ router.get("/db-status", async (req: Request, res: Response) => {
 
     // Determine overall database status
     let overallStatus = 'healthy';
-    let issues = [];
+    const issues = [];
 
     if (!isAvailable) {
       overallStatus = 'unhealthy';
@@ -219,7 +219,7 @@ router.get("/connection-leaks", async (req: Request, res: Response) => {
 
     // Determine alert level based on leak severity
     let alertLevel = 'info';
-    let recommendations = [];
+    const recommendations = [];
 
     if (leaks.summary.potentialLeaks > 10) {
       alertLevel = 'critical';

@@ -11,7 +11,7 @@ import { validators } from "../middleware/input-validation";
 import { logger } from "../lib/logger";
 import { createResumeService } from "../services/resume-service";
 import { getStorage } from "../storage";
-import { isSuccess, isFailure } from "@shared/result-types";
+import { isFailure } from "@shared/result-types";
 import { getErrorStatusCode, getErrorCode, getErrorMessage, getErrorTimestamp } from "@shared/type-utilities";
 
 const router = Router();

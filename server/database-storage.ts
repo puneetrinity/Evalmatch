@@ -58,7 +58,7 @@ export class DatabaseStorage implements IStorage {
     return withRetry(async () => {
       // If sessionId is provided, filter resumes by session
       if (sessionId) {
-        console.log(`DatabaseStorage: Filtering resumes by sessionId: ${sessionId}`);
+        logger.debug('Filtering resumes by sessionId', { sessionId });
         return this.db.select()
           .from(resumes)
           .where(eq(resumes.sessionId, sessionId))
@@ -132,34 +132,43 @@ export class DatabaseStorage implements IStorage {
   
   // Job description methods
   async getJobDescription(id: number): Promise<JobDescription | undefined> {
-    console.log(`DatabaseStorage: Looking up job description with ID ${id}`);
+    logger.debug('Looking up job description', { jobId: id });
     return withRetry(async () => {
       try {
         const [jobDescription] = await this.db.select()
           .from(jobDescriptions)
           .where(eq(jobDescriptions.id, id));
         
-        console.log(`DatabaseStorage: Job lookup result: ${jobDescription ? `Found job '${jobDescription.title}' with ID ${jobDescription.id}` : 'No job found'}`);
+        logger.debug('Job lookup result', { 
+          found: !!jobDescription,
+          jobId: jobDescription?.id,
+          title: jobDescription?.title
+        });
         return jobDescription;
       } catch (error) {
-        console.error(`DatabaseStorage: Error fetching job description ${id}:`, error);
+        logger.error(`Error fetching job description (jobId: ${id})`, error);
         throw error;
       }
     }, `getJobDescription(${id})`);
   }
 
   async getJobDescriptionById(id: number, userId: string): Promise<JobDescription | undefined> {
-    console.log(`DatabaseStorage: Looking up job description with ID ${id} for user ${userId}`);
+    logger.debug('Looking up user-scoped job description', { jobId: id, userId });
     return withRetry(async () => {
       try {
         const [jobDescription] = await this.db.select()
           .from(jobDescriptions)
           .where(and(eq(jobDescriptions.id, id), eq(jobDescriptions.userId, userId)));
         
-        console.log(`DatabaseStorage: User-scoped job lookup result: ${jobDescription ? `Found job '${jobDescription.title}' with ID ${jobDescription.id}` : 'No job found for user'}`);
+        logger.debug('User-scoped job lookup result', {
+          found: !!jobDescription,
+          jobId: jobDescription?.id, 
+          title: jobDescription?.title,
+          userId
+        });
         return jobDescription;
       } catch (error) {
-        console.error(`DatabaseStorage: Error fetching job description ${id} for user ${userId}:`, error);
+        logger.error(`Error fetching user-scoped job description (jobId: ${id}, userId: ${userId})`, error);
         throw error;
       }
     }, `getJobDescriptionById(${id}, ${userId})`);
@@ -321,18 +330,6 @@ export class DatabaseStorage implements IStorage {
       // Get analysis results ordered by creation time (most recent first)
       // This is a simpler approach than the complex subquery
       
-      // Build the main query with deduplication
-      let query = this.db.select({
-        analysisResults,
-        resume: resumes
-      })
-        .from(analysisResults)
-        .leftJoin(resumes, eq(analysisResults.resumeId, resumes.id))
-        .where(and(
-          ...conditions,
-          ...(resumeConditions.length > 0 ? resumeConditions : [])
-        ));
-      
       // Since we can't directly use the subquery in this context with Drizzle,
       // we'll use a window function approach instead
       const results = await this.db.select({
@@ -372,11 +369,12 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(analysisResults.createdAt));
       
       // Deduplicate by keeping only the most recent analysis per resume
-      const deduplicatedResults = new Map<number, any>();
+      type QueryResult = typeof results[0];
+      const deduplicatedResults = new Map<number, QueryResult>();
       
       for (const result of results) {
         if (result.resumeId && (!deduplicatedResults.has(result.resumeId) || 
-            new Date(result.createdAt!) > new Date(deduplicatedResults.get(result.resumeId).createdAt!))) {
+            new Date(result.createdAt!) > new Date(deduplicatedResults.get(result.resumeId)!.createdAt!))) {
           deduplicatedResults.set(result.resumeId, result);
         }
       }

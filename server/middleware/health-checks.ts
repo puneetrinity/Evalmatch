@@ -236,7 +236,7 @@ async function checkDatabase(): Promise<HealthCheckResult> {
     // Determine overall status based on all tests
     let status: "healthy" | "degraded" | "unhealthy";
     let message: string;
-    let issues: string[] = [];
+    const issues: string[] = [];
 
     if (!(connectivityResult as any).success) {
       status = "unhealthy";
@@ -1072,7 +1072,7 @@ async function checkSystemResources(): Promise<HealthCheckResult> {
     };
 
     // Disk space information (current working directory)
-    let diskInfo = {
+    const diskInfo = {
       available: 0,
       total: 0,
       used: 0,
@@ -1121,7 +1121,7 @@ async function checkSystemResources(): Promise<HealthCheckResult> {
 
     // Determine overall status based on resource usage
     let status: "healthy" | "degraded" | "unhealthy";
-    let issues = [];
+    const issues = [];
 
     // Check for resource issues
     if (systemMemory.usagePercent > 90) {
@@ -1829,7 +1829,7 @@ export async function livenessProbe(
 
     // Simple liveness checks - app is alive if it can respond and isn't critically broken
     let isAlive = true;
-    let issues = [];
+    const issues = [];
     let status = "alive";
 
     // Check for critical memory issues that would require restart

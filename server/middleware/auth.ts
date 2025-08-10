@@ -103,7 +103,7 @@ export async function authenticateUser(
       }
       
       // ENHANCED: Add rate limiting for bypass mode (prevent abuse)
-      const bypassAttemptKey = `auth_bypass:${req.ip}`;
+      const _bypassAttemptKey = `auth_bypass:${req.ip}`;
       // This would integrate with rate limiting middleware if available
       
       logger.warn("⚠️ Auth bypass mode enabled for development/testing", {

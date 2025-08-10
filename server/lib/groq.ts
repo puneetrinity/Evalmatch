@@ -613,7 +613,7 @@ Respond with only the JSON object, no additional text.`;
 
     const response = await callGroqAPI(prompt, MODELS.PREMIUM, 0.0, seed);
     const cleanedResponse = stripMarkdownFromJSON(response);
-    let parsedResponse = JSON.parse(cleanedResponse) as MatchAnalysisResponse;
+    const parsedResponse = JSON.parse(cleanedResponse) as MatchAnalysisResponse;
 
     // Normalize scores for consistency
     if (parsedResponse.matchPercentage) {

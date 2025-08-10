@@ -14,6 +14,7 @@
 import { IStorage, MemStorage } from './storage';
 import { config } from './config/unified-config';
 import { getPool, getConnectionStats } from './database';
+import { logger } from './config/logger';
 import {
   type Resume, type InsertResume,
   type JobDescription, type InsertJobDescription,
@@ -123,7 +124,7 @@ export class HybridStorage implements IStorage {
       
       // Reset failure counters on success
       if (dbHealth.failedOperations > 0) {
-        console.log(`Database health check recovered after ${dbHealth.failedOperations} failures`, {
+        logger.info(`Database health check recovered after ${dbHealth.failedOperations} failures`, {
           responseTime,
           consecutiveSuccesses: dbHealth.consecutiveSuccesses,
         });
@@ -132,7 +133,7 @@ export class HybridStorage implements IStorage {
       
       // Check if we should exit recovery mode
       if (!dbHealth.isAvailable && dbHealth.consecutiveSuccesses >= dbHealth.requiredSuccessesForRecovery) {
-        console.log(`Database fully recovered - ${dbHealth.consecutiveSuccesses} consecutive successes`);
+        logger.info(`Database fully recovered - ${dbHealth.consecutiveSuccesses} consecutive successes`);
         dbHealth.isAvailable = true;
         dbHealth.recoveryMode = false;
         dbHealth.lastAvailableTime = Date.now();
@@ -191,7 +192,7 @@ export class HybridStorage implements IStorage {
     if (dbHealth.queuedWrites.length === 0) return;
     
     const totalOperations = dbHealth.queuedWrites.length;
-    console.log(`Attempting to process ${totalOperations} queued write operations`);
+    logger.info(`Attempting to process ${totalOperations} queued write operations`);
     
     // Process in order, but don't let one failure block others
     const operations = [...dbHealth.queuedWrites];
@@ -249,7 +250,7 @@ export class HybridStorage implements IStorage {
     
     const duration = Date.now() - startTime;
     
-    console.log(`Queued write processing completed`, {
+    logger.info(`Queued write processing completed`, {
       totalOperations,
       successCount,
       failureCount,
@@ -269,8 +270,8 @@ export class HybridStorage implements IStorage {
   /**
    * Determine if an error is critical and shouldn't be retried
    */
-  private isCriticalError(error: any): boolean {
-    const errorMessage = error?.message || String(error);
+  private isCriticalError(error: unknown): boolean {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     
     // Critical errors that shouldn't be retried
     const criticalPatterns = [
@@ -648,7 +649,7 @@ export class HybridStorage implements IStorage {
   }
   
   async createAnalysisResult(analysisResult: InsertAnalysisResult): Promise<AnalysisResult> {
-    console.log('🔍 HybridStorage.createAnalysisResult called with:', {
+    logger.info('🔍 HybridStorage.createAnalysisResult called with:', {
       userId: analysisResult.userId,
       resumeId: analysisResult.resumeId,
       jobDescriptionId: analysisResult.jobDescriptionId

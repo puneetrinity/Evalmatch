@@ -4,7 +4,7 @@ import {
   type AnalysisResult, type InsertAnalysisResult,
   type InterviewQuestions, type InsertInterviewQuestions,
   type AnalyzeResumeResponse, type AnalyzeJobDescriptionResponse, 
-  type MatchAnalysisResponse, type InterviewQuestionsResponse,
+  type InterviewQuestionsResponse,
   type User, type InsertUser, type SimpleBiasAnalysis
 } from "@shared/schema";
 import { UserTierInfo } from "@shared/user-tiers";
@@ -96,8 +96,8 @@ export class MemStorage implements IStorage {
   }
 
   // User methods (from the original implementation)
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+  async getUser(_id: number): Promise<User | undefined> {
+    return this.users.get(_id);
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
@@ -536,7 +536,7 @@ export class MemStorage implements IStorage {
 import { initializeStorage } from './storage-switcher';
 
 // Initialize memory storage as fallback (for testing purposes)
-const memStorage = new MemStorage();
+const _memStorage = new MemStorage();
 
 // Export storage initialization function for async initialization
 export let storage: IStorage | null = null;
@@ -571,7 +571,7 @@ export function getStorage(): IStorage {
   if (typeof storage !== 'object' || !storage.getJobDescriptions) {
     logger.error('💥 Storage instance is invalid!', {
       storageType: typeof storage,
-      hasGetJobDescriptions: !!(storage as any)?.getJobDescriptions,
+      hasGetJobDescriptions: !!(storage as IStorage)?.getJobDescriptions,
       constructorName: storage?.constructor?.name
     });
     throw new Error('Storage instance is invalid or corrupted. Re-initialization required.');

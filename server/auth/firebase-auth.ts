@@ -8,7 +8,6 @@
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getAuth, Auth } from "firebase-admin/auth";
 import { config } from "../config/unified-config";
-import { logger } from "../config/logger";
 import { serverAuthLogger } from "../lib/auth-logger";
 
 // Firebase Admin instances
@@ -211,21 +210,26 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
       displayName: decodedToken.name,
       photoURL: decodedToken.picture,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     authStatus.failedVerifications++;
 
+    // Type guard for Firebase errors
+    const isFirebaseError = (err: unknown): err is { code: string } => {
+      return typeof err === 'object' && err !== null && 'code' in err;
+    };
+
     // Log different error types with appropriate levels
-    if (error.code === "auth/id-token-expired") {
+    if (isFirebaseError(error) && error.code === "auth/id-token-expired") {
       serverAuthLogger.debug("Token expired (normal occurrence)", {
         operation: "verify_token",
         errorCode: error.code,
       });
-    } else if (error.code === "auth/id-token-revoked") {
+    } else if (isFirebaseError(error) && error.code === "auth/id-token-revoked") {
       serverAuthLogger.warn("Token revoked", {
         operation: "verify_token",
         errorCode: error.code,
       });
-    } else if (error.code === "auth/invalid-id-token") {
+    } else if (isFirebaseError(error) && error.code === "auth/invalid-id-token") {
       serverAuthLogger.warn("Invalid token format", {
         operation: "verify_token",
         errorCode: error.code,
@@ -233,7 +237,7 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
     } else {
       serverAuthLogger.error("Token verification failed", error, {
         operation: "verify_token",
-        errorCode: error.code,
+        errorCode: isFirebaseError(error) ? error.code : 'unknown',
       });
     }
 
@@ -270,11 +274,16 @@ export async function getFirebaseUser(uid: string) {
         lastSignInTime: userRecord.metadata.lastSignInTime,
       },
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    // Type guard for Firebase errors
+    const isFirebaseError = (err: unknown): err is { code: string } => {
+      return typeof err === 'object' && err !== null && 'code' in err;
+    };
+
     serverAuthLogger.error("Failed to get Firebase user", error, {
       operation: "get_user",
       uid: uid,
-      errorCode: error.code,
+      errorCode: isFirebaseError(error) ? error.code : 'unknown',
     });
     return null;
   }

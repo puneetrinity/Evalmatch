@@ -9,7 +9,6 @@
 import { Pool, PoolClient } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "@shared/schema";
-import { sql } from "drizzle-orm";
 import { config } from "../config/unified-config";
 import { logger } from "../config/logger";
 import fs from "fs";
@@ -566,7 +565,7 @@ function getOptimizedPoolConfig() {
   const env = config.env;
   const isProduction = env === "production";
   const isTest = env === "test";
-  const isDevelopment = env === "development";
+  const _isDevelopment = env === "development";
 
   // Optimized environment-specific pool sizing based on research and best practices
   const poolConfigs = {
@@ -670,12 +669,11 @@ function setupConnectionHandlers(pool: Pool): void {
       logger.error("PostgreSQL client error:", {
         error: err.message,
         code: (err as NodeJS.ErrnoException).code,
-        severity: "severity" in err ? (err as any).severity : undefined,
+        severity: 'severity' in err ? (err as { severity?: string }).severity : undefined,
         stack: config.env === "development" ? err.stack : undefined,
         connectionInfo: {
-          processID:
-            "processID" in client ? (client as any).processID : undefined,
-          database: "database" in client ? (client as any).database : undefined,
+          processID: 'processID' in client ? (client as { processID?: number }).processID : undefined,
+          database: 'database' in client ? (client as { database?: string }).database : undefined,
         },
       });
       handleConnectionError(err);
@@ -686,7 +684,7 @@ function setupConnectionHandlers(pool: Pool): void {
     logger.error("PostgreSQL pool error:", {
       error: err.message,
       code: (err as NodeJS.ErrnoException).code,
-      severity: "severity" in err ? (err as any).severity : undefined,
+      severity: 'severity' in err ? (err as { severity?: string }).severity : undefined,
       stack: config.env === "development" ? err.stack : undefined,
       poolStats: {
         total: pool.totalCount,
@@ -1039,7 +1037,7 @@ async function performHealthCheck(): Promise<void> {
     );
     const responseTime = Date.now() - startTime;
 
-    if ((result[0] as any)?.health_check === 1) {
+    if ((result[0] as { health_check?: number })?.health_check === 1) {
       logger.debug(`Health check passed in ${responseTime}ms`);
     } else {
       throw new Error("Health check returned unexpected result");
@@ -1197,10 +1195,11 @@ async function runMigrations(): Promise<void> {
         
         logger.info(`✅ Migration completed: ${migrationFile}`);
       } catch (error) {
+        const pgError = error as { message?: string; code?: string; detail?: string };
         logger.error(`❌ Migration failed for file: ${migrationFile}`, {
-          error: (error as any).message,
-          errorCode: (error as any).code,
-          errorDetail: (error as any).detail,
+          error: pgError.message || 'Unknown error',
+          errorCode: pgError.code,
+          errorDetail: pgError.detail,
           migrationFile
         });
         throw error;
@@ -1286,7 +1285,7 @@ export async function validateConnection(retries = 3): Promise<boolean> {
       const result = await executeQuery(
         "SELECT 1 as test, version() as pg_version",
       );
-      if ((result[0] as any)?.test === 1) {
+      if ((result[0] as { test?: number })?.test === 1) {
         logger.debug(`Connection validation successful (attempt ${attempt})`);
         return true;
       }

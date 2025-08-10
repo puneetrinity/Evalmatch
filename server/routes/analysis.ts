@@ -11,24 +11,9 @@ import { getStorage } from "../storage";
 import { createAnalysisService } from "../services/analysis-service";
 import { validators } from "../middleware/input-validation";
 import {
-  AnalyzedResumeData,
-  AnalyzedJobData,
-  AnalyzeResumeResponse,
-  AnalyzeJobDescriptionResponse,
-  MatchAnalysisResult,
-  SkillMatch
-} from "@shared/schema";
-import {
-  isSuccess,
   isFailure
 } from "@shared/result-types";
 import { getErrorStatusCode, getErrorCode, getErrorMessage, getErrorTimestamp } from "@shared/type-utilities";
-import {
-  AppNotFoundError,
-  AppValidationError,
-  AppExternalServiceError,
-  toAppError
-} from "@shared/errors";
 
 const router = Router();
 

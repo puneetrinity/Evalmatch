@@ -535,7 +535,6 @@ router.delete(
       });
 
       // Start transaction for safe deletion
-      const db = getDatabase();
 
       // Delete interview questions first (foreign key dependency)
       const deleteInterviewQuery = `

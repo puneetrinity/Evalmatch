@@ -12,7 +12,7 @@ import { insertJobDescriptionSchema } from "@shared/schema";
 import { logger } from "../lib/logger";
 import { createJobService } from "../services/job-service";
 import { getStorage } from "../storage";
-import { isSuccess, isFailure } from "@shared/result-types";
+import { isFailure } from "@shared/result-types";
 import { getErrorStatusCode, getErrorCode, getErrorMessage, getErrorTimestamp } from "@shared/type-utilities";
 
 const router = Router();

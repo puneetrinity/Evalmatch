@@ -433,7 +433,7 @@ router.get("/debug-auth", requireAdmin, async (req: Request, res: Response) => {
       : null;
 
     // Check Firebase Admin SDK configuration using unified auth system
-    const { verifyFirebaseConfiguration, getFirebaseAuthStatus } = await import(
+    const { verifyFirebaseConfiguration } = await import(
       "../auth/firebase-auth"
     );
     const firebaseStatus = await verifyFirebaseConfiguration();
@@ -596,7 +596,7 @@ router.post(
       logger.info(`Created category mapping for ${categoryMap.size} categories`);
 
       // Convert enhanced skills dictionary to insertion format
-      const skillsData = Object.entries(ENHANCED_SKILL_DICTIONARY).map(([key, skillInfo]) => ({
+      const skillsData = Object.entries(ENHANCED_SKILL_DICTIONARY).map(([_key, skillInfo]) => ({
         name: skillInfo.normalized,
         normalizedName: skillInfo.normalized.toLowerCase(),
         categoryId: categoryMap.get(skillInfo.category),

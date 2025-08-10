@@ -10,7 +10,9 @@ import {
   InterviewQuestionsResponse,
   BiasAnalysisResponse,
   SkillMatch,
+  FairnessMetrics,
 } from "@shared/schema";
+import type { AnalysisId, JobId, ResumeId } from "@shared/api-contracts";
 
 // Define the individual match result type (extracted from MatchAnalysisResponse.results)
 type SingleMatchResult = {
@@ -21,7 +23,7 @@ type SingleMatchResult = {
   candidateWeaknesses: string[];
   recommendations: string[];
   confidenceLevel: "low" | "medium" | "high";
-  fairnessMetrics?: any;
+  fairnessMetrics?: FairnessMetrics;
 };
 
 // Helper function to convert MatchAnalysisResponse to SingleMatchResult
@@ -62,11 +64,11 @@ function createMatchAnalysisResponse(
   filename: string = "unknown",
 ): MatchAnalysisResponse {
   return {
-    analysisId: 0 as any,
-    jobId: jobId as any,
+    analysisId: 0 as AnalysisId,
+    jobId: jobId as JobId,
     results: [
       {
-        resumeId: resumeId as any,
+        resumeId: resumeId as ResumeId,
         filename: filename,
         candidateName: undefined,
         matchPercentage: singleResult.matchPercentage,
@@ -100,7 +102,8 @@ import {
   calculateEnhancedMatch,
   DEFAULT_SCORING_WEIGHTS,
 } from "./enhanced-scoring";
-import { generateEmbedding, calculateSemanticSimilarity } from "./embeddings";
+// Embeddings functions available but not currently used in this module
+// import { generateEmbedding, calculateSemanticSimilarity } from "./embeddings";
 import { initializeSkillHierarchy } from "./skill-hierarchy";
 import { analyzeResumeFairness } from "./fairness-analyzer";
 

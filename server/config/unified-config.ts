@@ -10,19 +10,10 @@
  */
 
 import { logger } from "./logger";
-import {
-  getEnvVar,
-  getEnvNumber,
-  getEnvBoolean,
-  getEnvJSON,
-} from "../lib/env-validator";
+import { Environment } from "../types/environment";
 
-// Environment types
-export enum Environment {
-  Development = "development",
-  Production = "production",
-  Test = "test",
-}
+// Re-export for backward compatibility
+export { Environment };
 
 // Comprehensive application configuration interface
 export interface AppConfig {
@@ -102,7 +93,7 @@ export interface AppConfig {
  */
 export function loadUnifiedConfig(): AppConfig {
   // Note: Environment variables are validated by validateEnvironmentOrExit() before this runs
-  const authBypassMode = process.env.AUTH_BYPASS_MODE === "true";
+  // AUTH_BYPASS_MODE environment variable is available but not currently used
 
   // Environment configuration (safe to read directly after validation)
   const env = (process.env.NODE_ENV || "development") as Environment;
@@ -130,7 +121,19 @@ export function loadUnifiedConfig(): AppConfig {
   }
 
   // Parse the service account key into an object for firebase-auth.ts
-  let firebaseServiceAccountObject: any = null;
+  interface FirebaseServiceAccount {
+    type: string;
+    project_id: string;
+    private_key_id: string;
+    private_key: string;
+    client_email: string;
+    client_id: string;
+    auth_uri: string;
+    token_uri: string;
+    auth_provider_x509_cert_url: string;
+    client_x509_cert_url: string;
+  }
+  let firebaseServiceAccountObject: FirebaseServiceAccount | null = null;
   if (firebaseServiceAccountKey) {
     try {
       // SECURITY FIX: Safe logging without exposing sensitive key content
@@ -143,16 +146,16 @@ export function loadUnifiedConfig(): AppConfig {
       
       // Validate the parsed object has required fields
       const requiredFields = ['type', 'project_id', 'private_key', 'client_email'];
-      const missingFields = requiredFields.filter(field => !firebaseServiceAccountObject[field]);
+      const missingFields = requiredFields.filter(field => !firebaseServiceAccountObject?.[field as keyof FirebaseServiceAccount]);
       
       if (missingFields.length > 0) {
         logger.error('Firebase service account missing required fields', { 
           missingFields,
-          hasPrivateKey: !!firebaseServiceAccountObject.private_key,
-          privateKeyLength: firebaseServiceAccountObject.private_key?.length || 0
+          hasPrivateKey: !!firebaseServiceAccountObject?.private_key,
+          privateKeyLength: firebaseServiceAccountObject?.private_key?.length || 0
         });
         firebaseServiceAccountObject = null;
-      } else {
+      } else if (firebaseServiceAccountObject) {
         // Fix common private key formatting issues
         if (firebaseServiceAccountObject.private_key.includes('\\n')) {
           firebaseServiceAccountObject.private_key = firebaseServiceAccountObject.private_key.replace(/\\n/g, '\n');
@@ -260,7 +263,7 @@ export function loadUnifiedConfig(): AppConfig {
     },
     firebase: {
       projectId: firebaseProjectId,
-      serviceAccountKey: firebaseServiceAccountObject,
+      serviceAccountKey: firebaseServiceAccountObject ? firebaseServiceAccountKey : null,
       clientConfig: firebaseClientConfig,
       configured: firebaseConfigured,
     },
@@ -381,7 +384,7 @@ function logConfigurationSummary(config: AppConfig): void {
  * Kept for backward compatibility but does nothing since validation
  * is performed earlier in the startup process.
  */
-export function validateConfigurationOrExit(config: AppConfig): void {
+export function validateConfigurationOrExit(_config: AppConfig): void {
   // Validation is now handled by validateEnvironmentOrExit() in env-validator
   // This function is kept for backward compatibility but is effectively a no-op
   logger.debug(

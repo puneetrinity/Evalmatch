@@ -54,7 +54,7 @@ interface ApiUsage {
 const responseCache: Record<string, CacheItem<unknown>> = {};
 
 // Token usage tracking
-let apiUsage: ApiUsage = {
+const apiUsage: ApiUsage = {
   promptTokens: 0,
   completionTokens: 0,
   totalTokens: 0,

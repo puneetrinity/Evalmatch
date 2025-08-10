@@ -59,7 +59,7 @@ export class DatabaseSecurity {
    */
   private static sanitizeStringForDb(input: string): string {
     // Remove dangerous SQL patterns
-    let sanitized = input
+    const sanitized = input
       // Remove SQL comments
       .replace(/--.*$/gm, '')
       .replace(/\/\*.*?\*\//g, '')

@@ -278,7 +278,7 @@ function truncateText(
   }
 
   // Try to truncate at a sentence or paragraph boundary
-  let truncated = text.substring(0, maxLength);
+  const truncated = text.substring(0, maxLength);
 
   // Look for last sentence ending
   const sentenceEndings = [". ", ".\n", "! ", "!\n", "? ", "?\n"];
@@ -416,7 +416,7 @@ function postProcessResumeText(raw: string): string {
       /\b([A-Z][a-zA-Z+#.-]{2,}(?:\s+[A-Z][a-zA-Z+#.-]{2,}){0,2})(?:\s+developer|engineer|administrator|analyst)\b/g,
     ];
 
-    let detectedSkills = new Set<string>();
+    const detectedSkills = new Set<string>();
     for (const pattern of skillPatterns) {
       let match;
       while ((match = pattern.exec(text)) !== null) {
@@ -440,7 +440,7 @@ function postProcessResumeText(raw: string): string {
     // Process skills section to ensure proper formatting
     text = text.replace(skillsSectionRegex, (match, header, content) => {
       // Clean up skills content
-      let skillsContent = content
+      const skillsContent = content
         .split(/[,;\n•]/) // Split by common delimiters
         .map((s: string) => s.trim())
         .filter((s: string) => s.length > 0 && s.length < 50) // Remove empty/too long entries

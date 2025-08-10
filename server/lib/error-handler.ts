@@ -27,7 +27,7 @@ export function handleApiError(
   } = options;
 
   // Extract message from error object
-  let message =
+  const message =
     error instanceof Error
       ? error.message
       : error &&

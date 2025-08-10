@@ -7,22 +7,19 @@
 
 import { Request, Response, NextFunction } from "express";
 import { z } from "zod";
-import { getDatabase, executeQuery } from "../database/index";
+import { executeQuery } from "../database/index";
 import { logger } from "../config/logger";
 import rateLimit from "express-rate-limit";
 import type { SessionId } from "@shared/api-contracts";
 import {
-  errorHandler,
   asyncHandler,
 } from "./error-handler";
 import {
   createValidationError,
   createAuthError,
   createForbiddenError,
-  createNotFoundError,
   createDatabaseError,
   createError,
-  AppError,
 } from "./global-error-handler";
 
 // Enhanced batch validation types
