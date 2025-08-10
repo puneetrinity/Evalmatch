@@ -73,18 +73,20 @@ CREATE INDEX IF NOT EXISTS idx_skill_promotion_log_skill_id ON skill_promotion_l
 CREATE INDEX IF NOT EXISTS idx_skill_promotion_log_created_at ON skill_promotion_log(created_at DESC);
 
 -- Add trigger to update updated_at timestamp
+-- Note: Using PROCEDURE instead of FUNCTION for better compatibility
 CREATE OR REPLACE FUNCTION update_skill_memory_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER AS '
 BEGIN
   NEW.updated_at = CURRENT_TIMESTAMP;
   RETURN NEW;
 END;
-$$ language 'plpgsql';
+' language 'plpgsql';
 
+-- Create trigger using compatible syntax (works with PostgreSQL 10+ and 11+)
 CREATE TRIGGER skill_memory_updated_at 
   BEFORE UPDATE ON skill_memory 
   FOR EACH ROW 
-  EXECUTE FUNCTION update_skill_memory_updated_at();
+  EXECUTE PROCEDURE update_skill_memory_updated_at();
 
 -- Insert initial stats record for today
 INSERT INTO skill_memory_stats (date, total_skills_discovered, esco_validated_count, auto_approved_count, high_frequency_count)
