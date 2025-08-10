@@ -514,14 +514,42 @@ export async function initializeDatabase(): Promise<void> {
     // Run migrations
     await runMigrations();
     
-    // Also run emergency migrations from migrate.js as a backup
+    // Also run emergency migrations from migrate.cjs as a backup
     // This ensures critical columns are added even if SQL migrations fail
     try {
-      const { runMigration } = require('../migrate.cjs');
-      logger.info("🔧 Running emergency column migrations...");
-      await runMigration();
+      // Try multiple possible paths for the emergency migration script
+      const possibleMigrationScripts = [
+        '../migrate.cjs',
+        './migrate.cjs', 
+        '../../migrate.cjs',
+        path.join(__dirname, '..', 'migrate.cjs'),
+        path.join(process.cwd(), 'server', 'migrate.cjs'),
+        path.join(process.cwd(), 'build', 'migrate.cjs'),
+      ];
+      
+      let migrationScript = null;
+      for (const scriptPath of possibleMigrationScripts) {
+        try {
+          const resolved = path.resolve(scriptPath.startsWith('/') ? scriptPath : path.join(__dirname, scriptPath));
+          if (fs.existsSync(resolved)) {
+            migrationScript = require(resolved);
+            logger.debug(`Found emergency migration script: ${resolved}`);
+            break;
+          }
+        } catch (e) {
+          // Try next path
+          continue;
+        }
+      }
+      
+      if (migrationScript && migrationScript.runMigration) {
+        logger.info("🔧 Running emergency column migrations...");
+        await migrationScript.runMigration();
+      } else {
+        logger.debug("Emergency migration script not found - SQL migrations should be sufficient");
+      }
     } catch (error) {
-      logger.warn("Emergency migration script not available or failed:", (error as Error).message);
+      logger.warn("Emergency migration script failed:", (error as Error).message);
       // Non-fatal - SQL migrations should handle everything
     }
 
@@ -1158,11 +1186,33 @@ async function runMigrations(): Promise<void> {
   try {
     logger.info("🔄 Running database migrations...");
 
-    const migrationsDir = path.join(__dirname, "..", "migrations");
-    if (!fs.existsSync(migrationsDir)) {
-      logger.warn(
-        "No migrations directory found - assuming database is already set up",
-      );
+    // Try multiple possible locations for migrations directory
+    const possibleMigrationDirs = [
+      path.join(__dirname, "..", "migrations"),              // server/migrations (dev)
+      path.join(__dirname, "migrations"),                    // database/migrations 
+      path.join(__dirname, "..", "..", "migrations"),        // root/migrations
+      path.join(process.cwd(), "server", "migrations"),      // from project root
+      path.join(process.cwd(), "build", "migrations"),       // production build
+      path.join(process.cwd(), "migrations"),                // direct in working dir
+    ];
+
+    let migrationsDir: string | null = null;
+    
+    for (const dir of possibleMigrationDirs) {
+      logger.debug(`Checking for migrations directory: ${dir}`);
+      if (fs.existsSync(dir)) {
+        migrationsDir = dir;
+        logger.info(`Found migrations directory: ${dir}`);
+        break;
+      }
+    }
+
+    if (!migrationsDir) {
+      logger.warn("No migrations directory found - assuming database is already set up", {
+        searchedPaths: possibleMigrationDirs,
+        currentWorkingDir: process.cwd(),
+        __dirname,
+      });
       return;
     }
 
