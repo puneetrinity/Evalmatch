@@ -82,8 +82,8 @@ export const serviceStatus = {
  * @param isError Whether this is an error message
  */
 function logApiServiceStatus(message: string, isError: boolean = false) {
-  const timestamp = new Date().toISOString();
-  const prefix = isError ? "ERROR" : "INFO";
+  const _timestamp = new Date().toISOString();
+  const _prefix = isError ? "ERROR" : "INFO";
   const servicePrefix = "ANTHROPIC_API";
   if (isError) {
     logger.error(`[${servicePrefix}] ${message}`);

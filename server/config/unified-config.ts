@@ -11,7 +11,6 @@
 
 import { logger } from "./logger";
 import { Environment } from "../types/environment";
-import { ServiceAccount } from "firebase-admin/app";
 
 // Re-export for backward compatibility
 export { Environment };

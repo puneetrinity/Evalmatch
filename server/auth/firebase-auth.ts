@@ -5,7 +5,7 @@
  * graceful degradation, and comprehensive debugging capabilities.
  */
 
-import { initializeApp, getApps, cert, App, ServiceAccount } from "firebase-admin/app";
+import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getAuth, Auth } from "firebase-admin/auth";
 import { config } from "../config/unified-config";
 import { serverAuthLogger } from "../lib/auth-logger";

@@ -19,7 +19,7 @@ const getErrorMessage = (error: unknown): string => {
   return String(error);
 };
 
-const getErrorDetails = (error: unknown) => ({
+const _getErrorDetails = (error: unknown) => ({
   message: getErrorMessage(error),
   stack: error instanceof Error ? error instanceof Error ? error.stack : undefined : undefined,
   type: error instanceof Error ? error.constructor.name : typeof error,
@@ -925,7 +925,6 @@ async function checkExternalDependencies(): Promise<HealthCheckResult> {
     try {
       const testStartTime = Date.now();
       const https = await import("https");
-      const { promisify } = await import("util");
 
       const testConnection = () =>
         new Promise((resolve, reject) => {
@@ -1081,7 +1080,7 @@ async function checkSystemResources(): Promise<HealthCheckResult> {
     };
 
     try {
-      const stats = await fs.stat(process.cwd());
+      const _stats = await fs.stat(process.cwd());
       if (platform !== "win32") {
         // Unix-like systems - try to get disk space using statvfs equivalent
         // This is a simplified approach - in production you might want to use a library like 'diskusage'
