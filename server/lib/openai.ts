@@ -84,7 +84,7 @@ interface OpenAISkillItem {
 // Prefix unused imports to silence warnings
 const _success = success;
 const _isFailure = isFailure;
-const _AppError = AppError;
+// _AppError type is imported as type above
 const _OpenAIResponseParser = OpenAIResponseParser;
 const _ResumeAnalysisContext = ResumeAnalysisContext;
 const _JobAnalysisContext = JobAnalysisContext;
