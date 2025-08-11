@@ -27,7 +27,8 @@ export default defineConfig({
     },
   },
   define: {
-    global: 'globalThis',
+    // Use a more specific global definition to avoid conflicts
+    global: '(typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {})',
   },
   root: path.resolve(__dirname, "client"),
   build: {
@@ -51,8 +52,11 @@ export default defineConfig({
         manualChunks(id) {
           // Core vendor dependencies
           if (id.includes('node_modules')) {
-            // React ecosystem
-            if (id.includes('react') || id.includes('react-dom')) {
+            // React ecosystem - ensure proper loading order
+            if (id.includes('react-dom')) {
+              return 'vendor-react-dom';
+            }
+            if (id.includes('react') && !id.includes('react-dom')) {
               return 'vendor-react';
             }
             
@@ -171,6 +175,8 @@ export default defineConfig({
     include: [
       'react',
       'react-dom',
+      'react/jsx-runtime',
+      'react/jsx-dev-runtime',
       '@tanstack/react-query',
       'wouter',
       'lucide-react',
@@ -180,5 +186,7 @@ export default defineConfig({
       '@replit/vite-plugin-runtime-error-modal',
       '@replit/vite-plugin-cartographer',
     ],
+    // Force pre-bundling of React to ensure proper initialization
+    force: true,
   },
 });

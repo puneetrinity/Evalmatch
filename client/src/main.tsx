@@ -3,10 +3,14 @@ import "./polyfills"; // Import polyfills first
 import App from "./App";
 import "./index.css";
 import { Toaster } from "@/components/ui/toaster";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { StrictMode } from "react";
 
 createRoot(document.getElementById("root")!).render(
-  <>
-    <Toaster />
-    <App />
-  </>
+  <StrictMode>
+    <ErrorBoundary>
+      <Toaster />
+      <App />
+    </ErrorBoundary>
+  </StrictMode>
 );
