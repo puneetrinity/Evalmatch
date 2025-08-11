@@ -1120,10 +1120,10 @@ Respond with only the JSON object, no additional text.`;
       hasBias:
         groqResponse.biasIndicators && groqResponse.biasIndicators.length > 0,
       biasTypes: groqResponse.biasIndicators
-        ? groqResponse.biasIndicators.map((indicator: any) => indicator.type)
+        ? groqResponse.biasIndicators.map((indicator: { type: string }) => indicator.type)
         : [],
       biasedPhrases: groqResponse.biasIndicators
-        ? groqResponse.biasIndicators.map((indicator: any) => ({
+        ? groqResponse.biasIndicators.map((indicator: { type: string; text: string; suggestion?: string }) => ({
             phrase: indicator.text,
             reason: indicator.suggestion || `${indicator.type} bias detected`,
           }))
@@ -1216,7 +1216,7 @@ Respond with only the JSON object, no additional text.`;
       yearsOfExperience: number;
     }>(cleanedResponse, "extractExperience");
 
-    // If AI parsing succeeded, validate and return
+    // If AI parsing succeeded with non-zero years, validate and return
     if (experience.totalYears && experience.totalYears !== "0 years") {
       const result = {
         totalYears: experience.totalYears,
@@ -1229,8 +1229,43 @@ Respond with only the JSON object, no additional text.`;
       logger.info("Experience extracted successfully from resume with Groq");
       return result;
     } else {
-      // AI returned 0 years, try fallback text parsing
-      throw new Error("AI returned 0 years, attempting fallback extraction");
+      // AI returned 0 years - verify with intelligent fallback parsing
+      logger.info("AI returned 0 years, verifying with regex patterns and context analysis");
+      
+      // STEP 2-6: Smart verification of "0 years" claim
+      const verificationResult = verifyZeroExperienceWithContext(text);
+      
+      if (verificationResult.isLegitimateZero) {
+        // Confirmed legitimate zero experience (student, graduate, etc.)
+        const result = {
+          totalYears: verificationResult.totalYears,
+          summary: verificationResult.summary,
+          jobTitles: verificationResult.jobTitles,
+          yearsOfExperience: 0,
+        };
+        
+        setCachedResponse(cacheKey, result);
+        logger.info("Verified legitimate zero experience", { reason: verificationResult.reason });
+        return result;
+      } else if (verificationResult.foundHiddenExperience) {
+        // Found hidden experience that AI missed
+        const result = {
+          totalYears: verificationResult.totalYears,
+          summary: verificationResult.summary,
+          jobTitles: verificationResult.jobTitles,
+          yearsOfExperience: verificationResult.yearsOfExperience,
+        };
+        
+        setCachedResponse(cacheKey, result);
+        logger.info("Found hidden experience AI missed", { 
+          method: verificationResult.extractionMethod,
+          years: verificationResult.yearsOfExperience 
+        });
+        return result;
+      } else {
+        // No evidence either way, fallback to text parsing
+        throw new Error("Could not verify 0 years claim, using complete fallback");
+      }
     }
   } catch (error) {
     logger.warn("AI experience extraction failed, trying text-based fallback", { error: error instanceof Error ? error.message : error });
@@ -1241,6 +1276,147 @@ Respond with only the JSON object, no additional text.`;
     setCachedResponse(cacheKey, fallbackResult);
     logger.info("Experience extracted using text-based fallback", { result: fallbackResult });
     return fallbackResult;
+  }
+}
+
+// INTELLIGENT VERIFICATION: Smart analysis of "0 years" claims from AI
+function verifyZeroExperienceWithContext(text: string): {
+  isLegitimateZero: boolean;
+  foundHiddenExperience: boolean;
+  totalYears: string;
+  summary: string;
+  jobTitles: string[];
+  yearsOfExperience: number;
+  extractionMethod?: string;
+  reason?: string;
+} {
+  let extractedYears = 0;
+  let extractionMethod = "context-verification";
+  let reason = "";
+  
+  // STEP 3: Check for date ranges → Calculate actual years
+  const dateRangePattern = /(\d{4})\s*[-–—]\s*(\d{4})/g;
+  const currentPattern = /(\d{4})\s*[-–—]\s*(?:present|current|now)/gi;
+  const currentYear = new Date().getFullYear();
+  let maxYearsFromDates = 0;
+  
+  // Calculate from date ranges
+  let match;
+  while ((match = dateRangePattern.exec(text)) !== null) {
+    const startYear = parseInt(match[1]);
+    const endYear = parseInt(match[2]);
+    if (startYear >= 1990 && startYear <= currentYear && endYear >= startYear && endYear <= currentYear) {
+      const years = endYear - startYear;
+      maxYearsFromDates = Math.max(maxYearsFromDates, years);
+    }
+  }
+  
+  // Calculate from current positions
+  dateRangePattern.lastIndex = 0; // Reset regex
+  while ((match = currentPattern.exec(text)) !== null) {
+    const startYear = parseInt(match[1]);
+    if (startYear >= 1990 && startYear <= currentYear) {
+      const years = currentYear - startYear;
+      maxYearsFromDates = Math.max(maxYearsFromDates, years);
+    }
+  }
+  
+  if (maxYearsFromDates > 0) {
+    extractedYears = maxYearsFromDates;
+    extractionMethod = "date-range-calculation";
+    reason = `Found ${maxYearsFromDates} years from date ranges`;
+  }
+  
+  // STEP 4: Check for keywords → "senior" suggests experience
+  const seniorIndicators = /(?:senior|lead|principal|architect|manager|director|vp|vice president|head of|chief)/i;
+  if (extractedYears === 0 && seniorIndicators.test(text)) {
+    extractedYears = 3; // Conservative estimate for senior roles
+    extractionMethod = "senior-role-heuristic";
+    reason = "Found senior/lead role indicators suggesting 3+ years";
+  }
+  
+  // STEP 5: Check for student markers → Confirms legitimate zero
+  const studentMarkers = /(?:student|graduate|graduating|recent graduate|fresh graduate|degree.*202[0-9]|university.*202[0-9]|college.*202[0-9]|bachelor.*202[0-9]|master.*202[0-9]|phd.*202[0-9])/i;
+  const internshipMarkers = /(?:intern|internship|co-op|co-operative)/i;
+  
+  const hasStudentMarkers = studentMarkers.test(text);
+  const hasInternshipOnly = internshipMarkers.test(text) && !seniorIndicators.test(text);
+  
+  // Extract job titles for context
+  const jobTitlePatterns = [
+    /(?:position|role|title):\s*([^\n]+)/gi,
+    /(?:working|worked)\s+as\s+(?:a|an)?\s*([^\n,]+)/gi,
+    /(?:^|\n)([A-Z][a-zA-Z\s]+(?:Engineer|Developer|Manager|Analyst|Specialist|Director|Lead|Senior|Junior))/gm
+  ];
+  
+  const jobTitles: string[] = [];
+  const seenTitles = new Set<string>();
+  
+  for (const pattern of jobTitlePatterns) {
+    pattern.lastIndex = 0; // Reset regex
+    while ((match = pattern.exec(text)) !== null) {
+      const title = match[1].trim();
+      if (title.length > 3 && title.length < 50 && !seenTitles.has(title.toLowerCase())) {
+        jobTitles.push(title);
+        seenTitles.add(title.toLowerCase());
+      }
+    }
+  }
+  
+  // STEP 6: Return appropriate value based on analysis
+  if (hasStudentMarkers && extractedYears === 0) {
+    // Confirmed legitimate zero - student/recent graduate
+    return {
+      isLegitimateZero: true,
+      foundHiddenExperience: false,
+      totalYears: "Recent graduate",
+      summary: "Recent graduate seeking opportunities to apply academic knowledge",
+      jobTitles: jobTitles,
+      yearsOfExperience: 0,
+      reason: "Confirmed student/recent graduate status"
+    };
+  } else if (hasInternshipOnly && extractedYears === 0) {
+    // Internship experience counts as partial
+    return {
+      isLegitimateZero: false,
+      foundHiddenExperience: true,
+      totalYears: "Entry level",
+      summary: "Entry-level professional with internship experience",
+      jobTitles: jobTitles,
+      yearsOfExperience: 0.5,
+      extractionMethod: "internship-detection",
+      reason: "Found internship experience"
+    };
+  } else if (extractedYears > 0) {
+    // Found hidden experience that AI missed
+    let totalYearsText = "";
+    if (extractedYears % 1 !== 0) {
+      totalYearsText = `${extractedYears} years`;
+    } else {
+      totalYearsText = `${extractedYears}${extractedYears >= 3 ? '+' : ''} years`;
+    }
+    
+    return {
+      isLegitimateZero: false,
+      foundHiddenExperience: true,
+      totalYears: totalYearsText,
+      summary: `Professional with ${extractedYears} years of experience`,
+      jobTitles: jobTitles,
+      yearsOfExperience: extractedYears,
+      extractionMethod: extractionMethod,
+      reason: reason
+    };
+  } else {
+    // Inconclusive - no clear evidence either way
+    return {
+      isLegitimateZero: false,
+      foundHiddenExperience: false,
+      totalYears: "Experience not specified",
+      summary: "Professional background",
+      jobTitles: jobTitles,
+      yearsOfExperience: 0,
+      reason: "No conclusive evidence found"
+    };
   }
 }
 

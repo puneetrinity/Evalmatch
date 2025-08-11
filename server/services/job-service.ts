@@ -104,7 +104,7 @@ export interface UpdateJobOptions {
 export interface JobCreationResult {
   job: JobDescription;
   analysis?: AnalyzeJobDescriptionResponse;
-  biasAnalysis?: any;
+  biasAnalysis?: object;
   processingTime: number;
 }
 
@@ -223,7 +223,7 @@ export class JobService {
             // TODO: Implement bias detection functionality
             // const biasAnalysis = await detectJobBias(options.description);
             const biasAnalysis = null; // Placeholder until implementation
-            result.biasAnalysis = biasAnalysis;
+            result.biasAnalysis = biasAnalysis as unknown as undefined;
           } catch (error) {
             logger.warn('Bias analysis failed', {
               jobId: jobDescription.id,

@@ -213,7 +213,7 @@ export interface ResumeListResult {
   /** Query metadata */
   metadata: {
     queryTime: number;
-    filters: Record<string, any>;
+    filters: Record<string, string | number | boolean | null>;
   };
 }
 
@@ -568,7 +568,13 @@ export class ResumeService {
         },
         metadata: {
           queryTime,
-          filters: { userId, sessionId, batchId, fileType, hasAnalysis }
+          filters: { 
+            userId, 
+            sessionId: sessionId ?? null, 
+            batchId: batchId ?? null, 
+            fileType: fileType ?? null, 
+            hasAnalysis: hasAnalysis ?? null 
+          }
         }
       });
 
