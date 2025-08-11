@@ -34,7 +34,6 @@ import { analyzeResumeWithCache } from '../lib/cached-ai-operations';
 import { getUserTierInfo } from '../lib/user-tiers';
 import { parseDocument } from '../lib/document-parser';
 import {
-  Result,
   success,
   failure,
   isSuccess,
@@ -64,7 +63,6 @@ import {
 } from '@shared/schema';
 
 // Prefix unused imports to silence warnings
-const _Result = Result;
 const _ResumeQueryBuilder = ResumeQueryBuilder;
 const _transformDatabaseResult = transformDatabaseResult;
 const _transformResumeServiceResult = transformResumeServiceResult;

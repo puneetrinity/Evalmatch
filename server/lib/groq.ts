@@ -23,9 +23,9 @@ import {
   type BiasAnalysisResponse,
 } from "@shared/schema";
 import type { ResumeId, JobId } from "@shared/api-contracts";
-import { GroqErrorHandler: _GroqErrorHandler, logApiServiceStatus: _logApiServiceStatus } from "./shared/error-handler";
-import { GroqResponseParser: _GroqResponseParser } from "./shared/response-parser";
-import { PromptTemplateEngine: _PromptTemplateEngine, type ResumeAnalysisContext as _ResumeAnalysisContext, type JobAnalysisContext as _JobAnalysisContext, type MatchAnalysisContext as _MatchAnalysisContext } from "./shared/prompt-templates";
+import { GroqErrorHandler as _GroqErrorHandler, logApiServiceStatus as _logApiServiceStatus } from "./shared/error-handler";
+import { GroqResponseParser as _GroqResponseParser } from "./shared/response-parser";
+import { PromptTemplateEngine as _PromptTemplateEngine, type ResumeAnalysisContext as _ResumeAnalysisContext, type JobAnalysisContext as _JobAnalysisContext, type MatchAnalysisContext as _MatchAnalysisContext } from "./shared/prompt-templates";
 
 // Initialize Groq client only if API key is available
 const groq = process.env.GROQ_API_KEY
@@ -322,7 +322,7 @@ async function callGroqAPI(
 }
 
 // Result-based version of Groq API call
-import { Result: _Result, success, failure, fromPromise: _fromPromise, isFailure, type ExternalServiceError, type AppError } from '../../shared/result-types';
+import { Result as _Result, success, failure, fromPromise as _fromPromise, isFailure, type ExternalServiceError, type AppError } from '../../shared/result-types';
 import { AppExternalServiceError } from '../../shared/errors';
 
 async function _callGroqAPIWithResult(

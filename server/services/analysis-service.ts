@@ -38,7 +38,6 @@ import { getUserTierInfo } from '../lib/user-tiers';
 // Prefix unused import to silence warnings
 const _matchAnalysisWithCache = matchAnalysisWithCache;
 import {
-  Result,
   success,
   failure,
   isSuccess,
@@ -56,27 +55,20 @@ import {
   toAppError
 } from '@shared/errors';
 import {
-  AnalyzedResumeData,
-  AnalyzedJobData,
   AnalyzeResumeResponse,
   AnalyzeJobDescriptionResponse,
   MatchAnalysisResponse,
-  SkillMatch,
-  ScoringDimensions
+  SkillMatch
 } from '@shared/schema';
 import type { ResumeId, JobId, AnalysisId } from '@shared/api-contracts';
 
 // Prefix unused imports to silence warnings
-const _Result = Result;
 const _success = success;
 const _failure = failure;
 const _chainResult = chainResult;
 const _chainResultAsync = chainResultAsync;
 const _AppValidationError = AppValidationError;
 const _toAppError = toAppError;
-const _AnalyzedResumeData = AnalyzedResumeData;
-const _AnalyzedJobData = AnalyzedJobData;
-const _ScoringDimensions = ScoringDimensions;
 
 // ===== SERVICE INPUT TYPES =====
 

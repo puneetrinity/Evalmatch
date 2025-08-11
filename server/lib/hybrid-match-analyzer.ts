@@ -7,8 +7,6 @@ import {
   FairnessMetrics,
 } from "@shared/schema";
 
-// Prefix unused import to silence warnings
-const _MatchAnalysisResponse = MatchAnalysisResponse;
 import {
   calculateEnhancedMatch,
   ScoringWeights,
@@ -16,7 +14,7 @@ import {
 import {
   UNIFIED_SCORING_WEIGHTS,
   CONFIDENCE_THRESHOLDS,
-  MATCH_QUALITY_THRESHOLDS: _MATCH_QUALITY_THRESHOLDS,
+  MATCH_QUALITY_THRESHOLDS as _MATCH_QUALITY_THRESHOLDS,
   calculateUnifiedConfidence,
   applyBiasAdjustment,
   getMatchQualityLevel,
@@ -78,20 +76,20 @@ import {
 } from "./match-insights-generator";
 // Consolidated skill system import
 import {
-  detectSkillContamination: _detectSkillContamination,
+  detectSkillContamination as _detectSkillContamination,
   type ContaminationResult as _ContaminationResult
 } from "./skill-processor";
 import {
-  Result: _Result,
+  Result as _Result,
   success,
   failure,
-  fromPromise: _fromPromise,
+  fromPromise as _fromPromise,
   MatchAnalysisResult
 } from "@shared/result-types";
 import {
   AppExternalServiceError,
   AppBusinessLogicError,
-  toAppError: _toAppError
+  toAppError as _toAppError
 } from "@shared/errors";
 
 // Use unified scoring weights for consistency (Task 1 & 2: Re-enable semantic scoring)

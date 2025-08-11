@@ -34,12 +34,10 @@ import { analyzeJobDescriptionWithCache } from '../lib/cached-ai-operations';
 import { getUserTierInfo } from '../lib/user-tiers';
 // import { detectJobBias } from '../lib/bias-detection'; // Function not implemented yet
 import {
-  Result,
   success,
   failure,
   isSuccess,
   isFailure,
-  DatabaseResult,
   JobAnalysisResult
 } from '@shared/result-types';
 import {
@@ -58,8 +56,6 @@ import {
 } from '@shared/schema';
 
 // Prefix unused imports to silence warnings
-const _Result = Result;
-const _DatabaseResult = DatabaseResult;
 const _AppBusinessLogicError = AppBusinessLogicError;
 
 // ===== SERVICE INTERFACES =====
