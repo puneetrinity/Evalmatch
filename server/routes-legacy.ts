@@ -81,7 +81,7 @@ import {
   analyzeBias,
   getTierAwareServiceStatus,
 } from "./lib/tiered-ai-provider";
-import { createDefaultUserTier: _createDefaultUserTier, UserTierInfo } from "@shared/user-tiers";
+import { createDefaultUserTier as _createDefaultUserTier, UserTierInfo } from "@shared/user-tiers";
 
 // FOR TESTING: Override tier to premium to bypass limits
 function createTestUserTier(userId: string): UserTierInfo {

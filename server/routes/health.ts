@@ -10,12 +10,26 @@ import {
   detailedHealthCheck,
   readinessProbe,
   livenessProbe,
+  railwayHealthCheck,
 } from "../middleware/health-checks";
 
 const router = Router();
 
 // Basic health check endpoint - Fast response for load balancers
 router.get("/health", basicHealthCheck);
+
+// Railway-optimized health check endpoint - Ultra-fast for deployment validation
+router.get("/health/railway", railwayHealthCheck);
+
+// Ultra-simple ping endpoint - Minimal response time for Railway deployment checks
+router.get("/ping", (req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    status: "alive",
+    timestamp: Date.now(),
+    uptime: Math.round(process.uptime())
+  });
+});
 
 // Detailed health check endpoint - Comprehensive system status
 router.get("/health/detailed", detailedHealthCheck);
