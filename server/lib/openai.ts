@@ -84,11 +84,9 @@ interface OpenAISkillItem {
 // Prefix unused imports to silence warnings
 const _success = success;
 const _isFailure = isFailure;
-// _AppError type is imported as type above
+// Type imports (cannot be assigned to variables at runtime):
+// _AppError, _ResumeAnalysisContext, _JobAnalysisContext, _MatchAnalysisContext
 const _OpenAIResponseParser = OpenAIResponseParser;
-const _ResumeAnalysisContext = ResumeAnalysisContext;
-const _JobAnalysisContext = JobAnalysisContext;
-const _MatchAnalysisContext = MatchAnalysisContext;
 
 // Helper function for safe error message extraction
 function getErrorMessage(error: unknown): string {
