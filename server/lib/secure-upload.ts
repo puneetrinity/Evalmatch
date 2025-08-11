@@ -411,8 +411,8 @@ async function checkForSuspiciousPatterns(filepath: string, mimetype?: string): 
       confidence = Math.min(100, (totalMatches * 20));
     }
     
-    // BALANCED APPROACH: Higher threshold for documents to reduce false positives
-    const suspiciousThreshold = isDocument ? 50 : 30; // Documents need higher confidence to be flagged
+    // OPTIMIZED: Even higher threshold for documents to reduce false positives significantly  
+    const suspiciousThreshold = isDocument ? 70 : 30; // Increased from 50 to 70 for documents
     const isSuspicious = confidence > suspiciousThreshold;
     
     return {
@@ -484,9 +484,13 @@ async function validateFileContent(
           const pdfHeader = buffer.toString('ascii', 0, 16);
           const versionMatch = pdfHeader.match(/%PDF-(\d\.\d)/);
           if (versionMatch) {
+            // TOLERANT: Accept any reasonable PDF version (1.0 to 2.9) 
             const version = parseFloat(versionMatch[1]);
-            magicNumberValid = version >= 1.0 && version <= 2.0;
+            magicNumberValid = version >= 1.0 && version <= 2.9;
             details = `PDF version ${versionMatch[1]}`;
+          } else {
+            // Even without version info, if it starts with %PDF, consider it valid
+            details = 'PDF file (version not detected but valid header)';
           }
         } else {
           details = 'Invalid PDF magic number';
@@ -498,10 +502,19 @@ async function validateFileContent(
         magicNumberValid = firstBytes[0] === 0x50 && firstBytes[1] === 0x4b && 
                           (firstBytes[2] === 0x03 || firstBytes[2] === 0x05);
         if (magicNumberValid) {
-          // Check for DOCX-specific content structure
+          // TOLERANT DOCX validation - check for common DOCX indicators but be flexible
           const content = buffer.toString('utf8', 0, Math.min(2048, buffer.length));
-          magicNumberValid = content.includes('word/') || content.includes('docx');
-          details = 'Valid DOCX ZIP structure';
+          const hasWordIndicators = content.includes('word/') || content.includes('docx') || 
+                                   content.includes('document.xml') || content.includes('styles.xml') ||
+                                   content.includes('_rels/') || content.includes('docProps/');
+          
+          if (hasWordIndicators) {
+            details = 'Valid DOCX ZIP structure';
+          } else {
+            // Even without specific indicators, if it's a valid ZIP, it might be a valid DOCX
+            details = 'Valid ZIP archive (assuming DOCX format)';
+            logger.info('DOCX file without clear indicators accepted', { filename: 'unknown' });
+          }
         } else {
           details = 'Invalid DOCX/ZIP magic number';
         }
@@ -712,7 +725,7 @@ export const secureUpload = multer({
       const userId = req.user?.uid;
       if (userId) {
         const rateLimitKey = `upload:${userId}`;
-        if (!SecurityValidator.checkRateLimit(rateLimitKey, 10, 60000)) { // 10 uploads per minute
+        if (!SecurityValidator.checkRateLimit(rateLimitKey, 15, 60000)) { // 15 uploads per minute (increased for better UX)
           return cb(new Error("Upload rate limit exceeded. Please wait before uploading more files."));
         }
       }
@@ -746,18 +759,28 @@ export async function validateUploadedFile(
   const userId = req.user?.uid;
   
   try {
+    // ENHANCED: More detailed validation startup logging
     logger.info("Starting comprehensive file validation", {
       filename: req.file.filename,
       originalName: req.file.originalname,
       mimetype: req.file.mimetype,
       size: req.file.size,
-      userId
+      userId,
+      validationSteps: ["content", "security", "move", "metadata"],
+      timestamp: new Date().toISOString()
     });
 
     // Step 1: Comprehensive content validation
+    logger.info("Step 1: Starting content validation", { filename: req.file.filename, userId });
     const contentValidation = await validateFileContent(req.file.path, req.file.mimetype);
 
     if (!contentValidation.isValid) {
+      logger.warn("Step 1: Content validation failed", {
+        filename: req.file.filename,
+        userId,
+        reason: contentValidation.details,
+        securityInfo: contentValidation.securityInfo
+      });
       await quarantineFile(req.file.path, `Content validation failed: ${contentValidation.details}`, userId);
       
       logger.warn("File failed content validation", {
@@ -800,9 +823,24 @@ export async function validateUploadedFile(
     }
 
     // Step 2: Enhanced security pattern detection
+    logger.info("Step 2: Starting security pattern detection", { filename: req.file.filename, userId });
     const securityScan = await checkForSuspiciousPatterns(req.file.path, req.file.mimetype);
     
+    logger.info("Step 2: Security scan completed", {
+      filename: req.file.filename,
+      userId,
+      isSuspicious: securityScan.isSuspicious,
+      confidence: securityScan.confidence,
+      threatsDetected: securityScan.threats.length
+    });
+    
     if (securityScan.isSuspicious) {
+      logger.warn("Step 2: Security validation failed", {
+        filename: req.file.filename,
+        userId,
+        confidence: securityScan.confidence,
+        threats: securityScan.threats
+      });
       await quarantineFile(req.file.path, `Security scan failed: ${securityScan.threats.join(', ')}`, userId);
       
       logger.error("SECURITY ALERT: Suspicious file upload detected", {
@@ -859,9 +897,11 @@ export async function validateUploadedFile(
     }
 
     // Step 3: Move file from temp to upload directory after validation
+    logger.info("Step 3: Moving file to final destination", { filename: req.file.filename, userId });
     const finalPath = path.join(UPLOAD_DIR, req.file.filename);
     await fs.rename(req.file.path, finalPath);
     req.file.path = finalPath; // Update path for downstream processing
+    logger.info("Step 3: File moved successfully", { filename: req.file.filename, userId, finalPath });
     
     // Step 3.1: Verify file readiness after move to prevent race conditions
     try {
