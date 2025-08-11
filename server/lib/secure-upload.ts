@@ -131,6 +131,46 @@ function getPatternsForFileType(mimetype?: string): RegExp[] {
   return patterns;
 }
 
+// Get entropy threshold based on file type - different formats have different natural entropy levels
+function getEntropyThresholdForFileType(mimetype?: string): number {
+  switch (mimetype) {
+    case 'application/pdf':
+      // PDFs naturally have high entropy (7.0-8.0) due to:
+      // - Compression algorithms (zlib/flate)
+      // - Embedded fonts and binary font data  
+      // - Image compression within PDFs
+      // - PDF internal structure with binary streams
+      // - Base64-encoded embedded content
+      return 8.5; // Only flag if entropy is unusually high even for PDFs
+      
+    case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+      // DOCX files are ZIP archives with compression, naturally high entropy (7.0-8.0)
+      // - ZIP compression algorithms
+      // - Embedded media and fonts
+      // - Binary document structure
+      // - Compressed XML content
+      return 8.5; // Only flag if entropy is unusually high even for DOCX
+      
+    case 'application/msword':
+      // DOC files use OLE compound document format with some compression
+      // - OLE structure with binary streams
+      // - Compressed document elements
+      // - Embedded objects and fonts
+      return 8.0; // Slightly lower than PDF/DOCX but still account for compression
+      
+    case 'text/plain':
+      // Plain text files should have lower entropy
+      // - Text has predictable patterns
+      // - High entropy in text files is suspicious (encrypted, packed, binary)
+      return 6.5; // Lower threshold for text files where high entropy is suspicious
+      
+    default:
+      // For unknown file types, use a moderate threshold
+      // - Balance between security and false positives
+      return 7.8; // Original threshold for unknown types
+  }
+}
+
 // Enhanced directory initialization
 async function ensureUploadDirectories() {
   try {
@@ -270,10 +310,12 @@ async function checkForSuspiciousPatterns(filepath: string, mimetype?: string): 
       }
     }
     
-    // Additional entropy check for encrypted/compressed malware
+    // File-type-specific entropy check for encrypted/compressed malware
     const entropy = calculateEntropy(buffer.slice(0, Math.min(8192, buffer.length)));
-    if (entropy > 7.8) { // High entropy might indicate encryption/compression
-      threats.push(`High entropy detected: ${entropy.toFixed(2)}`);
+    const entropyThreshold = getEntropyThresholdForFileType(mimetype);
+    
+    if (entropy > entropyThreshold) {
+      threats.push(`High entropy detected: ${entropy.toFixed(2)} (threshold: ${entropyThreshold.toFixed(2)} for ${mimetype || 'unknown'})`);
       totalMatches++;
     }
     
