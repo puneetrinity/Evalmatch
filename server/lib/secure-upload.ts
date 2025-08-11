@@ -42,19 +42,9 @@ const FILE_SIZE_LIMITS = {
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB absolute maximum
 
-// Security patterns for enhanced detection
-const DANGEROUS_PATTERNS = [
-  // Script patterns
-  /javascript:/gi,
-  /<script[\s\S]*?>[\s\S]*?<\/script>/gi,
-  /<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi,
-  /on\w+\s*=\s*["'][^"']*["']/gi,
-  /eval\s*\(/gi,
-  /document\.write/gi,
-  /window\.location/gi,
-  /document\.cookie/gi,
-  
-  // Binary patterns
+// Common dangerous patterns for all file types
+const COMMON_DANGEROUS_PATTERNS = [
+  // Binary executable patterns
   /\x4d\x5a/g, // MZ header (Windows executables)
   /\x7f\x45\x4c\x46/g, // ELF header (Linux executables) 
   /\xca\xfe\xba\xbe/g, // Mach-O header (macOS executables)
@@ -65,10 +55,18 @@ const DANGEROUS_PATTERNS = [
   /\/bin\/(sh|bash|zsh|fish)/gi,
   /system\(/gi,
   /exec\(/gi,
-  
-  // SQL injection patterns
-  /(union|select|insert|update|delete|drop|create|alter)\s/gi,
-  /(\x27|\'|(\x22|\"))/g, // SQL quotes
+];
+
+// Script injection patterns - primarily for text/code files
+const SCRIPT_INJECTION_PATTERNS = [
+  /javascript:/gi,
+  /<script[\s\S]*?>[\s\S]*?<\/script>/gi,
+  /<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi,
+  /on\w+\s*=\s*["'][^"']*["']/gi,
+  /eval\s*\(/gi,
+  /document\.write/gi,
+  /window\.location/gi,
+  /document\.cookie/gi,
   
   // Data exfiltration patterns
   /base64,[\w+\/=]+/gi,
@@ -81,6 +79,57 @@ const DANGEROUS_PATTERNS = [
   /file:\/\//gi,
   /mailto:/gi,
 ];
+
+// PDF-specific dangerous patterns (PDFs can have embedded JavaScript)
+const PDF_DANGEROUS_PATTERNS = [
+  // PDF JavaScript actions
+  /\/JS\s*<</gi,
+  /\/JavaScript\s*<</gi,
+  /\/OpenAction\s*<</gi,
+  /\/Launch\s*<</gi,
+  /\/EmbeddedFile/gi,
+  /\/XFA/gi, // Forms that can contain scripts
+  
+  // Suspicious PDF elements
+  /\/URI\s*.*\s*(cmd|powershell|bash|sh)/gi,
+  /\/S\s*\/Launch/gi,
+  /\/F\s*\([^)]*\.(exe|bat|cmd|scr|com|pif|vbs)/gi,
+];
+
+// SQL injection patterns - only for non-document files
+const SQL_INJECTION_PATTERNS = [
+  // SQL keywords with word boundaries and whitespace
+  /\b(union\s+select|insert\s+into|update\s+set|delete\s+from|drop\s+table|create\s+table|alter\s+table)\b/gi,
+  // Note: Removed the generic quote pattern as it causes false positives in documents
+];
+
+// Get appropriate patterns based on file type
+function getPatternsForFileType(mimetype?: string): RegExp[] {
+  const patterns = [...COMMON_DANGEROUS_PATTERNS];
+  
+  // PDF files - check for PDF-specific threats
+  if (mimetype === 'application/pdf') {
+    patterns.push(...PDF_DANGEROUS_PATTERNS);
+    return patterns;
+  }
+  
+  // Word documents - be lenient, only check for executables
+  if (mimetype === 'application/msword' || 
+      mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    // Word docs can contain legitimate script-like text and quotes
+    return patterns;
+  }
+  
+  // For text files, check for script injections but not SQL
+  if (mimetype === 'text/plain') {
+    patterns.push(...SCRIPT_INJECTION_PATTERNS);
+    return patterns;
+  }
+  
+  // For unknown file types, apply all patterns
+  patterns.push(...SCRIPT_INJECTION_PATTERNS, ...SQL_INJECTION_PATTERNS);
+  return patterns;
+}
 
 // Enhanced directory initialization
 async function ensureUploadDirectories() {
@@ -167,7 +216,7 @@ function isValidExtension(filename: string): boolean {
 }
 
 // Enhanced security pattern detection with comprehensive scanning
-async function checkForSuspiciousPatterns(filepath: string): Promise<{
+async function checkForSuspiciousPatterns(filepath: string, mimetype?: string): Promise<{
   isSuspicious: boolean;
   threats: string[];
   confidence: number;
@@ -194,13 +243,28 @@ async function checkForSuspiciousPatterns(filepath: string): Promise<{
     const textContent = buffer.toString('utf8', 0, Math.min(50000, buffer.length));
     const binaryContent = buffer.toString('binary', 0, Math.min(50000, buffer.length));
     
+    // Get appropriate patterns based on file type
+    const patternsToCheck = getPatternsForFileType(mimetype);
+    
     // Check each dangerous pattern
-    for (const pattern of DANGEROUS_PATTERNS) {
+    for (const pattern of patternsToCheck) {
       const textMatches = (textContent.match(pattern) || []).length;
       const binaryMatches = (binaryContent.match(pattern) || []).length;
       const matches = textMatches + binaryMatches;
       
       if (matches > 0) {
+        // For document files, only flag if there are many matches or it's a severe pattern
+        const isDocument = mimetype && (
+          mimetype === 'application/pdf' ||
+          mimetype === 'application/msword' ||
+          mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        );
+        
+        // Skip low-confidence matches for documents
+        if (isDocument && matches < 5 && !COMMON_DANGEROUS_PATTERNS.includes(pattern)) {
+          continue;
+        }
+        
         threats.push(`Suspicious pattern detected: ${pattern.source} (${matches} matches)`);
         totalMatches += matches;
       }
@@ -222,8 +286,40 @@ async function checkForSuspiciousPatterns(filepath: string): Promise<{
       }
     }
     
-    // Calculate confidence score
-    const confidence = Math.min(100, (totalMatches * 20));
+    // Calculate confidence score based on file type and threat severity
+    let confidence = 0;
+    
+    // For documents, be more lenient with confidence scoring
+    const isDocument = mimetype && (
+      mimetype === 'application/pdf' ||
+      mimetype === 'application/msword' ||
+      mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    );
+    
+    if (isDocument) {
+      // For documents, only high-severity threats contribute significantly to confidence
+      const severeThreats = threats.filter(threat => 
+        threat.includes('MZ header') ||
+        threat.includes('ELF header') ||
+        threat.includes('Mach-O header') ||
+        threat.includes('cmd.exe') ||
+        threat.includes('powershell') ||
+        threat.includes('High entropy') ||
+        threat.includes('/Launch') ||
+        threat.includes('/JavaScript') ||
+        threat.includes('/JS') ||
+        threat.includes('.exe') ||
+        threat.includes('.bat') ||
+        threat.includes('.cmd')
+      );
+      
+      // Document confidence: severe threats weighted heavily, others lightly
+      confidence = Math.min(100, (severeThreats.length * 50) + (totalMatches * 2));
+    } else {
+      // For non-documents, use standard confidence calculation
+      confidence = Math.min(100, (totalMatches * 20));
+    }
+    
     const isSuspicious = confidence > 30; // Threshold for suspicious content
     
     return {
@@ -586,7 +682,7 @@ export async function validateUploadedFile(
     }
 
     // Step 2: Enhanced security pattern detection
-    const securityScan = await checkForSuspiciousPatterns(req.file.path);
+    const securityScan = await checkForSuspiciousPatterns(req.file.path, req.file.mimetype);
     
     if (securityScan.isSuspicious) {
       await quarantineFile(req.file.path, `Security scan failed: ${securityScan.threats.join(', ')}`, userId);
