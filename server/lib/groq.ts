@@ -78,6 +78,37 @@ export function clearResponseCache(): void {
   logger.info("Response cache cleared - forcing fresh analysis");
 }
 
+// PERFORMANCE OPTIMIZATION: Pre-compiled regex patterns for reuse
+// Experience extraction patterns (compiled once for better performance)
+const EXPERIENCE_PATTERNS = {
+  // Professional comprehensive pattern with named groups (adapted for JavaScript)
+  // Handles: "5 years", "3.5 years", "5+ years", "3-5 years", "over 10 years"  
+  comprehensive: /\b(?:(?:(\d+(?:\.\d+)?)(?:\s*(?:-|–|—|\s+to\s+)\s*(\d+(?:\.\d+)?))?(\+)?)\s*(?:years?|yrs?|y)|(?:(?:over|more\s+than|at\s+least)\s*(\d+(?:\.\d+)?))\s*(?:years?|yrs?|y))\b/gi,
+  
+  // Context-aware pattern requiring "experience" nearby (within same sentence/line)
+  contextAware: /\b(?=.*\b(?:experience|exp)\b)(?:(?:(\d+(?:\.\d+)?)(?:\s*(?:-|–|—|\s+to\s+)\s*(\d+(?:\.\d+)?))?(\+)?)\s*(?:years?|yrs?|y)|(?:(?:over|more\s+than|at\s+least)\s*(\d+(?:\.\d+)?))\s*(?:years?|yrs?|y))\b/gi
+};
+
+// Name extraction patterns (compiled once for better performance)
+const NAME_PATTERNS = {
+  // Labeled name patterns with Unicode and international support
+  labeled: [
+    /(?:name|full[\s\-_]?name|candidate[\s\-_]?name):\s*([A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff][A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff'.\-\s]{1,60})/i,
+    /(?:申请人姓名|名前|姓名):\s*([A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff][A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff'.\-\s\(\)]{1,60})/,
+  ],
+  
+  // Professional header patterns with Unicode and title support
+  header: [
+    // Name with titles/suffixes - comprehensive with Unicode support
+    /^\s*(?:Dr\.?\s+|Mr\.?\s+|Ms\.?\s+|Mrs\.?\s+|Prof\.?\s+)?([A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff][A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff'.-]+(?:\s+[A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff][A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff'.-]+){0,4}(?:\s+(?:Jr\.?|Sr\.?|III|IV|Ph\.?D\.?|M\.?D\.?|Esq\.?))?)\s*$/,
+    // Simple name pattern - 2-4 words with Unicode
+    /^\s*([A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff][A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff'.-]+(?:\s+[A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff][A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff'.-]+){1,3})\s*$/
+  ],
+  
+  // Title prefix pattern for recovery
+  titlePrefix: /^\s*(Dr\.?\s+|Mr\.?\s+|Ms\.?\s+|Mrs\.?\s+|Prof\.?\s+)/
+};
+
 // Token usage tracking
 let apiUsage: ApiUsage = {
   promptTokens: 0,
@@ -297,6 +328,10 @@ async function callGroqAPI(
       ...(seed !== undefined ? { seed } : {}),
     };
 
+    if (!groq) {
+      throw new Error("Groq client not initialized - GROQ_API_KEY is required");
+    }
+    
     const response = await groq.chat.completions.create(requestParams);
 
     const content =
@@ -322,8 +357,18 @@ async function callGroqAPI(
 }
 
 // Result-based version of Groq API call
-import { Result as _Result, success, failure, fromPromise as _fromPromise, isFailure, type ExternalServiceError, type AppError } from '../../shared/result-types';
+import { 
+  Result, 
+  success, 
+  failure, 
+  fromPromise, 
+  isFailure,
+  isSuccess,
+  type ExternalServiceError, 
+  type AppError 
+} from '../../shared/result-types';
 import { AppExternalServiceError } from '../../shared/errors';
+import { AI_PROVIDER_CONFIG } from './unified-scoring-config';
 
 async function _callGroqAPIWithResult(
   prompt: string,
@@ -358,6 +403,10 @@ async function _callGroqAPIWithResult(
         ...(seed !== undefined ? { seed } : {}),
       };
 
+      if (!groq) {
+        throw new Error("Groq client not initialized - GROQ_API_KEY is required");
+      }
+      
       const response = await groq.chat.completions.create(requestParams);
       const content =
         "choices" in response ? response.choices[0]?.message?.content : null;
@@ -377,24 +426,35 @@ async function _callGroqAPIWithResult(
 
       return content;
     })(),
-    (error) => AppExternalServiceError.aiProviderFailure('Groq', 'api-call', error instanceof Error ? error.message : String(error))
+    (error: unknown) => AppExternalServiceError.aiProviderFailure('Groq', 'api-call', error instanceof Error ? error.message : String(error))
   );
 
   if (result.success) {
     logger.debug("Groq API call succeeded", { model, prompt: prompt.substring(0, 100) });
     return result;
   } else {
-    logger.error("Groq API call failed", result.error);
+    logger.error("Groq API call failed", isFailure(result) ? result.error : "Unknown error");
     // Convert AppError to ExternalServiceError to match return type
-    const externalServiceError: ExternalServiceError = {
+    if (isFailure(result)) {
+      const externalServiceError: ExternalServiceError = {
+        code: 'AI_PROVIDER_ERROR' as const,
+        service: 'groq',
+        message: result.error.message,
+        statusCode: result.error.statusCode,
+        timestamp: result.error.timestamp,
+        originalError: result.error instanceof Error ? result.error.message : undefined
+      };
+      return failure(externalServiceError);
+    }
+    
+    // Fallback error
+    return failure({
       code: 'AI_PROVIDER_ERROR' as const,
       service: 'groq',
-      message: result.error.message,
-      statusCode: result.error.statusCode,
-      timestamp: result.error.timestamp,
-      originalError: result.error instanceof Error ? result.error.message : undefined
-    };
-    return failure(externalServiceError);
+      message: 'Unknown error occurred',
+      statusCode: 500,
+      timestamp: new Date().toISOString()
+    });
   }
 }
 
@@ -424,9 +484,14 @@ export async function analyzeResumeParallel(
     return result.data;
   } else {
     // Convert Result error back to exception for backward compatibility
-    const error = result.error;
-    logger.error("Resume analysis failed", error);
-    throw new Error(`Groq resume analysis failed: ${error.message}`);
+    if (isFailure(result)) {
+      const error = result.error;
+      logger.error("Resume analysis failed", error);
+      throw new Error(`Groq resume analysis failed: ${error.message}`);
+    } else {
+      logger.error("Resume analysis failed with unknown error");
+      throw new Error("Groq resume analysis failed: Unknown error");
+    }
   }
 }
 
@@ -452,11 +517,12 @@ async function analyzeResumeParallelInternal(
   const usageBefore = { ...apiUsage };
 
   // Use Result pattern for parallel extraction  
-  const [contactResultApp, skillsResultApp, experienceResultApp, educationResultApp] = await Promise.all([
-    fromPromise(extractContact(resumeText), (error) => AppExternalServiceError.aiProviderFailure('Groq', 'contact-extraction', error instanceof Error ? error.message : String(error))),
-    fromPromise(extractSkills(resumeText, "resume"), (error) => AppExternalServiceError.aiProviderFailure('Groq', 'skills-extraction', error instanceof Error ? error.message : String(error))),
-    fromPromise(extractExperience(resumeText), (error) => AppExternalServiceError.aiProviderFailure('Groq', 'experience-extraction', error instanceof Error ? error.message : String(error))),
-    fromPromise(extractEducation(resumeText), (error) => AppExternalServiceError.aiProviderFailure('Groq', 'education-extraction', error instanceof Error ? error.message : String(error)))
+  const [nameResultApp, contactResultApp, skillsResultApp, experienceResultApp, educationResultApp] = await Promise.all([
+    fromPromise(extractName(resumeText), (error: unknown) => AppExternalServiceError.aiProviderFailure('Groq', 'name-extraction', error instanceof Error ? error.message : String(error))),
+    fromPromise(extractContact(resumeText), (error: unknown) => AppExternalServiceError.aiProviderFailure('Groq', 'contact-extraction', error instanceof Error ? error.message : String(error))),
+    fromPromise(extractSkills(resumeText, "resume"), (error: unknown) => AppExternalServiceError.aiProviderFailure('Groq', 'skills-extraction', error instanceof Error ? error.message : String(error))),
+    fromPromise(extractExperience(resumeText), (error: unknown) => AppExternalServiceError.aiProviderFailure('Groq', 'experience-extraction', error instanceof Error ? error.message : String(error))),
+    fromPromise(extractEducation(resumeText), (error: unknown) => AppExternalServiceError.aiProviderFailure('Groq', 'education-extraction', error instanceof Error ? error.message : String(error)))
   ]);
 
   // Convert AppError results to ExternalServiceError results
@@ -464,30 +530,42 @@ async function analyzeResumeParallelInternal(
     if (result.success) {
       return result;
     } else {
-      const externalServiceError: ExternalServiceError = {
-        code: 'AI_PROVIDER_ERROR' as const,
-        service: 'groq',
-        message: result.error.message,
-        statusCode: result.error.statusCode,
-        timestamp: result.error.timestamp,
-        originalError: result.error instanceof Error ? result.error.message : undefined
-      };
-      return failure(externalServiceError);
+      if (isFailure(result)) {
+        const externalServiceError: ExternalServiceError = {
+          code: 'AI_PROVIDER_ERROR' as const,
+          service: 'groq',
+          message: result.error.message,
+          statusCode: result.error.statusCode,
+          timestamp: result.error.timestamp,
+          originalError: result.error instanceof Error ? result.error.message : undefined
+        };
+        return failure(externalServiceError);
+      } else {
+        return failure({
+          code: 'AI_PROVIDER_ERROR' as const,
+          service: 'groq',
+          message: 'Unknown error occurred',
+          statusCode: 500,
+          timestamp: new Date().toISOString()
+        } as ExternalServiceError);
+      }
     }
   };
 
+  const nameResult = convertAppErrorResult(nameResultApp);
   const contactResult = convertAppErrorResult(contactResultApp);
   const skillsResult = convertAppErrorResult(skillsResultApp);
   const experienceResult = convertAppErrorResult(experienceResultApp);
   const educationResult = convertAppErrorResult(educationResultApp);
 
-  // Check if any extraction failed
+  // Check if any critical extraction failed (name extraction failure is not critical)
   if (isFailure(contactResult)) return contactResult;
   if (isFailure(skillsResult)) return skillsResult;  
   if (isFailure(experienceResult)) return experienceResult;
   if (isFailure(educationResult)) return educationResult;
 
   // All extractions succeeded, build response
+  const extractedName = isSuccess(nameResult) ? nameResult.data : "Name not found";
   const _contact = contactResult.data;
   const skills = skillsResult.data;
   const experience = experienceResult.data;
@@ -504,9 +582,9 @@ async function analyzeResumeParallelInternal(
     id: 0 as ResumeId, // Will be set by caller
     filename: "resume.txt", // Will be set by caller
     analyzedData: {
-      name: "Unknown",
+      name: extractedName,
       skills: skillsArray,
-      experience: experience?.totalYears || "0 years",
+      experience: experience?.totalYears || "Experience not specified",
       education: Array.isArray(education) ? education : [],
       summary: experience?.summary || "Professional with diverse background",
       keyStrengths: skillsArray.slice(0, 3),
@@ -514,13 +592,21 @@ async function analyzeResumeParallelInternal(
     processingTime: timeTaken,
     confidence: 0.8,
     // Convenience properties for backward compatibility
+    name: extractedName,
     skills: skillsArray,
-    experience: [{
-      company: "Unknown",
-      position: "Unknown",
-      duration: experience?.totalYears || "0 years",
-      description: ""
-    }],
+    experience: experience?.jobTitles && experience.jobTitles.length > 0 ? 
+      experience.jobTitles.map((title: string, index: number) => ({
+        company: "Company not specified",
+        position: title,
+        duration: index === 0 ? (experience?.totalYears || "Experience not specified") : "Duration not specified",
+        description: ""
+      })) : [{
+        company: "Company not specified", 
+        position: "Position not specified",
+        duration: experience?.totalYears || "Experience not specified",
+        description: ""
+      }],
+    experienceYears: experience?.yearsOfExperience || 0,
   };
 
   // Only cache if we have meaningful results (at least some skills)
@@ -584,9 +670,9 @@ Respond with only the JSON object, no additional text.`;
       id: 0 as ResumeId, // Will be set by caller
       filename: "resume.txt", // Will be set by caller
       analyzedData: {
-        name: "Unknown",
+        name: rawResponse.name || "Name not found",
         skills: rawResponse.skills || [],
-        experience: rawResponse.experience || "0 years",
+        experience: rawResponse.experience || "Experience not specified",
         education: rawResponse.education || [],
         summary: rawResponse.summary || "Professional with diverse background",
         keyStrengths: rawResponse.strengths || [],
@@ -594,8 +680,10 @@ Respond with only the JSON object, no additional text.`;
       processingTime: 0,
       confidence: 0.8,
       // Convenience properties for backward compatibility
+      name: rawResponse.name || "Name not found",
       skills: rawResponse.skills || [],
-      experience: [rawResponse.experience || "0 years"],
+      experience: [rawResponse.experience || "Experience not specified"],
+      experienceYears: rawResponse.experienceYears || 0,
     };
 
     // Only cache if we have meaningful results (at least some skills)
@@ -1063,30 +1151,44 @@ Respond with only the JSON object, no additional text.`;
 }
 
 // Extract skills using Groq
-// Extract experience information from resume text
+// Extract experience information from resume text with fallback parsing
 export async function extractExperience(text: string): Promise<{
   totalYears: string;
   summary: string;
   jobTitles: string[];
+  yearsOfExperience: number;
 }> {
   const cacheKey = calculateHash(`groq_experience_${text}`);
   const cached = getCachedResponse<{
     totalYears: string;
     summary: string;
     jobTitles: string[];
+    yearsOfExperience: number;
   }>(cacheKey);
   if (cached) return cached;
 
-  const prompt = `Extract experience information from this resume text. Return a JSON object with:
-- totalYears: number of years of experience (e.g., "5 years", "3+ years")
-- summary: brief professional summary (1-2 sentences)
+  // Enhanced prompt with better instructions
+  const prompt = `Extract experience information from this resume text. Analyze the work history, job dates, and any explicit experience statements.
+
+Return a JSON object with:
+- totalYears: number of years of experience as text (e.g., "5 years", "3+ years", "Entry level", "Recent graduate")
+- summary: brief professional summary (1-2 sentences)  
 - jobTitles: array of job titles/positions held
+- yearsOfExperience: numeric years of experience (use 0 only for genuine entry-level/students)
+
+Look for:
+- Date ranges in work experience (2020-2024 = 4 years)
+- Explicit statements like "5 years of experience" 
+- Senior/Lead titles typically indicate 3+ years
+- Recent graduates should be marked as "Recent graduate" not "0 years"
+- Internships count as partial experience
 
 Example format:
 {
   "totalYears": "5 years",
   "summary": "Experienced software developer with expertise in web technologies",
-  "jobTitles": ["Software Developer", "Frontend Engineer", "Web Developer"]
+  "jobTitles": ["Software Developer", "Frontend Engineer", "Web Developer"],
+  "yearsOfExperience": 5
 }
 
 Resume text:
@@ -1111,31 +1213,196 @@ Respond with only the JSON object, no additional text.`;
       totalYears: string;
       summary: string;
       jobTitles: string[];
+      yearsOfExperience: number;
     }>(cleanedResponse, "extractExperience");
 
-    // Validate structure
-    const result = {
-      totalYears: experience.totalYears || "0 years",
-      summary: experience.summary || "Professional background",
-      jobTitles: Array.isArray(experience.jobTitles)
-        ? experience.jobTitles
-        : [],
-    };
-
-    setCachedResponse(cacheKey, result);
-    logger.info("Experience extracted successfully from resume with Groq");
-    return result;
+    // If AI parsing succeeded, validate and return
+    if (experience.totalYears && experience.totalYears !== "0 years") {
+      const result = {
+        totalYears: experience.totalYears,
+        summary: experience.summary || "Professional background",
+        jobTitles: Array.isArray(experience.jobTitles) ? experience.jobTitles : [],
+        yearsOfExperience: experience.yearsOfExperience || 0,
+      };
+      
+      setCachedResponse(cacheKey, result);
+      logger.info("Experience extracted successfully from resume with Groq");
+      return result;
+    } else {
+      // AI returned 0 years, try fallback text parsing
+      throw new Error("AI returned 0 years, attempting fallback extraction");
+    }
   } catch (error) {
-    logger.error("Error extracting experience from resume with Groq", error);
+    logger.warn("AI experience extraction failed, trying text-based fallback", { error: error instanceof Error ? error.message : error });
 
-    // Return fallback response with enhanced logging
-    logger.warn("Returning fallback experience data due to Groq parsing error");
-    return {
-      totalYears: "0 years",
-      summary: "Professional with diverse background",
-      jobTitles: ["Professional"],
-    };
+    // FALLBACK: Text-based experience extraction
+    const fallbackResult = extractExperienceFromText(text);
+    
+    setCachedResponse(cacheKey, fallbackResult);
+    logger.info("Experience extracted using text-based fallback", { result: fallbackResult });
+    return fallbackResult;
   }
+}
+
+// Professional text-based experience extraction using comprehensive patterns
+function extractExperienceFromText(text: string): {
+  totalYears: string;
+  summary: string;
+  jobTitles: string[];
+  yearsOfExperience: number;
+} {
+  let extractedYears = 0;
+  let extractionMethod = "not found";
+
+  // PERFORMANCE OPTIMIZATION: Use pre-compiled regex patterns
+  // Reset global pattern state for reuse
+  EXPERIENCE_PATTERNS.contextAware.lastIndex = 0;
+  EXPERIENCE_PATTERNS.comprehensive.lastIndex = 0;
+
+  // First try context-aware extraction (most reliable)
+  let match;
+  while ((match = EXPERIENCE_PATTERNS.contextAware.exec(text)) !== null) {
+    const min = parseFloat(match[1] || match[4]); // main number or "over X" number
+    const max = match[2] ? parseFloat(match[2]) : null; // range max
+    const plus = match[3]; // plus sign
+    
+    if (!isNaN(min)) {
+      // For ranges, take the maximum; for plus signs, use the minimum
+      const years = max ? max : (plus ? Math.ceil(min) : min);
+      extractedYears = Math.max(extractedYears, years);
+      extractionMethod = "context-aware";
+    }
+  }
+
+  // If context-aware didn't find anything, try comprehensive pattern
+  if (extractedYears === 0) {
+    // Reset regex lastIndex for new search
+    EXPERIENCE_PATTERNS.comprehensive.lastIndex = 0;
+    
+    while ((match = EXPERIENCE_PATTERNS.comprehensive.exec(text)) !== null) {
+      const min = parseFloat(match[1] || match[4]); // main number or "over X" number
+      const max = match[2] ? parseFloat(match[2]) : null; // range max
+      const plus = match[3]; // plus sign
+      
+      if (!isNaN(min)) {
+        // Apply basic context filtering to avoid false positives
+        const matchText = match[0];
+        const beforeMatch = text.substring(Math.max(0, match.index - 50), match.index).toLowerCase();
+        const afterMatch = text.substring(match.index + matchText.length, match.index + matchText.length + 50).toLowerCase();
+        
+        // Skip obvious false positives
+        if (beforeMatch.includes("old") || beforeMatch.includes("age") || 
+            afterMatch.includes("old") || afterMatch.includes("age") ||
+            beforeMatch.includes("school") || afterMatch.includes("school")) {
+          continue;
+        }
+        
+        // For ranges, take the maximum; for plus signs, use the minimum
+        const years = max ? max : (plus ? Math.ceil(min) : min);
+        extractedYears = Math.max(extractedYears, years);
+        extractionMethod = "comprehensive";
+      }
+    }
+  }
+
+  // If still no explicit experience found, try date range calculation
+  if (extractedYears === 0) {
+    const dateRangePattern = /(\d{4})\s*[-–—]\s*(\d{4})/g;
+    const currentPattern = /(\d{4})\s*[-–—]\s*(?:present|current|now)/gi;
+    const currentYear = new Date().getFullYear();
+    let maxYears = 0;
+
+    // Calculate from date ranges
+    while ((match = dateRangePattern.exec(text)) !== null) {
+      const startYear = parseInt(match[1]);
+      const endYear = parseInt(match[2]);
+      if (startYear >= 1990 && startYear <= currentYear && endYear >= startYear && endYear <= currentYear) {
+        const years = endYear - startYear;
+        maxYears = Math.max(maxYears, years);
+      }
+    }
+
+    // Calculate from current positions
+    while ((match = currentPattern.exec(text)) !== null) {
+      const startYear = parseInt(match[1]);
+      if (startYear >= 1990 && startYear <= currentYear) {
+        const years = currentYear - startYear;
+        maxYears = Math.max(maxYears, years);
+      }
+    }
+
+    if (maxYears > 0) {
+      extractedYears = maxYears;
+      extractionMethod = "date-calculation";
+    }
+  }
+
+  // Extract job titles from common patterns
+  const jobTitlePatterns = [
+    /(?:position|role|title):\s*([^\n]+)/gi,
+    /(?:working|worked)\s+as\s+(?:a|an)?\s*([^\n,]+)/gi,
+    /(?:^|\n)([A-Z][a-zA-Z\s]+(?:Engineer|Developer|Manager|Analyst|Specialist|Director|Lead|Senior|Junior))/gm
+  ];
+
+  const jobTitles: string[] = [];
+  const seenTitles = new Set<string>();
+  
+  for (const pattern of jobTitlePatterns) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const title = match[1].trim();
+      if (title.length > 3 && title.length < 50 && !seenTitles.has(title.toLowerCase())) {
+        jobTitles.push(title);
+        seenTitles.add(title.toLowerCase());
+      }
+    }
+  }
+
+  // Determine experience level based on content analysis
+  let totalYearsText = "Experience not specified";
+  
+  // Check for student/graduate indicators
+  if (/(?:student|graduate|graduating|degree.*202[0-9]|university.*202[0-9])/i.test(text)) {
+    if (extractedYears === 0) {
+      totalYearsText = "Recent graduate";
+    }
+  }
+  
+  // Check for senior/lead positions (usually indicates 3+ years)
+  if (/(?:senior|lead|principal|architect|manager)/i.test(text) && extractedYears === 0) {
+    extractedYears = 3;
+    totalYearsText = "3+ years (estimated from senior role)";
+    extractionMethod = "senior-role-heuristic";
+  }
+  
+  // Use extracted years if found
+  if (extractedYears > 0) {
+    // Handle decimal years properly
+    if (extractedYears % 1 !== 0) {
+      totalYearsText = `${extractedYears} years`;
+    } else {
+      totalYearsText = `${extractedYears}${extractedYears >= 3 ? '+' : ''} years`;
+    }
+  }
+
+  // Generate summary based on found job titles and extraction method
+  let summary = "Professional with diverse background";
+  if (jobTitles.length > 0) {
+    const primaryRole = jobTitles[0];
+    summary = `Professional with background as ${primaryRole}${jobTitles.length > 1 ? ' and related roles' : ''}`;
+  }
+  
+  // Add extraction method for debugging/logging
+  if (extractedYears > 0) {
+    summary += ` (experience extracted via ${extractionMethod})`;
+  }
+
+  return {
+    totalYears: totalYearsText,
+    summary,
+    jobTitles: jobTitles.length > 0 ? jobTitles : ["Professional"],
+    yearsOfExperience: extractedYears,
+  };
 }
 
 // Extract education information from resume text
@@ -1180,6 +1447,166 @@ Respond with only the JSON array, no additional text.`;
     logger.error("Error extracting education from resume with Groq", error);
     logger.warn("Returning fallback education data due to Groq parsing error");
     return ["Educational Background"];
+  }
+}
+
+// Professional two-tier name extraction with Unicode support
+export async function extractName(text: string): Promise<string> {
+  try {
+    // TIER 1: Labeled name extraction (highest confidence)
+    const labeledName = extractLabeledName(text);
+    if (labeledName !== "Name not found") {
+      return labeledName;
+    }
+
+    // TIER 2: Heuristic extraction from resume header (medium confidence)
+    const heuristicName = extractNameFromHeader(text);
+    if (heuristicName !== "Name not found") {
+      return heuristicName;
+    }
+
+    // TIER 3: AI fallback (lowest confidence, highest cost)
+    return await extractNameWithAI(text);
+  } catch (error) {
+    logger.error("Error in name extraction cascade", error);
+    return "Name not found";
+  }
+}
+
+// Extract labeled names like "Name: John Doe", "Candidate: María Pérez"
+function extractLabeledName(text: string): string {
+  // PERFORMANCE OPTIMIZATION: Use pre-compiled labeled patterns
+  const firstLines = text.split('\n').slice(0, 5);
+  
+  // Try each labeled pattern
+  for (const line of firstLines) {
+    for (const pattern of NAME_PATTERNS.labeled) {
+      const match = line.match(pattern);
+      if (match && match[1]) {
+        const name = match[1].trim();
+        if (isValidName(name)) {
+          return name;
+        }
+      }
+    }
+  }
+  
+  return "Name not found";
+}
+
+// Extract name from resume header using heuristics
+function extractNameFromHeader(text: string): string {
+  const firstLines = text.split('\n').slice(0, 5);
+  
+  // PERFORMANCE OPTIMIZATION: Use pre-compiled header patterns
+  for (const pattern of NAME_PATTERNS.header) {
+    for (const line of firstLines) {
+      // Context-aware validation: exclude lines with email/phone/obvious non-names
+      if (line.includes('@') || /\d{3}/.test(line) || 
+          /\b(?:objective|summary|email|phone|address|linkedin|github)\b/i.test(line)) {
+        continue;
+      }
+      
+      const match = line.match(pattern);
+      if (match && match[1]) {
+        let name = match[1].trim();
+        
+        // Check if there's a title prefix and add it back
+        const titleMatch = line.match(NAME_PATTERNS.titlePrefix);
+        if (titleMatch) {
+          name = titleMatch[1].trim() + ' ' + name;
+        }
+        
+        if (isValidName(name)) {
+          return name;
+        }
+      }
+    }
+  }
+  
+  return "Name not found";
+}
+
+// Validate that extracted text is likely a real name
+function isValidName(name: string): boolean {
+  // Length validation
+  if (name.length < 3 || name.length > 80) {
+    return false;
+  }
+  
+  // Word count validation (1-5 words for flexibility with international names)
+  const words = name.split(/\s+/);
+  if (words.length < 1 || words.length > 5) {
+    return false;
+  }
+  
+  // Reject obvious non-names
+  const lowercaseName = name.toLowerCase();
+  const nonNamePhrases = [
+    'resume', 'cv', 'curriculum', 'vitae', 'objective', 'summary',
+    'experience', 'education', 'skills', 'contact', 'phone', 'email',
+    'address', 'linkedin', 'github', 'portfolio', 'references',
+    'software engineer', 'data scientist', 'product manager', 'developer'
+  ];
+  
+  for (const phrase of nonNamePhrases) {
+    if (lowercaseName.includes(phrase)) {
+      return false;
+    }
+  }
+  
+  // Each word should start with a letter (not number or symbol)
+  for (const word of words) {
+    if (!/^[A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff]/.test(word)) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+// AI-based name extraction fallback
+async function extractNameWithAI(text: string): Promise<string> {
+  try {
+
+    // Fallback: Use AI extraction
+    const prompt = `Extract the candidate's full name from this resume. Return only the name, nothing else.
+
+Resume text:
+${text.substring(0, 1500)}`;
+
+    if (!groq) {
+      throw new Error("Groq client not initialized - GROQ_API_KEY is required");
+    }
+
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: MODELS.FAST,
+      temperature: 0.1,
+      max_tokens: 50,
+      response_format: { type: "text" }
+    });
+
+    const extractedName = completion.choices[0]?.message?.content?.trim();
+    
+    if (extractedName && extractedName.length >= 3 && extractedName.length <= 80) {
+      // Clean up the response (remove quotes, extra text)
+      const cleanName = extractedName
+        .replace(/^"|"$/g, '')
+        .replace(/^Name:\s*/i, '')
+        .replace(/^The candidate's name is\s*/i, '')
+        .replace(/^.*name.*is\s*/i, '')
+        .trim();
+      
+      if (isValidName(cleanName)) {
+        return cleanName;
+      }
+    }
+
+    return "Name not found";
+  } catch (error) {
+    logger.error("Error extracting name from resume with Groq", error);
+    return "Name not found";
   }
 }
 
@@ -1476,6 +1903,10 @@ async function analyzeGeneric(prompt: string): Promise<string> {
       promptLength: prompt.length,
       model: MODELS.FAST
     });
+
+    if (!groq) {
+      throw new Error("Groq client not initialized - GROQ_API_KEY is required");
+    }
 
     const completion = await groq.chat.completions.create({
       messages: [
