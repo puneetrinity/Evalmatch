@@ -927,7 +927,7 @@ function generateIndustryInsights(
  */
 function generateIndustryExplanation(
   totalScore: number,
-  insights: any
+  insights: { primaryIndustry: string; technologyOverlap: unknown[] }
 ): string {
   if (totalScore >= 85) {
     return `Excellent industry alignment (${totalScore}%). Strong match in ${insights.primaryIndustry} with ${insights.technologyOverlap.length} overlapping technologies.`;

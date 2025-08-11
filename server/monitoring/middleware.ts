@@ -103,8 +103,8 @@ export function errorHandling(
   // Extract most important error details
   const error = {
     message: err instanceof Error ? err.message : "Internal Server Error",
-    code: (err as any)?.code || "INTERNAL_ERROR",
-    statusCode: (err as any)?.statusCode || (err as any)?.status || 500,
+    code: (err as { code?: string })?.code || "INTERNAL_ERROR",
+    statusCode: (err as { statusCode?: number; status?: number })?.statusCode || (err as { statusCode?: number; status?: number })?.status || 500,
     stack: process.env.NODE_ENV !== "production" && err instanceof Error ? err.stack : undefined,
     requestId: req.id,
   };

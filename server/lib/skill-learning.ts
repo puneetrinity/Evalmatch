@@ -23,7 +23,7 @@ export interface SkillValidationResult {
   reason: string;
   shouldAutoApprove: boolean;
   metadata?: {
-    groqResponse?: any;
+    groqResponse?: object;
     similarSkills?: string[];
     frequency?: number;
     embedding?: number[];
@@ -491,7 +491,7 @@ Respond with JSON:
       skill,
       isValid: false,
       confidence: 0,
-      validationType: type as any,
+      validationType: type as string,
       reason,
       shouldAutoApprove: false
     };

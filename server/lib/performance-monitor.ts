@@ -6,6 +6,7 @@
  */
 
 import { logger } from './logger';
+import * as Express from 'express';
 
 interface PerformanceMetrics {
   timestamp: number;
@@ -284,7 +285,7 @@ process.on('SIGTERM', () => performanceMonitor.destroy());
 process.on('SIGINT', () => performanceMonitor.destroy());
 
 // Express middleware for tracking requests
-export const trackRequest = (req: any, res: any, next: any) => {
+export const trackRequest = (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
   const startTime = Date.now();
   
   res.on('finish', () => {

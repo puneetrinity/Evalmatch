@@ -31,7 +31,7 @@ export const errorHandler = (
     statusCode: appError.statusCode,
     path: req.path,
     method: req.method,
-    userId: (req as any).user?.uid,
+    userId: (req as { user?: { uid: string } }).user?.uid,
     timestamp: appError.timestamp,
     details: appError.details,
     stack: err instanceof Error ? err.stack : undefined

@@ -188,7 +188,7 @@ export async function matchSkillsEnhanced(
       const relatedSkills = findRelatedSkillsFromHierarchy(jobSkill.normalized, skillHierarchy, 10);
       const relatedMatch = normalizedResumeSkills.find((resumeSkill) =>
         relatedSkills.some(
-          (related: any) =>
+          (related: { skill: string; similarity: number }) =>
             related.skill.toLowerCase() ===
               resumeSkill.normalized.toLowerCase() && related.similarity > 0.7,
         ),
@@ -196,7 +196,7 @@ export async function matchSkillsEnhanced(
 
       if (relatedMatch) {
         const relation = relatedSkills.find(
-          (r: any) =>
+          (r: { skill: string; similarity: number }) =>
             r.skill.toLowerCase() === relatedMatch.normalized.toLowerCase(),
         );
         const score =
@@ -551,7 +551,7 @@ export async function calculateEnhancedMatchWithESCO(
 
     // 6. Domain-specific bonus (pharmaceutical skills detected)
     let domainBonus = 0;
-    const hasPharmaDomainSkills = (skills: any[]) => 
+    const hasPharmaDomainSkills = (skills: { category?: string }[]) => 
       skills.some(skill => skill.category === 'pharmaceutical' || skill.category === 'domain');
     
     if (hasPharmaDomainSkills(resumeSkills) && hasPharmaDomainSkills(jobSkills)) {
@@ -763,14 +763,14 @@ function generateExplanation(
 /**
  * Helper function to find related skills from skill hierarchy
  */
-function findRelatedSkillsFromHierarchy(skillName: string, skillHierarchy: any, limit: number = 10): any[] {
-  const relatedSkills: any[] = [];
+function findRelatedSkillsFromHierarchy(skillName: string, skillHierarchy: Record<string, unknown>, limit: number = 10): { skill: string; similarity: number; category: string; aliases?: string[] }[] {
+  const relatedSkills: { skill: string; similarity: number; category: string; aliases?: string[] }[] = [];
   const normalizedSkillName = skillName.toLowerCase().trim();
   
   // Search through all categories in the skill hierarchy
   for (const [category, skills] of Object.entries(skillHierarchy)) {
-    for (const [skill, skillData] of Object.entries(skills as any)) {
-      const data = skillData as any;
+    for (const [skill, skillData] of Object.entries(skills as Record<string, unknown>)) {
+      const data = skillData as { aliases?: string[] };
       
       // Check if this skill has related skills that match our target
       if (data.related && Array.isArray(data.related)) {

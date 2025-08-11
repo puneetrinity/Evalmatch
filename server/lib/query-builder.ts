@@ -61,7 +61,7 @@ export type SortOrder = 'asc' | 'desc';
 /**
  * Generic filter options for any field
  */
-export interface FieldFilter<T = any> {
+export interface FieldFilter<T = unknown> {
   /** Field name */
   field: string;
   /** Comparison operator */
@@ -76,7 +76,7 @@ export interface FieldFilter<T = any> {
  * Centralized query builder for consistent database operations
  * Provides fluent interface for building complex queries with proper type safety
  */
-export class QueryBuilder<T extends Record<string, any> = any> {
+export class QueryBuilder<T extends Record<string, unknown> = Record<string, unknown>> {
   protected conditions: SQL[] = [];
   private paginationOpts?: PaginationOptions;
   private sortColumns: Array<{ column: PgColumn; order: SortOrder }> = [];
@@ -93,7 +93,7 @@ export class QueryBuilder<T extends Record<string, any> = any> {
    * @param userId - The user ID to filter by
    * @returns New QueryBuilder instance with user filter
    */
-  static forUser<T extends Record<string, any> = any>(userId: string): QueryBuilder<T> {
+  static forUser<T extends Record<string, unknown> = Record<string, unknown>>(userId: string): QueryBuilder<T> {
     const builder = new QueryBuilder<T>();
     return builder.where('userId', userId);
   }
@@ -104,7 +104,7 @@ export class QueryBuilder<T extends Record<string, any> = any> {
    * @param sessionId - The session ID to filter by
    * @returns New QueryBuilder instance with session filter
    */
-  static forSession<T extends Record<string, any> = any>(sessionId: string): QueryBuilder<T> {
+  static forSession<T extends Record<string, unknown> = Record<string, unknown>>(sessionId: string): QueryBuilder<T> {
     const builder = new QueryBuilder<T>();
     return builder.where('sessionId', sessionId);
   }
@@ -119,7 +119,7 @@ export class QueryBuilder<T extends Record<string, any> = any> {
    */
   where<K extends keyof T>(
     field: K | string,
-    value: T[K] | any,
+    value: T[K] | unknown,
     operator: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' = 'eq'
   ): QueryBuilder<T> {
     // Note: In a real implementation, this would use the actual column references
@@ -360,7 +360,7 @@ export class QueryBuilder<T extends Record<string, any> = any> {
     conditions: string[];
   }> {
     logger.info('Executing QueryBuilder query', {
-      table: (table as any)[Symbol.for('drizzle:Name')] || 'unknown',
+      table: (table as { [Symbol.for('drizzle:Name')]: string })[Symbol.for('drizzle:Name')] || 'unknown',
       conditionsCount: this.conditions.length,
       hasPagination: !!this.paginationOpts,
       conditions: this.getConditions()

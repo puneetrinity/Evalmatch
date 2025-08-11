@@ -113,7 +113,7 @@ export async function initializeFirebaseAuth(): Promise<void> {
     }
     adminApp = initializeApp({
       // cert() accepts a ServiceAccount object or a path string; we safely coerce here
-      credential: cert(sa as any),
+      credential: cert(sa as string | object),
       projectId: config.firebase.projectId!,
     });
 

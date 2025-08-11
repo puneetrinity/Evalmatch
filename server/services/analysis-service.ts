@@ -178,7 +178,7 @@ export interface SingleAnalysisResult {
     candidateStrengths: string[];
     candidateWeaknesses: string[];
     confidenceLevel: 'low' | 'medium' | 'high';
-    fairnessMetrics?: any;
+    fairnessMetrics?: object;
   };
   /** Analysis ID in database */
   analysisId: number;

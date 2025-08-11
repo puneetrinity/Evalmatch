@@ -19,7 +19,7 @@ async function initializeEmbeddingPipeline(): Promise<FeatureExtractionPipeline>
         process.env.EMBEDDING_MODEL || "Xenova/all-MiniLM-L12-v2"; // 134MB, better accuracy
 
       embeddingPipeline = (await pipeline("feature-extraction", modelName, {
-        progress_callback: (progress: any) => {
+        progress_callback: (progress: { status?: string; file?: string; progress?: number }) => {
           if (
             progress?.status === "downloading" &&
             typeof progress.progress === "number"

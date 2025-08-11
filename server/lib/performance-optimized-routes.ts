@@ -123,7 +123,7 @@ export async function handleBatchAnalyze(
             resume.content || undefined, // Pass the resume text for fairness analysis
           );
 
-          const matchAnalysis = (matchResult as any).match || matchResult;
+          const matchAnalysis = (matchResult as { match?: unknown }).match || matchResult;
 
           // Create analysis result
           const analysisResult = await storage.createAnalysisResult({
@@ -158,9 +158,9 @@ export async function handleBatchAnalyze(
     }
 
     // Sort results by match percentage (descending)
-    const analysisResults = batchResults.filter((r: any) => !r.error);
+    const analysisResults = batchResults.filter((r: { error?: unknown }) => !r.error);
     analysisResults.sort(
-      (a: any, b: any) =>
+      (a: { match?: { matchPercentage?: number } }, b: { match?: { matchPercentage?: number } }) =>
         (b.match?.matchPercentage || 0) - (a.match?.matchPercentage || 0),
     );
 
@@ -277,7 +277,7 @@ export async function handleSpecificAnalyze(
         resume.content || undefined, // Pass the resume text for fairness analysis
       );
 
-      const matchAnalysis = (matchResult as any).match || (matchResult as any);
+      const matchAnalysis = (matchResult as { match?: unknown }).match || matchResult;
 
       // Create and store the result
       const analysisResult = await storage.createAnalysisResult({

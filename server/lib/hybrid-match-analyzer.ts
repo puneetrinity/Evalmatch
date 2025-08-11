@@ -792,7 +792,7 @@ export class HybridMatchAnalyzer {
    * Blend ML and LLM results using research-backed ensemble weighting
    * Based on Spotify Engineering (2024) and Amazon Science (2024) best practices
    */
-  private blendResults(mlResult: any, llmResult: LLMAnalysisResult): HybridMatchResult {
+  private blendResults(mlResult: { totalScore: number; confidence: number; skillBreakdown: { skill: string; matched: boolean; required?: boolean }[] }, llmResult: LLMAnalysisResult): HybridMatchResult {
     const mlScore = mlResult.totalScore;
     const llmScore = llmResult.matchPercentage;
     const mlConfidence = mlResult.confidence;
@@ -830,12 +830,12 @@ export class HybridMatchAnalyzer {
     });
 
     // Combine matched skills (deduplicate)
-    const mlSkills = new Set(mlResult.skillBreakdown.filter((s: any) => s.matched).map((s: any) => s.skill));
+    const mlSkills = new Set(mlResult.skillBreakdown.filter((s: { matched: boolean }) => s.matched).map((s: { skill: string }) => s.skill));
     const llmSkills = new Set(llmResult.matchedSkills);
     const allMatchedSkills = Array.from(new Set([...mlSkills, ...llmSkills]));
 
     // Combine missing skills (deduplicate)
-    const mlMissing = new Set(mlResult.skillBreakdown.filter((s: any) => !s.matched && s.required).map((s: any) => s.skill));
+    const mlMissing = new Set(mlResult.skillBreakdown.filter((s: { matched: boolean; required?: boolean }) => !s.matched && s.required).map((s: { skill: string }) => s.skill));
     const llmMissing = new Set(llmResult.missingSkills);
     const allMissingSkills = Array.from(new Set([...mlMissing, ...llmMissing]));
 
@@ -895,7 +895,7 @@ export class HybridMatchAnalyzer {
       ]);
       
       // Check if both have pharmaceutical domain skills
-      const hasPharmaSkills = (skills: any[]) => 
+      const hasPharmaSkills = (skills: { category?: string }[]) => 
         skills.some(skill => skill.category === 'pharmaceutical' || 
                            skill.category === 'domain');
       
@@ -919,8 +919,8 @@ export class HybridMatchAnalyzer {
       resumeSkillsCount: resumeAnalysis?.skills?.length || 0,
       jobHasSkills: !!(jobAnalysis?.skills?.length),
       jobSkillsCount: jobAnalysis?.skills?.length || 0,
-      resumeHasContent: !!(resumeAnalysis as any)?.content,
-      jobHasData: !!(jobAnalysis as any)?.analyzedData,
+      resumeHasContent: !!(resumeAnalysis as { content?: unknown })?.content,
+      jobHasData: !!(jobAnalysis as { analyzedData?: unknown })?.analyzedData,
       timestamp: new Date().toISOString()
     });
 
@@ -1146,7 +1146,7 @@ export class HybridMatchAnalyzer {
    */
   private async applyLowConfidenceFallback(
     result: HybridMatchResult,
-    dataQualityFactors: any
+    dataQualityFactors: { dataQuality: number }
   ): Promise<HybridMatchResult> {
     
     logger.info("Applying low confidence fallback mechanisms", {

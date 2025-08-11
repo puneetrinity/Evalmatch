@@ -97,7 +97,7 @@ export async function verifyFirebaseToken(
       operation: "verify_token",
       errorCode:
         error instanceof Error && "code" in error
-          ? (error as any).code
+          ? (error as { code: string }).code
           : "unknown",
     });
     return null;
@@ -133,7 +133,7 @@ export async function getFirebaseUser(uid: string) {
       uid: uid,
       errorCode:
         error instanceof Error && "code" in error
-          ? (error as any).code
+          ? (error as { code: string }).code
           : "unknown",
     });
     return null;

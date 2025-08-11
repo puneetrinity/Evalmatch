@@ -498,10 +498,10 @@ router.post(
       logger.info(`Created category mapping for ${categoryMap.size} categories`);
 
       // Convert enhanced skills dictionary to insertion format
-      const skillsData: any[] = [];
+      const skillsData: { name: string; normalizedName: string; categoryId: unknown; aliases: string[]; importance: string; experience?: string }[] = [];
   Object.entries(ENHANCED_SKILL_DICTIONARY).forEach(([_categoryKey, categoryData]) => {
         if (typeof categoryData === 'object' && categoryData !== null) {
-          Object.entries(categoryData).forEach(([skillName, skillInfo]: [string, any]) => {
+          Object.entries(categoryData).forEach(([skillName, skillInfo]: [string, { category: string; aliases?: string[]; importance: string; experience?: string }]) => {
             skillsData.push({
               name: skillName,
               normalizedName: skillName.toLowerCase(),
@@ -547,9 +547,9 @@ router.post(
       const finalSkillCount = await db.execute(sql`SELECT COUNT(*) as count FROM skills`);
       
       const actualCategoryCount = Array.isArray(finalCategoryCount) && finalCategoryCount[0] 
-        ? (finalCategoryCount[0] as any).count : 0;
+        ? (finalCategoryCount[0] as { count: number }).count : 0;
       const actualSkillCount = Array.isArray(finalSkillCount) && finalSkillCount[0] 
-        ? (finalSkillCount[0] as any).count : 0;
+        ? (finalSkillCount[0] as { count: number }).count : 0;
 
       logger.info(
         `Skills population completed: ${actualCategoryCount} categories, ${actualSkillCount} skills (${skillsSkipped} skipped)`,

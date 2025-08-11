@@ -14,7 +14,7 @@ import { logger } from './logger';
  * Security-focused validation error types
  */
 // Many enum members are referenced indirectly by name in logs/rules; keep but suppress unused-member lint
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 export enum ValidationErrorType {
   INVALID_INPUT = 'INVALID_INPUT',
   MALICIOUS_CONTENT = 'MALICIOUS_CONTENT',
@@ -28,6 +28,7 @@ export enum ValidationErrorType {
   AUTHENTICATION_REQUIRED = 'AUTHENTICATION_REQUIRED',
   AUTHORIZATION_FAILED = 'AUTHORIZATION_FAILED'
 }
+/* eslint-enable no-unused-vars, @typescript-eslint/no-unused-vars */
 
 /**
  * Standardized validation error structure
@@ -183,15 +184,15 @@ export class ValidationErrorHandler {
    */
   private static assessFieldSeverity(
     field: string,
-    message: string,
-    req: Request
+    _message: string,
+    _req: Request
   ): 'low' | 'medium' | 'high' | 'critical' {
     // Critical fields that could indicate attacks
     const criticalFields = ['password', 'email', 'sql', 'script', 'query'];
     const highRiskFields = ['description', 'content', 'bio', 'title'];
     
     // Check for security patterns in error message
-    if (message.includes('dangerous') || message.includes('malicious') || message.includes('forbidden')) {
+    if (_message.includes('dangerous') || _message.includes('malicious') || _message.includes('forbidden')) {
       return 'critical';
     }
 

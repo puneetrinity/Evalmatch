@@ -35,8 +35,8 @@ export interface JobAnalysisContext {
 }
 
 export interface MatchAnalysisContext {
-  resumeAnalysis: any;
-  jobAnalysis: any;
+  resumeAnalysis: object;
+  jobAnalysis: object;
   includeInterviewQuestions?: boolean;
 }
 

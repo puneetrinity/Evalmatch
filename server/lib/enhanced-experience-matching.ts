@@ -451,7 +451,7 @@ function generateExperienceInsights(
  */
 function generateExperienceExplanation(
   totalScore: number,
-  insights: any,
+  insights: { yearsComparison: string },
 ): string {
   if (totalScore >= 85) {
     return `Excellent experience alignment (${totalScore}%). ${insights.yearsComparison}. Strong domain match and appropriate seniority level.`;

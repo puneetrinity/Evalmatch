@@ -204,7 +204,7 @@ export class CacheManager {
   /**
    * Get cache statistics
    */
-  async getStats(): Promise<{ connected: boolean; info?: any }> {
+  async getStats(): Promise<{ connected: boolean; info?: object }> {
     if (!this.isConnected || !this.redis) {
       return { connected: false };
     }

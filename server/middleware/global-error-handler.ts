@@ -366,7 +366,7 @@ export function globalErrorHandler(
  */
 export function handleUnhandledRejection(
   reason: any,
-  promise: Promise<any>,
+  _promise: Promise<any>,
 ): void {
   logger.error(
     {

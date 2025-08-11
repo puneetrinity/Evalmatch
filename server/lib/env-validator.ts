@@ -699,7 +699,7 @@ export function getEnvBoolean(name: string, defaultValue?: boolean): boolean {
 /**
  * Validate JSON environment variable
  */
-export function getEnvJSON<T = any>(name: string, defaultValue?: T): T {
+export function getEnvJSON<T = object>(name: string, defaultValue?: T): T {
   const value = process.env[name];
 
   if (!value) {

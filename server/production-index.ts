@@ -58,7 +58,7 @@ app.use((req, res, next) => {
 
   // Global error handler
   app.use((err: Error | unknown, _req: Request, res: Response, _next: NextFunction) => {
-    const status = (err as any)?.status || (err as any)?.statusCode || 500;
+    const status = (err as { status?: number; statusCode?: number })?.status || (err as { status?: number; statusCode?: number })?.statusCode || 500;
     const message = err instanceof Error ? err.message : "Internal Server Error";
 
     res.status(status).json({ message });

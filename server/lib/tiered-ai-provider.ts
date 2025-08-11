@@ -303,7 +303,7 @@ function selectProviderForTier(
   // For premium users, prioritize quality: Anthropic > OpenAI > Groq
   if (userTier.tier === "premium") {
     if (
-      allowedProviders.includes("anthropic" as any) &&
+      allowedProviders.includes("anthropic" as string) &&
       isAnthropicConfigured &&
       anthropic.getAnthropicServiceStatus().isAvailable
     ) {
@@ -313,7 +313,7 @@ function selectProviderForTier(
       };
     }
     if (
-      allowedProviders.includes("openai" as any) &&
+      allowedProviders.includes("openai" as string) &&
       isOpenAIConfigured &&
       openai.getOpenAIServiceStatus().isAvailable
     ) {
@@ -540,7 +540,7 @@ export async function analyzeMatch(
   incrementUsage(userTier);
 
   // Task 5: Implement retry logic with exponential backoff
-  let lastError: any;
+  let lastError: Error | unknown;
   let matchResult: MatchAnalysisResponse | null = null;
 
   for (let i = 0; i < providerChain.length; i++) {
@@ -887,7 +887,7 @@ async function executeProviderWithRetry(
   _userTier?: UserTierInfo
 ): Promise<MatchAnalysisResponse> {
   
-  let lastError: any;
+  let lastError: Error | unknown;
   const maxRetries = AI_PROVIDER_CONFIG.MAX_RETRIES;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {

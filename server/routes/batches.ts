@@ -27,7 +27,7 @@ interface _ResumeQueryResult {
   filename: string;
   file_size: number;
   file_type: string;
-  analyzed_data?: any;
+  analyzed_data?: object;
   created_at: string;
   updated_at: string;
   has_analysis: boolean;

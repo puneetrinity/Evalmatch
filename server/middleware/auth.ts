@@ -293,7 +293,7 @@ export async function optionalAuth(
  * Middleware to check if user owns a resource
  */
 export function requireResourceOwnership(
-  getUserIdFromResource: (req: Request) => Promise<string | null>,
+  getUserIdFromResource: (_req: Request) => Promise<string | null>,
 ) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {

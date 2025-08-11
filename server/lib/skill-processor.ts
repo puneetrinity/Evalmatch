@@ -595,7 +595,7 @@ export class SkillProcessor {
  */
 export async function processSkills(text: string, domain?: string): Promise<NormalizedSkill[]> {
   const processor = SkillProcessor.getInstance();
-  return await processor.extractSkills(text, domain as any);
+  return await processor.extractSkills(text, domain as string | undefined);
 }
 
 /**
