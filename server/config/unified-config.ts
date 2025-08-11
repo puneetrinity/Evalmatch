@@ -125,7 +125,7 @@ export function loadUnifiedConfig(): AppConfig {
 
   // Environment configuration (safe to read directly after validation)
   const env = (process.env.NODE_ENV || "development") as Environment;
-  const port = parseInt(process.env.PORT || "5000", 10);
+  const port = parseInt(process.env.PORT || "3000", 10);
 
   // Database configuration
   const databaseUrl = process.env.DATABASE_URL || null;

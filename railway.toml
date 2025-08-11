@@ -19,6 +19,8 @@ MAX_CONCURRENT_EMBEDDINGS = "3"
 RAILWAY_HEALTHCHECK_TIMEOUT = "15000"
 AI_HEALTH_CHECK_ENABLED = "false"
 HEALTH_CHECK_AI_TIMEOUT = "2000"
+# Disable Redis for Railway deployment to avoid connection issues
+REDIS_ENABLED = "false"
 LOG_LEVEL = "info"
 
 # Memory and CPU limits for Railway

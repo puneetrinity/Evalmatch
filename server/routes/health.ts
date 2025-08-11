@@ -16,7 +16,15 @@ import {
 const router = Router();
 
 // Basic health check endpoint - Fast response for load balancers
-router.get("/health", basicHealthCheck);
+// Enhanced for Railway compatibility
+router.get("/health", (req: Request, res: Response) => {
+  // For Railway deployments, use the Railway-optimized health check
+  if (process.env.RAILWAY_ENVIRONMENT) {
+    return railwayHealthCheck(req, res);
+  }
+  // Otherwise use the standard basic health check
+  return basicHealthCheck(req, res);
+});
 
 // Railway-optimized health check endpoint - Ultra-fast for deployment validation
 router.get("/health/railway", railwayHealthCheck);

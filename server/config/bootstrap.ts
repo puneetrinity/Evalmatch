@@ -6,7 +6,7 @@
  */
 
 export const bootstrap = {
-  port: parseInt(process.env.PORT || "5000", 10),
+  port: parseInt(process.env.PORT || "3000", 10),
   nodeEnv: process.env.NODE_ENV || "development",
   authBypassMode: process.env.AUTH_BYPASS_MODE === "true",
   isDevelopment: process.env.NODE_ENV === "development",

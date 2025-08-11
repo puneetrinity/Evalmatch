@@ -128,7 +128,7 @@ RUN npm prune --omit=dev --ignore-scripts && npm install vite
 
 # Set runtime environment variables
 ENV NODE_ENV=production
-ENV PORT=8080
+# Don't set PORT - let Railway assign it dynamically
 
 # Enable static file serving - Railway single container
 ENV SERVE_STATIC=true
@@ -155,12 +155,13 @@ ENV NODE_OPTIONS="--max-old-space-size=7168 --max-semi-space-size=256"
 # Create cache directory for AI models
 RUN mkdir -p /tmp/transformers_cache && chmod 755 /tmp/transformers_cache
 
-# Expose the port the app runs on
-EXPOSE 8080
+# Expose the port the app runs on (Railway will assign actual port via PORT env var)
+EXPOSE 3000
 
 # Add Railway-optimized health check endpoint
+# Use PORT environment variable that Railway assigns (defaults to 3000 for local testing)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8080/api/health/railway || exit 1
+    CMD curl -f http://localhost:${PORT:-3000}/api/health/railway || exit 1
 
 # Add curl for health checks
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*

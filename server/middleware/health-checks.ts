@@ -237,11 +237,24 @@ async function checkDatabase(): Promise<HealthCheckResult> {
     let status: "healthy" | "degraded" | "unhealthy";
     let message: string;
     const issues: string[] = [];
+    const uptime = Math.round(process.uptime());
+    const isRailwayDeployment = !!process.env.RAILWAY_ENVIRONMENT;
 
     if (!(connectivityResult as any).success) {
-      status = "unhealthy";
-      message = (connectivityResult as any).message;
-      issues.push("Database connectivity failed");
+      // For Railway deployments, be more tolerant of database connection issues during startup
+      if (isRailwayDeployment && uptime < 180) {
+        status = "degraded";
+        message = `Database connecting during Railway startup (${uptime}s uptime): ${(connectivityResult as any).message}`;
+        issues.push("Database initializing during deployment");
+      } else if (uptime < 60) {
+        status = "degraded";
+        message = `Database connecting during startup (${uptime}s uptime): ${(connectivityResult as any).message}`;
+        issues.push("Database starting up");
+      } else {
+        status = "unhealthy";
+        message = (connectivityResult as any).message;
+        issues.push("Database connectivity failed");
+      }
     } else {
       // Check for performance issues
       const hasPerformanceIssues =
@@ -1584,6 +1597,9 @@ export async function basicHealthCheck(
     // Determine HTTP status code based on health status
     // Railway-compatible: Only return 503 for truly critical failures
     let httpStatus: number;
+    const uptime = Math.round(process.uptime());
+    const isRailwayDeployment = !!process.env.RAILWAY_ENVIRONMENT;
+    
     switch (status) {
       case "healthy":
         httpStatus = 200; // OK
@@ -1593,18 +1609,21 @@ export async function basicHealthCheck(
         res.setHeader("X-Health-Warning", "degraded");
         break;
       case "unhealthy":
-        // Railway optimization: Be more permissive during startup
-        const uptime = Math.round(process.uptime());
+        // Railway optimization: Be more permissive during startup and deployment
         const hasCriticalFailure = essentialChecks.some(check => 
           (check.name === "database" || check.name === "memory") && 
           check.status === "unhealthy"
         );
         
-        // During startup grace period (first 2 minutes), be more permissive
-        if (uptime < 120 && !hasCriticalFailure) {
+        // Extended startup grace period for Railway (first 3 minutes)
+        const startupGracePeriod = isRailwayDeployment ? 180 : 120;
+        
+        if (uptime < startupGracePeriod && !hasCriticalFailure) {
           httpStatus = 200; // Allow startup time
           res.setHeader("X-Health-Warning", "startup-period");
-        } else if (hasCriticalFailure) {
+          res.setHeader("X-Startup-Grace-Remaining", String(startupGracePeriod - uptime));
+        } else if (hasCriticalFailure && uptime > 60) {
+          // Only fail for critical issues after 1 minute minimum
           httpStatus = 503; // Critical failure
           res.setHeader("X-Health-Status", "unhealthy");
         } else {
@@ -2180,13 +2199,15 @@ export async function railwayHealthCheck(
         
         // Only fail if database is completely inaccessible AND required
         // For Railway, we want to be more permissive during deployment
-        if (!dbAvailable && uptime > 120) {
-          // Only consider DB failure critical after 2 minutes uptime (Railway grace period)
+        if (!dbAvailable && uptime > 180) {
+          // Extended grace period for Railway - 3 minutes
           isHealthy = false;
           status = "unhealthy";
           issues.push("Database unavailable after startup period");
         } else if (!dbAvailable && inStartupGracePeriod) {
           issues.push("Database initializing (startup grace period)");
+        } else if (!dbAvailable && uptime < 180) {
+          issues.push("Database connecting during startup");
         } else if (!dbAvailable) {
           issues.push("Database starting up");
         }
@@ -2198,10 +2219,13 @@ export async function railwayHealthCheck(
       dbStatus = "error";
       dbAvailable = false;
       // Don't fail health check for DB errors during startup grace period
-      if (uptime > 120) {
+      if (uptime > 180) {
+        // Only add critical issues after 3 minutes
         issues.push("Database connection error");
       } else if (inStartupGracePeriod) {
         issues.push("Database connection initializing");
+      } else {
+        issues.push("Database connection starting");
       }
     }
 
