@@ -148,9 +148,68 @@ router.post(
     }
 
     try {
-      // Convert multer file to ResumeService expected format
-      const fileBuffer = file.buffer || 
-        (await import("fs").then((fs) => fs.promises.readFile(file.path!)));
+      // ROBUST FILE READING: Handle diskStorage multer files with comprehensive error handling
+      let fileBuffer: Buffer;
+      
+      if (file.buffer) {
+        // Memory storage (unlikely but handle gracefully)
+        fileBuffer = file.buffer;
+        logger.info("Using file buffer from memory storage", { filename: file.originalname });
+      } else if (file.path) {
+        // Disk storage - read from filesystem with robust error handling
+        try {
+          const fs = await import("fs");
+          
+          // Verify file exists and is accessible before reading
+          await fs.promises.access(file.path, fs.constants.R_OK);
+          
+          // Get file stats to ensure it's a valid file
+          const stats = await fs.promises.stat(file.path);
+          if (!stats.isFile() || stats.size === 0) {
+            throw new Error(`Invalid file: size=${stats.size}, isFile=${stats.isFile()}`);
+          }
+          
+          // Read file with proper error handling
+          fileBuffer = await fs.promises.readFile(file.path);
+          
+          logger.info("Successfully read file from disk storage", { 
+            filename: file.originalname,
+            path: file.path,
+            size: stats.size,
+            actualSize: fileBuffer.length
+          });
+          
+        } catch (fileError) {
+          logger.error("Failed to read uploaded file from disk", {
+            filename: file.originalname,
+            filePath: file.path,
+            error: fileError instanceof Error ? fileError.message : 'Unknown error',
+            userId
+          });
+          
+          return res.status(400).json({
+            success: false,
+            error: "FILE_READ_ERROR",
+            message: "Unable to process uploaded file. Please try uploading again.",
+            details: `File reading failed: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      } else {
+        logger.error("No file buffer or path available", { 
+          filename: file.originalname,
+          hasBuffer: !!file.buffer,
+          hasPath: !!file.path,
+          userId
+        });
+        
+        return res.status(400).json({
+          success: false,
+          error: "INVALID_FILE_STATE",
+          message: "File upload failed - no accessible file data",
+          timestamp: new Date().toISOString(),
+        });
+      }
 
       // Create ResumeService instance with current storage
       const storage = getStorage();
@@ -243,15 +302,46 @@ router.post(
       }> = [];
 
       for (const file of files) {
-        const fileBuffer = file.buffer || 
-          (await import("fs").then((fs) => fs.promises.readFile(file.path!)));
-        
-        processedFiles.push({
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-          buffer: fileBuffer
-        });
+        try {
+          // ROBUST FILE READING for batch uploads
+          let fileBuffer: Buffer;
+          
+          if (file.buffer) {
+            fileBuffer = file.buffer;
+          } else if (file.path) {
+            const fs = await import("fs");
+            
+            // Verify file exists and is accessible
+            await fs.promises.access(file.path, fs.constants.R_OK);
+            const stats = await fs.promises.stat(file.path);
+            
+            if (!stats.isFile() || stats.size === 0) {
+              throw new Error(`Invalid file: ${file.originalname}`);
+            }
+            
+            fileBuffer = await fs.promises.readFile(file.path);
+          } else {
+            throw new Error(`No file data available for: ${file.originalname}`);
+          }
+          
+          processedFiles.push({
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+            buffer: fileBuffer
+          });
+          
+        } catch (fileError) {
+          logger.error("Failed to read file in batch upload", {
+            filename: file.originalname,
+            error: fileError instanceof Error ? fileError.message : 'Unknown error',
+            userId
+          });
+          
+          // For batch uploads, we can skip failed files and continue
+          // The batch service will handle individual file failures
+          continue;
+        }
       }
 
       // Create ResumeService instance with current storage

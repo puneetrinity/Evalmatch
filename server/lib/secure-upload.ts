@@ -862,6 +862,36 @@ export async function validateUploadedFile(
     const finalPath = path.join(UPLOAD_DIR, req.file.filename);
     await fs.rename(req.file.path, finalPath);
     req.file.path = finalPath; // Update path for downstream processing
+    
+    // Step 3.1: Verify file readiness after move to prevent race conditions
+    try {
+      await fs.access(finalPath, require('fs').constants.R_OK);
+      const movedStats = await fs.stat(finalPath);
+      
+      if (!movedStats.isFile() || movedStats.size === 0) {
+        throw new Error(`File move verification failed: size=${movedStats.size}, isFile=${movedStats.isFile()}`);
+      }
+      
+      logger.info("File successfully moved and verified", {
+        userId,
+        filename: req.file.filename,
+        finalPath,
+        size: movedStats.size
+      });
+    } catch (verificationError) {
+      logger.error("File move verification failed", {
+        userId,
+        filename: req.file.filename,
+        finalPath,
+        error: verificationError instanceof Error ? verificationError.message : 'Unknown error'
+      });
+      
+      return res.status(500).json({
+        error: "File processing error",
+        message: "Unable to finalize file upload. Please try again.",
+        code: "FILE_MOVE_VERIFICATION_FAILED"
+      });
+    }
 
     // Step 4: Add comprehensive security metadata
     req.file.securityChecked = true;
