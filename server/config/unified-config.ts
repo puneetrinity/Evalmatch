@@ -12,6 +12,20 @@
 import { logger } from "./logger";
 import { Environment } from "../types/environment";
 
+// Firebase service account types
+interface FirebaseServiceAccount {
+  type: string;
+  project_id: string;
+  private_key_id: string;
+  private_key: string;
+  client_email: string;
+  client_id: string;
+  auth_uri: string;
+  token_uri: string;
+  auth_provider_x509_cert_url: string;
+  client_x509_cert_url: string;
+}
+
 // Re-export for backward compatibility
 export { Environment };
 
@@ -55,7 +69,7 @@ export interface AppConfig {
   // Firebase Authentication
   firebase: {
     projectId: string | null;
-    serviceAccountKey: any; // Use any to allow both file path string or service account object
+    serviceAccountKey: string | FirebaseServiceAccount | null; // Allow both file path string or service account object
     clientConfig: {
       apiKey: string | null;
       authDomain: string | null;
@@ -135,7 +149,7 @@ export function loadUnifiedConfig(): AppConfig {
   }
 
   // Parse the service account key into an object for firebase-auth.ts
-  let firebaseServiceAccountObject: any = null;
+  let firebaseServiceAccountObject: FirebaseServiceAccount | null = null;
   if (firebaseServiceAccountKey) {
     try {
       // SECURITY FIX: Safe logging without exposing sensitive key content

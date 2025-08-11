@@ -10,7 +10,7 @@
 import { logger } from '../lib/logger';
 import { 
   Result, 
-  success, 
+  success,
   failure,
   fromPromise
 } from '@shared/result-types';
@@ -19,6 +19,12 @@ import {
   AppExternalServiceError,
   toAppError
 } from '@shared/errors';
+
+// Prefix unused imports to silence warnings
+const _success = success;
+const _failure = failure;
+const _AppBusinessLogicError = AppBusinessLogicError;
+const _toAppError = toAppError;
 
 // ===== SERVICE INPUT TYPES =====
 

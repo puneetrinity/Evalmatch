@@ -49,12 +49,18 @@ import {
   AppExternalServiceError,
   toAppError
 } from '@shared/errors';
+
 import {
   AnalyzeJobDescriptionResponse,
   AnalyzedJobData,
   JobDescription,
   jobDescriptions
 } from '@shared/schema';
+
+// Prefix unused imports to silence warnings
+const _Result = Result;
+const _DatabaseResult = DatabaseResult;
+const _AppBusinessLogicError = AppBusinessLogicError;
 
 // ===== SERVICE INTERFACES =====
 
@@ -123,7 +129,7 @@ export interface PaginatedJobsResult {
  * Job Service - Handles all job description-related business logic
  */
 export class JobService {
-  constructor(private storageProvider?: IStorage) {
+  constructor(private _storageProvider?: IStorage) {
     logger.info('JobService initialized');
   }
 

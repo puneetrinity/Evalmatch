@@ -3,6 +3,8 @@
  * This helps reduce API calls and improve performance with larger datasets
  */
 
+import { logger } from './logger';
+
 type CacheItem<T> = {
   data: T;
   expiresAt: number;
@@ -36,7 +38,7 @@ class AnalysisCache {
     
     // Don't cache excessively large items
     if (sizeBytes > 1024 * 1024) { // 1MB limit per item
-      console.warn(`[CACHE] Item too large to cache: ${key} (${Math.round(sizeBytes / 1024)}KB)`);
+      logger.warn('[CACHE] Item too large to cache', { key, sizeMB: Math.round(sizeBytes / 1024) });
       return;
     }
     
@@ -145,7 +147,7 @@ class AnalysisCache {
     });
     
     if (expiredKeys.length > 0) {
-      console.log(`[CACHE] Cleanup: removed ${expiredKeys.length} expired items`);
+      logger.info('[CACHE] Cleanup: removed expired items', { count: expiredKeys.length });
     }
   }
   

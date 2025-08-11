@@ -5,6 +5,7 @@
  * database connectivity issues and other common error types.
  */
 import { Response } from "express";
+import { logger } from './logger';
 
 interface ApiErrorOptions {
   statusCode?: number;
@@ -100,7 +101,7 @@ export function handleApiError(
 
   // Log server errors
   if (statusCode >= 500) {
-    console.error("API Error:", error);
+    logger.error('API Error', { error });
   }
 
   return res.status(statusCode).json(response);

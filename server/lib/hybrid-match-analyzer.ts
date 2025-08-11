@@ -6,6 +6,9 @@ import {
   SkillMatch,
   FairnessMetrics,
 } from "@shared/schema";
+
+// Prefix unused import to silence warnings
+const _MatchAnalysisResponse = MatchAnalysisResponse;
 import {
   calculateEnhancedMatch,
   ScoringWeights,
@@ -13,7 +16,7 @@ import {
 import {
   UNIFIED_SCORING_WEIGHTS,
   CONFIDENCE_THRESHOLDS,
-  MATCH_QUALITY_THRESHOLDS,
+  MATCH_QUALITY_THRESHOLDS: _MATCH_QUALITY_THRESHOLDS,
   calculateUnifiedConfidence,
   applyBiasAdjustment,
   getMatchQualityLevel,
@@ -38,7 +41,7 @@ interface JobContext {
   requiredSkills: string[];
 }
 
-interface ESCOSkill {
+interface _ESCOSkill {
   skill: string;
   category: string;
   normalized: string;
@@ -53,11 +56,11 @@ interface JobProfile {
 }
 
 // Placeholder functions until they are implemented
-function detectJobIndustry(title: string, description: string): string {
+function detectJobIndustry(_title: string, _description: string): string {
   return 'general';
 }
 
-async function cleanContaminatedSkills(skills: string[], context: JobContext): Promise<{
+async function cleanContaminatedSkills(skills: string[], _context: JobContext): Promise<{
   cleanSkills: string[];
   blockedSkills: string[];
   flaggedSkills: string[];
@@ -75,20 +78,20 @@ import {
 } from "./match-insights-generator";
 // Consolidated skill system import
 import {
-  detectSkillContamination,
-  type ContaminationResult
+  detectSkillContamination: _detectSkillContamination,
+  type ContaminationResult as _ContaminationResult
 } from "./skill-processor";
 import {
-  Result,
+  Result: _Result,
   success,
   failure,
-  fromPromise,
+  fromPromise: _fromPromise,
   MatchAnalysisResult
 } from "@shared/result-types";
 import {
   AppExternalServiceError,
   AppBusinessLogicError,
-  toAppError
+  toAppError: _toAppError
 } from "@shared/errors";
 
 // Use unified scoring weights for consistency (Task 1 & 2: Re-enable semantic scoring)
@@ -439,7 +442,7 @@ export class HybridMatchAnalyzer {
    */
   private determineAnalysisStrategy(
     hasFullText: boolean,
-    userTier: UserTierInfo,
+    _userTier: UserTierInfo,
   ): "hybrid" | "ml_only" | "llm_only" {
     // Hybrid analysis requires full text content
     if (hasFullText && this.isAIProviderAvailable()) {

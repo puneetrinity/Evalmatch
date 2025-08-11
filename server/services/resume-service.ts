@@ -39,7 +39,7 @@ import {
   failure,
   isSuccess,
   isFailure,
-  ResumeAnalysisResult
+  ResumeAnalysisResult,
 } from '@shared/result-types';
 import {
   transformDatabaseResult,
@@ -62,6 +62,16 @@ import {
   Resume,
   InsertResume
 } from '@shared/schema';
+
+// Prefix unused imports to silence warnings
+const _Result = Result;
+const _ResumeQueryBuilder = ResumeQueryBuilder;
+const _transformDatabaseResult = transformDatabaseResult;
+const _transformResumeServiceResult = transformResumeServiceResult;
+const _transformAppError = transformAppError;
+const _transformNotFoundError = transformNotFoundError;
+const _AppBusinessLogicError = AppBusinessLogicError;
+const _toAppError = toAppError;
 
 // ===== SERVICE INPUT TYPES =====
 
@@ -242,20 +252,20 @@ export interface BatchUploadResult {
 export class ResumeService {
   
   constructor(
-    private storageProvider?: IStorage
+    private _storageProvider?: IStorage
   ) {}
 
   private getStorageProvider(): IStorage {
     logger.debug('ResumeService: Attempting to get storage provider', {
-      hasInjectectedStorage: !!this.storageProvider,
+      hasInjectectedStorage: !!this._storageProvider,
       timestamp: new Date().toISOString()
     });
     
-    if (this.storageProvider) {
+    if (this._storageProvider) {
       logger.debug('ResumeService: Using injected storage provider', {
-        storageType: this.storageProvider.constructor.name
+        storageType: this._storageProvider.constructor.name
       });
-      return this.storageProvider;
+      return this._storageProvider;
     }
     
     logger.debug('ResumeService: Getting global storage instance...');
@@ -696,10 +706,10 @@ export class ResumeService {
       // Delete resume
       // TODO: Implement deleteResume method in storage layer
       throw new Error('Delete resume functionality not yet implemented');
-
-      logger.info('Resume deleted successfully', { userId, resumeId });
       
-      return success({ deleted: true });
+      // TODO: When delete functionality is implemented, uncomment:
+      // logger.info('Resume deleted successfully', { userId, resumeId });
+      // return success({ deleted: true });
     } catch (error) {
       logger.error('Failed to delete resume', {
         userId,

@@ -10,6 +10,7 @@ import {
   generateMatchAnalysisKey,
   generateBiasAnalysisKey,
 } from "./cache";
+import { logger } from './logger';
 import { analyzeMatch } from "../lib/ai-provider";
 import { IStorage } from "../storage";
 import {
@@ -44,7 +45,7 @@ export async function handleBatchAnalyze(
       return res.status(400).json({ message: "Invalid job description ID" });
     }
 
-    console.log(
+    logger.info(
       `Processing analysis for job description ID: ${jobDescriptionId}, sessionId: ${sessionId || "not provided"}`,
     );
 
@@ -56,13 +57,13 @@ export async function handleBatchAnalyze(
       });
     }
 
-    console.log(
+    logger.info(
       `Job description lookup result: Found job '${jobDescription.title}'`,
     );
 
     // Get resumes, filtered by sessionId if provided
     const resumes = await storage.getResumes(sessionId);
-    console.log(
+    logger.info(
       `Filtered analysis results by session: ${resumes.length} results for session ${sessionId}`,
     );
 
@@ -149,7 +150,7 @@ export async function handleBatchAnalyze(
             analysisId: analysisResult.id,
           };
         } catch (error) {
-          console.error(`Error analyzing resume ${resume.id}:`, error);
+          logger.error(`Error analyzing resume ${resume.id}`, { error });
           return {
             resumeId: resume.id,
             filename: resume.filename,
@@ -175,7 +176,7 @@ export async function handleBatchAnalyze(
       results: analysisResults,
     });
   } catch (error) {
-    console.error("Error in batch analysis:", error);
+    logger.error('Error in batch analysis', { error });
     res.status(500).json({
       message: error instanceof Error ? error.message : "Unknown error",
     });
@@ -195,7 +196,7 @@ export async function handleSpecificAnalyze(
     const jobDescriptionId = parseInt(req.params.jobDescriptionId);
     const resumeId = parseInt(req.params.resumeId);
 
-    console.log(
+    logger.info(
       `Processing specific analysis for job ID: ${jobDescriptionId}, resume ID: ${resumeId}`,
     );
 
@@ -210,7 +211,7 @@ export async function handleSpecificAnalyze(
     const cachedResult = analysisCache.get(cacheKey);
 
     if (cachedResult) {
-      console.log(
+      logger.info(
         `Using cached analysis for resume ${resumeId} and job ${jobDescriptionId}`,
       );
       return res.json(cachedResult);
@@ -220,10 +221,10 @@ export async function handleSpecificAnalyze(
     const jobDescription = await storage.getJobDescription(jobDescriptionId);
     const resume = await storage.getResume(resumeId);
 
-    console.log(
+    logger.info(
       `Job lookup result: ${jobDescription ? `Found job '${jobDescription.title}'` : "Not found"}`,
     );
-    console.log(
+    logger.info(
       `Resume lookup result: ${resume ? `Found resume '${resume.filename}'` : "Not found"}`,
     );
 
@@ -306,16 +307,16 @@ export async function handleSpecificAnalyze(
 
       res.json(result);
     } catch (error) {
-      console.error(
-        `Error analyzing resume ${resumeId} against job ${jobDescriptionId}:`,
-        error,
+      logger.error(
+        `Error analyzing resume ${resumeId} against job ${jobDescriptionId}`,
+        { error },
       );
       res.status(500).json({
         message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   } catch (error) {
-    console.error("Error in analysis:", error);
+    logger.error('Error in analysis', { error });
     res.status(500).json({
       message: error instanceof Error ? error.message : "Unknown error",
     });

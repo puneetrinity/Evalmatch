@@ -28,12 +28,13 @@ export class DatabaseSecurity {
         }
         return this.sanitizeStringForDb(input);
 
-      case 'number':
+      case 'number': {
         const num = Number(input);
         if (isNaN(num)) {
           throw new Error('Invalid number for database operation');
         }
         return num;
+      }
 
       case 'boolean':
         return Boolean(input);

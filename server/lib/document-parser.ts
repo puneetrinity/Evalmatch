@@ -6,6 +6,7 @@ import * as path from "path";
 import * as crypto from "crypto";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { logger } from './logger';
 // import pdfParse from "pdf-parse"; // Moved to dynamic import to avoid ESM issues
 
 // PDF.js will be dynamically imported with legacy build for Node.js compatibility
@@ -609,7 +610,7 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
       let extractionSuccess = false;
 
       try {
-        console.log("[ResumeParser] Attempting primary extraction: pdf-parse");
+        logger.info('[ResumeParser] Attempting primary extraction', { method: 'pdf-parse' });
 
         // Dynamic import to avoid ESM module initialization issues
         const pdfParse = (await import("pdf-parse")).default;
@@ -625,19 +626,14 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
           success: extractedText.length > 50,
         });
 
-        console.log(
-          `[ResumeParser] Primary: pdf-parse (text length: ${extractedText.length})`,
-        );
+        logger.info('[ResumeParser] Primary extraction completed', { method: 'pdf-parse', textLength: extractedText.length });
 
         // Only consider successful if we got meaningful text
         if (extractedText.length > 50) {
           extractionSuccess = true;
         }
       } catch (err) {
-        console.warn(
-          "[ResumeParser] Failed to extract text with pdf-parse:",
-          err,
-        );
+        logger.warn('[ResumeParser] Primary extraction failed', { method: 'pdf-parse', error: err });
         extractionResults.push({
           method: "pdf-parse",
           textLength: 0,
@@ -656,7 +652,7 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
       // If pdf-parse failed or returned too little text, try pdftotext command
       if (!extractionSuccess) {
         try {
-          console.log("[ResumeParser] Trying pdftotext command");
+          logger.info('[ResumeParser] Attempting fallback extraction', { method: 'pdftotext' });
 
           // First try pdftotext which preserves layout better
           try {
@@ -673,17 +669,19 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
                 success: true,
               });
 
-              console.log(
-                `[ResumeParser] pdftotext success (text length: ${pdftotextOutput.length})`,
-              );
+              logger.info('[ResumeParser] Fallback extraction successful', { 
+                method: 'pdftotext', 
+                textLength: pdftotextOutput.length 
+              });
               extractedText = pdftotextOutput;
               extractionSuccess = true;
             }
           } catch (pdftotextErr) {
             // pdftotext not available, fall back to strings
-            console.log(
-              "[ResumeParser] pdftotext not available, trying strings command",
-            );
+            logger.info('[ResumeParser] Attempting secondary fallback', { 
+              method: 'strings',
+              reason: 'pdftotext not available' 
+            });
             const { stdout } = await execAsync(
               `strings -n 3 "${pdfPath}" | grep -v '^[[:space:]]*$' > "${txtPath}"`,
             );
@@ -698,9 +696,10 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
               success: stringOutput.length > 50,
             });
 
-            console.log(
-              `[ResumeParser] Fallback: strings (text length: ${stringOutput.length})`,
-            );
+            logger.info('[ResumeParser] Secondary fallback completed', { 
+              method: 'strings', 
+              textLength: stringOutput.length 
+            });
 
             // Only use strings output if it's better than what we already have
             if (
@@ -712,10 +711,10 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
             }
           }
         } catch (err) {
-          console.warn(
-            "[ResumeParser] Failed to extract text with system commands:",
-            err,
-          );
+          logger.warn('[ResumeParser] System command extraction failed', { 
+            methods: ['pdftotext', 'strings'], 
+            error: err 
+          });
           extractionResults.push({
             method: "system-commands",
             textLength: 0,
@@ -729,17 +728,15 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
       // If both methods failed or returned little text, DO NOT try buffer extraction
       // Buffer.toString() on binary PDF data produces garbage text
       if (!extractionSuccess) {
-        console.log(
-          "[ResumeParser] All text extraction methods failed, PDF may be image-based or corrupted",
-        );
+        logger.warn('[ResumeParser] All text extraction methods failed', { 
+          reason: 'PDF may be image-based or corrupted' 
+        });
       }
 
       // If all text-based methods failed, try OCR as last resort
       if (!extractionSuccess) {
         try {
-          console.log(
-            "[ResumeParser] Attempting final OCR extraction with Tesseract",
-          );
+          logger.info('[ResumeParser] Attempting OCR extraction', { method: 'tesseract' });
           
           // OCR extraction now has internal error handling and won't throw
           const ocrText = await extractTextWithOcr(buffer);
@@ -756,28 +753,30 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
             success: ocrSuccess,
           });
 
-          console.log(
-            `[ResumeParser] OCR: tesseract (text length: ${ocrText.length}, success: ${ocrSuccess})`,
-          );
+          logger.info('[ResumeParser] OCR extraction completed', { 
+            method: 'tesseract', 
+            textLength: ocrText.length, 
+            success: ocrSuccess 
+          });
 
           // Only use OCR text if it's substantially better or other methods failed
           if (ocrSuccess) {
             if (extractedText.length < 50 || ocrText.length > extractedText.length * 1.5) {
               extractedText = ocrText;
               extractionSuccess = true;
-              console.log("[ResumeParser] Using OCR text as primary extraction result");
+              logger.info('[ResumeParser] Selected OCR text as primary result', { reason: 'better quality than other methods' });
             }
           }
           
           // If OCR also failed but returned some text, check if we should use it anyway
           if (!extractionSuccess && ocrText.length > extractedText.length) {
-            console.log("[ResumeParser] Using partial OCR text as fallback");
+            logger.info('[ResumeParser] Using partial OCR text as fallback', { reason: 'other methods failed' });
             extractedText = ocrText;
           }
           
         } catch (err) {
           // This shouldn't happen now since OCR function handles its own errors
-          console.warn("[ResumeParser] Unexpected OCR extraction error:", err);
+          logger.warn('[ResumeParser] Unexpected OCR extraction error', { error: err });
           extractionResults.push({
             method: "tesseract-ocr",
             textLength: 0,
@@ -789,21 +788,21 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
       }
 
       // Log overall extraction results
-      console.log(
-        "[ResumeParser] Extraction summary:",
-        extractionResults
-          .map(
-            (r) =>
-              `${r.method}: ${r.textLength} chars (${r.success ? "success" : "failed"})`,
-          )
-          .join(", "),
-      );
+      logger.info('[ResumeParser] Extraction summary', { 
+        methods: extractionResults.map(r => ({
+          method: r.method,
+          textLength: r.textLength,
+          success: r.success,
+          sampleText: r.sampleText?.substring(0, 50)
+        }))
+      });
 
       // If no method succeeded, try one more aggressive approach
       if (!extractionSuccess && extractedText.length > 0) {
-        console.log(
-          "[ResumeParser] Attempting aggressive text recovery from partial extraction",
-        );
+        logger.info('[ResumeParser] Attempting text recovery', { 
+          method: 'aggressive cleaning', 
+          currentLength: extractedText.length 
+        });
 
         // Sometimes we get partial text that needs cleaning
         extractedText = extractedText
@@ -815,17 +814,18 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
 
         if (extractedText.length > 100) {
           extractionSuccess = true;
-          console.log(
-            `[ResumeParser] Recovered ${extractedText.length} chars through aggressive cleaning`,
-          );
+          logger.info('[ResumeParser] Text recovery successful', { 
+            method: 'aggressive cleaning', 
+            recoveredLength: extractedText.length 
+          });
         }
       }
 
       // If still no success, return a helpful message
       if (!extractionSuccess) {
-        console.error(
-          "[ResumeParser][Error] All PDF extraction methods failed",
-        );
+        logger.error('[ResumeParser] All PDF extraction methods failed', { 
+          extractionResults: extractionResults.map(r => ({ method: r.method, success: r.success })) 
+        });
 
         // Try to provide more specific error message based on what happened
         const hasOCRError = extractionResults.some(
@@ -849,9 +849,10 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
 
       // Handle case where we got some text but it's very minimal
       if (extractionSuccess && extractedText.length < 100) {
-        console.warn(
-          `[ResumeParser][Warning] Very short extraction result (${extractedText.length} chars): "${extractedText.substring(0, 50)}..."`,
-        );
+        logger.warn('[ResumeParser] Very short extraction result', { 
+          textLength: extractedText.length, 
+          sampleText: extractedText.substring(0, 50) 
+        });
         
         // Add a helpful note to the extracted text to inform the user
         const warningNote = `\n\n[EXTRACTION WARNING: Only ${extractedText.length} characters extracted. This PDF may be image-based or heavily formatted. Consider using a text-based PDF or DOCX format for better results.]`;
@@ -864,18 +865,20 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
       // Validate the extracted text
       const validation = validateExtractedText(extractedText);
       if (!validation.isValid) {
-        console.error(
-          `[ResumeParser][Error] Text validation failed: ${validation.reason}`,
-        );
+        logger.error('[ResumeParser] Text validation failed', { 
+          reason: validation.reason, 
+          textLength: extractedText.length 
+        });
 
         // Try emergency recovery if text is too short
         if (extractedText.length < 100 && extractedText.length > 0) {
           // Add generic skills section to help AI extraction
           const emergencyText = `${extractedText}\n\nNOTE: Limited text extracted. Common skills and qualifications may include:\n- Technical Skills\n- Communication\n- Problem Solving\n- Team Collaboration\n- Project Management\n- Analytical Thinking`;
 
-          console.log(
-            "[ResumeParser] Added emergency skill hints due to limited text extraction",
-          );
+          logger.info('[ResumeParser] Added emergency skill hints', { 
+            reason: 'limited text extraction', 
+            originalLength: extractedText.length 
+          });
           return emergencyText;
         }
 
@@ -884,17 +887,18 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
 
       // Truncate if necessary
       if (extractedText.length > MAX_TEXT_LENGTH) {
-        console.warn(
-          `[ResumeParser][Warning] Text truncated from ${extractedText.length} to ${MAX_TEXT_LENGTH} characters`,
-        );
+        logger.warn('[ResumeParser] Text truncated due to size limit', { 
+          originalLength: extractedText.length, 
+          maxLength: MAX_TEXT_LENGTH 
+        });
         extractedText = truncateText(extractedText);
       }
 
       // Final check: if we have text but no skills were detected in preprocessing
       if (!extractedText.includes("DETECTED SKILLS:")) {
-        console.warn(
-          "[ResumeParser][Warning] No skills detected in preprocessing, text may need manual review",
-        );
+        logger.warn('[ResumeParser] No skills detected in preprocessing', { 
+          warning: 'text may need manual review' 
+        });
       }
 
       return extractedText;
@@ -906,11 +910,11 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
           fs.unlinkSync(txtPath);
         }
       } catch (err) {
-        console.warn("Failed to clean up temporary files:", err);
+        logger.warn('Failed to clean up temporary files', { error: err });
       }
     }
   } catch (error) {
-    console.error("Error extracting text from PDF:", error);
+    logger.error('Error extracting text from PDF', { error });
     return "PDF text extraction failed. The document may be encrypted, scanned, or in an unsupported format.";
   }
 }
@@ -938,15 +942,16 @@ export async function extractTextFromDocx(buffer: Buffer): Promise<string> {
 
     // Truncate if necessary
     if (extractedText.length > MAX_TEXT_LENGTH) {
-      console.warn(
-        `[DocxParser][Warning] Text truncated from ${extractedText.length} to ${MAX_TEXT_LENGTH} characters`,
-      );
+      logger.warn('[DocxParser] Text truncated due to size limit', { 
+        originalLength: extractedText.length, 
+        maxLength: MAX_TEXT_LENGTH 
+      });
       extractedText = truncateText(extractedText);
     }
 
     return extractedText;
   } catch (error) {
-    console.error("Error extracting text from DOCX:", error);
+    logger.error('Error extracting text from DOCX', { error });
     throw new Error("Failed to extract text from DOCX");
   }
 }
@@ -960,13 +965,13 @@ export async function extractTextWithOcr(buffer: Buffer): Promise<string> {
   let worker = null;
   
   try {
-    console.log("[OCR] Starting Tesseract worker initialization");
+    logger.info('[OCR] Starting Tesseract worker initialization');
     
     // Add timeout to worker creation to prevent hanging
     const workerPromise = createWorker("eng", 1, {
       logger: (m: any) => {
         if (m.status === 'recognizing text' && m.progress) {
-          console.log(`[OCR] Progress: ${Math.round(m.progress * 100)}%`);
+          logger.debug('[OCR] Progress update', { progress: Math.round(m.progress * 100) });
         }
       }
     } as any);
@@ -977,7 +982,7 @@ export async function extractTextWithOcr(buffer: Buffer): Promise<string> {
     });
     
     worker = await Promise.race([workerPromise, timeoutPromise]);
-    console.log("[OCR] Tesseract worker initialized successfully");
+    logger.info('[OCR] Tesseract worker initialized successfully');
     
     // Validate buffer before processing
     if (!buffer || buffer.length === 0) {
@@ -988,7 +993,7 @@ export async function extractTextWithOcr(buffer: Buffer): Promise<string> {
       throw new Error("File too large for OCR processing (max 50MB)");
     }
     
-    console.log(`[OCR] Processing ${buffer.length} bytes with Tesseract`);
+    logger.info('[OCR] Processing with Tesseract', { bufferSize: buffer.length });
     
     // SECURITY: Add comprehensive resource monitoring and DoS protection
     const memoryBefore = process.memoryUsage().heapUsed;
@@ -1013,7 +1018,8 @@ export async function extractTextWithOcr(buffer: Buffer): Promise<string> {
     
     // Log and alert on suspicious resource usage
     if (memoryDelta > 100 * 1024 * 1024) { // 100MB threshold
-      console.warn(`[OCR] HIGH MEMORY USAGE DETECTED: ${Math.round(memoryDelta / 1024 / 1024)}MB`, {
+      logger.warn('[OCR] HIGH MEMORY USAGE DETECTED', { 
+        memoryUsageMB: Math.round(memoryDelta / 1024 / 1024),
         bufferSize: buffer.length,
         processingTime,
         memoryDelta
@@ -1021,23 +1027,27 @@ export async function extractTextWithOcr(buffer: Buffer): Promise<string> {
     }
     
     if (processingTime > 25000) { // 25 second threshold
-      console.warn(`[OCR] LONG PROCESSING TIME DETECTED: ${processingTime}ms`, {
+      logger.warn('[OCR] LONG PROCESSING TIME DETECTED', {
+        processingTimeMs: processingTime,
         bufferSize: buffer.length,
-        memoryDelta: Math.round(memoryDelta / 1024 / 1024)
+        memoryDeltaMB: Math.round(memoryDelta / 1024 / 1024)
       });
     }
     
     if (!data || !data.text) {
-      console.warn("[OCR] Tesseract returned empty or null text");
+      logger.warn('[OCR] Tesseract returned empty or null text');
       return "";
     }
     
     const extractedText = data.text.trim();
-    console.log(`[OCR] Successfully extracted ${extractedText.length} characters`);
+    logger.info('[OCR] Text extraction successful', { textLength: extractedText.length });
     
     // Validate OCR output quality
     if (extractedText.length < 10) {
-      console.warn("[OCR] OCR extracted very little text, file may be corrupted or low quality");
+      logger.warn('[OCR] Very little text extracted', { 
+        textLength: extractedText.length,
+        warning: 'file may be corrupted or low quality' 
+      });
       return extractedText; // Still return what we got
     }
     
@@ -1045,35 +1055,38 @@ export async function extractTextWithOcr(buffer: Buffer): Promise<string> {
     
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[OCR] Tesseract OCR failed:", errorMessage);
+    logger.error('[OCR] Tesseract OCR failed', { error: errorMessage });
     
     // Don't throw the error - return empty string to allow graceful fallback
     // The main PDF extraction function will handle this failure gracefully
-    console.warn("[OCR] Returning empty string due to OCR failure - document processing will continue without OCR");
+    logger.warn('[OCR] OCR failure handled gracefully', { 
+      action: 'returning empty string',
+      impact: 'document processing continues without OCR' 
+    });
     return "";
     
   } finally {
     // SECURITY: Comprehensive cleanup to prevent resource leaks and DoS
     if (worker) {
       try {
-        console.log("[OCR] Terminating Tesseract worker");
+        logger.debug('[OCR] Terminating Tesseract worker');
         await worker.terminate();
-        console.log("[OCR] Tesseract worker terminated successfully");
+        logger.debug('[OCR] Tesseract worker terminated successfully');
       } catch (terminateError) {
-        console.error("[OCR] Failed to terminate Tesseract worker:", terminateError);
+        logger.error('[OCR] Failed to terminate Tesseract worker', { error: terminateError });
         // Don't throw here - worker may already be terminated
       }
     }
     
     // Force garbage collection if available to free memory immediately
     if (global.gc) {
-      console.log("[OCR] Running garbage collection to free memory");
+      logger.debug('[OCR] Running garbage collection to free memory');
       global.gc();
     }
     
     // Monitor final memory state
     const finalMemory = process.memoryUsage();
-    console.log(`[OCR] Final memory usage: ${Math.round(finalMemory.heapUsed / 1024 / 1024)}MB`);
+    logger.debug('[OCR] Final memory usage', { memoryUsageMB: Math.round(finalMemory.heapUsed / 1024 / 1024) });
   }
 }
 
@@ -1099,15 +1112,16 @@ export async function extractTextFromPlain(buffer: Buffer): Promise<string> {
 
     // Truncate if necessary
     if (extractedText.length > MAX_TEXT_LENGTH) {
-      console.warn(
-        `[TextParser][Warning] Text truncated from ${extractedText.length} to ${MAX_TEXT_LENGTH} characters`,
-      );
+      logger.warn('[TextParser] Text truncated due to size limit', { 
+        originalLength: extractedText.length, 
+        maxLength: MAX_TEXT_LENGTH 
+      });
       extractedText = truncateText(extractedText);
     }
 
     return extractedText;
   } catch (error) {
-    console.error("Error extracting text from plain text file:", error);
+    logger.error('Error extracting text from plain text file', { error });
     throw new Error("Failed to extract text from plain text file");
   }
 }
@@ -1174,7 +1188,7 @@ export async function extractTextFromDoc(buffer: Buffer): Promise<string> {
       if (fs.existsSync(docPath)) fs.unlinkSync(docPath);
       if (fs.existsSync(txtPath)) fs.unlinkSync(txtPath);
     } catch (cleanupError) {
-      console.warn("Failed to clean up temporary files:", cleanupError);
+      logger.warn('Failed to clean up temporary DOC files', { error: cleanupError });
     }
 
     if (!extractedText || extractedText.trim().length === 0) {
@@ -1199,7 +1213,7 @@ export async function extractTextFromDoc(buffer: Buffer): Promise<string> {
 
     return extractedText;
   } catch (error) {
-    console.error("Error extracting text from DOC:", error);
+    logger.error('Error extracting text from DOC', { error });
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(
       `Failed to extract text from DOC file: ${errorMessage}. Please try converting to DOCX or PDF format.`,
@@ -1237,11 +1251,18 @@ export async function parseDocument(
   }
   
   if (buffer.length > maxSize) {
-    console.warn(`[SECURITY] File upload blocked - size ${Math.round(buffer.length / 1024 / 1024)}MB exceeds limit ${Math.round(maxSize / 1024 / 1024)}MB for ${mimeType}`);
+    logger.warn('[SECURITY] File upload blocked - size limit exceeded', { 
+      fileSizeMB: Math.round(buffer.length / 1024 / 1024),
+      limitMB: Math.round(maxSize / 1024 / 1024),
+      mimeType 
+    });
     throw new Error(`File size ${Math.round(buffer.length / 1024 / 1024)}MB exceeds maximum ${Math.round(maxSize / 1024 / 1024)}MB for ${mimeType}`);
   }
   
-  console.log(`[PARSER] Processing ${Math.round(buffer.length / 1024)}KB ${mimeType} file`);
+  logger.info('[PARSER] Processing file', { 
+    fileSizeKB: Math.round(buffer.length / 1024),
+    mimeType 
+  });
   
   try {
     let result: string;
@@ -1268,25 +1289,36 @@ export async function parseDocument(
     const memoryUsed = process.memoryUsage().heapUsed - startMemory;
     
     if (processingTime > 60000) { // 60 second threshold
-      console.warn(`[SECURITY] Long processing time detected: ${processingTime}ms for ${mimeType}`, {
+      logger.warn('[SECURITY] Long processing time detected', {
+        processingTimeMs: processingTime,
+        mimeType,
         fileSize: buffer.length,
-        memoryDelta: Math.round(memoryUsed / 1024 / 1024)
+        memoryDeltaMB: Math.round(memoryUsed / 1024 / 1024)
       });
     }
     
     if (memoryUsed > 150 * 1024 * 1024) { // 150MB threshold
-      console.warn(`[SECURITY] High memory usage detected: ${Math.round(memoryUsed / 1024 / 1024)}MB for ${mimeType}`, {
+      logger.warn('[SECURITY] High memory usage detected', {
+        memoryUsedMB: Math.round(memoryUsed / 1024 / 1024),
+        mimeType,
         fileSize: buffer.length,
         processingTime
       });
     }
     
-    console.log(`[PARSER] Successfully extracted ${result.length} characters in ${processingTime}ms`);
+    logger.info('[PARSER] Text extraction successful', { 
+      extractedLength: result.length, 
+      processingTimeMs: processingTime 
+    });
     return result;
     
   } catch (error) {
     const processingTime = Date.now() - startTime;
-    console.error(`[PARSER] Failed to parse ${mimeType} after ${processingTime}ms:`, error instanceof Error ? error.message : String(error));
+    logger.error('[PARSER] Failed to parse document', { 
+      mimeType, 
+      processingTimeMs: processingTime,
+      error: error instanceof Error ? error.message : String(error) 
+    });
     throw error;
   }
 }

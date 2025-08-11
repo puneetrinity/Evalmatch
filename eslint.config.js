@@ -49,6 +49,35 @@ export default [
     },
   },
   {
+    files: ['**/*.cjs'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'commonjs',
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        global: 'readonly',
+        module: 'readonly',
+        require: 'readonly',
+        exports: 'readonly',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', { 
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_'
+      }],
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      'no-unreachable': 'error',
+      'prefer-const': 'warn',
+      'no-var': 'error',
+      'no-undef': 'error', // Keep undef checking for CommonJS files
+    },
+  },
+  {
     ignores: [
       'node_modules/',
       'build/',

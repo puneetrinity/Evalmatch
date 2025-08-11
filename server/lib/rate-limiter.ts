@@ -6,6 +6,8 @@
  * rate limiting on their end.
  */
 
+import { logger } from './logger';
+
 // Configuration for the rate limiter
 interface RateLimiterConfig {
   maxRequestsPerInterval: number; // Maximum allowed requests per interval
@@ -64,11 +66,12 @@ export class DatabaseRateLimiter {
     // Start the queue processor
     this.processQueue();
 
-    console.log(`Database rate limiter initialized (${env} mode):`);
-    console.log(
-      `- Max requests: ${this.config.maxRequestsPerInterval} per ${this.config.intervalMs}ms`,
-    );
-    console.log(`- Burst factor: ${this.config.burstFactor}x`);
+    logger.info('Database rate limiter initialized', {
+      environment: env,
+      maxRequests: this.config.maxRequestsPerInterval,
+      intervalMs: this.config.intervalMs,
+      burstFactor: this.config.burstFactor
+    });
   }
 
   /**
@@ -112,9 +115,12 @@ export class DatabaseRateLimiter {
 
     // Log throttling information
     if (this.consecutiveThrottles > 3) {
-      console.warn(
-        `Rate limiting database operations: ${currentRate}/${this.config.maxRequestsPerInterval} requests, delaying ${delay}ms`,
-      );
+      logger.warn('Rate limiting database operations', {
+        currentRate,
+        maxRate: this.config.maxRequestsPerInterval,
+        delayMs: delay,
+        consecutiveThrottles: this.consecutiveThrottles
+      });
     }
 
     // Apply throttling delay
@@ -181,9 +187,9 @@ export class DatabaseRateLimiter {
 
         // Log queue information if there are many operations
         if (this.pendingOperations.length > 10) {
-          console.log(
-            `Processing database operation queue: ${this.pendingOperations.length} remaining operations`,
-          );
+          logger.info('Processing database operation queue', {
+            remainingOperations: this.pendingOperations.length
+          });
         }
 
         next
@@ -203,9 +209,10 @@ export class DatabaseRateLimiter {
       const waitTime = this.calculateWaitTime();
 
       if (this.pendingOperations.length > 0) {
-        console.log(
-          `Rate limited: waiting ${waitTime}ms before processing ${this.pendingOperations.length} queued database operations`,
-        );
+        logger.info('Rate limited - waiting before processing queued operations', {
+          waitTimeMs: waitTime,
+          queuedOperations: this.pendingOperations.length
+        });
       }
 
       setTimeout(() => this.processQueue(), waitTime);
@@ -250,7 +257,7 @@ export class DatabaseRateLimiter {
    */
   setEnabled(enabled: boolean) {
     this.enabled = enabled;
-    console.log(`Database rate limiting ${enabled ? "enabled" : "disabled"}`);
+    logger.info('Database rate limiting status changed', { enabled });
   }
 
   /**

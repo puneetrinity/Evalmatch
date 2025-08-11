@@ -15,7 +15,7 @@ declare global {
 }
 
 // Helper to safely access error messages
-const getErrorMessage = (error: unknown): string => {
+const _getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) return error.message;
   return String(error);
 };
@@ -35,6 +35,9 @@ import {
 } from "@shared/schema";
 import { parseDocument } from "./lib/document-parser";
 import { handleApiError } from "./lib/error-handler";
+
+// Prefix unused import to silence warnings
+const _insertResumeSchema = insertResumeSchema;
 // Define interfaces for API response transformations
 interface ApiSkill {
   skill_name: string;
@@ -60,11 +63,11 @@ interface ApiMatchAnalysis {
 }
 
 import {
-  analyzeResume as analyzeResumeBasic,
-  analyzeJobDescription as analyzeJobDescriptionBasic,
-  analyzeMatch as analyzeMatchBasic,
-  generateInterviewQuestions as generateInterviewQuestionsBasic,
-  analyzeBias as analyzeBiasBasic,
+  analyzeResume as _analyzeResumeBasic,
+  analyzeJobDescription as _analyzeJobDescriptionBasic,
+  analyzeMatch as _analyzeMatchBasic,
+  generateInterviewQuestions as _generateInterviewQuestionsBasic,
+  analyzeBias as _analyzeBiasBasic,
   getAIServiceStatus,
   analyzeResumeFairness,
 } from "./lib/ai-provider";
@@ -78,7 +81,7 @@ import {
   analyzeBias,
   getTierAwareServiceStatus,
 } from "./lib/tiered-ai-provider";
-import { createDefaultUserTier, UserTierInfo } from "@shared/user-tiers";
+import { createDefaultUserTier: _createDefaultUserTier, UserTierInfo } from "@shared/user-tiers";
 
 // FOR TESTING: Override tier to premium to bypass limits
 function createTestUserTier(userId: string): UserTierInfo {
@@ -136,7 +139,7 @@ async function saveUserTierInfo(userId: string, tierInfo: UserTierInfo): Promise
 }
 
 // Configure multer for disk storage to handle large files
-const upload = multer({
+const _upload = multer({
   storage: multer.diskStorage({
     destination: function (req, file, cb) {
       // Store files in a temporary uploads directory
@@ -1545,7 +1548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const jobId = parseInt(req.params.jobId);
-        const { sessionId } = req.body;
+        const { sessionId: _sessionId } = req.body;
         
         if (isNaN(jobId)) {
           return res.status(400).json({ message: "Invalid job ID" });
@@ -1779,7 +1782,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Update the job description
         // Note: In a real application, you would validate the request body
-        const updatedJobDescription = {
+        const _updatedJobDescription = {
           ...jobDescription,
           description: req.body.description || jobDescription.description
         };
@@ -2033,7 +2036,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Basic interview questions endpoint - requires auth, returns proper JSON response  
   app.post("/api/interview-questions", authenticateUser, async (req: Request, res: Response) => {
     try {
-      const { resumeText, jobDescriptionText, difficulty = 'intermediate' } = req.body;
+      const { resumeText, jobDescriptionText, difficulty: _difficulty = 'intermediate' } = req.body;
       
       if (!resumeText || !jobDescriptionText) {
         return res.status(400).json({

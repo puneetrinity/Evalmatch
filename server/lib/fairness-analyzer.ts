@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import Groq from "groq-sdk";
 import { config } from "../config/unified-config";
+import { logger } from './logger';
 
 /**
  * Result of fairness analysis on resume analysis
@@ -41,65 +42,48 @@ export async function analyzeResumeFairness(
   // Try Groq first (primary provider - fast and cost-effective)
   if (groqClient) {
     try {
-      console.log(
-        "[FAIRNESS_ANALYZER] Attempting to analyze fairness with Groq",
-      );
+      logger.info('[FAIRNESS_ANALYZER] Attempting fairness analysis', { provider: 'Groq' });
       return await analyzeWithGroq(resumeText, resumeAnalysis, matchAnalysis);
     } catch (error) {
-      console.error(
-        "[FAIRNESS_ANALYZER] Error analyzing fairness with Groq:",
-        error,
-      );
+      logger.error('[FAIRNESS_ANALYZER] Groq fairness analysis failed', { error });
       // Fall through to OpenAI
     }
   } else {
-    console.log("[FAIRNESS_ANALYZER] Groq API not configured");
+    logger.debug('[FAIRNESS_ANALYZER] Groq API not configured');
   }
 
   // If Groq fails or is not available, try OpenAI
   if (openaiClient) {
     try {
-      console.log(
-        "[FAIRNESS_ANALYZER] Attempting to analyze fairness with OpenAI",
-      );
+      logger.info('[FAIRNESS_ANALYZER] Attempting fairness analysis', { provider: 'OpenAI' });
       return await analyzeWithOpenAI(resumeText, resumeAnalysis, matchAnalysis);
     } catch (error) {
-      console.error(
-        "[FAIRNESS_ANALYZER] Error analyzing fairness with OpenAI:",
-        error,
-      );
+      logger.error('[FAIRNESS_ANALYZER] OpenAI fairness analysis failed', { error });
       // Fall through to Anthropic
     }
   } else {
-    console.log("[FAIRNESS_ANALYZER] OpenAI API not configured");
+    logger.debug('[FAIRNESS_ANALYZER] OpenAI API not configured');
   }
 
   // If OpenAI fails or is not available, try Anthropic
   if (anthropicClient) {
     try {
-      console.log(
-        "[FAIRNESS_ANALYZER] Attempting to analyze fairness with Anthropic",
-      );
+      logger.info('[FAIRNESS_ANALYZER] Attempting fairness analysis', { provider: 'Anthropic' });
       return await analyzeWithAnthropic(
         resumeText,
         resumeAnalysis,
         matchAnalysis,
       );
     } catch (error) {
-      console.error(
-        "[FAIRNESS_ANALYZER] Error analyzing fairness with Anthropic:",
-        error,
-      );
+      logger.error('[FAIRNESS_ANALYZER] Anthropic fairness analysis failed', { error });
       // Fall through to default response
     }
   } else {
-    console.log("[FAIRNESS_ANALYZER] Anthropic API not configured");
+    logger.debug('[FAIRNESS_ANALYZER] Anthropic API not configured');
   }
 
   // If all providers fail or are not available, return a default response
-  console.log(
-    "[FAIRNESS_ANALYZER] All AI providers unavailable, using built-in fallback",
-  );
+  logger.warn('[FAIRNESS_ANALYZER] All AI providers unavailable', { action: 'using built-in fallback' });
   return getDefaultFairnessAnalysis();
 }
 
@@ -185,9 +169,11 @@ Respond ONLY with valid JSON in this exact format:
 
   // Track token usage if available
   if (response.usage) {
-    console.log(
-      `Groq Fairness Analysis: ${response.usage.prompt_tokens} prompt tokens, ${response.usage.completion_tokens} completion tokens, ${response.usage.total_tokens} total tokens`,
-    );
+    logger.info('[FAIRNESS_ANALYZER] Groq analysis token usage', {
+      promptTokens: response.usage.prompt_tokens,
+      completionTokens: response.usage.completion_tokens,
+      totalTokens: response.usage.total_tokens
+    });
   }
 
   // Normalize and validate the response
@@ -272,9 +258,11 @@ Respond in JSON format:
 
   // Track token usage
   if (response.usage) {
-    console.log(
-      `OpenAI API Call: ${response.usage.prompt_tokens} prompt tokens, ${response.usage.completion_tokens} completion tokens, ${response.usage.total_tokens} total tokens`,
-    );
+    logger.info('[FAIRNESS_ANALYZER] OpenAI analysis token usage', {
+      promptTokens: response.usage.prompt_tokens,
+      completionTokens: response.usage.completion_tokens,
+      totalTokens: response.usage.total_tokens
+    });
   }
 
   // Normalize the response
@@ -388,7 +376,7 @@ Respond in JSON format:
           : "Unable to provide a detailed fairness assessment.",
     };
   } catch (error) {
-    console.error("Error parsing Anthropic response:", error);
+    logger.error('[FAIRNESS_ANALYZER] Error parsing Anthropic response', { error });
     throw new Error("Failed to parse Anthropic response");
   }
 }

@@ -5,7 +5,7 @@
 
 import { logger } from "../lib/logger";
 import { storage } from "../storage";
-import type { AnalyzeResumeResponse } from "../../shared/schema";
+import type { AnalyzeResumeResponse as _AnalyzeResumeResponse } from "../../shared/schema";
 import type { ResumeId } from "../../shared/api-contracts";
 
 interface SkillCleanupStats {

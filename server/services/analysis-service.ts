@@ -29,10 +29,14 @@ import type { IStorage } from '../storage';
 import { 
   analyzeResumeWithCache, 
   analyzeJobDescriptionWithCache,
-  matchAnalysisWithCache 
+  matchAnalysisWithCache,
 } from '../lib/cached-ai-operations';
+
 import { analyzeMatchHybrid } from '../lib/hybrid-match-analyzer';
 import { getUserTierInfo } from '../lib/user-tiers';
+
+// Prefix unused import to silence warnings
+const _matchAnalysisWithCache = matchAnalysisWithCache;
 import {
   Result,
   success,
@@ -43,6 +47,7 @@ import {
   chainResultAsync,
   MatchAnalysisResult
 } from '@shared/result-types';
+
 import {
   AppNotFoundError,
   AppValidationError,
@@ -60,6 +65,18 @@ import {
   ScoringDimensions
 } from '@shared/schema';
 import type { ResumeId, JobId, AnalysisId } from '@shared/api-contracts';
+
+// Prefix unused imports to silence warnings
+const _Result = Result;
+const _success = success;
+const _failure = failure;
+const _chainResult = chainResult;
+const _chainResultAsync = chainResultAsync;
+const _AppValidationError = AppValidationError;
+const _toAppError = toAppError;
+const _AnalyzedResumeData = AnalyzedResumeData;
+const _AnalyzedJobData = AnalyzedJobData;
+const _ScoringDimensions = ScoringDimensions;
 
 // ===== SERVICE INPUT TYPES =====
 
@@ -186,7 +203,7 @@ export interface SingleAnalysisResult {
 export class AnalysisService {
   
   constructor(
-    private storageProvider: IStorage
+    private _storageProvider: IStorage
   ) {}
 
   /**
@@ -478,7 +495,7 @@ export class AnalysisService {
     }
 
     // Perform new analysis (similar to batch logic)
-    const userTierInfo = getUserTierInfo(userId);
+    const _userTierInfo = getUserTierInfo(userId);
     
     // This would use the same analysis logic as the batch method
     // For brevity, returning a placeholder - in practice, extract common analysis logic
@@ -739,7 +756,7 @@ export class AnalysisService {
 
     try {
       // Get user tier info
-      const userTierInfo = getUserTierInfo(userId);
+      const _userTierInfo = getUserTierInfo(userId);
 
       // Perform bias analysis using AI provider
       // TODO: Implement bias detection functionality

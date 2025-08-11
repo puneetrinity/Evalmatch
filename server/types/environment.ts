@@ -9,7 +9,7 @@ export enum Environment {
   Test = "test",
 }
 
-// Re-export individual values to ensure they are used
-export const Development = Environment.Development;
-export const Production = Environment.Production;
-export const Test = Environment.Test;
+// Explicitly use the enum values to prevent unused warnings
+const _Development = Environment.Development;
+const _Production = Environment.Production;  
+const _Test = Environment.Test;

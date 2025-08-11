@@ -233,9 +233,9 @@ async function validateStorageInstance(storage: IStorage, storageType: string): 
   
   try {
     // Basic method existence checks
-    const requiredMethods = ['getJobDescriptions', 'getResumes', 'createJobDescription'];
+    const requiredMethods: (keyof IStorage)[] = ['getJobDescriptions', 'getResumes', 'createJobDescription'];
     for (const method of requiredMethods) {
-      if (typeof (storage as any)[method] !== 'function') {
+      if (typeof storage[method] !== 'function') {
         throw new Error(`${storageType} storage missing required method: ${method}`);
       }
     }

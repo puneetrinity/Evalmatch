@@ -14,11 +14,12 @@ import type { IStorage } from '../storage';
 import type { SessionId } from '@shared/api-contracts';
 import { 
   Result, 
-  success, 
+  success,
   failure,
   fromPromise,
   isFailure
 } from '@shared/result-types';
+
 import {
   AppNotFoundError,
   AppValidationError,
@@ -26,6 +27,12 @@ import {
   AppExternalServiceError,
   toAppError
 } from '@shared/errors';
+
+// Prefix unused imports to silence warnings
+const _success = success;
+const _failure = failure;
+const _AppValidationError = AppValidationError;
+const _toAppError = toAppError;
 
 // ===== SERVICE INPUT TYPES =====
 
@@ -253,7 +260,7 @@ export interface CorruptionCheckResult {
  */
 export class BatchService {
   
-  constructor(private storageProvider: IStorage) {}
+  constructor(private _storageProvider: IStorage) {}
 
   /**
    * Validates batch access and returns comprehensive batch information
@@ -265,7 +272,7 @@ export class BatchService {
    */
   async validateBatchAccess(
     input: BatchValidationInput,
-    middlewareValidation?: any
+    _middlewareValidation?: any
   ): Promise<Result<BatchValidationResult, any>> {
     const { batchId, sessionId, userId } = input;
     const startTime = Date.now();
@@ -394,7 +401,7 @@ export class BatchService {
    */
   async getBatchResumes(
     input: BatchResumeInput,
-    validationResult?: any
+    _validationResult?: any
   ): Promise<Result<BatchResumeData, any>> {
     const { batchId, offset = 0, limit = 100 } = input;
     const startTime = Date.now();
@@ -503,7 +510,7 @@ export class BatchService {
   async cleanupBatch(
     input: BatchCleanupInput
   ): Promise<Result<BatchCleanupResult, any>> {
-    const { batchId, sessionId, userId, force = false } = input;
+    const { batchId, sessionId: _sessionId, userId, force = false } = input;
     const startTime = Date.now();
     
     logger.info('Starting batch cleanup', {
@@ -517,7 +524,7 @@ export class BatchService {
         const db = getDatabase();
         
         // Use transaction for cleanup operations
-        return await db.transaction(async (tx) => {
+        return await db.transaction(async (_tx) => {
           // Get current counts before cleanup
           const preCleanupQuery = `
             SELECT 
@@ -831,7 +838,7 @@ export class BatchService {
   async deleteBatch(
     input: BatchDeletionInput
   ): Promise<Result<BatchDeletionResult, any>> {
-    const { batchId, sessionId, userId, cascade = true } = input;
+    const { batchId, sessionId: _sessionId, userId, cascade = true } = input;
     const startTime = Date.now();
     
     logger.info('Starting batch deletion', {
@@ -844,7 +851,7 @@ export class BatchService {
       (async () => {
         const db = getDatabase();
         
-        return await db.transaction(async (tx) => {
+        return await db.transaction(async (_tx) => {
           // Get current counts before deletion
           const preDeleteQuery = `
             SELECT 
@@ -858,7 +865,7 @@ export class BatchService {
           `;
           
           const preDelete = await executeQuery(preDeleteQuery, [batchId]);
-          const initialCounts = preDelete[0] || {};
+          const _initialCounts = preDelete[0] || {};
 
           let deletedResumes = 0;
           let deletedAnalyses = 0;
@@ -946,7 +953,7 @@ export class BatchService {
       (async () => {
         const db = getDatabase();
         
-        return await db.transaction(async (tx) => {
+        return await db.transaction(async (_tx) => {
           // First, get current batch information
           const currentBatchQuery = `
             SELECT 

@@ -157,7 +157,7 @@ export class HybridStorage implements IStorage {
       dbHealth.lastFailureTime = Date.now();
       dbHealth.consecutiveSuccesses = 0; // Reset success counter
       
-      console.warn(`Database health check failed`, {
+      logger.warn('Database health check failed', {
         error: (error as Error).message,
         responseTime,
         consecutiveFailures: dbHealth.failedOperations,
@@ -171,7 +171,7 @@ export class HybridStorage implements IStorage {
       );
       
       if (shouldMarkUnavailable) {
-        console.error('Database marked as unavailable - falling back to in-memory storage', {
+        logger.error('Database marked as unavailable - falling back to in-memory storage', {
           reason: (error as Error).message.includes('timeout') ? 'timeout' : 'consecutive_failures',
           failedOperations: dbHealth.failedOperations,
         });
@@ -213,7 +213,7 @@ export class HybridStorage implements IStorage {
             await operation();
             return { success: true, index: i + index };
           } catch (error) {
-            console.warn(`Failed to replay queued operation ${i + index}:`, {
+            logger.warn(`Failed to replay queued operation ${i + index}:`, {
               error: (error as Error).message,
               operationIndex: i + index,
             });
@@ -260,7 +260,7 @@ export class HybridStorage implements IStorage {
     
     // If too many failures, something might be wrong with the database
     if (failureCount > totalOperations * 0.5) {
-      console.warn('High failure rate in queued write processing - database may still have issues', {
+      logger.warn('High failure rate in queued write processing - database may still have issues', {
         failureRate: Math.round((failureCount / totalOperations) * 100),
         totalFailures: failureCount,
       });
@@ -303,7 +303,7 @@ export class HybridStorage implements IStorage {
     
     // If database is known to be unavailable, use memory storage directly
     if (!dbHealth.isAvailable) {
-      console.debug(`Database unavailable, using memory storage for ${operation}`);
+      logger.debug(`Database unavailable, using memory storage for ${operation}`);
       const result = await memOperation();
       
       // For write operations, queue for eventual replay if queue isn't full
@@ -311,9 +311,9 @@ export class HybridStorage implements IStorage {
         const queuedOperation = async () => {
           try {
             await dbOperation();
-            console.debug(`Successfully replayed queued operation: ${operation}`);
+            logger.debug(`Successfully replayed queued operation: ${operation}`);
           } catch (error) {
-            console.warn(`Failed to replay queued operation ${operation}:`, {
+            logger.warn(`Failed to replay queued operation ${operation}:`, {
               error: error instanceof Error ? error.message : String(error),
               isCritical: this.isCriticalError(error),
             });
@@ -329,7 +329,7 @@ export class HybridStorage implements IStorage {
         
         // Limit queue size logging
         if (dbHealth.queuedWrites.length % 50 === 0) {
-          console.info(`Write queue size: ${dbHealth.queuedWrites.length} operations`);
+          logger.info(`Write queue size: ${dbHealth.queuedWrites.length} operations`);
         }
       }
       
@@ -348,7 +348,7 @@ export class HybridStorage implements IStorage {
       
       // Reset failure counters on success
       if (dbHealth.failedOperations > 0) {
-        console.debug(`Database operation ${operation} succeeded after ${dbHealth.failedOperations} failures`, {
+        logger.debug(`Database operation ${operation} succeeded after ${dbHealth.failedOperations} failures`, {
           duration,
           consecutiveSuccesses: dbHealth.consecutiveSuccesses,
         });
@@ -360,7 +360,7 @@ export class HybridStorage implements IStorage {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
       
-      console.warn(`Database operation ${operation} failed, falling back to memory storage`, {
+      logger.warn(`Database operation ${operation} failed, falling back to memory storage`, {
         error: errorMessage,
         duration,
         consecutiveFailures: dbHealth.failedOperations + 1,
@@ -384,15 +384,15 @@ export class HybridStorage implements IStorage {
       if (isTimeoutError) {
         // Immediate failover for timeouts
         shouldMarkUnavailable = true;
-        console.warn(`Database timeout detected, immediate failover for ${operation}`);
+        logger.warn(`Database timeout detected, immediate failover for ${operation}`);
       } else if (isConnectionError && dbHealth.failedOperations >= 2) {
         // Quick failover for connection issues
         shouldMarkUnavailable = true;
-        console.warn(`Connection issues detected, failover after ${dbHealth.failedOperations} failures`);
+        logger.warn(`Connection issues detected, failover after ${dbHealth.failedOperations} failures`);
       } else if (dbHealth.failedOperations >= 5) {
         // General failover threshold
         shouldMarkUnavailable = true;
-        console.error(`High failure rate detected, failover after ${dbHealth.failedOperations} failures`);
+        logger.error(`High failure rate detected, failover after ${dbHealth.failedOperations} failures`);
       }
       
       if (shouldMarkUnavailable && dbHealth.isAvailable) {
@@ -400,7 +400,7 @@ export class HybridStorage implements IStorage {
         dbHealth.recoveryMode = true;
         dbHealth.recoveryAttempts = 0;
         
-        console.error(`Database marked as unavailable`, {
+        logger.error('Database marked as unavailable', {
           reason: isTimeoutError ? 'timeout' : isConnectionError ? 'connection_error' : 'consecutive_failures',
           failedOperations: dbHealth.failedOperations,
           operation,
@@ -412,7 +412,7 @@ export class HybridStorage implements IStorage {
         
         setTimeout(() => {
           this.checkDatabaseHealth().catch(err => {
-            console.warn('Scheduled health check failed:', err);
+            logger.warn('Scheduled health check failed', { error: err });
           });
         }, backoffDelay);
       }
@@ -427,7 +427,7 @@ export class HybridStorage implements IStorage {
             try {
               await dbOperation();
             } catch (replayError) {
-              console.warn(`Queued operation ${operation} failed on replay:`, {
+              logger.warn(`Queued operation ${operation} failed on replay:`, {
                 error: replayError instanceof Error ? replayError.message : String(replayError),
                 originalError: errorMessage,
               });
@@ -440,7 +440,7 @@ export class HybridStorage implements IStorage {
         
         return result;
       } catch (memoryError) {
-        console.error(`Both database and memory operations failed for ${operation}:`, {
+        logger.error(`Both database and memory operations failed for ${operation}:`, {
           databaseError: errorMessage,
           memoryError: memoryError instanceof Error ? memoryError.message : String(memoryError),
         });
@@ -840,7 +840,7 @@ export class HybridStorage implements IStorage {
       try {
         return await this.dbStorage.updateResumeEmbeddings(id, embedding, skillsEmbedding);
       } catch (error) {
-        console.warn('Database updateResumeEmbeddings failed, falling back to memory storage', error);
+        logger.warn('Database updateResumeEmbeddings failed, falling back to memory storage', { error });
         dbHealth.failedOperations++;
         if (dbHealth.failedOperations >= 3) {
           dbHealth.isAvailable = false;
@@ -857,7 +857,7 @@ export class HybridStorage implements IStorage {
       try {
         return await this.dbStorage.updateJobDescriptionEmbeddings(id, embedding, requirementsEmbedding);
       } catch (error) {
-        console.warn('Database updateJobDescriptionEmbeddings failed, falling back to memory storage', error);
+        logger.warn('Database updateJobDescriptionEmbeddings failed, falling back to memory storage', { error });
         dbHealth.failedOperations++;
         if (dbHealth.failedOperations >= 3) {
           dbHealth.isAvailable = false;

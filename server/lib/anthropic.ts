@@ -27,6 +27,60 @@ import { AppExternalServiceError } from '../../shared/errors';
 import { AnthropicResponseParser } from "./shared/response-parser";
 import { PromptTemplateEngine, type ResumeAnalysisContext, type JobAnalysisContext, type MatchAnalysisContext } from "./shared/prompt-templates";
 
+// TypeScript interfaces for Anthropic API responses
+interface AnthropicResumeResponse {
+  personalInfo?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+  };
+  skills?: string[];
+  experience?: ExperienceItem[];
+  education?: EducationItem[];
+  summary?: string;
+  keyStrengths?: string[];
+}
+
+interface ExperienceItem {
+  company?: string;
+  title?: string;
+  duration?: string;
+  responsibilities?: string[];
+}
+
+interface EducationItem {
+  degree?: string;
+  institution?: string;
+  year?: number;
+}
+
+interface AnthropicJobResponse {
+  title?: string;
+  company?: string;
+  skills?: string[];
+  requirements?: string[];
+  responsibilities?: string[];
+  seniority?: string;
+  department?: string;
+  location?: string;
+  qualifications?: string[];
+}
+
+interface AnthropicMatchResponse {
+  matchPercentage?: number;
+  matchedSkills?: Array<{
+    skill: string;
+    matchPercentage?: number;
+    category?: string;
+    importance?: string;
+    source?: string;
+  }>;
+  missingSkills?: string[];
+  candidateStrengths?: string[];
+  candidateWeaknesses?: string[];
+}
+
 // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
 const MODEL = "claude-3-7-sonnet-20250219";
 
@@ -160,7 +214,7 @@ async function analyzeResumeInternal(
       const responseText = contentBlock.text;
       
       // Parse response using shared response parser
-      const parseResult = AnthropicResponseParser.parseAnalysisResponse<any>(responseText);
+      const parseResult = AnthropicResponseParser.parseAnalysisResponse<AnthropicResumeResponse>(responseText);
       if (!parseResult.success || !parseResult.data) {
         throw new Error(parseResult.error || "Failed to parse Anthropic response");
       }
@@ -191,7 +245,7 @@ async function analyzeResumeInternal(
           location: "",
         },
         workExperience:
-          parsedResponse.experience?.map((exp: any) => ({
+          parsedResponse.experience?.map((exp: ExperienceItem) => ({
             company: exp.company || "",
             position: exp.title || "",
             duration: exp.duration || "",
@@ -200,7 +254,7 @@ async function analyzeResumeInternal(
       };
 
       const fullResponse: AnalyzeResumeResponse = {
-        id: Date.now() as any,
+        id: Date.now() as number,
         filename: "resume.pdf",
         analyzedData,
         processingTime: Date.now(),
@@ -209,7 +263,7 @@ async function analyzeResumeInternal(
         name: analyzedData.name,
         skills: analyzedData.skills,
         experience: analyzedData.workExperience,
-        education: (parsedResponse.education || []).map((edu: any) => ({
+        education: (parsedResponse.education || []).map((edu: EducationItem) => ({
           degree: typeof edu === "string" ? edu : edu.degree || "",
           institution: typeof edu === "string" ? "" : edu.institution || "",
           year: typeof edu === "string" ? undefined : edu.year,
@@ -278,7 +332,7 @@ export async function analyzeResume(
     };
 
     return {
-      id: Date.now() as any,
+      id: Date.now() as number,
       filename: "fallback.pdf",
       analyzedData: fallbackAnalyzedData,
       processingTime: 0,
@@ -342,11 +396,11 @@ export async function analyzeMatch(
       },
     ];
     return {
-      analysisId: Date.now() as any,
-      jobId: Date.now() as any,
+      analysisId: Date.now() as number,
+      jobId: Date.now() as number,
       results: [
         {
-          resumeId: Date.now() as any,
+          resumeId: Date.now() as number,
           filename: resumeAnalysis.filename || "resume.pdf",
           candidateName: resumeAnalysis.name,
           matchPercentage: 60,
@@ -447,7 +501,7 @@ export async function analyzeMatch(
     
     // Parse response using shared response parser
     try {
-      const parseResult = AnthropicResponseParser.parseAnalysisResponse<any>(responseText);
+      const parseResult = AnthropicResponseParser.parseAnalysisResponse<AnthropicMatchResponse>(responseText);
       if (!parseResult.success || !parseResult.data) {
         throw new Error(parseResult.error || "Failed to parse Anthropic response");
       }
@@ -463,13 +517,16 @@ export async function analyzeMatch(
       const normalizedMatchedSkills: SkillMatch[] = Array.isArray(
         parsedResponse.matchedSkills,
       )
-        ? parsedResponse.matchedSkills.map((skill: any) => ({
-            skill: skill.skill || skill,
-            matchPercentage: skill.matchPercentage || 75,
-            category: skill.category || "technical",
-            importance: skill.importance || ("important" as const),
-            source: skill.source || ("semantic" as const),
-          }))
+        ? parsedResponse.matchedSkills.map((skill: unknown) => {
+            const skillObj = typeof skill === 'string' ? { skill } : skill as Record<string, unknown>;
+            return {
+              skill: skillObj.skill?.toString() || skill?.toString() || '',
+              matchPercentage: typeof skillObj.matchPercentage === 'number' ? skillObj.matchPercentage : 75,
+              category: skillObj.category?.toString() || "technical",
+              importance: (skillObj.importance?.toString() || "important") as const,
+              source: (skillObj.source?.toString() || "semantic") as const,
+            };
+          })
         : [];
 
       const matchPercentage = parsedResponse.matchPercentage || 0;
@@ -488,11 +545,11 @@ export async function analyzeMatch(
         : [];
 
       return {
-        analysisId: Date.now() as any,
-        jobId: Date.now() as any,
+        analysisId: Date.now() as number,
+        jobId: Date.now() as number,
         results: [
           {
-            resumeId: Date.now() as any,
+            resumeId: Date.now() as number,
             filename: resumeAnalysis.filename || "resume.pdf",
             candidateName: resumeAnalysis.name,
             matchPercentage,
@@ -556,11 +613,11 @@ export async function analyzeMatch(
         },
       ];
       return {
-        analysisId: Date.now() as any,
-        jobId: Date.now() as any,
+        analysisId: Date.now() as number,
+        jobId: Date.now() as number,
         results: [
           {
-            resumeId: Date.now() as any,
+            resumeId: Date.now() as number,
             filename: resumeAnalysis.filename || "resume.pdf",
             candidateName: resumeAnalysis.name,
             matchPercentage: 60,
@@ -610,7 +667,7 @@ export async function analyzeMatch(
     }
   } catch (error) {
     // Record failure using shared error handler
-    const errorClassification = errorHandler.recordFailure(error instanceof Error ? error : new Error(String(error)));
+    const _errorClassification = errorHandler.recordFailure(error instanceof Error ? error : new Error(String(error)));
     
     logApiServiceStatus(
       `Match analysis failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -642,11 +699,11 @@ export async function analyzeMatch(
       },
     ];
     return {
-      analysisId: Date.now() as any,
-      jobId: Date.now() as any,
+      analysisId: Date.now() as number,
+      jobId: Date.now() as number,
       results: [
         {
-          resumeId: Date.now() as any,
+          resumeId: Date.now() as number,
           filename: resumeAnalysis.filename || "resume.pdf",
           candidateName: resumeAnalysis.name,
           matchPercentage: 60,
@@ -716,7 +773,7 @@ export async function analyzeJobDescription(
   };
 
   const fallbackResponse: AnalyzeJobDescriptionResponse = {
-    id: Date.now() as any,
+    id: Date.now() as number,
     title: title || "Job Title Unavailable",
     analyzedData: fallbackAnalyzedData,
     processingTime: 0,
@@ -769,7 +826,7 @@ export async function analyzeJobDescription(
     
     // Parse response using shared response parser
     try {
-      const parseResult = AnthropicResponseParser.parseAnalysisResponse<any>(responseText);
+      const parseResult = AnthropicResponseParser.parseAnalysisResponse<AnthropicJobResponse>(responseText);
       if (!parseResult.success || !parseResult.data) {
         throw new Error(parseResult.error || "Failed to parse Anthropic response");
       }
@@ -791,7 +848,7 @@ export async function analyzeJobDescription(
       const requirements = Array.isArray(parsedResponse.requirements)
         ? parsedResponse.requirements
         : [];
-      const qualifications = Array.isArray(parsedResponse.qualifications)
+      const _qualifications = Array.isArray(parsedResponse.qualifications)
         ? parsedResponse.qualifications
         : [];
 
@@ -806,7 +863,7 @@ export async function analyzeJobDescription(
       };
 
       return {
-        id: Date.now() as any,
+        id: Date.now() as number,
         title: parsedResponse.title || title || "",
         analyzedData,
         processingTime: Date.now() - performance.now(),
@@ -832,7 +889,7 @@ export async function analyzeJobDescription(
     }
   } catch (error) {
     // Record failure using shared error handler
-    const errorClassification = errorHandler.recordFailure(error instanceof Error ? error : new Error(String(error)));
+    const _errorClassification = errorHandler.recordFailure(error instanceof Error ? error : new Error(String(error)));
     
     logApiServiceStatus(
       `Job description analysis failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -1162,8 +1219,8 @@ export async function generateInterviewQuestions(
     ];
 
     return {
-      resumeId: Date.now() as any,
-      jobId: Date.now() as any,
+      resumeId: Date.now() as number,
+      jobId: Date.now() as number,
       candidateName: resumeAnalysis.name,
       jobTitle: jobAnalysis.title,
       questions: fallbackQuestions,
@@ -1317,8 +1374,8 @@ Format your response as valid JSON with this structure:
 
       // Return normalized response
       return {
-        resumeId: Date.now() as any,
-        jobId: Date.now() as any,
+        resumeId: Date.now() as number,
+        jobId: Date.now() as number,
         candidateName: resumeAnalysis.name,
         jobTitle: jobAnalysis.title,
         questions: allQuestions,
@@ -1366,8 +1423,8 @@ Format your response as valid JSON with this structure:
       ];
 
       return {
-        resumeId: Date.now() as any,
-        jobId: Date.now() as any,
+        resumeId: Date.now() as number,
+        jobId: Date.now() as number,
         candidateName: resumeAnalysis.name,
         jobTitle: jobAnalysis.title,
         questions: parseErrorQuestions,
@@ -1431,8 +1488,8 @@ Format your response as valid JSON with this structure:
     ];
 
     return {
-      resumeId: Date.now() as any,
-      jobId: Date.now() as any,
+      resumeId: Date.now() as number,
+      jobId: Date.now() as number,
       candidateName: resumeAnalysis.name,
       jobTitle: jobAnalysis.title,
       questions: finalFallbackQuestions,

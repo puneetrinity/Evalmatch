@@ -4,12 +4,13 @@ import { fileURLToPath } from 'url';
 import { registerRoutes } from './routes.js';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import * as schema from "@shared/schema";
+import { logger } from './lib/logger.js';
 // import { createDeploymentPool, getServerConfig } from './deployment-helper.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-console.log('Initializing specialized database configuration for Replit deployment...');
+logger.info('Initializing specialized database configuration for Replit deployment');
 
 // Create a simplified pool for production deployment 
 const pool = null; // createDeploymentPool();
@@ -30,14 +31,14 @@ app.use(express.static(path.join(__dirname, '../client')));
 // Set up API routes
 try {
   registerRoutes(app);
-  console.log('API routes registered for production');
+  logger.info('API routes registered for production');
 } catch (err) {
-  console.error('Failed to register routes:', err instanceof Error ? err.message : String(err));
+  logger.error('Failed to register routes', { error: err instanceof Error ? err.message : String(err) });
 }
 
 // Global error handler - production safe
 app.use((err: Error | unknown, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('Server error:', err instanceof Error ? err.message : String(err));
+  logger.error('Server error', { error: err instanceof Error ? err.message : String(err) });
   res.status(500).json({ message: 'Internal server error' });
 });
 
@@ -55,7 +56,9 @@ const serverConfig = {
 
 // Start server
 app.listen(Number(serverConfig.port), serverConfig.host, () => {
-  console.log(`Server running on port ${serverConfig.port} in production mode`);
-  console.log(`Using host: ${serverConfig.host}`);
-  console.log(`Database heartbeat disabled: ${serverConfig.disableHeartbeat}`);
+  logger.info('Server started in production mode', {
+    port: serverConfig.port,
+    host: serverConfig.host,
+    databaseHeartbeatDisabled: serverConfig.disableHeartbeat
+  });
 });

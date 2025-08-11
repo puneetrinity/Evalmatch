@@ -4,7 +4,6 @@ import {
   type AnalysisResult, type InsertAnalysisResult,
   type InterviewQuestions, type InsertInterviewQuestions,
   type AnalyzeResumeResponse, type AnalyzeJobDescriptionResponse, 
-  type InterviewQuestionsResponse,
   type User, type InsertUser, type SimpleBiasAnalysis
 } from "@shared/schema";
 import { UserTierInfo } from "@shared/user-tiers";
@@ -36,7 +35,7 @@ export interface IStorage {
    * @returns Promise resolving to the user object or undefined if not found
    * @throws {Error} If database connection fails or query is malformed
    */
-  getUser(id: number): Promise<User | undefined>;
+  getUser(_id: number): Promise<User | undefined>;
   
   /**
    * Retrieves a user by their username.
@@ -45,7 +44,7 @@ export interface IStorage {
    * @returns Promise resolving to the user object or undefined if not found
    * @throws {Error} If database connection fails or query is malformed
    */
-  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByUsername(_username: string): Promise<User | undefined>;
   
   /**
    * Creates a new user in the storage system.
@@ -54,7 +53,7 @@ export interface IStorage {
    * @returns Promise resolving to the created user object with assigned ID
    * @throws {Error} If user creation fails or required fields are missing
    */
-  createUser(user: InsertUser): Promise<User>;
+  createUser(_user: InsertUser): Promise<User>;
   
   // ==================== RESUME METHODS ====================
   
@@ -65,7 +64,7 @@ export interface IStorage {
    * @returns Promise resolving to the resume object or undefined if not found
    * @throws {Error} If database connection fails or query is malformed
    */
-  getResume(id: number): Promise<Resume | undefined>;
+  getResume(_id: number): Promise<Resume | undefined>;
   
   /**
    * Retrieves a resume by ID with user ownership validation.
@@ -75,7 +74,7 @@ export interface IStorage {
    * @returns Promise resolving to the resume object or undefined if not found/unauthorized
    * @throws {Error} If database connection fails or query is malformed
    */
-  getResumeById(id: number, userId: string): Promise<Resume | undefined>;
+  getResumeById(_id: number, _userId: string): Promise<Resume | undefined>;
   
   /**
    * Retrieves all resumes, optionally filtered by session ID.
@@ -84,7 +83,7 @@ export interface IStorage {
    * @returns Promise resolving to an array of resume objects
    * @throws {Error} If database connection fails
    */
-  getResumes(sessionId?: string): Promise<Resume[]>;
+  getResumes(_sessionId?: string): Promise<Resume[]>;
   
   /**
    * Retrieves all resumes for a specific user with optional filtering.
@@ -95,7 +94,7 @@ export interface IStorage {
    * @returns Promise resolving to an array of resume objects
    * @throws {Error} If database connection fails
    */
-  getResumesByUserId(userId: string, sessionId?: string, batchId?: string): Promise<Resume[]>;
+  getResumesByUserId(_userId: string, _sessionId?: string, _batchId?: string): Promise<Resume[]>;
   
   /**
    * Creates a new resume in the storage system.
@@ -104,7 +103,7 @@ export interface IStorage {
    * @returns Promise resolving to the created resume object with assigned ID
    * @throws {Error} If resume creation fails or required fields are missing
    */
-  createResume(resume: InsertResume): Promise<Resume>;
+  createResume(_resume: InsertResume): Promise<Resume>;
   
   /**
    * Updates a resume with AI analysis results.
@@ -114,7 +113,7 @@ export interface IStorage {
    * @returns Promise resolving to the updated resume object
    * @throws {Error} If resume not found or update fails
    */
-  updateResumeAnalysis(id: number, analysis: AnalyzeResumeResponse): Promise<Resume>;
+  updateResumeAnalysis(_id: number, _analysis: AnalyzeResumeResponse): Promise<Resume>;
   
   /**
    * Updates a resume with vector embeddings for semantic search.
@@ -125,7 +124,7 @@ export interface IStorage {
    * @returns Promise resolving to the updated resume object
    * @throws {Error} If resume not found or update fails
    */
-  updateResumeEmbeddings(id: number, embedding: number[] | null, skillsEmbedding: number[] | null): Promise<Resume>;
+  updateResumeEmbeddings(_id: number, _embedding: number[] | null, _skillsEmbedding: number[] | null): Promise<Resume>;
   
   // ==================== JOB DESCRIPTION METHODS ====================
   
@@ -136,7 +135,7 @@ export interface IStorage {
    * @returns Promise resolving to the job description object or undefined if not found
    * @throws {Error} If database connection fails or query is malformed
    */
-  getJobDescription(id: number): Promise<JobDescription | undefined>;
+  getJobDescription(_id: number): Promise<JobDescription | undefined>;
   
   /**
    * Retrieves a job description by ID with user ownership validation.
@@ -146,7 +145,7 @@ export interface IStorage {
    * @returns Promise resolving to the job description object or undefined if not found/unauthorized
    * @throws {Error} If database connection fails or query is malformed
    */
-  getJobDescriptionById(id: number, userId: string): Promise<JobDescription | undefined>;
+  getJobDescriptionById(_id: number, _userId: string): Promise<JobDescription | undefined>;
   
   /**
    * Retrieves all job descriptions in the system.
@@ -163,7 +162,7 @@ export interface IStorage {
    * @returns Promise resolving to an array of job description objects
    * @throws {Error} If database connection fails
    */
-  getJobDescriptionsByUserId(userId: string): Promise<JobDescription[]>;
+  getJobDescriptionsByUserId(_userId: string): Promise<JobDescription[]>;
   
   /**
    * Creates a new job description in the storage system.
@@ -172,7 +171,7 @@ export interface IStorage {
    * @returns Promise resolving to the created job description object with assigned ID
    * @throws {Error} If creation fails or required fields are missing
    */
-  createJobDescription(jobDescription: InsertJobDescription): Promise<JobDescription>;
+  createJobDescription(_jobDescription: InsertJobDescription): Promise<JobDescription>;
   
   /**
    * Updates a job description with partial field updates.
@@ -182,7 +181,7 @@ export interface IStorage {
    * @returns Promise resolving to the updated job description object
    * @throws {Error} If job description not found or update fails
    */
-  updateJobDescription(id: number, updates: Partial<JobDescription>): Promise<JobDescription>;
+  updateJobDescription(_id: number, _updates: Partial<JobDescription>): Promise<JobDescription>;
   
   /**
    * Updates a job description with AI analysis results.
@@ -192,7 +191,7 @@ export interface IStorage {
    * @returns Promise resolving to the updated job description object
    * @throws {Error} If job description not found or update fails
    */
-  updateJobDescriptionAnalysis(id: number, analysis: AnalyzeJobDescriptionResponse): Promise<JobDescription>;
+  updateJobDescriptionAnalysis(_id: number, _analysis: AnalyzeJobDescriptionResponse): Promise<JobDescription>;
   
   /**
    * Updates a job description with bias analysis results.
@@ -202,7 +201,7 @@ export interface IStorage {
    * @returns Promise resolving to the updated job description object
    * @throws {Error} If job description not found or update fails
    */
-  updateJobDescriptionBiasAnalysis(id: number, biasAnalysis: SimpleBiasAnalysis): Promise<JobDescription>;
+  updateJobDescriptionBiasAnalysis(_id: number, _biasAnalysis: SimpleBiasAnalysis): Promise<JobDescription>;
   
   /**
    * Updates a job description with vector embeddings for semantic search.
@@ -213,7 +212,7 @@ export interface IStorage {
    * @returns Promise resolving to the updated job description object
    * @throws {Error} If job description not found or update fails
    */
-  updateJobDescriptionEmbeddings(id: number, embedding: number[] | null, requirementsEmbedding: number[] | null): Promise<JobDescription>;
+  updateJobDescriptionEmbeddings(_id: number, _embedding: number[] | null, _requirementsEmbedding: number[] | null): Promise<JobDescription>;
   
   /**
    * Permanently deletes a job description from the storage system.
@@ -222,7 +221,7 @@ export interface IStorage {
    * @returns Promise that resolves when deletion is complete
    * @throws {Error} If job description not found or deletion fails
    */
-  deleteJobDescription(id: number): Promise<void>;
+  deleteJobDescription(_id: number): Promise<void>;
   
   // ==================== ANALYSIS RESULTS METHODS ====================
   
@@ -233,7 +232,7 @@ export interface IStorage {
    * @returns Promise resolving to the analysis result object or undefined if not found
    * @throws {Error} If database connection fails or query is malformed
    */
-  getAnalysisResult(id: number): Promise<AnalysisResult | undefined>;
+  getAnalysisResult(_id: number): Promise<AnalysisResult | undefined>;
   
   /**
    * Retrieves an analysis result for a specific job/resume combination.
@@ -244,7 +243,7 @@ export interface IStorage {
    * @returns Promise resolving to the analysis result object or undefined if not found
    * @throws {Error} If database connection fails or query is malformed
    */
-  getAnalysisResultByJobAndResume(jobId: number, resumeId: number, userId: string): Promise<AnalysisResult | undefined>;
+  getAnalysisResultByJobAndResume(_jobId: number, _resumeId: number, _userId: string): Promise<AnalysisResult | undefined>;
   
   /**
    * Retrieves all analysis results for a specific job with optional filtering.
@@ -256,7 +255,7 @@ export interface IStorage {
    * @returns Promise resolving to an array of analysis result objects
    * @throws {Error} If database connection fails
    */
-  getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string, batchId?: string): Promise<AnalysisResult[]>;
+  getAnalysisResultsByJob(_jobId: number, _userId: string, _sessionId?: string, _batchId?: string): Promise<AnalysisResult[]>;
   
   /**
    * Retrieves all analysis results for a specific resume.
@@ -265,7 +264,7 @@ export interface IStorage {
    * @returns Promise resolving to an array of analysis result objects
    * @throws {Error} If database connection fails
    */
-  getAnalysisResultsByResumeId(resumeId: number): Promise<AnalysisResult[]>;
+  getAnalysisResultsByResumeId(_resumeId: number): Promise<AnalysisResult[]>;
   
   /**
    * Retrieves all analysis results for a specific job description.
@@ -274,7 +273,7 @@ export interface IStorage {
    * @returns Promise resolving to an array of analysis result objects
    * @throws {Error} If database connection fails
    */
-  getAnalysisResultsByJobDescriptionId(jobDescriptionId: number): Promise<AnalysisResult[]>;
+  getAnalysisResultsByJobDescriptionId(_jobDescriptionId: number): Promise<AnalysisResult[]>;
   
   /**
    * Creates a new analysis result in the storage system.
@@ -283,7 +282,7 @@ export interface IStorage {
    * @returns Promise resolving to the created analysis result object with assigned ID
    * @throws {Error} If creation fails or required fields are missing
    */
-  createAnalysisResult(analysisResult: InsertAnalysisResult): Promise<AnalysisResult>;
+  createAnalysisResult(_analysisResult: InsertAnalysisResult): Promise<AnalysisResult>;
   
   // ==================== INTERVIEW QUESTIONS METHODS ====================
   
@@ -294,7 +293,7 @@ export interface IStorage {
    * @returns Promise resolving to the interview questions object or undefined if not found
    * @throws {Error} If database connection fails or query is malformed
    */
-  getInterviewQuestions(id: number): Promise<InterviewQuestions | undefined>;
+  getInterviewQuestions(_id: number): Promise<InterviewQuestions | undefined>;
   
   /**
    * Retrieves all interview questions for a specific resume.
@@ -303,7 +302,7 @@ export interface IStorage {
    * @returns Promise resolving to an array of interview questions objects
    * @throws {Error} If database connection fails
    */
-  getInterviewQuestionsByResumeId(resumeId: number): Promise<InterviewQuestions[]>;
+  getInterviewQuestionsByResumeId(_resumeId: number): Promise<InterviewQuestions[]>;
   
   /**
    * Retrieves all interview questions for a specific job description.
@@ -312,7 +311,7 @@ export interface IStorage {
    * @returns Promise resolving to an array of interview questions objects
    * @throws {Error} If database connection fails
    */
-  getInterviewQuestionsByJobDescriptionId(jobDescriptionId: number): Promise<InterviewQuestions[]>;
+  getInterviewQuestionsByJobDescriptionId(_jobDescriptionId: number): Promise<InterviewQuestions[]>;
   
   /**
    * Retrieves interview questions for a specific resume/job combination.
@@ -322,7 +321,7 @@ export interface IStorage {
    * @returns Promise resolving to the interview questions object or undefined if not found
    * @throws {Error} If database connection fails or query is malformed
    */
-  getInterviewQuestionByResumeAndJob(resumeId: number, jobDescriptionId: number): Promise<InterviewQuestions | undefined>;
+  getInterviewQuestionByResumeAndJob(_resumeId: number, _jobDescriptionId: number): Promise<InterviewQuestions | undefined>;
   
   /**
    * Creates new interview questions in the storage system.
@@ -331,7 +330,7 @@ export interface IStorage {
    * @returns Promise resolving to the created interview questions object with assigned ID
    * @throws {Error} If creation fails or required fields are missing
    */
-  createInterviewQuestions(interviewQuestions: InsertInterviewQuestions): Promise<InterviewQuestions>;
+  createInterviewQuestions(_interviewQuestions: InsertInterviewQuestions): Promise<InterviewQuestions>;
   
   // ==================== COMBINATION METHODS ====================
   
@@ -344,7 +343,7 @@ export interface IStorage {
    * @returns Promise resolving to an object containing resume, analysis, and questions
    * @throws {Error} If database connection fails or resume not found
    */
-  getResumeWithLatestAnalysisAndQuestions(resumeId: number, jobDescriptionId: number): Promise<{
+  getResumeWithLatestAnalysisAndQuestions(_resumeId: number, _jobDescriptionId: number): Promise<{
     resume: Resume;
     analysis: AnalysisResult | undefined;
     questions: InterviewQuestions | undefined;
@@ -360,7 +359,7 @@ export interface IStorage {
    * @returns Promise resolving to the user tier info or undefined if not found/implemented
    * @throws {Error} If database connection fails (when implemented)
    */
-  getUserTierInfo?(userId: string): Promise<UserTierInfo | undefined>;
+  getUserTierInfo?(_userId: string): Promise<UserTierInfo | undefined>;
   
   /**
    * Saves user tier information for usage tracking and feature access.
@@ -371,7 +370,7 @@ export interface IStorage {
    * @returns Promise that resolves when save is complete
    * @throws {Error} If database connection fails (when implemented)
    */
-  saveUserTierInfo?(userId: string, tierInfo: UserTierInfo): Promise<void>;
+  saveUserTierInfo?(_userId: string, _tierInfo: UserTierInfo): Promise<void>;
 }
 
 export class MemStorage implements IStorage {

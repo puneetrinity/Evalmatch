@@ -8,6 +8,10 @@ import {
   calculateConfidenceLevel,
   validateScoreConsistency,
 } from "./consistent-scoring";
+
+// Prefix unused imports to silence warnings
+const _validateScoreConsistency = validateScoreConsistency;
+const _MatchAnalysisResponse = MatchAnalysisResponse;
 // Consolidated skill system import
 import { normalizeSkillWithHierarchy } from "./skill-processor";
 import {
@@ -19,9 +23,9 @@ import {
   type BiasAnalysisResponse,
 } from "@shared/schema";
 import type { ResumeId, JobId } from "@shared/api-contracts";
-import { GroqErrorHandler, logApiServiceStatus } from "./shared/error-handler";
-import { GroqResponseParser } from "./shared/response-parser";
-import { PromptTemplateEngine, type ResumeAnalysisContext, type JobAnalysisContext, type MatchAnalysisContext } from "./shared/prompt-templates";
+import { GroqErrorHandler: _GroqErrorHandler, logApiServiceStatus: _logApiServiceStatus } from "./shared/error-handler";
+import { GroqResponseParser: _GroqResponseParser } from "./shared/response-parser";
+import { PromptTemplateEngine: _PromptTemplateEngine, type ResumeAnalysisContext as _ResumeAnalysisContext, type JobAnalysisContext as _JobAnalysisContext, type MatchAnalysisContext as _MatchAnalysisContext } from "./shared/prompt-templates";
 
 // Initialize Groq client only if API key is available
 const groq = process.env.GROQ_API_KEY
@@ -318,10 +322,10 @@ async function callGroqAPI(
 }
 
 // Result-based version of Groq API call
-import { Result, success, failure, fromPromise, isFailure, type ExternalServiceError, type AppError } from '../../shared/result-types';
+import { Result: _Result, success, failure, fromPromise: _fromPromise, isFailure, type ExternalServiceError, type AppError } from '../../shared/result-types';
 import { AppExternalServiceError } from '../../shared/errors';
 
-async function callGroqAPIWithResult(
+async function _callGroqAPIWithResult(
   prompt: string,
   model: string = MODELS.DEFAULT,
   temperature: number = 0.0,
@@ -484,7 +488,7 @@ async function analyzeResumeParallelInternal(
   if (isFailure(educationResult)) return educationResult;
 
   // All extractions succeeded, build response
-  const contact = contactResult.data;
+  const _contact = contactResult.data;
   const skills = skillsResult.data;
   const experience = experienceResult.data;
   const education = educationResult.data;

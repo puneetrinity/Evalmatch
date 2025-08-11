@@ -7,6 +7,8 @@
  * - Provides structured logging for debugging
  */
 
+import { logger } from '../lib/logger';
+
 const isDevelopment =
   process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev";
 const _isProduction = process.env.NODE_ENV === "production";
@@ -34,7 +36,7 @@ class ServerAuthLogger {
     if (!isDevelopment) return;
 
     const sanitizedContext = this.sanitizeContext(context);
-    console.log(`${this.prefix} ${message}`, sanitizedContext || "");
+    logger.info(`${this.prefix} ${message}`, sanitizedContext);
   }
 
   /**
@@ -42,7 +44,7 @@ class ServerAuthLogger {
    */
   info(message: string, context?: LogContext): void {
     const sanitizedContext = this.sanitizeContext(context);
-    console.log(`${this.prefix} ${message}`, sanitizedContext || "");
+    logger.info(`${this.prefix} ${message}`, sanitizedContext);
   }
 
   /**
