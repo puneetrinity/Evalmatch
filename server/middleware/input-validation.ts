@@ -105,23 +105,18 @@ export const commonSchemas = {
 // Request validation schemas
 export const validationSchemas = {
   // Resume endpoints
+  // Accept multipart form uploads validated by secureUpload/validateUploadedFile earlier in the chain
+  // Don’t require filename/content in the body; multer provides req.file and we read from disk safely.
   uploadResume: z.object({
     body: z.object({
-      filename: commonSchemas.filename,
+      sessionId: commonSchemas.sessionId.optional(),
+      batchId: commonSchemas.batchId.optional(),
+      autoAnalyze: z.union([z.boolean(), z.enum(['true', 'false'])]).optional(),
+      // Allow optional fields if clients send them; they’re sanitized by SecureSchemas
+      filename: commonSchemas.filename.optional(),
       content: commonSchemas.resumeContent.optional(),
-    }),
-    files: z
-      .object({
-        resume: z.object({
-          mimetype: z.enum([
-            "application/pdf",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          ]),
-          size: z.number().max(10 * 1024 * 1024), // 10MB
-        }),
-      })
-      .optional(),
+    }).passthrough(),
+    // Note: multer.single('file') sets req.file, not req.files; prior middleware validates file already
   }),
 
   getResume: z.object({
