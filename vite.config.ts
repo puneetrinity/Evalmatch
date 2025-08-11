@@ -27,8 +27,8 @@ export default defineConfig({
     },
   },
   define: {
-    // Use a more specific global definition to avoid conflicts
-    global: '(typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {})',
+    // Simple global polyfill - esbuild compatible
+    global: 'globalThis',
   },
   root: path.resolve(__dirname, "client"),
   build: {
