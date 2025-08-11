@@ -6,7 +6,7 @@
 
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getAuth, type DecodedIdToken } from "firebase-admin/auth";
-import { logger } from "./logger";
+import { logger as _logger } from "./logger";
 import { serverAuthLogger } from "./auth-logger";
 
 // Initialize Firebase Admin SDK

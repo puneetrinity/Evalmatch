@@ -51,7 +51,7 @@ function normalizeSkill(skill: string): string {
 }
 
 // Calculate skill similarity score using deterministic algorithm
-function calculateSkillSimilarity(
+function _calculateSkillSimilarity(
   resumeSkill: string,
   jobSkill: string,
 ): number {
@@ -317,7 +317,7 @@ export class IntelligentDeterministicCache {
   invalidatePattern(pattern: RegExp): number {
     let invalidated = 0;
     
-    for (const [key, entry] of this.cache.entries()) {
+    for (const [key, _entry] of this.cache.entries()) {
       if (pattern.test(key)) {
         this.cache.delete(key);
         this.accessPatterns.delete(key);
@@ -342,7 +342,7 @@ export class IntelligentDeterministicCache {
       jobDescription: string;
       analysisType: 'resume' | 'job' | 'match' | 'skill_matching';
     }>,
-    warmingFunction: (resumeText: string, jobDescription: string, analysisType: string) => Promise<unknown>
+    warmingFunction: (_resumeText: string, _jobDescription: string, _analysisType: string) => Promise<unknown>
   ): Promise<void> {
     
     logger.info("Starting intelligent cache warming", {

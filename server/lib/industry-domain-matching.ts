@@ -1,6 +1,6 @@
 import { logger } from "./logger";
-import { generateEmbedding, cosineSimilarity } from "./embeddings";
-import stringSimilarity from "string-similarity";
+import { generateEmbedding as _generateEmbedding, cosineSimilarity as _cosineSimilarity } from "./embeddings";
+import _stringSimilarity from "string-similarity";
 
 export interface IndustryMatchResult {
   score: number;

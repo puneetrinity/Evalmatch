@@ -4,6 +4,7 @@ import * as tieredAI from "./tiered-ai-provider";
 import { 
   AnalyzeResumeResponse, 
   AnalyzeJobDescriptionResponse,
+  MatchAnalysisResponse,
   AnalyzedResumeData as _AnalyzedResumeData,
   AnalyzedJobData as _AnalyzedJobData
 } from "@shared/schema";
@@ -171,7 +172,7 @@ export async function matchAnalysisWithCache(
   resumeAnalysis: AnalyzeResumeResponse,
   jobAnalysis: AnalyzeJobDescriptionResponse,
   userTier: UserTierInfo
-): Promise<MatchAnalysisResult<any>> {
+): Promise<MatchAnalysisResult<MatchAnalysisResponse>> {
   // Create deterministic cache key from data
   const resumeHash = crypto.createHash('sha256')
     .update(JSON.stringify({
@@ -197,7 +198,7 @@ export async function matchAnalysisWithCache(
   );
   
   // Check cache first
-  const cached = await cacheManager.get<any>(cacheKey);
+  const cached = await cacheManager.get<MatchAnalysisResponse>(cacheKey);
   if (cached) {
     logger.info("Match analysis cache hit", { 
       cacheKey, 

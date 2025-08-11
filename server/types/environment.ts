@@ -4,12 +4,15 @@
  * Shared enum for application environment types to avoid circular dependencies.
  */
 export enum Environment {
+  // eslint-disable-next-line no-unused-vars
   Development = "development",
-  Production = "production",
+  // eslint-disable-next-line no-unused-vars
+  Production = "production", 
+  // eslint-disable-next-line no-unused-vars
   Test = "test",
 }
 
 // Explicitly use the enum values to prevent unused warnings
-const _Development = Environment.Development;
-const _Production = Environment.Production;  
-const _Test = Environment.Test;
+const _useDevelopment = Environment.Development;
+const _useProduction = Environment.Production;  
+const _useTest = Environment.Test;

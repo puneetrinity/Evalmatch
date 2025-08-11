@@ -8,11 +8,6 @@
 import { logger } from "./logger";
 import { validateScoreConsistency } from "./consistent-scoring";
 import * as groq from "./groq";
-import type {
-  AnalyzeResumeResponse,
-  AnalyzeJobDescriptionResponse,
-  MatchAnalysisResponse,
-} from "@shared/schema";
 
 export interface ConsistencyTestResult {
   testId: string;

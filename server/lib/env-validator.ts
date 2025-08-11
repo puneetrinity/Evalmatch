@@ -43,7 +43,7 @@ interface EnvVarSpec {
     | "ai"
     | "security"
     | "performance";
-  validator?: (value: string) => boolean;
+  validator?: (_value: string) => boolean;
   description: string;
   example?: string;
   securityLevel: "public" | "private" | "secret";
@@ -490,7 +490,7 @@ export function validateEnvironment(): EnvValidationResult {
  * Display comprehensive validation results with actionable guidance
  */
 export function displayValidationResults(result: EnvValidationResult): void {
-  const { isValid, errors, warnings, missingCritical, missingOptional } =
+  const { isValid, errors, warnings, missingCritical, missingOptional: _missingOptional } =
     result;
 
   if (isValid && warnings.length === 0) {
@@ -610,7 +610,7 @@ export function validateEnvironmentOrExit(): EnvValidationResult {
   displayValidationResults(result);
 
   const authBypassMode = process.env.AUTH_BYPASS_MODE === "true";
-  const isTest = process.env.NODE_ENV === "test";
+  const _isTest = process.env.NODE_ENV === "test";
 
   if (!result.isValid && !authBypassMode) {
     logger.error(

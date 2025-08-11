@@ -33,7 +33,7 @@ interface MatchProcessResult {
   resumeId: number;
   jobId: number;
   success: boolean;
-  dbStore?: Promise<any>;
+  dbStore?: Promise<void>;
   matchId: string;
   error?: string;
 }

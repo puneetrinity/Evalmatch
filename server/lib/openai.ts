@@ -205,9 +205,11 @@ function logApiServiceStatus(message: string, isError: boolean = false) {
   const timestamp = new Date().toISOString();
   const prefix = isError ? "ERROR" : "INFO";
   const servicePrefix = "OPENAI_API";
-  console[isError ? "error" : "log"](
-    `[${timestamp}] [${servicePrefix}] [${prefix}] ${message}`,
-  );
+  if (isError) {
+    logger.error(`[${servicePrefix}] ${message}`);
+  } else {
+    logger.info(`[${servicePrefix}] ${message}`);
+  }
 }
 
 /**
@@ -928,7 +930,7 @@ export async function analyzeMatch(
     let processedMatchedSkills = [];
 
     // Import the skill normalizer with dynamic ES import to avoid circular dependencies
-    let normalizeSkills: (_skills: SkillMatch[]) => SkillMatch[] = (_skills) =>
+    const normalizeSkills: (_skills: SkillMatch[]) => SkillMatch[] = (_skills) =>
       _skills;
     let skillProcessorModule: { processSkills?: (skills: unknown[]) => SkillMatch[] } | null = null;
     try {

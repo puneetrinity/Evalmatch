@@ -2,7 +2,7 @@ import { logger } from "./logger";
 import {
   calculateSemanticSimilarity,
   cosineSimilarity,
-  generateEmbedding,
+  generateEmbedding as _generateEmbedding,
   generateBatchEmbeddings,
 } from "./embeddings";
 // Consolidated skill system imports
@@ -11,12 +11,12 @@ import {
   processSkills,
   getSkillHierarchy,
 } from "./skill-processor";
-import { SkillLearningSystem, learnSkill } from "./skill-learning";
+import { SkillLearningSystem as _SkillLearningSystem, learnSkill as _learnSkill } from "./skill-learning";
 import { scoreExperienceEnhanced } from "./enhanced-experience-matching";
 import {
   UNIFIED_SCORING_WEIGHTS,
   UNIFIED_SCORING_RUBRICS,
-  SEMANTIC_THRESHOLDS,
+  SEMANTIC_THRESHOLDS as _SEMANTIC_THRESHOLDS,
   type UnifiedScoringWeights,
 } from "./unified-scoring-config";
 import stringSimilarity from "string-similarity";
@@ -29,7 +29,7 @@ interface SkillBreakdown {
   score?: number;
 }
 
-interface MatchResult {
+interface _MatchResult {
   breakdown: SkillBreakdown[];
   score?: number;
   explanation?: string;
@@ -266,7 +266,7 @@ export async function matchSkillsEnhanced(
   const skillMatchResults = await Promise.all(skillMatchPromises);
   
   // Process results
-  for (const { jobSkill, bestMatch, skillBreakdown: breakdown } of skillMatchResults) {
+  for (const { jobSkill: _jobSkill, bestMatch, skillBreakdown: breakdown } of skillMatchResults) {
     skillBreakdown.push(breakdown);
     totalScore += bestMatch.score;
   }
@@ -394,7 +394,7 @@ export function scoreExperience(
  */
 export function scoreEducation(
   resumeEducation: string,
-  jobEducation?: string,
+  _jobEducation?: string,
 ): { score: number; explanation: string } {
   if (!resumeEducation) {
     return { score: 20, explanation: "No education information provided" };

@@ -29,7 +29,7 @@ export class EmbeddingManager {
   /**
    * Get or generate embedding with cache management
    */
-  async getEmbedding(text: string, generator: (text: string) => Promise<number[]>): Promise<number[]> {
+  async getEmbedding(text: string, generator: (_text: string) => Promise<number[]>): Promise<number[]> {
     const cacheKey = this.getCacheKey(text);
     
     // Check cache first

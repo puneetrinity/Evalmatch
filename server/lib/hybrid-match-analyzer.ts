@@ -2,7 +2,7 @@ import { logger } from "./logger";
 import {
   AnalyzeResumeResponse,
   AnalyzeJobDescriptionResponse,
-  MatchAnalysisResponse,
+  MatchAnalysisResponse as _MatchAnalysisResponse,
   SkillMatch,
   FairnessMetrics,
 } from "@shared/schema";

@@ -50,7 +50,7 @@ class ServerAuthLogger {
   /**
    * Log authentication errors (always logged but sanitized)
    */
-  error(message: string, error?: any, context?: LogContext): void {
+  error(message: string, error?: Error | unknown, context?: LogContext): void {
     const sanitizedContext = this.sanitizeContext(context);
     const sanitizedError = this.sanitizeError(error);
 
@@ -100,7 +100,7 @@ class ServerAuthLogger {
    * Remove sensitive data from errors
    */
   private sanitizeError(
-    error: any,
+    error: Error | unknown,
   ): { code?: string; type?: string; message?: string } | undefined {
     if (!error) return undefined;
 

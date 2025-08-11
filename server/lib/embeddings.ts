@@ -219,7 +219,7 @@ export async function generateBatchEmbeddings(
           });
           // Don't push empty embeddings - they cause downstream calculation issues
           // Instead, generate a zero vector with the expected dimensionality
-          const pipeline = embeddingPipeline || await initializeEmbeddingPipeline();
+          const _pipeline = embeddingPipeline || await initializeEmbeddingPipeline();
           const expectedDim = 384; // Default dimension for sentence-transformers/all-MiniLM-L6-v2
           const zeroVector = new Array(expectedDim).fill(0);
           embeddings.push(zeroVector);

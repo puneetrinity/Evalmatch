@@ -682,7 +682,7 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
               method: 'strings',
               reason: 'pdftotext not available' 
             });
-            const { stdout } = await execAsync(
+            const { stdout: _stdout } = await execAsync(
               `strings -n 3 "${pdfPath}" | grep -v '^[[:space:]]*$' > "${txtPath}"`,
             );
             const stringOutput = fs.readFileSync(txtPath, "utf8");
@@ -969,12 +969,12 @@ export async function extractTextWithOcr(buffer: Buffer): Promise<string> {
     
     // Add timeout to worker creation to prevent hanging
     const workerPromise = createWorker("eng", 1, {
-      logger: (m: any) => {
+      logger: (m: { status: string; progress?: number }) => {
         if (m.status === 'recognizing text' && m.progress) {
           logger.debug('[OCR] Progress update', { progress: Math.round(m.progress * 100) });
         }
       }
-    } as any);
+    });
     
     // 30 second timeout for worker creation
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -1151,7 +1151,7 @@ export async function extractTextFromDoc(buffer: Buffer): Promise<string> {
 
     try {
       // Try using antiword first (if available)
-      const antiwordResult = await execAsync(
+      const _antiwordResult = await execAsync(
         `antiword "${docPath}" > "${txtPath}"`,
       );
       if (fs.existsSync(txtPath)) {
@@ -1160,7 +1160,7 @@ export async function extractTextFromDoc(buffer: Buffer): Promise<string> {
     } catch (antiwordError) {
       try {
         // Fallback to textract if antiword is not available
-        const textractResult = await execAsync(
+        const _textractResult = await execAsync(
           `textract "${docPath}" > "${txtPath}"`,
         );
         if (fs.existsSync(txtPath)) {
@@ -1169,7 +1169,7 @@ export async function extractTextFromDoc(buffer: Buffer): Promise<string> {
       } catch (textractError) {
         // If both tools fail, try python-docx2txt
         try {
-          const docx2txtResult = await execAsync(
+          const _docx2txtResult = await execAsync(
             `python3 -c "import docx2txt; print(docx2txt.process('${docPath}'))" > "${txtPath}"`,
           );
           if (fs.existsSync(txtPath)) {

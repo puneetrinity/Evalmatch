@@ -59,13 +59,13 @@ class Logger {
 
   debug(message: string, data?: unknown): void {
     if (this.logLevel <= LogLevel.DEBUG) {
-      console.log(this.formatMessage("DEBUG", message, data));
+      console.debug(this.formatMessage("DEBUG", message, data));
     }
   }
 
   info(message: string, data?: unknown): void {
     if (this.logLevel <= LogLevel.INFO) {
-      console.log(this.formatMessage("INFO", message, data));
+      console.info(this.formatMessage("INFO", message, data));
     }
   }
 

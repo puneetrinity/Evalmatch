@@ -417,7 +417,7 @@ async function calculateRoleRelevanceScore(
 function generateExperienceInsights(
   resumeAnalysis: ExperienceAnalysis,
   jobAnalysis: ExperienceAnalysis,
-  scores: { yearsScore: number; domainScore: number; seniorityScore: number; roleRelevanceScore: number }
+  _scores: { yearsScore: number; domainScore: number; seniorityScore: number; roleRelevanceScore: number }
 ): {
   yearsComparison: string;
   domainAlignment: string;
