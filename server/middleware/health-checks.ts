@@ -1610,25 +1610,27 @@ export async function basicHealthCheck(
         break;
       case "unhealthy":
         // Railway optimization: Be more permissive during startup and deployment
-        const hasCriticalFailure = essentialChecks.some(check => 
-          (check.name === "database" || check.name === "memory") && 
-          check.status === "unhealthy"
-        );
+        {
+          const hasCriticalFailure = essentialChecks.some(check => 
+            (check.name === "database" || check.name === "memory") && 
+            check.status === "unhealthy"
+          );
         
-        // Extended startup grace period for Railway (first 3 minutes)
-        const startupGracePeriod = isRailwayDeployment ? 180 : 120;
+          // Extended startup grace period for Railway (first 3 minutes)
+          const startupGracePeriod = isRailwayDeployment ? 180 : 120;
         
-        if (uptime < startupGracePeriod && !hasCriticalFailure) {
-          httpStatus = 200; // Allow startup time
-          res.setHeader("X-Health-Warning", "startup-period");
-          res.setHeader("X-Startup-Grace-Remaining", String(startupGracePeriod - uptime));
-        } else if (hasCriticalFailure && uptime > 60) {
-          // Only fail for critical issues after 1 minute minimum
-          httpStatus = 503; // Critical failure
-          res.setHeader("X-Health-Status", "unhealthy");
-        } else {
-          httpStatus = 200; // Non-critical issues, Railway-compatible
-          res.setHeader("X-Health-Warning", "unhealthy-non-critical");
+          if (uptime < startupGracePeriod && !hasCriticalFailure) {
+            httpStatus = 200; // Allow startup time
+            res.setHeader("X-Health-Warning", "startup-period");
+            res.setHeader("X-Startup-Grace-Remaining", String(startupGracePeriod - uptime));
+          } else if (hasCriticalFailure && uptime > 60) {
+            // Only fail for critical issues after 1 minute minimum
+            httpStatus = 503; // Critical failure
+            res.setHeader("X-Health-Status", "unhealthy");
+          } else {
+            httpStatus = 200; // Non-critical issues, Railway-compatible
+            res.setHeader("X-Health-Warning", "unhealthy-non-critical");
+          }
         }
         break;
       default:
@@ -2179,7 +2181,7 @@ export async function railwayHealthCheck(
     }
 
     // Check 4: Basic database availability (non-blocking, timeout quickly)
-    let dbStatus = "unknown";
+  let _dbStatus = "unknown";
     let dbAvailable = false;
     
     try {
@@ -2194,8 +2196,8 @@ export async function railwayHealthCheck(
           ),
         ]);
         
-        dbAvailable = Boolean(dbResult);
-        dbStatus = dbAvailable ? "available" : "unavailable";
+  dbAvailable = Boolean(dbResult);
+  _dbStatus = dbAvailable ? "available" : "unavailable";
         
         // Only fail if database is completely inaccessible AND required
         // For Railway, we want to be more permissive during deployment
@@ -2212,11 +2214,11 @@ export async function railwayHealthCheck(
           issues.push("Database starting up");
         }
       } else {
-        dbStatus = "disabled";
+  _dbStatus = "disabled";
         dbAvailable = true; // Memory mode is always "available"
       }
     } catch (error) {
-      dbStatus = "error";
+  _dbStatus = "error";
       dbAvailable = false;
       // Don't fail health check for DB errors during startup grace period
       if (uptime > 180) {
@@ -2233,11 +2235,11 @@ export async function railwayHealthCheck(
     // - Healthy: App can serve traffic
     // - Degraded but functional: Still return 200 for Railway 
     // - Only return 503 for critical failures that prevent serving requests
-    const httpStatus = isHealthy ? 200 : 503;
+  const httpStatus = isHealthy ? 200 : 503;
 
     const response = {
       success: isHealthy,
-      data: {
+  data: {
         status,
         uptime,
         message: isHealthy

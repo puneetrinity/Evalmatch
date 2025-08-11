@@ -10,11 +10,12 @@ import {
   type BiasAnalysisResponse,
   type SkillMatch,
 } from "../../shared/schema";
+import { createBrandedId, type ResumeId, type JobId, type AnalysisId } from "../../shared/api-contracts";
 import { OpenAIErrorHandler } from "./shared/error-handler";
-import { Result, success, failure, fromPromise, isFailure, type ExternalServiceError, type AppError } from '../../shared/result-types';
+import { Result, success, failure, fromPromise, isFailure, type ExternalServiceError, type AppError as _AppError } from '../../shared/result-types';
 import { AppExternalServiceError } from '../../shared/errors';
 import { OpenAIResponseParser } from "./shared/response-parser";
-import { PromptTemplateEngine, type ResumeAnalysisContext, type JobAnalysisContext, type MatchAnalysisContext } from "./shared/prompt-templates";
+import { PromptTemplateEngine, type ResumeAnalysisContext as _ResumeAnalysisContext, type JobAnalysisContext as _JobAnalysisContext, type MatchAnalysisContext as _MatchAnalysisContext } from "./shared/prompt-templates";
 
 // TypeScript interfaces for OpenAI API responses
 interface OpenAITokenUsage {
@@ -39,7 +40,7 @@ interface OpenAIEducationItem {
   school?: string;
 }
 
-interface OpenAIResumeResponse {
+interface _OpenAIResumeResponse {
   personalInfo?: {
     name?: string;
     email?: string;
@@ -59,7 +60,7 @@ interface OpenAIResumeResponse {
   };
 }
 
-interface OpenAIJobResponse {
+interface _OpenAIJobResponse {
   title?: string;
   company?: string;
   skills?: string[];
@@ -202,8 +203,6 @@ const errorHandler = new OpenAIErrorHandler();
  * @param isError Whether this is an error message
  */
 function logApiServiceStatus(message: string, isError: boolean = false) {
-  const timestamp = new Date().toISOString();
-  const prefix = isError ? "ERROR" : "INFO";
   const servicePrefix = "OPENAI_API";
   if (isError) {
     logger.error(`[${servicePrefix}] ${message}`);
@@ -461,7 +460,7 @@ async function analyzeResumeInternal(
 
       // Transform to proper AnalyzeResumeResponse format with comprehensive parsing
       const result: AnalyzeResumeResponse = {
-        id: (resumeId as number) || 0,
+        id: createBrandedId<number, "ResumeId">(((resumeId as number) || 0)) as ResumeId,
         filename: "analyzed_resume",
         analyzedData: {
           name: rawResult.name || "Unknown",
@@ -546,7 +545,7 @@ export async function analyzeResume(
     
     // Return fallback response for better UX
     return {
-      id: (resumeId as number) || 0,
+      id: createBrandedId<number, "ResumeId">(((resumeId as number) || 0)) as ResumeId,
     filename: "unknown",
     analyzedData: {
       name: "Resume Analysis Unavailable",
@@ -585,7 +584,7 @@ export async function analyzeJobDescription(
 
   // Basic fallback response if OpenAI is unavailable and no cache exists
   const fallbackResponse: AnalyzeJobDescriptionResponse = {
-    id: (jobId as number) || 0,
+    id: createBrandedId<number, "JobId">(((jobId as number) || 0)) as JobId,
     title: title || "Job Description Analysis Unavailable",
     analyzedData: {
       requiredSkills: ["Service temporarily unavailable"],
@@ -693,7 +692,7 @@ export async function analyzeJobDescription(
 
     // Transform to proper AnalyzeJobDescriptionResponse format
     const result: AnalyzeJobDescriptionResponse = {
-      id: (jobId as number) || 0,
+  id: createBrandedId<number, "JobId">(((jobId as number) || 0)) as JobId,
       title: requirementsResult.title || title,
       analyzedData: {
         requiredSkills: Array.isArray(requirementsResult.requiredSkills)
@@ -817,11 +816,11 @@ export async function analyzeMatch(
         }));
 
   const fallbackResponse: MatchAnalysisResponse = {
-    analysisId: 0 as number,
-    jobId: (jobId as number) || 0,
+    analysisId: createBrandedId<number, "AnalysisId">(0) as AnalysisId,
+    jobId: createBrandedId<number, "JobId">(((jobId as number) || 0)) as JobId,
     results: [
       {
-        resumeId: (resumeId as number) || 0,
+        resumeId: createBrandedId<number, "ResumeId">(((resumeId as number) || 0)) as ResumeId,
         filename: resumeAnalysis.filename || "unknown",
         candidateName: resumeAnalysis.name || resumeAnalysis.analyzedData?.name,
         matchPercentage: 50, // Neutral score when analysis is unavailable
@@ -930,18 +929,13 @@ export async function analyzeMatch(
     let processedMatchedSkills = [];
 
     // Import the skill normalizer with dynamic ES import to avoid circular dependencies
-    const normalizeSkills: (_skills: SkillMatch[]) => SkillMatch[] = (_skills) =>
-      _skills;
-    let skillProcessorModule: { processSkills?: (skills: unknown[]) => SkillMatch[] } | null = null;
+  let skillProcessorModule: { processSkills?: (_skills: unknown[]) => SkillMatch[] } | null = null;
     try {
       // Use ES dynamic import without .js extension
       // Use consolidated skill processor
-      skillProcessorModule = await import("./skill-processor");
-      if (typeof skillProcessorModule.processSkills === "function") {
-        const _normalizeSkills = (_skills: SkillMatch[]) => {
-          // Return the skills as-is since we already have SkillMatch objects
-          return _skills;
-        };
+  skillProcessorModule = (await import("./skill-processor")) as unknown as { processSkills?: (_skills: unknown[]) => SkillMatch[] };
+  if (skillProcessorModule && typeof skillProcessorModule.processSkills === "function") {
+        // Skill processor available; we process skills later as needed
       }
       const isEnabled = true; // Always enabled with consolidated system
       logger.info(
@@ -1137,20 +1131,24 @@ export async function analyzeMatch(
                 const skillObj = skill as Record<string, unknown>;
                 return {
                   skill: skillObj.skill?.toString() || skillObj.name?.toString() || "Unknown Skill",
-                  importance: skillObj.importance?.toString() || "important",
+                  importance: ((): "important" | "critical" | "nice-to-have" | "optional" | undefined => {
+                    const v = skillObj.importance?.toString().toLowerCase();
+                    if (v === "important" || v === "critical" || v === "nice-to-have" || v === "optional") return v;
+                    return "important";
+                  })(),
                 };
               }
               // Handle if skill is just a string
               return {
                 skill: String(skill),
-                importance: "important", // Default importance
+                importance: "important" as const, // Default importance
               };
             })
           : [];
 
         // Calculate weighted match percentage if we have required skills
         if (requiredSkills.length > 0 && processedMatchedSkills.length > 0) {
-          const weightedPercentage =
+          const weightedPercentage = await
             skillWeighter.calculateWeightedMatchPercentage(
               processedMatchedSkills,
               requiredSkills,
@@ -1168,11 +1166,11 @@ export async function analyzeMatch(
 
     // Create the normalized result in proper MatchAnalysisResponse format
     const normalizedResult: MatchAnalysisResponse = {
-      analysisId: 0 as number, // Would be set by caller
-      jobId: (jobId as number) || 0,
+      analysisId: createBrandedId<number, "AnalysisId">(0) as AnalysisId, // Would be set by caller
+      jobId: createBrandedId<number, "JobId">(((jobId as number) || 0)) as JobId,
       results: [
         {
-          resumeId: (resumeId as number) || 0,
+          resumeId: createBrandedId<number, "ResumeId">(((resumeId as number) || 0)) as ResumeId,
           filename: resumeAnalysis.filename || "analyzed_resume",
           candidateName:
             resumeAnalysis.name || resumeAnalysis.analyzedData?.name,
@@ -1665,8 +1663,8 @@ export async function generateInterviewQuestions(
   ];
 
   const fallbackResponse: InterviewQuestionsResponse = {
-    resumeId: (resumeId as number) || 0,
-    jobId: (jobId as number) || 0,
+    resumeId: createBrandedId<number, "ResumeId">(((resumeId as number) || 0)) as ResumeId,
+    jobId: createBrandedId<number, "JobId">(((jobId as number) || 0)) as JobId,
     candidateName: resumeAnalysis.name || resumeAnalysis.analyzedData?.name,
     jobTitle: jobAnalysis.title,
     questions: fallbackQuestions,
@@ -1762,8 +1760,8 @@ export async function generateInterviewQuestions(
 
     // Transform to proper InterviewQuestionsResponse format
     const normalizedResult: InterviewQuestionsResponse = {
-      resumeId: (resumeId as number) || 0,
-      jobId: (jobId as number) || 0,
+      resumeId: createBrandedId<number, "ResumeId">(((resumeId as number) || 0)) as ResumeId,
+      jobId: createBrandedId<number, "JobId">(((jobId as number) || 0)) as JobId,
       candidateName: resumeAnalysis.name || resumeAnalysis.analyzedData?.name,
       jobTitle: jobAnalysis.title,
       questions: [], // Will be populated below

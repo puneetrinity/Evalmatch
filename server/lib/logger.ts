@@ -4,11 +4,11 @@
  */
 
 export enum LogLevel {
-  DEBUG = 0,
-  INFO = 1,
-  WARN = 2,
-  ERROR = 3,
-  NONE = 4,
+  _DEBUG = 0,
+  _INFO = 1,
+  _WARN = 2,
+  _ERROR = 3,
+  _NONE = 4,
 }
 
 class Logger {
@@ -24,17 +24,17 @@ class Logger {
     const envLevel = process.env.LOG_LEVEL?.toUpperCase();
     switch (envLevel) {
       case "DEBUG":
-        return LogLevel.DEBUG;
+        return LogLevel._DEBUG;
       case "INFO":
-        return LogLevel.INFO;
+        return LogLevel._INFO;
       case "WARN":
-        return LogLevel.WARN;
+        return LogLevel._WARN;
       case "ERROR":
-        return LogLevel.ERROR;
+        return LogLevel._ERROR;
       case "NONE":
-        return LogLevel.NONE;
+        return LogLevel._NONE;
       default:
-        return this.isDevelopment ? LogLevel.DEBUG : LogLevel.INFO;
+  return this.isDevelopment ? LogLevel._DEBUG : LogLevel._INFO;
     }
   }
 
@@ -58,25 +58,25 @@ class Logger {
   }
 
   debug(message: string, data?: unknown): void {
-    if (this.logLevel <= LogLevel.DEBUG) {
+  if (this.logLevel <= LogLevel._DEBUG) {
       console.debug(this.formatMessage("DEBUG", message, data));
     }
   }
 
   info(message: string, data?: unknown): void {
-    if (this.logLevel <= LogLevel.INFO) {
+  if (this.logLevel <= LogLevel._INFO) {
       console.info(this.formatMessage("INFO", message, data));
     }
   }
 
   warn(message: string, data?: unknown): void {
-    if (this.logLevel <= LogLevel.WARN) {
+  if (this.logLevel <= LogLevel._WARN) {
       console.warn(this.formatMessage("WARN", message, data));
     }
   }
 
   error(message: string, error?: Error | unknown): void {
-    if (this.logLevel <= LogLevel.ERROR) {
+  if (this.logLevel <= LogLevel._ERROR) {
       console.error(this.formatMessage("ERROR", message));
       if (error) {
         console.error(error);

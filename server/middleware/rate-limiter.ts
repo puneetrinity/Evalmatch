@@ -5,7 +5,7 @@ import { logger } from "../lib/logger";
 const createTestSafeRateLimiter = (options: any) => {
   // Skip rate limiting entirely in test environment
   if (process.env.NODE_ENV === "test") {
-    return (req: any, res: any, next: any) => next();
+  return (_req: any, _res: any, next: any) => next();
   }
   return rateLimit(options);
 };
@@ -26,7 +26,7 @@ export const authRateLimiter = createTestSafeRateLimiter({
       retryAfter: 15 * 60, // seconds
     });
   },
-  skip: (req: any) => {
+  skip: (_req: any) => {
     // Skip rate limiting in development
     return process.env.NODE_ENV === "development";
   },
@@ -66,7 +66,7 @@ export const uploadRateLimiter = createTestSafeRateLimiter({
       retryAfter: 60 * 60, // seconds
     });
   },
-  skip: (req: any) => {
+  skip: (_req: any) => {
     // Skip rate limiting in development and test
     return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
   },

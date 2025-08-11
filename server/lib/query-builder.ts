@@ -25,7 +25,7 @@
  * ```
  */
 
-import { and, eq, gte, lte, desc, asc, or, SQL, sql } from 'drizzle-orm';
+import { and, SQL, sql } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { logger } from './logger';
 

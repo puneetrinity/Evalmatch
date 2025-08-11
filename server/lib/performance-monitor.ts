@@ -6,7 +6,6 @@
  */
 
 import { logger } from './logger';
-import { cacheManager } from './redis-cache';
 
 interface PerformanceMetrics {
   timestamp: number;

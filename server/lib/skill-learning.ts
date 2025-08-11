@@ -11,7 +11,7 @@
 import { logger } from './logger';
 import { getOrCreateStorage } from '../storage';
 import Groq from 'groq-sdk';
-import { calculateSemanticSimilarity, generateEmbedding, cosineSimilarity } from './embeddings';
+import { generateEmbedding, cosineSimilarity } from './embeddings';
 
 // ==================== TYPES & INTERFACES ====================
 
@@ -326,7 +326,7 @@ Respond with JSON:
    */
   private async frequencyBasedValidation(skill: string): Promise<SkillValidationResult> {
     try {
-      const storage = await getOrCreateStorage();
+  const _storage = await getOrCreateStorage();
       const frequency = await this.getSkillFrequency(skill);
       
       const shouldAutoApprove = frequency >= this.config.frequencyThreshold && 
@@ -499,7 +499,7 @@ Respond with JSON:
 
   private async recordValidation(skill: string, result: SkillValidationResult): Promise<void> {
     try {
-      const storage = await getOrCreateStorage();
+  const _storage = await getOrCreateStorage();
       
       // Update or create learned skill record
       const existing = this.validationQueue.get(skill) || {

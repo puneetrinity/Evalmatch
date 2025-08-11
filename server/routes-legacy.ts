@@ -11,7 +11,7 @@ declare global {
   interface AnalyzedJobData {
     [key: string]: any;
   }
-  var userTier: any;
+  const userTier: any;
 }
 
 // Helper to safely access error messages

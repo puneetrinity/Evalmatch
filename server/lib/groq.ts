@@ -94,7 +94,7 @@ const NAME_PATTERNS = {
   // Labeled name patterns with Unicode and international support
   labeled: [
     /(?:name|full[\s\-_]?name|candidate[\s\-_]?name):\s*([A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff][A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff'.\-\s]{1,60})/i,
-    /(?:申请人姓名|名前|姓名):\s*([A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff][A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff'.\-\s\(\)]{1,60})/,
+  /(?:申请人姓名|名前|姓名):\s*([A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff][A-Za-zÀ-ÖØ-öø-ÿĀ-žА-я\u4e00-\u9fff'.\-\s()]{1,60})/,
   ],
   
   // Professional header patterns with Unicode and title support
@@ -368,7 +368,7 @@ import {
   type AppError 
 } from '../../shared/result-types';
 import { AppExternalServiceError } from '../../shared/errors';
-import { AI_PROVIDER_CONFIG } from './unified-scoring-config';
+import { AI_PROVIDER_CONFIG as _AI_PROVIDER_CONFIG } from './unified-scoring-config';
 
 async function _callGroqAPIWithResult(
   prompt: string,

@@ -2,8 +2,8 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { registerRoutes } from './routes.js';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import * as schema from "@shared/schema";
+import { drizzle as _drizzle } from 'drizzle-orm/neon-serverless';
+import * as _schema from "@shared/schema";
 import { logger } from './lib/logger.js';
 // import { createDeploymentPool, getServerConfig } from './deployment-helper.js';
 

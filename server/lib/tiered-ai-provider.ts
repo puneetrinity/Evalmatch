@@ -3,10 +3,7 @@ import * as anthropic from "./anthropic";
 import * as groq from "./groq";
 import { config } from "../config/unified-config";
 import { logger } from "./logger";
-import {
-  AI_PROVIDER_CONFIG,
-  UNIFIED_SCORING_WEIGHTS,
-} from "./unified-scoring-config";
+import { AI_PROVIDER_CONFIG, UNIFIED_SCORING_WEIGHTS as _UNIFIED_SCORING_WEIGHTS } from "./unified-scoring-config";
 import {
   AnalyzeResumeResponse,
   AnalyzeJobDescriptionResponse,
@@ -851,7 +848,7 @@ export function getTierAwareServiceStatus(userTier: UserTierInfo) {
  * Get provider fallback chain based on 2024 industry research
  * Order: Groq (speed + accuracy) -> OpenAI (reliability) -> Anthropic (quality) -> Local ML fallback
  */
-function getProviderFallbackChain(userTier: UserTierInfo): string[] {
+function getProviderFallbackChain(_userTier: UserTierInfo): string[] {
   const availableProviders: string[] = [];
   
   // Primary provider selection based on tier and availability
@@ -887,7 +884,7 @@ async function executeProviderWithRetry(
   jobAnalysis: AnalyzeJobDescriptionResponse,
   resumeText?: string,
   jobText?: string,
-  userTier?: UserTierInfo
+  _userTier?: UserTierInfo
 ): Promise<MatchAnalysisResponse> {
   
   let lastError: any;

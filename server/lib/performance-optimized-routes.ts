@@ -8,17 +8,11 @@ import { Request, Response } from "express";
 import {
   analysisCache,
   generateMatchAnalysisKey,
-  generateBiasAnalysisKey,
 } from "./cache";
 import { logger } from './logger';
 import { analyzeMatch } from "../lib/ai-provider";
 import { IStorage } from "../storage";
-import {
-  Resume,
-  JobDescription,
-  AnalyzedResumeData,
-  AnalyzedJobData,
-} from "@shared/schema";
+import { Resume, AnalyzedResumeData, AnalyzedJobData } from "@shared/schema";
 import type {
   AnalyzeResumeResponse,
   AnalyzeJobDescriptionResponse,

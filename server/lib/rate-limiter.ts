@@ -46,8 +46,8 @@ export class DatabaseRateLimiter {
   private config: RateLimiterConfig;
   private requestTimestamps: number[] = [];
   private pendingOperations: Array<{
-    resolve: (value?: unknown) => void;
-    reject: (reason?: unknown) => void;
+  resolve: (_value?: unknown) => void;
+  reject: (_reason?: unknown) => void;
     operation: () => Promise<unknown>;
     context: string;
   }> = [];
@@ -135,7 +135,7 @@ export class DatabaseRateLimiter {
    */
   private queueOperation<T>(
     operation: () => Promise<T>,
-    context: string,
+    _context: string,
   ): Promise<T> {
     // If queue is already full, reject the operation
     if (this.pendingOperations.length >= this.config.maxQueueSize) {
@@ -149,12 +149,12 @@ export class DatabaseRateLimiter {
     }
 
     // Queue the operation
-    return new Promise<T>((resolve, reject) => {
+  return new Promise<T>((resolve, reject) => {
       this.pendingOperations.push({
-        resolve: resolve as (value?: unknown) => void,
+    resolve: resolve as (_value?: unknown) => void,
         reject,
         operation,
-        context,
+        context: _context,
       });
 
       // Make sure queue processor is running

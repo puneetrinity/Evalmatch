@@ -219,13 +219,13 @@ export class AnalysisService {
     });
 
     // Get job description
-    const jobDescription = await this.storageProvider.getJobDescriptionById(jobId, userId);
+  const jobDescription = await this._storageProvider.getJobDescriptionById(jobId, userId);
     if (!jobDescription) {
       return failure(AppNotFoundError.jobDescription(jobId));
     }
 
     // Get user's resumes
-    let resumes = await this.storageProvider.getResumesByUserId(userId, sessionId, batchId);
+  let resumes = await this._storageProvider.getResumesByUserId(userId, sessionId, batchId);
     if (!resumes || resumes.length === 0) {
       return failure(AppNotFoundError.resume('any'));
     }
@@ -264,7 +264,7 @@ export class AnalysisService {
       
       // Update job with analysis
       try {
-        await this.storageProvider.updateJobDescriptionAnalysis(jobId, jobAnalysis as any);
+  await this._storageProvider.updateJobDescriptionAnalysis(jobId, jobAnalysis as any);
       } catch (error) {
         logger.error('Failed to update job analysis', { jobId, error });
         // Continue - not critical for analysis
@@ -294,7 +294,7 @@ export class AnalysisService {
           
           // Update resume with analysis
           try {
-            await this.storageProvider.updateResumeAnalysis(resume.id, resumeAnalysis as any);
+            await this._storageProvider.updateResumeAnalysis(resume.id, resumeAnalysis as any);
           } catch (error) {
             logger.error('Failed to update resume analysis', { resumeId: resume.id, error });
             // Continue - not critical
@@ -321,7 +321,7 @@ export class AnalysisService {
         const matchData = hybridResult.data;
 
         // Store analysis result
-        const analysisResult = await this.storageProvider.createAnalysisResult({
+  const analysisResult = await this._storageProvider.createAnalysisResult({
           userId,
           resumeId: resume.id,
           jobDescriptionId: jobId,
@@ -447,8 +447,8 @@ export class AnalysisService {
 
     // Get resume and job
     const [resume, jobDescription] = await Promise.all([
-      this.storageProvider.getResumeById(resumeId, userId),
-      this.storageProvider.getJobDescriptionById(jobId, userId)
+  this._storageProvider.getResumeById(resumeId, userId),
+  this._storageProvider.getJobDescriptionById(jobId, userId)
     ]);
 
     if (!resume) {
@@ -460,7 +460,7 @@ export class AnalysisService {
     }
 
     // Check if analysis already exists
-    const existingAnalysis = await this.storageProvider.getAnalysisResultByJobAndResume(
+  const existingAnalysis = await this._storageProvider.getAnalysisResultByJobAndResume(
       jobId, 
       resumeId, 
       userId
@@ -514,13 +514,13 @@ export class AnalysisService {
     logger.info('Getting analysis results', { userId, jobId, sessionId, batchId });
 
     // Get job description
-    const jobDescription = await this.storageProvider.getJobDescriptionById(jobId, userId);
+  const jobDescription = await this._storageProvider.getJobDescriptionById(jobId, userId);
     if (!jobDescription) {
       return failure(AppNotFoundError.jobDescription(jobId));
     }
 
     // Get analysis results
-    const analysisResults = await this.storageProvider.getAnalysisResultsByJob(
+  const analysisResults = await this._storageProvider.getAnalysisResultsByJob(
       jobId,
       userId,
       sessionId,
@@ -588,8 +588,8 @@ export class AnalysisService {
 
     // Get resume and job
     const [resume, jobDescription] = await Promise.all([
-      this.storageProvider.getResumeById(resumeId, userId),
-      this.storageProvider.getJobDescriptionById(jobId, userId)
+      this._storageProvider.getResumeById(resumeId, userId),
+      this._storageProvider.getJobDescriptionById(jobId, userId)
     ]);
 
     if (!resume) {
@@ -741,7 +741,7 @@ export class AnalysisService {
     logger.info('Starting bias analysis', { userId, jobId });
 
     // Get job description
-    const jobDescription = await this.storageProvider.getJobDescriptionById(jobId, userId);
+  const jobDescription = await this._storageProvider.getJobDescriptionById(jobId, userId);
     if (!jobDescription) {
       return failure(AppNotFoundError.jobDescription(jobId));
     }
@@ -816,7 +816,7 @@ export class AnalysisService {
 
       // Update job with analysis
       try {
-        await this.storageProvider.updateJobDescriptionAnalysis(jobId, jobAnalysis);
+  await this._storageProvider.updateJobDescriptionAnalysis(jobId, jobAnalysis);
       } catch (error) {
         logger.error('Failed to update job analysis', { jobId, error });
         // Continue - not critical
@@ -848,7 +848,7 @@ export class AnalysisService {
 
       // Update resume with analysis
       try {
-        await this.storageProvider.updateResumeAnalysis(resumeId, resumeAnalysis);
+  await this._storageProvider.updateResumeAnalysis(resumeId, resumeAnalysis);
       } catch (error) {
         logger.error('Failed to update resume analysis', { resumeId, error });
         // Continue - not critical
@@ -869,7 +869,7 @@ export class AnalysisService {
     matchData: any
   ): Promise<MatchAnalysisResult<any>> {
     try {
-      const analysisResult = await this.storageProvider.createAnalysisResult({
+  const analysisResult = await this._storageProvider.createAnalysisResult({
         userId,
         resumeId,
         jobDescriptionId: jobId,

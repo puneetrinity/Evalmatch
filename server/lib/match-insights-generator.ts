@@ -4,8 +4,6 @@
  */
 
 import { logger } from './logger';
-// Consolidated skill system types
-import { NormalizedSkill } from './skill-processor';
 
 // Define ESCOSkill type locally until skill-matcher is implemented
 interface ESCOSkill {
@@ -59,8 +57,8 @@ export interface MatchAnalysisInput {
  */
 export function generateMatchInsights(
   input: MatchAnalysisInput,
-  resumeText?: string,
-  jobText?: string
+  _resumeText?: string,
+  _jobText?: string
 ): MatchInsights {
   try {
     logger.info('Generating match insights', {

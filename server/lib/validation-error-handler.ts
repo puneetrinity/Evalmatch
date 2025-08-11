@@ -8,11 +8,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError, ZodIssue } from 'zod';
 import { logger } from './logger';
-import { SecurityValidator } from '@shared/security-validation';
+// SecurityValidator not used directly here
 
 /**
  * Security-focused validation error types
  */
+// Many enum members are referenced indirectly by name in logs/rules; keep but suppress unused-member lint
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export enum ValidationErrorType {
   INVALID_INPUT = 'INVALID_INPUT',
   MALICIOUS_CONTENT = 'MALICIOUS_CONTENT',
@@ -73,7 +75,7 @@ export class ValidationErrorHandler {
    */
   static handleZodError(
     error: ZodError,
-    req: Request,
+  req: Request,
     res: Response,
     context: string = 'validation'
   ): Response {
@@ -112,7 +114,7 @@ export class ValidationErrorHandler {
       requestId: this.generateRequestId()
     };
 
-    return res.status(this.getStatusCode(severity, attackType)).json(response);
+  return res.status(this.getStatusCode(severity, attackType)).json(response);
   }
 
   /**
@@ -456,9 +458,9 @@ export class ValidationErrorHandler {
    * Express middleware for handling validation errors
    */
   static middleware() {
-    return (error: Error, req: Request, res: Response, next: NextFunction) => {
+  return (error: Error, _req: Request, res: Response, next: NextFunction) => {
       // Check if IP is blocked
-      if (this.isIPBlocked(req.ip || '')) {
+  if (this.isIPBlocked(_req.ip || '')) {
         return res.status(403).json({
           success: false,
           error: 'Access Denied',
@@ -470,17 +472,17 @@ export class ValidationErrorHandler {
 
       // Handle Zod validation errors
       if (error instanceof ZodError) {
-        return this.handleZodError(error, req, res);
+        return this.handleZodError(error, _req, res);
       }
 
       // Handle other validation errors
       if (error.name === 'ValidationError') {
         logger.warn('General validation error', {
           error: error.message,
-          ip: req.ip,
-          userId: req.user?.uid,
-          endpoint: req.path,
-          method: req.method
+          ip: _req.ip,
+          userId: _req.user?.uid,
+          endpoint: _req.path,
+          method: _req.method
         });
 
         return res.status(400).json({
@@ -493,7 +495,7 @@ export class ValidationErrorHandler {
       }
 
       // Pass through other errors
-      next(error);
+  next(error);
     };
   }
 }

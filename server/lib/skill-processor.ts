@@ -12,7 +12,7 @@
 
 import { spawn } from 'child_process';
 import { logger } from './logger';
-import { generateEmbedding, calculateSemanticSimilarity, cosineSimilarity } from './embeddings';
+import { generateEmbedding, cosineSimilarity } from './embeddings';
 
 // ==================== TYPES & INTERFACES ====================
 
@@ -340,7 +340,7 @@ export class SkillProcessor {
     const normalizedText = text.toLowerCase();
     
     // Check all skill categories
-    for (const [category, skills] of Object.entries(SKILL_DICTIONARY)) {
+  for (const [_category, skills] of Object.entries(SKILL_DICTIONARY)) {
       for (const [skillName, skillData] of Object.entries(skills)) {
         // Check main skill name
         if (normalizedText.includes(skillName.toLowerCase())) {
@@ -443,10 +443,10 @@ export class SkillProcessor {
 
   private categorizeSkill(skill: string): string {
     // Check each category in skill dictionary
-    for (const [category, skills] of Object.entries(SKILL_DICTIONARY)) {
+  for (const [_category, skills] of Object.entries(SKILL_DICTIONARY)) {
       for (const [skillName] of Object.entries(skills)) {
         if (skill.toLowerCase() === skillName.toLowerCase()) {
-          return category;
+          return _category;
         }
       }
     }
@@ -454,7 +454,7 @@ export class SkillProcessor {
   }
 
   private findSkillAliases(skill: string): string[] {
-    for (const [category, skills] of Object.entries(SKILL_DICTIONARY)) {
+  for (const [_category, skills] of Object.entries(SKILL_DICTIONARY)) {
       for (const [skillName, skillData] of Object.entries(skills)) {
         if (skill.toLowerCase() === skillName.toLowerCase()) {
           return skillData.aliases;
@@ -575,7 +575,7 @@ export class SkillProcessor {
     }
   }
 
-  private fallbackSkillExtraction(text: string): NormalizedSkill[] {
+  private fallbackSkillExtraction(_text: string): NormalizedSkill[] {
     // Simple fallback extraction
     const commonSkills = ['Communication', 'Problem Solving', 'Teamwork', 'Leadership'];
     return commonSkills.map(skill => ({

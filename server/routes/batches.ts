@@ -8,10 +8,9 @@
 
 import express from "express";
 import { z } from "zod";
-import { logger } from "../config/logger";
+import { logger } from "../lib/logger";
 import {
   validateBatchAccess,
-  validateBatchOwnership,
   updateBatchAccess,
 } from "../middleware/batch-validation";
 import rateLimit from "express-rate-limit";
@@ -23,7 +22,7 @@ import { getStorage } from "../storage";
 const router = express.Router();
 
 // Database query result interfaces
-interface ResumeQueryResult {
+interface _ResumeQueryResult {
   id: number;
   filename: string;
   file_size: number;
@@ -34,7 +33,7 @@ interface ResumeQueryResult {
   has_analysis: boolean;
 }
 
-interface CleanupCandidateQueryResult {
+interface _CleanupCandidateQueryResult {
   batch_id: string;
   session_id: string;
   user_id: string | null;
@@ -44,11 +43,11 @@ interface CleanupCandidateQueryResult {
   hours_inactive: string;
 }
 
-interface AnalysisCountResult {
+interface _AnalysisCountResult {
   analysis_count: string;
 }
 
-interface CorruptionCheckResult {
+interface _CorruptionCheckResult {
   empty_content_count: string;
   empty_filename_count: string;
   unanalyzed_count: string;
@@ -56,7 +55,7 @@ interface CorruptionCheckResult {
 }
 
 // Enhanced batch status interface
-interface BatchStatus {
+interface _BatchStatus {
   batchId: string;
   sessionId: SessionId;
   userId?: string;
@@ -77,7 +76,7 @@ interface BatchStatus {
 }
 
 // Legacy interfaces - kept for route response compatibility
-interface BatchClaimResult {
+interface _BatchClaimResult {
   success: boolean;
   message: string;
   batchId: string;
@@ -86,7 +85,7 @@ interface BatchClaimResult {
   warnings: string[];
 }
 
-interface BatchDeletionResult {
+interface _BatchDeletionResult {
   success: boolean;
   message: string;
   deletedItems: {
@@ -142,35 +141,7 @@ const batchDeleteRateLimit = rateLimit({
 });
 
 // Type guards for database results
-function isAnalysisCountResult(obj: unknown): obj is AnalysisCountResult {
-  return typeof obj === 'object' && obj !== null && 'analysis_count' in obj;
-}
-
-function isCorruptionCheckResult(obj: unknown): obj is CorruptionCheckResult {
-  return typeof obj === 'object' && obj !== null && 
-    'empty_content_count' in obj && 
-    'empty_filename_count' in obj && 
-    'unanalyzed_count' in obj && 
-    'total_count' in obj;
-}
-
-function isResumeQueryResult(obj: unknown): obj is ResumeQueryResult {
-  return typeof obj === 'object' && obj !== null && 
-    'id' in obj && 
-    'filename' in obj && 
-    'file_size' in obj && 
-    'file_type' in obj;
-}
-
-function isCleanupCandidateQueryResult(obj: unknown): obj is CleanupCandidateQueryResult {
-  return typeof obj === 'object' && obj !== null && 
-    'batch_id' in obj && 
-    'session_id' in obj && 
-    'resume_count' in obj && 
-    'created_at' in obj && 
-    'last_updated' in obj && 
-    'hours_inactive' in obj;
-}
+// Internal type-guards no longer used; remove to satisfy linter
 
 /**
  * GET /api/batches/:batchId/validate

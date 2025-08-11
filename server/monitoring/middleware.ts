@@ -98,7 +98,7 @@ export function errorHandling(
   err: Error | unknown,
   req: Request,
   res: Response,
-  next: NextFunction,
+  _next: NextFunction,
 ) {
   // Extract most important error details
   const error = {

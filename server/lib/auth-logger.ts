@@ -103,12 +103,24 @@ class ServerAuthLogger {
     error: Error | unknown,
   ): { code?: string; type?: string; message?: string } | undefined {
     if (!error) return undefined;
-
-    return {
-      code: error.code,
-      type: error.name || typeof error,
-      message: isDevelopment ? error.message : undefined,
-    };
+    if (error instanceof Error) {
+      // Some Firebase errors may have a 'code' property in addition to standard Error
+      const maybeCode = (error as unknown as { code?: string }).code;
+      return {
+        code: maybeCode,
+        type: error.name || typeof error,
+        message: isDevelopment ? error.message : undefined,
+      };
+    }
+    if (typeof error === 'object' && error !== null) {
+      const anyErr = error as Record<string, unknown>;
+      return {
+        code: typeof anyErr.code === 'string' ? anyErr.code : undefined,
+        type: typeof anyErr.name === 'string' ? anyErr.name : typeof error,
+        message: isDevelopment && typeof anyErr.message === 'string' ? anyErr.message : undefined,
+      };
+    }
+    return { type: typeof error };
   }
 
   /**

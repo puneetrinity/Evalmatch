@@ -101,8 +101,19 @@ export async function initializeFirebaseAuth(): Promise<void> {
     }
 
     // Initialize Firebase Admin
+    // Coerce config credentials to the firebase-admin ServiceAccount shape
+    let sa: unknown = credentials;
+    if (typeof credentials === "string") {
+      try {
+        sa = JSON.parse(credentials);
+      } catch {
+        // leave as string; cert can also take a path string
+        sa = credentials;
+      }
+    }
     adminApp = initializeApp({
-      credential: cert(credentials),
+      // cert() accepts a ServiceAccount object or a path string; we safely coerce here
+      credential: cert(sa as any),
       projectId: config.firebase.projectId!,
     });
 

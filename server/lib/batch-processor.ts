@@ -501,7 +501,7 @@ export async function processBatchMatches(
               candidateWeaknesses: matchAnalysis.candidateWeaknesses,
               confidenceLevel: matchAnalysis.confidenceLevel || "medium",
               fairnessMetrics: matchAnalysis.fairnessMetrics,
-            });
+            }).then(() => undefined);
 
             return {
               resumeId: resumes[i].id,

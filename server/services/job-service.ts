@@ -130,7 +130,7 @@ export class JobService {
   }
 
   private getStorageProvider(): IStorage {
-    return this.storageProvider || getStorage();
+  return this._storageProvider || getStorage();
   }
 
   /**

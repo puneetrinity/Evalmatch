@@ -25,8 +25,7 @@ import {
   getErrorStatusCode, 
   getErrorCode, 
   getErrorMessage, 
-  getErrorTimestamp,
-  createErrorResponse
+  getErrorTimestamp
 } from '@shared/type-utilities';
 import { logger } from './logger';
 
@@ -55,7 +54,7 @@ export interface StandardSuccessResponse<T = any> {
 /**
  * Callback function for handling successful results
  */
-export type SuccessCallback<T> = (data: T) => void;
+export type SuccessCallback<T> = (_data: T) => void;
 
 // ===== HTTP STATUS CODE MAPPING =====
 
@@ -269,14 +268,14 @@ export function handleSimpleResult<T>(
  * }));
  */
 export function wrapResultHandler<T>(
-  handler: (req: any, res: Response) => Promise<Result<T, any>>
+  handler: (_req: any, _res: Response) => Promise<Result<T, any>>
 ) {
-  return async (req: any, res: Response) => {
+  return async (_req: any, _res: Response) => {
     try {
-      const result = await handler(req, res);
-      handleSimpleResult(result, res);
+      const result = await handler(_req, _res);
+      handleSimpleResult(result, _res);
     } catch (error) {
-      handleRouteError(error, res);
+      handleRouteError(error, _res);
     }
   };
 }

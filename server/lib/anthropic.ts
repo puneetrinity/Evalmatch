@@ -11,6 +11,7 @@ import {
   AnalyzedJobData,
   InterviewQuestionData,
 } from "../../shared/schema";
+import { createBrandedId, type ResumeId, type JobId, type AnalysisId } from "../../shared/api-contracts";
 import { config } from "../config/unified-config";
 import { logger } from "../config/logger";
 import { AnthropicErrorHandler } from "./shared/error-handler";
@@ -234,9 +235,10 @@ async function analyzeResumeInternal(
         skills: parsedResponse.skills || [],
         experience:
           parsedResponse.experience?.[0]?.duration ||
-          parsedResponse.experience?.totalYears ||
           "Unknown",
-        education: parsedResponse.education || [],
+        education: (parsedResponse.education || []).map((edu: EducationItem | string) =>
+          typeof edu === "string" ? edu : edu.degree || ""
+        ),
         summary: parsedResponse.summary || "",
         keyStrengths: parsedResponse.keyStrengths || parsedResponse.skills?.slice(0, 3) || [],
         contactInfo: parsedResponse.personalInfo || {
@@ -254,7 +256,7 @@ async function analyzeResumeInternal(
       };
 
       const fullResponse: AnalyzeResumeResponse = {
-        id: Date.now() as number,
+        id: createBrandedId<number, "ResumeId">(Date.now()) as ResumeId,
         filename: "resume.pdf",
         analyzedData,
         processingTime: Date.now(),
@@ -332,7 +334,7 @@ export async function analyzeResume(
     };
 
     return {
-      id: Date.now() as number,
+      id: createBrandedId<number, "ResumeId">(Date.now()) as ResumeId,
       filename: "fallback.pdf",
       analyzedData: fallbackAnalyzedData,
       processingTime: 0,
@@ -396,11 +398,11 @@ export async function analyzeMatch(
       },
     ];
     return {
-      analysisId: Date.now() as number,
-      jobId: Date.now() as number,
+      analysisId: createBrandedId<number, "AnalysisId">(Date.now()) as AnalysisId,
+      jobId: createBrandedId<number, "JobId">(Date.now()) as JobId,
       results: [
         {
-          resumeId: Date.now() as number,
+          resumeId: createBrandedId<number, "ResumeId">(Date.now()) as ResumeId,
           filename: resumeAnalysis.filename || "resume.pdf",
           candidateName: resumeAnalysis.name,
           matchPercentage: 60,
@@ -523,8 +525,14 @@ export async function analyzeMatch(
               skill: skillObj.skill?.toString() || skill?.toString() || '',
               matchPercentage: typeof skillObj.matchPercentage === 'number' ? skillObj.matchPercentage : 75,
               category: skillObj.category?.toString() || "technical",
-              importance: (skillObj.importance?.toString() || "important") as const,
-              source: (skillObj.source?.toString() || "semantic") as const,
+              importance: ((): SkillMatch["importance"] => {
+                const v = (skillObj.importance?.toString() || "important").toLowerCase();
+                return v === "critical" || v === "nice-to-have" ? v : "important";
+              })(),
+              source: ((): SkillMatch["source"] => {
+                const v = (skillObj.source?.toString() || "semantic").toLowerCase();
+                return v === "exact" || v === "inferred" ? v : "semantic";
+              })(),
             };
           })
         : [];
@@ -545,11 +553,11 @@ export async function analyzeMatch(
         : [];
 
       return {
-        analysisId: Date.now() as number,
-        jobId: Date.now() as number,
+        analysisId: createBrandedId<number, "AnalysisId">(Date.now()) as AnalysisId,
+        jobId: createBrandedId<number, "JobId">(Date.now()) as JobId,
         results: [
           {
-            resumeId: Date.now() as number,
+            resumeId: createBrandedId<number, "ResumeId">(Date.now()) as ResumeId,
             filename: resumeAnalysis.filename || "resume.pdf",
             candidateName: resumeAnalysis.name,
             matchPercentage,
@@ -613,11 +621,11 @@ export async function analyzeMatch(
         },
       ];
       return {
-        analysisId: Date.now() as number,
-        jobId: Date.now() as number,
+        analysisId: createBrandedId<number, "AnalysisId">(Date.now()) as AnalysisId,
+        jobId: createBrandedId<number, "JobId">(Date.now()) as JobId,
         results: [
           {
-            resumeId: Date.now() as number,
+            resumeId: createBrandedId<number, "ResumeId">(Date.now()) as ResumeId,
             filename: resumeAnalysis.filename || "resume.pdf",
             candidateName: resumeAnalysis.name,
             matchPercentage: 60,
@@ -699,11 +707,11 @@ export async function analyzeMatch(
       },
     ];
     return {
-      analysisId: Date.now() as number,
-      jobId: Date.now() as number,
+      analysisId: createBrandedId<number, "AnalysisId">(Date.now()) as AnalysisId,
+      jobId: createBrandedId<number, "JobId">(Date.now()) as JobId,
       results: [
         {
-          resumeId: Date.now() as number,
+          resumeId: createBrandedId<number, "ResumeId">(Date.now()) as ResumeId,
           filename: resumeAnalysis.filename || "resume.pdf",
           candidateName: resumeAnalysis.name,
           matchPercentage: 60,
@@ -773,7 +781,7 @@ export async function analyzeJobDescription(
   };
 
   const fallbackResponse: AnalyzeJobDescriptionResponse = {
-    id: Date.now() as number,
+    id: createBrandedId<number, "JobId">(Date.now()) as JobId,
     title: title || "Job Title Unavailable",
     analyzedData: fallbackAnalyzedData,
     processingTime: 0,
@@ -863,7 +871,7 @@ export async function analyzeJobDescription(
       };
 
       return {
-        id: Date.now() as number,
+        id: createBrandedId<number, "JobId">(Date.now()) as JobId,
         title: parsedResponse.title || title || "",
         analyzedData,
         processingTime: Date.now() - performance.now(),
@@ -1219,8 +1227,8 @@ export async function generateInterviewQuestions(
     ];
 
     return {
-      resumeId: Date.now() as number,
-      jobId: Date.now() as number,
+      resumeId: createBrandedId<number, "ResumeId">(Date.now()) as ResumeId,
+      jobId: createBrandedId<number, "JobId">(Date.now()) as JobId,
       candidateName: resumeAnalysis.name,
       jobTitle: jobAnalysis.title,
       questions: fallbackQuestions,
@@ -1374,8 +1382,8 @@ Format your response as valid JSON with this structure:
 
       // Return normalized response
       return {
-        resumeId: Date.now() as number,
-        jobId: Date.now() as number,
+        resumeId: createBrandedId<number, "ResumeId">(Date.now()) as ResumeId,
+        jobId: createBrandedId<number, "JobId">(Date.now()) as JobId,
         candidateName: resumeAnalysis.name,
         jobTitle: jobAnalysis.title,
         questions: allQuestions,
@@ -1423,8 +1431,8 @@ Format your response as valid JSON with this structure:
       ];
 
       return {
-        resumeId: Date.now() as number,
-        jobId: Date.now() as number,
+  resumeId: createBrandedId<number, "ResumeId">(Date.now()) as ResumeId,
+  jobId: createBrandedId<number, "JobId">(Date.now()) as JobId,
         candidateName: resumeAnalysis.name,
         jobTitle: jobAnalysis.title,
         questions: parseErrorQuestions,
@@ -1488,8 +1496,8 @@ Format your response as valid JSON with this structure:
     ];
 
     return {
-      resumeId: Date.now() as number,
-      jobId: Date.now() as number,
+      resumeId: createBrandedId<number, "ResumeId">(Date.now()) as ResumeId,
+      jobId: createBrandedId<number, "JobId">(Date.now()) as JobId,
       candidateName: resumeAnalysis.name,
       jobTitle: jobAnalysis.title,
       questions: finalFallbackQuestions,

@@ -337,7 +337,7 @@ export class SkillWeightingEngine {
     matchedSkills: WeightedSkill[],
     requiredSkills: WeightedSkill[],
     profile: WeightingProfile,
-    context?: ContextualWeighting
+    _context?: ContextualWeighting
   ) {
     const totalRequiredWeight = requiredSkills.reduce((sum, skill) => sum + (skill.weight || 1), 0);
     
@@ -444,7 +444,7 @@ export class SkillWeightingEngine {
     return factor;
   }
 
-  private calculateContextualAdjustment(context?: ContextualWeighting, profile?: WeightingProfile): number {
+  private calculateContextualAdjustment(context?: ContextualWeighting, _profile?: WeightingProfile): number {
     if (!context) return 1.0;
     
     let adjustment = 1.0;

@@ -499,7 +499,7 @@ router.post(
 
       // Convert enhanced skills dictionary to insertion format
       const skillsData: any[] = [];
-      Object.entries(ENHANCED_SKILL_DICTIONARY).forEach(([categoryKey, categoryData]) => {
+  Object.entries(ENHANCED_SKILL_DICTIONARY).forEach(([_categoryKey, categoryData]) => {
         if (typeof categoryData === 'object' && categoryData !== null) {
           Object.entries(categoryData).forEach(([skillName, skillInfo]: [string, any]) => {
             skillsData.push({
