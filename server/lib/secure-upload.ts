@@ -6,6 +6,9 @@ import { Request, Response, NextFunction } from "express";
 import { logger } from "./logger";
 import { SecurityValidator } from "@shared/security-validation";
 
+// Define constants locally to avoid dynamic require issues
+const R_OK = 4; // Read permission constant
+
 // Extend the File interface to include security metadata
 declare global {
   namespace Express {
@@ -14,6 +17,19 @@ declare global {
         securityChecked?: boolean;
         uploadedBy?: string;
         uploadedAt?: string;
+        securityInfo?: {
+          contentValidation: {
+            magicNumberValid: boolean;
+            sizeValid: boolean;
+            contentTypeConsistent: boolean;
+          };
+          securityScan: {
+            confidence: number;
+            threatsDetected: number;
+            scanTime: number;
+          };
+          validatedAt: string;
+        };
       }
     }
   }
@@ -905,7 +921,7 @@ export async function validateUploadedFile(
     
     // Step 3.1: Verify file readiness after move to prevent race conditions
     try {
-      await fs.access(finalPath, require('fs').constants.R_OK);
+      await fs.access(finalPath, R_OK);
       const movedStats = await fs.stat(finalPath);
       
       if (!movedStats.isFile() || movedStats.size === 0) {
@@ -939,7 +955,7 @@ export async function validateUploadedFile(
     req.file.uploadedAt = new Date().toISOString();
     
     // Add custom properties for detailed security info
-    (req.file as Express.Multer.File & { securityInfo?: any }).securityInfo = {
+    req.file.securityInfo = {
       contentValidation: contentValidation.securityInfo,
       securityScan: {
         confidence: securityScan.confidence,
