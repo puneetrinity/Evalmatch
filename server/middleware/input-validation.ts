@@ -130,6 +130,17 @@ export const validationSchemas = {
     }),
   }),
 
+  getResumes: z.object({
+    query: z.object({
+      sessionId: commonSchemas.sessionId.optional(),
+      batchId: commonSchemas.batchId.optional(),
+      page: commonSchemas.page.optional(),
+      limit: commonSchemas.limit.optional(),
+      fileType: z.string().max(50).optional(),
+      hasAnalysis: z.enum(['true', 'false']).optional(),
+    }),
+  }),
+
   // Job description endpoints with enhanced security
   createJob: z.object({
     body: z.object({
@@ -563,6 +574,7 @@ export const validators = {
   // Core CRUD operations with enhanced security
   uploadResume: validateRequest(validationSchemas.uploadResume),
   getResume: validateRequest(validationSchemas.getResume),
+  getResumes: validateRequest(validationSchemas.getResumes),
   createJob: validateRequest(validationSchemas.createJob),
   updateJob: validateRequest(validationSchemas.updateJob),
   analyzeResume: validateRequest(validationSchemas.analyzeResume),

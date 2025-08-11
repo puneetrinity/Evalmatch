@@ -17,7 +17,7 @@ import { getErrorStatusCode, getErrorCode, getErrorMessage, getErrorTimestamp } 
 const router = Router();
 
 // Get all resumes for the authenticated user
-router.get("/", authenticateUser, validators.getAnalysis, async (req: Request, res: Response) => {
+router.get("/", authenticateUser, validators.getResumes, async (req: Request, res: Response) => {
   try {
     const sessionId = req.query.sessionId as string;
     const batchId = req.query.batchId as string;
