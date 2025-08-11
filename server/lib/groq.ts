@@ -11,7 +11,7 @@ import {
 
 // Prefix unused imports to silence warnings
 const _validateScoreConsistency = validateScoreConsistency;
-const _MatchAnalysisResponse = MatchAnalysisResponse;
+// MatchAnalysisResponse is a type import, cannot assign to variable
 // Consolidated skill system import
 import { normalizeSkillWithHierarchy } from "./skill-processor";
 import {
