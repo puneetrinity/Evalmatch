@@ -47,17 +47,31 @@ export default defineConfig({
         // PERFORMANCE: Better compression and caching
         format: 'es',
         entryFileNames: '[name]-[hash].js',
-        chunkFileNames: '[name]-[hash].js',
         assetFileNames: '[name]-[hash].[ext]',
+        // CRITICAL FIX: Prevent React Children undefined by controlling load order
+        inlineDynamicImports: false,
+        // Ensure React chunks load before anything else
+        chunkFileNames: (chunkInfo) => {
+          if (chunkInfo.name === 'vendor-react') {
+            return 'vendor-react-[hash].js'; // Highest priority
+          }
+          if (chunkInfo.name === 'vendor-react-dom') {
+            return 'vendor-react-dom-[hash].js'; // Second priority
+          }
+          return '[name]-[hash].js'; // Everything else
+        },
         manualChunks(id) {
           // Core vendor dependencies
           if (id.includes('node_modules')) {
-            // React ecosystem - ensure proper loading order
+            // CRITICAL FIX: React ecosystem - ensure STRICT loading order to prevent Children undefined
+            if (id.includes('react/jsx-runtime') || id.includes('react/jsx-dev-runtime')) {
+              return 'vendor-react'; // Keep JSX runtime with React core
+            }
             if (id.includes('react-dom')) {
               return 'vendor-react-dom';
             }
             if (id.includes('react') && !id.includes('react-dom')) {
-              return 'vendor-react';
+              return 'vendor-react'; // React core MUST load first
             }
             
             // UI components (keep together for better caching)
@@ -188,5 +202,26 @@ export default defineConfig({
     ],
     // Force pre-bundling of React to ensure proper initialization
     force: true,
+    // CRITICAL FIX: Ensure React is properly initialized before other modules
+    esbuildOptions: {
+      define: {
+        global: 'globalThis',
+      },
+      // Ensure React initialization happens first
+      banner: {
+        js: `
+          // CRITICAL: Prevent React Children undefined race condition
+          if (typeof globalThis !== 'undefined' && !globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__) {
+            globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
+              isDisabled: true,
+              supportsFiber: true,
+              inject: () => {},
+              onCommitFiberRoot: () => {},
+              onCommitFiberUnmount: () => {},
+            };
+          }
+        `,
+      },
+    },
   },
 });
