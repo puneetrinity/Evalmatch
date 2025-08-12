@@ -312,7 +312,7 @@ export class JobService {
       }
       
       const result = {
-        jobs: jobs.data,
+        jobs: jobs.data as any[],
         total,
         page,
         limit,

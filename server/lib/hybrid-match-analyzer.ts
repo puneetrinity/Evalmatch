@@ -10,6 +10,7 @@ import {
 import {
   calculateEnhancedMatch,
   ScoringWeights,
+  EnhancedMatchResult,
 } from "./enhanced-scoring";
 import {
   UNIFIED_SCORING_WEIGHTS,
@@ -792,7 +793,7 @@ export class HybridMatchAnalyzer {
    * Blend ML and LLM results using research-backed ensemble weighting
    * Based on Spotify Engineering (2024) and Amazon Science (2024) best practices
    */
-  private blendResults(mlResult: { totalScore: number; confidence: number; skillBreakdown: { skill: string; matched: boolean; required?: boolean }[] }, llmResult: LLMAnalysisResult): HybridMatchResult {
+  private blendResults(mlResult: EnhancedMatchResult, llmResult: LLMAnalysisResult): HybridMatchResult {
     const mlScore = mlResult.totalScore;
     const llmScore = llmResult.matchPercentage;
     const mlConfidence = mlResult.confidence;

@@ -258,7 +258,7 @@ export async function getCacheStats(): Promise<{
   }
   
   // Parse Redis info stats
-  const lines = stats.info.split('\r\n');
+  const lines = (stats.info as unknown as string).split('\r\n');
   const statsMap: Record<string, string> = {};
   
   for (const line of lines) {

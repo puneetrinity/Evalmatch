@@ -485,9 +485,9 @@ router.get("/storage", async (req: Request, res: Response) => {
         type: storage ? storage.constructor.name : 'null',
         accessSuccessful: false,
         basicOperationsWorking: false,
-        testData: null,
-        operationError: null,
-        accessError: null,
+        testData: null as any,
+        operationError: null as string | null,
+        accessError: null as string | null,
       }
     };
 

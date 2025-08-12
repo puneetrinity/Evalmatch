@@ -479,7 +479,7 @@ export class AnalysisService {
           candidateStrengths: existingAnalysis.candidateStrengths || [],
           candidateWeaknesses: existingAnalysis.candidateWeaknesses || [],
           confidenceLevel: existingAnalysis.confidenceLevel || 'low',
-          fairnessMetrics: existingAnalysis.fairnessMetrics
+          fairnessMetrics: existingAnalysis.fairnessMetrics || undefined
         },
         analysisId: existingAnalysis.id,
         processingTime: Date.now() - startTime

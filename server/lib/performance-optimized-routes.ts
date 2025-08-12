@@ -123,15 +123,15 @@ export async function handleBatchAnalyze(
             resume.content || undefined, // Pass the resume text for fairness analysis
           );
 
-          const matchAnalysis = (matchResult as { match?: unknown }).match || matchResult;
+          const matchAnalysis = (matchResult as { match?: any }).match || matchResult;
 
           // Create analysis result
           const analysisResult = await storage.createAnalysisResult({
             resumeId: resume.id,
             jobDescriptionId: jobDescription.id,
-            matchPercentage: matchAnalysis.matchPercentage,
-            matchedSkills: matchAnalysis.matchedSkills,
-            missingSkills: matchAnalysis.missingSkills,
+            matchPercentage: (matchAnalysis as any).matchPercentage,
+            matchedSkills: (matchAnalysis as any).matchedSkills,
+            missingSkills: (matchAnalysis as any).missingSkills,
             analysis: matchAnalysis,
           });
 
@@ -277,15 +277,15 @@ export async function handleSpecificAnalyze(
         resume.content || undefined, // Pass the resume text for fairness analysis
       );
 
-      const matchAnalysis = (matchResult as { match?: unknown }).match || matchResult;
+      const matchAnalysis = (matchResult as { match?: any }).match || matchResult;
 
       // Create and store the result
       const analysisResult = await storage.createAnalysisResult({
         resumeId,
         jobDescriptionId,
-        matchPercentage: matchAnalysis.matchPercentage,
-        matchedSkills: matchAnalysis.matchedSkills,
-        missingSkills: matchAnalysis.missingSkills,
+        matchPercentage: (matchAnalysis as any).matchPercentage,
+        matchedSkills: (matchAnalysis as any).matchedSkills,
+        missingSkills: (matchAnalysis as any).missingSkills,
         analysis: matchAnalysis,
       });
 

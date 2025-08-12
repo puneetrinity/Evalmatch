@@ -507,8 +507,8 @@ router.post(
               normalizedName: skillName.toLowerCase(),
               categoryId: categoryMap.get(skillInfo.category),
               aliases: skillInfo.aliases || [],
-              description: `${skillName} - ${skillInfo.category}`,
-              relatedSkills: skillInfo.related || []
+              importance: 'medium',
+              experience: undefined
             });
           });
         }
@@ -526,9 +526,9 @@ router.post(
               .values({
                 name: skillData.name,
                 normalizedName: skillData.normalizedName,
-                categoryId: skillData.categoryId,
+                categoryId: skillData.categoryId as number,
                 aliases: skillData.aliases,
-                description: skillData.description,
+                description: `${skillData.name} skill`,
               })
               .onConflictDoNothing();
             skillsInserted++;

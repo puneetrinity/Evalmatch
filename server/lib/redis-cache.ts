@@ -211,7 +211,7 @@ export class CacheManager {
 
     try {
       const info = await this.redis.info('stats');
-      return { connected: true, info };
+      return { connected: true, info: info as unknown as object };
     } catch (error) {
       return { connected: false };
     }

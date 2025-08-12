@@ -72,7 +72,7 @@ export class AdminService {
    * 
    * @returns Result containing fix results or error
    */
-  async fixDatabase(): Promise<Result<DatabaseFixResult, Error>> {
+  async fixDatabase(): Promise<Result<DatabaseFixResult, any>> {
     const startTime = Date.now();
     
     logger.info('Starting database fix operation');
@@ -193,7 +193,7 @@ export class AdminService {
    * 
    * @returns Result containing system status or error
    */
-  async getSystemStatus(): Promise<Result<SystemStatusResult, Error>> {
+  async getSystemStatus(): Promise<Result<SystemStatusResult, any>> {
     const startTime = Date.now();
     const checks: SystemStatusResult['checks'] = [];
     

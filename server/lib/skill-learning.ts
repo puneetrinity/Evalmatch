@@ -491,7 +491,7 @@ Respond with JSON:
       skill,
       isValid: false,
       confidence: 0,
-      validationType: type as string,
+      validationType: type as "esco" | "ml_similarity" | "groq_llm" | "frequency_based",
       reason,
       shouldAutoApprove: false
     };

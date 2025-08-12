@@ -303,7 +303,7 @@ function selectProviderForTier(
   // For premium users, prioritize quality: Anthropic > OpenAI > Groq
   if (userTier.tier === "premium") {
     if (
-      allowedProviders.includes("anthropic" as string) &&
+      (allowedProviders as unknown as string[]).includes("anthropic") &&
       isAnthropicConfigured &&
       anthropic.getAnthropicServiceStatus().isAvailable
     ) {
@@ -313,7 +313,7 @@ function selectProviderForTier(
       };
     }
     if (
-      allowedProviders.includes("openai" as string) &&
+      (allowedProviders as unknown as string[]).includes("openai") &&
       isOpenAIConfigured &&
       openai.getOpenAIServiceStatus().isAvailable
     ) {
@@ -599,7 +599,7 @@ export async function analyzeMatch(
   if (!matchResult) {
     logger.error("All AI providers failed for match analysis", {
       userTier: userTier.tier,
-      lastError: lastError?.message,
+      lastError: (lastError as Error)?.message,
       providersAttempted: providerChain.length
     });
     throw classifyAndThrowError(lastError, userTier, "Match analysis");

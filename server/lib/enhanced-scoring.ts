@@ -770,7 +770,7 @@ function findRelatedSkillsFromHierarchy(skillName: string, skillHierarchy: Recor
   // Search through all categories in the skill hierarchy
   for (const [category, skills] of Object.entries(skillHierarchy)) {
     for (const [skill, skillData] of Object.entries(skills as Record<string, unknown>)) {
-      const data = skillData as { aliases?: string[] };
+      const data = skillData as { aliases?: string[]; related?: string[] };
       
       // Check if this skill has related skills that match our target
       if (data.related && Array.isArray(data.related)) {
@@ -779,7 +779,7 @@ function findRelatedSkillsFromHierarchy(skillName: string, skillHierarchy: Recor
             skill,
             category,
             similarity: 0.8, // High similarity for hierarchical relations
-            reason: 'hierarchical'
+            aliases: data.aliases
           });
         }
       }
@@ -791,7 +791,7 @@ function findRelatedSkillsFromHierarchy(skillName: string, skillHierarchy: Recor
             skill,
             category, 
             similarity: 0.9, // Very high similarity for aliases
-            reason: 'alias'
+            aliases: data.aliases
           });
         }
       }
