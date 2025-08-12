@@ -493,7 +493,10 @@ export async function calculateEnhancedMatchWithESCO(
         logger.error('Job skill processing failed:', error);
         return [];
       })
-    ]);
+    ]).catch(error => {
+      logger.error('Skill processing failed completely:', error);
+      return [[], []];
+    });
 
     // Combine traditional skills with processed skills
     const enhancedResumeSkills = [...new Set([

@@ -607,17 +607,8 @@ export class HybridMatchAnalyzer {
     resumeText: string,
     jobText: string,
   ) {
-    // Fix: Access skills from correct location based on actual data structure
-    const jobSkills = jobAnalysis.requiredSkills || jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.skills || [];
-    logger.info('🔍 DEBUG: ML-only analysis job skills data', {
-      hasAnalyzedData: !!jobAnalysis.analyzedData,
-      requiredSkills: jobAnalysis.requiredSkills,
-      analyzedDataRequiredSkills: jobAnalysis.analyzedData?.requiredSkills,
-      legacySkills: jobAnalysis.skills,
-      finalJobSkills: jobSkills,
-      jobSkillsLength: jobSkills.length,
-      jobAnalysisKeys: Object.keys(jobAnalysis)
-    });
+    // Access skills from the proper schema structure
+    const jobSkills = jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.requiredSkills || jobAnalysis.skills || [];
 
     return await calculateEnhancedMatch(
       {
