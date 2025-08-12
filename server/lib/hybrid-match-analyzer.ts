@@ -174,7 +174,7 @@ export class HybridMatchAnalyzer {
         hasFullText,
         userTier: userTier.tier,
         resumeSkills: resumeAnalysis.analyzedData?.skills?.length || resumeAnalysis.skills?.length || 0,
-        jobSkills: jobAnalysis.analyzedData?.requiredSkills?.length || jobAnalysis.skills?.length || 0,
+        jobSkills: jobAnalysis.requiredSkills?.length || jobAnalysis.analyzedData?.requiredSkills?.length || jobAnalysis.skills?.length || 0,
         resumeTextLength: resumeText?.length || 0,
         jobTextLength: jobText?.length || 0,
         aiProvidersAvailable: {
@@ -242,7 +242,7 @@ export class HybridMatchAnalyzer {
           };
 
           const jobProfile: JobProfile = {
-            requiredSkills: jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.skills || [],
+            requiredSkills: jobAnalysis.requiredSkills || jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.skills || [],
             experience: jobAnalysis.experience || "",
             technologies: [], // Extract from requirements if available
             industries: [], // Would be extracted from content
@@ -326,7 +326,7 @@ export class HybridMatchAnalyzer {
           ),
           jobTitle: jobAnalysis.title || 'Unknown Job',
           jobDescription: jobText || '',
-          requiredSkills: jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.skills || []
+          requiredSkills: jobAnalysis.requiredSkills || jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.skills || []
         };
 
         logger.info(`🔍 CONTAMINATION DETECTION: Detected job industry: ${jobContext.industry}`, {
@@ -607,10 +607,11 @@ export class HybridMatchAnalyzer {
     resumeText: string,
     jobText: string,
   ) {
-    // Debug logging to see what's actually in jobAnalysis
-    const jobSkills = jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.skills || [];
+    // Fix: Access skills from correct location based on actual data structure
+    const jobSkills = jobAnalysis.requiredSkills || jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.skills || [];
     logger.info('🔍 DEBUG: ML-only analysis job skills data', {
       hasAnalyzedData: !!jobAnalysis.analyzedData,
+      requiredSkills: jobAnalysis.requiredSkills,
       analyzedDataRequiredSkills: jobAnalysis.analyzedData?.requiredSkills,
       legacySkills: jobAnalysis.skills,
       finalJobSkills: jobSkills,
@@ -939,7 +940,7 @@ export class HybridMatchAnalyzer {
     return {
       matchPercentage: 50,
       matchedSkills: [],
-      missingSkills: jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.skills || [],
+      missingSkills: jobAnalysis.requiredSkills || jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.skills || [],
       candidateStrengths: ["Resume successfully processed"],
       candidateWeaknesses: ["Detailed analysis temporarily unavailable"],
       recommendations: ["Please try analyzing again"],
