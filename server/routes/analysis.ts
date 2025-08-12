@@ -372,13 +372,11 @@ router.post(
         success: true,
         status: "success",
         message: "Bias analysis completed",
-        data: {
-          jobId: biasData.jobId,
-          biasAnalysis: biasData.biasAnalysis,
-          suggestions: biasData.suggestions,
-          overallBiasScore: biasData.overallBiasScore,
-          analysisDate: biasData.analysisDate
-        },
+        jobId: biasData.jobId,
+        biasAnalysis: biasData.biasAnalysis,
+        suggestions: biasData.suggestions,
+        overallBiasScore: biasData.overallBiasScore,
+        analysisDate: biasData.analysisDate,
         timestamp: new Date().toISOString(),
       });
 
