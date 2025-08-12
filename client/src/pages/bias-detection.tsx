@@ -128,11 +128,12 @@ export default function BiasDetectionPage() {
       try {
         const data = await response.json();
         
-        if (!data || !data.biasAnalysis) {
+        if (!data || typeof data.biasAnalysis === 'undefined') {
           throw new Error("Invalid response format from server");
         }
         
-        setBiasAnalysis(data.biasAnalysis);
+        // Handle case where bias analysis is null (not yet implemented)
+        setBiasAnalysis(data.biasAnalysis || null);
         
         // Invalidate job description query to refresh data with bias analysis
         queryClient.invalidateQueries({ queryKey: [`/api/job-descriptions/${jobId}`] });

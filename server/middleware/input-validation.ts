@@ -194,13 +194,8 @@ export const validationSchemas = {
       jobId: commonSchemas.id,
     }),
     query: z.object({
-      page: commonSchemas.page,
-      limit: commonSchemas.limit,
-      sortBy: z
-        .enum(["created_at", "match_percentage", "title"])
-        .default("created_at"),
-      sortOrder: z.enum(["asc", "desc"]).default("desc"),
-      search: commonSchemas.searchQuery,
+      sessionId: z.string().min(1, "Session ID is required").optional(),
+      batchId: z.string().min(1, "Batch ID is required").optional(),
     }),
   }),
 
