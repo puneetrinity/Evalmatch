@@ -359,8 +359,12 @@ export class QueryBuilder<T extends Record<string, unknown> = Record<string, unk
     pagination?: ReturnType<QueryBuilder<T>['getPaginationMeta']>;
     conditions: string[];
   }> {
+    const drizzleNameSymbol = Symbol.for('drizzle:Name');
+    const tableWithSymbol = table as any;
+    const tableName = tableWithSymbol[drizzleNameSymbol] || 'unknown';
+    
     logger.info('Executing QueryBuilder query', {
-      table: (table as { [Symbol.for('drizzle:Name')]: string })[Symbol.for('drizzle:Name')] || 'unknown',
+      table: tableName,
       conditionsCount: this.conditions.length,
       hasPagination: !!this.paginationOpts,
       conditions: this.getConditions()
