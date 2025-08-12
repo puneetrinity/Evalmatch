@@ -292,8 +292,23 @@ export class AnalysisService {
       
       try {
         // Get or create resume analysis
-        let resumeAnalysis = resume.analyzedData;
-        if (!resumeAnalysis && resume.content) {
+        let resumeAnalysisResponse;
+        if (resume.analyzedData) {
+          // Reconstruct full AnalyzeResumeResponse from database data
+          resumeAnalysisResponse = {
+            id: resume.id,
+            filename: resume.filename,
+            analyzedData: resume.analyzedData,
+            processingTime: 0,
+            confidence: 0.8,
+            // Add backward compatibility properties from analyzedData
+            skills: resume.analyzedData.skills || [],
+            experience: resume.analyzedData.experience || "",
+            education: resume.analyzedData.education || [],
+            summary: resume.analyzedData.summary || "",
+            keyStrengths: resume.analyzedData.keyStrengths || []
+          };
+        } else if (resume.content) {
           const resumeResult = await analyzeResumeWithCache(resume.content, userTierInfo);
           
           if (isFailure(resumeResult)) {
@@ -304,11 +319,11 @@ export class AnalysisService {
             throw new Error(resumeResult.error.message);
           }
           
-          resumeAnalysis = resumeResult.data as any;
+          resumeAnalysisResponse = resumeResult.data;
           
           // Update resume with analysis
           try {
-                  await this._storageProvider.updateResumeAnalysis(resume.id, resumeAnalysis as any);
+            await this._storageProvider.updateResumeAnalysis(resume.id, resumeAnalysisResponse);
           } catch (error) {
             logger.error('Failed to update resume analysis', { resumeId: resume.id, error });
             // Continue - not critical
@@ -333,7 +348,7 @@ export class AnalysisService {
         };
         
         const hybridResult = await analyzeMatchHybrid(
-          resumeAnalysis as any,
+          resumeAnalysisResponse as any,
           jobAnalysisResponse as any,
           userTierInfo,
           resume.content || "",
