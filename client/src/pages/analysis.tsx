@@ -26,33 +26,45 @@ export default function AnalysisPage() {
   const [match, routeParams] = useRoute("/analysis/:jobId");
   const jobId = match ? parseInt(routeParams.jobId) as JobId : 0 as JobId;
   
+  // Parse URL parameters for session/batch IDs (higher priority than localStorage)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlSessionId = urlParams.get('sessionId');
+  const urlBatchId = urlParams.get('batchId');
+  
   // Early validation of jobId
   const isValidJobId = match && routeParams.jobId && routeParams.jobId !== 'undefined' && !isNaN(Number(routeParams.jobId));
   
   const [expanded, setExpanded] = useState<number | null>(null);
   
-  // Initialize session ID and batch ID from localStorage synchronously
+  // Initialize session ID and batch ID from URL parameters first, then localStorage
   const [sessionId, setSessionId] = useState<SessionId | null>(() => {
-    const storedSessionId = localStorage.getItem('currentUploadSession');
+    // Prioritize URL parameters over localStorage to handle navigation context
+    const finalSessionId = urlSessionId || localStorage.getItem('currentUploadSession');
+    
     if (process.env.NODE_ENV === 'development') {
       const timestamp = new Date().toISOString();
-      console.log(`[${timestamp}] === LOADING LOCALSTORAGE VALUES SYNCHRONOUSLY ===`);
-      console.log(`[${timestamp}] localStorage.getItem('currentUploadSession'): ${storedSessionId}`);
+      console.log(`[${timestamp}] === LOADING SESSION VALUES ===`);
+      console.log(`[${timestamp}] URL sessionId: ${urlSessionId}`);
+      console.log(`[${timestamp}] localStorage sessionId: ${localStorage.getItem('currentUploadSession')}`);
+      console.log(`[${timestamp}] Final sessionId: ${finalSessionId}`);
     }
-    return storedSessionId as SessionId | null;
+    
+    return finalSessionId as SessionId | null;
   });
   
   const [currentBatchId, setCurrentBatchId] = useState<string | null>(() => {
-    const storedBatchId = localStorage.getItem('currentBatchId');
+    // Prioritize URL parameters over localStorage to handle navigation context
+    const finalBatchId = urlBatchId || localStorage.getItem('currentBatchId');
+    
     if (process.env.NODE_ENV === 'development') {
       const timestamp = new Date().toISOString();
-      console.log(`[${timestamp}] localStorage.getItem('currentBatchId'): ${storedBatchId}`);
-      console.log(`[${timestamp}] Initial state will be set to:
-        - sessionId: ${localStorage.getItem('currentUploadSession')}
-        - currentBatchId: ${storedBatchId}
-      `);
+      console.log(`[${timestamp}] === LOADING BATCH VALUES ===`);
+      console.log(`[${timestamp}] URL batchId: ${urlBatchId}`);
+      console.log(`[${timestamp}] localStorage batchId: ${localStorage.getItem('currentBatchId')}`);
+      console.log(`[${timestamp}] Final batchId: ${finalBatchId}`);
     }
-    return storedBatchId;
+    
+    return finalBatchId;
   });
   
   // Initialize as ready immediately if we have required data
@@ -66,6 +78,23 @@ export default function AnalysisPage() {
     return hasRequiredData;
   });
   
+  // Sync URL parameters to localStorage to maintain consistency
+  useEffect(() => {
+    if (urlSessionId && urlSessionId !== localStorage.getItem('currentUploadSession')) {
+      localStorage.setItem('currentUploadSession', urlSessionId);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[${new Date().toISOString()}] Updated localStorage sessionId from URL: ${urlSessionId}`);
+      }
+    }
+    
+    if (urlBatchId && urlBatchId !== localStorage.getItem('currentBatchId')) {
+      localStorage.setItem('currentBatchId', urlBatchId);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[${new Date().toISOString()}] Updated localStorage batchId from URL: ${urlBatchId}`);
+      }
+    }
+  }, [urlSessionId, urlBatchId]);
+
   // Update initialization state when dependencies change
   useEffect(() => {
     const shouldBeInitialized = !!(sessionId && currentBatchId && jobId);

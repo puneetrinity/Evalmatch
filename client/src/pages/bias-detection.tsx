@@ -245,7 +245,18 @@ export default function BiasDetectionPage() {
 
   // Handle continue to fit analysis
   const handleContinue = () => {
-    setLocation(`/analysis/${jobId}`);
+    // Preserve session/batch context during navigation to prevent session/batch ID mismatch
+    const currentSessionId = localStorage.getItem('currentUploadSession');
+    const currentBatchId = localStorage.getItem('currentBatchId');
+    
+    if (currentSessionId && currentBatchId) {
+      // Pass session and batch IDs via URL parameters to ensure they survive navigation
+      const url = `/analysis/${jobId}?sessionId=${encodeURIComponent(currentSessionId)}&batchId=${encodeURIComponent(currentBatchId)}`;
+      setLocation(url);
+    } else {
+      // Fallback to original navigation if no session context available
+      setLocation(`/analysis/${jobId}`);
+    }
   };
 
   // Update job description mutation
