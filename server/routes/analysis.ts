@@ -64,28 +64,28 @@ router.post(
 
       const analysisData = result.data;
 
-      // Convert service result to API response format (maintaining backward compatibility)
+      // Convert service result to API response format (frontend expects results directly)
       res.json({
         success: true,
-        analysis: {
-          results: analysisData.results.map((r) => ({
-            resumeId: r.resumeId,
-            filename: r.filename,
-            candidateName: r.candidateName,
-            matchPercentage: r.matchPercentage,
-            matchedSkills: r.matchedSkills,
-            missingSkills: r.missingSkills,
-            candidateStrengths: r.candidateStrengths,
-            candidateWeaknesses: r.candidateWeaknesses,
-            recommendations: r.recommendations,
-            confidenceLevel: r.confidenceLevel,
-            analysisId: r.analysisId,
-            error: r.error
-          })),
-          createdAt: analysisData.createdAt,
-          processingTime: analysisData.processingTime,
-          statistics: analysisData.statistics
-        },
+        analysisId: analysisData.analysisId,
+        jobId: analysisData.jobId,
+        results: analysisData.results.map((r) => ({
+          resumeId: r.resumeId,
+          filename: r.filename,
+          candidateName: r.candidateName,
+          matchPercentage: r.matchPercentage,
+          matchedSkills: r.matchedSkills,
+          missingSkills: r.missingSkills,
+          candidateStrengths: r.candidateStrengths,
+          candidateWeaknesses: r.candidateWeaknesses,
+          recommendations: r.recommendations,
+          confidenceLevel: r.confidenceLevel,
+          analysisId: r.analysisId,
+          error: r.error
+        })),
+        createdAt: analysisData.createdAt,
+        processingTime: analysisData.processingTime,
+        statistics: analysisData.statistics,
         timestamp: new Date().toISOString(),
       });
 
@@ -147,29 +147,27 @@ router.get(
 
       const analysisData = result.data;
 
-      // Convert service result to API response format (maintaining backward compatibility)
+      // Convert service result to API response format (frontend expects results directly)
       res.json({
         success: true,
-        data: {
-          analysisId: analysisData.analysisId,
-          jobId: analysisData.jobId,
-          results: analysisData.results.map((r) => ({
-            resumeId: r.resumeId,
-            filename: r.filename,
-            candidateName: r.candidateName,
-            matchPercentage: r.matchPercentage,
-            matchedSkills: r.matchedSkills,
-            missingSkills: r.missingSkills,
-            candidateStrengths: r.candidateStrengths,
-            candidateWeaknesses: r.candidateWeaknesses,
-            recommendations: r.recommendations,
-            confidenceLevel: r.confidenceLevel,
-            analysisId: r.analysisId
-          })),
-          createdAt: analysisData.createdAt,
-          processingTime: analysisData.processingTime,
-          statistics: analysisData.statistics
-        },
+        analysisId: analysisData.analysisId,
+        jobId: analysisData.jobId,
+        results: analysisData.results.map((r) => ({
+          resumeId: r.resumeId,
+          filename: r.filename,
+          candidateName: r.candidateName,
+          matchPercentage: r.matchPercentage,
+          matchedSkills: r.matchedSkills,
+          missingSkills: r.missingSkills,
+          candidateStrengths: r.candidateStrengths,
+          candidateWeaknesses: r.candidateWeaknesses,
+          recommendations: r.recommendations,
+          confidenceLevel: r.confidenceLevel,
+          analysisId: r.analysisId
+        })),
+        createdAt: analysisData.createdAt,
+        processingTime: analysisData.processingTime,
+        statistics: analysisData.statistics,
         timestamp: new Date().toISOString(),
       });
 
