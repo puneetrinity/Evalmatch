@@ -5,6 +5,7 @@
 
 import '@testing-library/jest-dom';
 import dotenv from 'dotenv';
+import { jest, beforeAll, afterAll, beforeEach, afterEach } from '@jest/globals';
 
 // Load environment variables for testing
 dotenv.config({ path: '.env.test' });

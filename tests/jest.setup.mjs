@@ -1,9 +1,10 @@
 /**
  * Jest setup file for Node.js polyfills and global test configuration
+ * ES Module compatible version for 2024/2025 Jest setup
  */
 
-// Polyfill TextEncoder/TextDecoder for Node.js environment
-const { TextEncoder, TextDecoder } = require('util');
+import { TextEncoder, TextDecoder } from 'util';
+import fetch, { Headers, Request, Response } from 'node-fetch';
 
 if (typeof global.TextEncoder === 'undefined') {
   global.TextEncoder = TextEncoder;
@@ -14,11 +15,8 @@ if (typeof global.TextDecoder === 'undefined') {
 }
 
 // Polyfill fetch for Node.js testing environment
-const fetch = require('node-fetch');
-const { Headers, Request, Response } = fetch;
-
 if (typeof global.fetch === 'undefined') {
-  global.fetch = fetch.default || fetch;
+  global.fetch = fetch;
   global.Headers = Headers;
   global.Request = Request;
   global.Response = Response;
@@ -96,25 +94,25 @@ if (global.testUtils.mockDatabase) {
 if (typeof window !== 'undefined' && window.location) {
   // Mock location methods with proper implementation
   if (typeof window.location.assign !== 'function') {
-    window.location.assign = jest.fn((url) => {
+    window.location.assign = (url) => {
       // Simulate navigation by updating href
       Object.defineProperty(window.location, 'href', {
         writable: true,
         value: url
       });
-    });
+    };
   }
   if (typeof window.location.replace !== 'function') {
-    window.location.replace = jest.fn((url) => {
+    window.location.replace = (url) => {
       // Simulate navigation by updating href
       Object.defineProperty(window.location, 'href', {
         writable: true,
         value: url
       });
-    });
+    };
   }
   if (typeof window.location.reload !== 'function') {
-    window.location.reload = jest.fn();
+    window.location.reload = () => {};
   }
 }
 
@@ -122,38 +120,38 @@ if (typeof window !== 'undefined' && window.location) {
 if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'navigation', {
     value: {
-      navigate: jest.fn(),
-      back: jest.fn(),
-      forward: jest.fn(),
+      navigate: () => Promise.resolve(),
+      back: () => Promise.resolve(),
+      forward: () => Promise.resolve(),
     },
     writable: true,
   });
 }
 
-// Mock caches API
+// Mock caches API (use plain functions instead of jest.fn in setup)
 Object.defineProperty(global, 'caches', {
   value: {
-    open: jest.fn(() => Promise.resolve({
-      match: jest.fn(),
-      put: jest.fn(),
-      delete: jest.fn(),
-    })),
-    delete: jest.fn(),
-    keys: jest.fn(() => Promise.resolve([])),
+    open: () => Promise.resolve({
+      match: () => Promise.resolve(),
+      put: () => Promise.resolve(),
+      delete: () => Promise.resolve(),
+    }),
+    delete: () => Promise.resolve(),
+    keys: () => Promise.resolve([]),
   },
   writable: true,
 });
 
-// Mock ResizeObserver
-global.ResizeObserver = jest.fn().mockImplementation(() => ({
-  observe: jest.fn(),
-  unobserve: jest.fn(),
-  disconnect: jest.fn(),
-}));
+// Mock ResizeObserver (use plain function instead of jest.fn in setup)
+global.ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
 
 // Mock IntersectionObserver
-global.IntersectionObserver = jest.fn().mockImplementation(() => ({
-  observe: jest.fn(),
-  unobserve: jest.fn(),
-  disconnect: jest.fn(),
-}));
+global.IntersectionObserver = class IntersectionObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};

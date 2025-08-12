@@ -5,7 +5,7 @@
  * to ensure robust protection against various attack vectors
  */
 
-import { describe, test, expect, beforeEach, afterEach } from '@jest/test-globals';
+import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import request from 'supertest';
 import { SecurityValidator, SecureSchemas } from '../../shared/security-validation';
 import { ClientValidator } from '../../client/src/lib/client-validation';

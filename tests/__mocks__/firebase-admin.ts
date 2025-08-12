@@ -3,6 +3,8 @@
  * Provides mock implementations to bypass ES Module import issues
  */
 
+import { jest } from '@jest/globals';
+
 // Mock Firebase App
 export const mockApp = {
   name: 'test-app',

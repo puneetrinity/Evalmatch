@@ -33,14 +33,19 @@ export default {
   ],
   coverageDirectory: 'coverage/unit',
   coverageReporters: ['text', 'lcov', 'html'],
-  verbose: true,
+  verbose: false, // Reduce verbose output to save memory
   silent: false,
   maxWorkers: 1, // Sequential execution for unit tests to prevent memory conflicts
-  workerIdleMemoryLimit: '128MB', // Lower limit for unit tests
-  testTimeout: 10000,
+  workerIdleMemoryLimit: '256MB', // Increased limit for complex tests
+  testTimeout: 15000, // Increased timeout for memory-intensive tests
   
   // Additional memory optimization for unit tests
-  logHeapUsage: true,
+  logHeapUsage: false, // Disable heap logging to save memory
   forceExit: true,
   detectOpenHandles: false, // Disable for unit tests to improve performance
+  
+  // Memory optimization settings
+  clearMocks: true,
+  restoreMocks: true,
+  resetModules: false, // Keep false unless specifically needed per test
 };

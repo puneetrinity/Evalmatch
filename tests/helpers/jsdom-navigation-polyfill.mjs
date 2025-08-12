@@ -5,21 +5,21 @@
 
 // Polyfill navigation methods that JSDOM doesn't implement
 if (typeof window !== 'undefined' && !window.navigation) {
-  // Mock navigation API
+  // Mock navigation API (use plain functions instead of jest.fn in setup)
   window.navigation = {
-    navigate: jest.fn(() => Promise.resolve()),
-    back: jest.fn(() => Promise.resolve()),
-    forward: jest.fn(() => Promise.resolve()),
+    navigate: () => Promise.resolve(),
+    back: () => Promise.resolve(),
+    forward: () => Promise.resolve(),
     canGoBack: false,
     canGoForward: false,
-    entries: jest.fn(() => []),
+    entries: () => [],
     currentEntry: null,
-    updateCurrentEntry: jest.fn(),
-    reload: jest.fn(() => Promise.resolve()),
-    traverseTo: jest.fn(() => Promise.resolve()),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
+    updateCurrentEntry: () => {},
+    reload: () => Promise.resolve(),
+    traverseTo: () => Promise.resolve(),
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => {},
   };
 }
 
@@ -42,9 +42,9 @@ if (typeof window !== 'undefined') {
       hash: urlObj.hash,
       host: urlObj.host,
       // Mock navigation methods to prevent JSDOM errors
-      assign: jest.fn(),
-      replace: jest.fn(),
-      reload: jest.fn(),
+      assign: () => {},
+      replace: () => {},
+      reload: () => {},
       toString: () => urlObj.href,
       valueOf: () => urlObj.href,
     };

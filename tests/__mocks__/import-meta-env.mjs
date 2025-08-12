@@ -60,4 +60,4 @@ if (typeof globalThis !== 'undefined') {
   globalThis.importMeta = mockImportMeta;
 }
 
-module.exports = mockImportMeta;
+export default mockImportMeta;
