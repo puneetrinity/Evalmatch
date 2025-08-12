@@ -543,14 +543,77 @@ export class AnalysisService {
 
     // Check for session/batch ID issues when filters are provided
     if ((!analysisResults || analysisResults.length === 0) && (sessionId || batchId)) {
-      logger.warn('No analysis results found with session/batch filters - session may be expired or invalid', { 
+      logger.info('No analysis results found with session/batch filters - checking if resumes exist to run analysis automatically', { 
         userId, 
         jobId, 
         sessionId, 
-        batchId,
-        message: 'User needs to refresh and start new session'
+        batchId
       });
-      return failure(AppBusinessLogicError.sessionExpiredOrInvalid(sessionId, batchId));
+      
+      // Instead of failing, try to find resumes and run analysis automatically
+      try {
+        const resumes = await this._storageProvider.getResumesByUserId(userId, sessionId, batchId);
+        
+        if (!resumes || resumes.length === 0) {
+          logger.warn('No resumes found with session/batch filters - session may be expired or invalid', { 
+            userId, 
+            jobId, 
+            sessionId, 
+            batchId,
+            message: 'User needs to refresh and start new session'
+          });
+          return failure(AppBusinessLogicError.sessionExpiredOrInvalid(sessionId, batchId));
+        }
+        
+        logger.info(`Found ${resumes.length} resumes for session/batch - running analysis automatically`, { 
+          userId, 
+          jobId, 
+          sessionId, 
+          batchId,
+          resumeCount: resumes.length
+        });
+        
+        // Run analysis automatically
+        const analysisResult = await this.analyzeResumesBatch({
+          userId,
+          jobId,
+          sessionId,
+          batchId,
+          resumeIds: resumes.map(r => r.id)
+        });
+        
+        if (isFailure(analysisResult)) {
+          logger.error('Automatic analysis failed', { 
+            userId, 
+            jobId, 
+            sessionId, 
+            batchId,
+            error: analysisResult.error
+          });
+          return failure(analysisResult.error);
+        }
+        
+        logger.info('Automatic analysis completed successfully', { 
+          userId, 
+          jobId, 
+          sessionId, 
+          batchId,
+          resultsCount: analysisResult.data.results.length
+        });
+        
+        // Return the analysis results directly - they're already in the correct format
+        return success(analysisResult.data);
+        
+      } catch (error) {
+        logger.error('Error during automatic analysis', { 
+          userId, 
+          jobId, 
+          sessionId, 
+          batchId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        return failure(AppBusinessLogicError.sessionExpiredOrInvalid(sessionId, batchId));
+      }
     }
 
     if (!analysisResults || analysisResults.length === 0) {
