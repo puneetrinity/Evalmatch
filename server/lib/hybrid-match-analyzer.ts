@@ -607,6 +607,17 @@ export class HybridMatchAnalyzer {
     resumeText: string,
     jobText: string,
   ) {
+    // Debug logging to see what's actually in jobAnalysis
+    const jobSkills = jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.skills || [];
+    logger.info('🔍 DEBUG: ML-only analysis job skills data', {
+      hasAnalyzedData: !!jobAnalysis.analyzedData,
+      analyzedDataRequiredSkills: jobAnalysis.analyzedData?.requiredSkills,
+      legacySkills: jobAnalysis.skills,
+      finalJobSkills: jobSkills,
+      jobSkillsLength: jobSkills.length,
+      jobAnalysisKeys: Object.keys(jobAnalysis)
+    });
+
     return await calculateEnhancedMatch(
       {
         skills: resumeAnalysis.analyzedData?.skills || resumeAnalysis.skills || [],
@@ -619,7 +630,7 @@ export class HybridMatchAnalyzer {
         content: resumeText,
       },
       {
-        skills: jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.skills || [],
+        skills: jobSkills,
         experience: jobAnalysis.experience || jobAnalysis.analyzedData?.experienceLevel || "",
         description: jobText,
       },
