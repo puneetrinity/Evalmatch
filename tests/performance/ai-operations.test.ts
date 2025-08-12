@@ -35,7 +35,7 @@ describe('AI Operations Performance Tests', () => {
     generateAIPerformanceReport();
     
     const { clearFixedTestApp } = await import('../helpers/test-server-fixed');
-    clearFixedTestApp();
+    await clearFixedTestApp();
   });
 
   describe('Resume Analysis Performance', () => {

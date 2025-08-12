@@ -30,7 +30,7 @@ describe('File Processing Performance Tests', () => {
     generatePerformanceReport();
     
     const { clearFixedTestApp } = await import('../helpers/test-server-fixed');
-    clearFixedTestApp();
+    await clearFixedTestApp();
   });
 
   describe('File Upload Performance', () => {

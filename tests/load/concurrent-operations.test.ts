@@ -32,7 +32,7 @@ describe('Concurrent Operations Load Tests', () => {
     generateLoadTestReport();
     
     const { clearFixedTestApp } = await import('../helpers/test-server-fixed');
-    clearFixedTestApp();
+    await clearFixedTestApp();
   });
 
   describe('Health Endpoint Load Tests', () => {

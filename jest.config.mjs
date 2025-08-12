@@ -65,7 +65,6 @@ export default {
       useESM: true,
       tsconfig: './tsconfig.test.json',
       // 2024/2025 ts-jest optimizations
-      isolatedModules: true,
       diagnostics: {
         ignoreCodes: [1343], // Ignore import assertions warnings
       },
@@ -87,8 +86,8 @@ export default {
   },
   
   // Environment Variables Setup
-  globalSetup: undefined,
-  globalTeardown: undefined,
+  globalSetup: '<rootDir>/tests/global-setup.mjs',
+  globalTeardown: '<rootDir>/tests/global-teardown.mjs',
   
   // Import.meta.env handling through setup file
   globals: {
@@ -112,7 +111,7 @@ export default {
   
   // Performance and Memory Optimization (2024/2025 best practices)
   maxWorkers: process.env.CI ? 1 : '25%', // Adjust for CI vs local
-  workerIdleMemoryLimit: process.env.CI ? '512MB' : '256MB',
+  workerIdleMemoryLimit: process.env.CI ? '1024MB' : '512MB',
   
   // Test Execution Configuration
   testTimeout: 30000,
@@ -138,6 +137,7 @@ export default {
   forceExit: true,
   detectOpenHandles: true,
   detectLeaks: process.env.DEBUG_MEMORY === 'true',
+  openHandlesTimeout: 10000, // Give extra time for cleanup in CI
   
   // Test Execution Control
   bail: 0, // Continue running all tests

@@ -26,7 +26,7 @@ describe('API Integration Tests', () => {
   afterAll(async () => {
     // Clear test app and data
     const { clearFixedTestApp } = await import('./helpers/test-server-fixed');
-    clearFixedTestApp();
+    await clearFixedTestApp();
     
     if (global.gc) {
       global.gc();

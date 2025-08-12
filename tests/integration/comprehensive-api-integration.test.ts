@@ -36,7 +36,7 @@ describe('Comprehensive API Integration Tests', () => {
     await cleanupTestData();
     
     const { clearFixedTestApp } = await import('../helpers/test-server-fixed');
-    clearFixedTestApp();
+    await clearFixedTestApp();
   });
 
   describe('Health and System Endpoints', () => {

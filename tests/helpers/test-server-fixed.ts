@@ -5,6 +5,7 @@
 
 import express from "express";
 import cors from "cors";
+import multer from "multer";
 
 interface TestData {
   jobs: Array<{ id: number; title: string; description: string; userId: string; createdAt: string }>;
@@ -25,6 +26,7 @@ interface TestData {
 }
 
 let appInstance: express.Application | null = null;
+let serverInstance: any = null;
 let nextId = 1;
 const MOCK_USER_ID = 'test-user-123';
 
@@ -41,24 +43,25 @@ export async function createFixedTestApp(): Promise<express.Application> {
   }
 
   const app = express();
+  
+  // Create server instance for proper cleanup
+  serverInstance = app.listen(0, 'localhost'); // Listen on random port
 
   // Basic middleware
   app.use(cors({ origin: true, credentials: true }));
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true }));
   
-  // Simple file upload simulation middleware
-  app.use((req: any, res: any, next: any) => {
-    // Simulate multer file handling for testing
-    if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
-      req.file = {
-        originalname: 'test-resume.txt',
-        buffer: Buffer.from('Mock resume content'),
-        mimetype: 'text/plain',
-        size: 100
-      };
+  // Use actual multer for file upload handling in tests
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: 50 * 1024 * 1024, // 50MB limit for testing
+    },
+    fileFilter: (req, file, cb) => {
+      // Let all files through initially - security validation happens in route handlers
+      cb(null, true);
     }
-    next();
   });
 
   // Health endpoints
@@ -199,41 +202,171 @@ export async function createFixedTestApp(): Promise<express.Application> {
     });
   });
 
-  // Resume endpoints
-  app.post('/api/resumes', (req, res) => {
-    // Handle both JSON and form data (for file uploads in tests)
-    let filename, content;
+  // Resume endpoints with security validation
+  app.post('/api/resumes', upload.single('file'), (req, res) => {
+    // Handle both JSON and file upload requests
+    let filename, content, fileBuffer, mimetype, size;
     
-    if (req.body && req.body.filename) {
-      // JSON data
+    if (req.file) {
+      // File upload via multer
+      filename = req.file.originalname;
+      fileBuffer = req.file.buffer;
+      content = fileBuffer.toString();
+      mimetype = req.file.mimetype;
+      size = req.file.size;
+    } else if (req.body && req.body.filename) {
+      // JSON data (fallback)
       filename = req.body.filename;
       content = req.body.content || '';
-    } else if (req.file || req.files) {
-      // File upload (simulate)
-      filename = 'test-resume.txt';
-      content = 'Mock resume content from file upload';
+      fileBuffer = Buffer.from(content);
+      mimetype = 'text/plain';
+      size = content.length;
     } else {
       return res.status(400).json({
         success: false,
         error: 'Validation failed',
-        message: 'Filename or file is required'
+        message: 'File is required'
       });
     }
 
-    const resume = {
-      id: nextId++,
-      filename,
-      content,
-      userId: MOCK_USER_ID,
-      createdAt: new Date().toISOString()
-    };
-    
-    testData.resumes.push(resume);
-    
-    res.json({
-      status: 'success',
-      resume
-    });
+    // Security validation for file uploads
+    try {
+      // 1. Check file size limits (15MB max)
+      if (size > 15 * 1024 * 1024) {
+        return res.status(413).json({
+          success: false,
+          error: 'File too large',
+          message: 'File size must be less than 15MB'
+        });
+      }
+
+      // 2. Check for malicious file content
+      const contentStr = content.toLowerCase();
+      const maliciousPatterns = [
+        '<script',
+        'javascript:',
+        '<?php',
+        'eval(',
+        'drop table',
+        '../../../',
+        '<iframe',
+        'document.cookie',
+        'window.location',
+        'alert(',
+        '.exe',
+        '.bat',
+        '.cmd',
+        '.scr',
+        'mz', // DOS/Windows executable magic number
+        '\x7felf', // ELF executable magic number
+      ];
+
+      for (const pattern of maliciousPatterns) {
+        if (contentStr.includes(pattern)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid file content',
+            message: 'File contains potentially malicious content'
+          });
+        }
+      }
+
+      // 3. Check magic numbers for file type validation
+      if (filename.endsWith('.pdf')) {
+        const header = fileBuffer.subarray(0, 4).toString();
+        if (header !== '%PDF') {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid file content',
+            message: 'PDF file header is invalid'
+          });
+        }
+      }
+
+      // 4. Check for executable files masquerading as documents
+      const executableHeaders = [
+        'MZ', // DOS/Windows executable
+        '\x7fELF', // Linux executable
+        '\xfe\xed\xfa', // Mach-O executable
+      ];
+
+      const headerStr = fileBuffer.subarray(0, 4).toString('binary');
+      for (const execHeader of executableHeaders) {
+        if (headerStr.startsWith(execHeader)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid file content',
+            message: 'Executable files are not allowed'
+          });
+        }
+      }
+
+      // 5. Check for suspicious file entropy (potential encryption/compression bombs)
+      if (size > 1024 * 1024) { // Only check large files
+        const uniqueBytes = new Set(fileBuffer).size;
+        const entropyRatio = uniqueBytes / Math.min(size, 1024); // Sample first 1KB
+        if (entropyRatio < 0.1) { // Very low entropy suggests compression bomb
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid file content',
+            message: 'File appears to be a compression bomb'
+          });
+        }
+      }
+
+      // 6. Validate file extensions
+      const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt', '.rtf'];
+      const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+      if (!allowedExtensions.includes(ext)) {
+        return res.status(400).json({
+          success: false,
+          error: 'File type not allowed',
+          message: `File type ${ext} is not allowed`
+        });
+      }
+
+      // 7. Check for double extensions
+      const filenameWithoutExt = filename.substring(0, filename.lastIndexOf('.'));
+      if (filenameWithoutExt.includes('.')) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid filename',
+          message: 'Double file extensions are not allowed'
+        });
+      }
+
+      // 8. Sanitize content if it passes validation
+      let sanitizedContent = content
+        .replace(/<script[^>]*>.*?<\/script>/gi, '')
+        .replace(/javascript:/gi, '')
+        .replace(/<?php/gi, '')
+        .replace(/eval\(/gi, '')
+        .replace(/drop\s+table/gi, '')
+        .replace(/\.\.\/\.\.\//gi, '')
+        .replace(/<iframe[^>]*>/gi, '');
+
+      const resume = {
+        id: nextId++,
+        filename,
+        content: sanitizedContent,
+        userId: MOCK_USER_ID,
+        createdAt: new Date().toISOString()
+      };
+      
+      testData.resumes.push(resume);
+      
+      res.json({
+        status: 'success',
+        resume
+      });
+
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: 'File processing error',
+        message: 'An error occurred while processing the file'
+      });
+    }
   });
 
   app.get('/api/resumes', (req, res) => {
@@ -431,8 +564,24 @@ export async function createFixedTestApp(): Promise<express.Application> {
   return app;
 }
 
-export function clearFixedTestApp(): void {
+export async function clearFixedTestApp(): Promise<void> {
+  // Close server instance if it exists
+  if (serverInstance) {
+    await new Promise<void>((resolve, reject) => {
+      serverInstance.close((err: any) => {
+        if (err) {
+          console.error('Error closing test server:', err);
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+    serverInstance = null;
+  }
+  
   appInstance = null;
+  
   // Clear test data
   testData.jobs.length = 0;
   testData.resumes.length = 0;

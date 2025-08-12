@@ -51,7 +51,7 @@ describe('Firebase Authentication Integration Tests', () => {
     await cleanupTestUsers();
     
     const { clearFixedTestApp } = await import('../helpers/test-server-fixed');
-    clearFixedTestApp();
+    await clearFixedTestApp();
   });
 
   beforeEach(async () => {

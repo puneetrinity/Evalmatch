@@ -28,7 +28,7 @@ describe('Advanced File Security Tests', () => {
     generateSecurityReport();
     
     const { clearFixedTestApp } = await import('../helpers/test-server-fixed');
-    clearFixedTestApp();
+    await clearFixedTestApp();
   });
 
   describe('Malicious File Detection', () => {
