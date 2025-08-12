@@ -226,6 +226,11 @@ export class AnalysisService {
 
     // Get user's resumes
     let resumes = await this._storageProvider.getResumesByUserId(userId, sessionId, batchId);
+    // Fallback: if filtered query returns no resumes but filters were supplied, try without filters
+    if ((!resumes || resumes.length === 0) && (sessionId || batchId)) {
+      logger.warn('No resumes found with filters; falling back to all user resumes', { userId, jobId, sessionId, batchId });
+      resumes = await this._storageProvider.getResumesByUserId(userId);
+    }
     if (!resumes || resumes.length === 0) {
       return failure(AppNotFoundError.resume('any'));
     }

@@ -7,10 +7,10 @@
 const { Pool } = require('pg');
 
 async function runMigration() {
-  console.log('🔧 Running emergency database schema migration...');
+  console.warn('🔧 Running emergency database schema migration...');
   
   if (!process.env.DATABASE_URL) {
-    console.log('⚠️  No DATABASE_URL found, skipping migration (using memory storage)');
+  console.warn('⚠️  No DATABASE_URL found, skipping migration (using memory storage)');
     return;
   }
 
@@ -28,7 +28,7 @@ async function runMigration() {
     `);
 
     if (checkResult.rows.length === 0) {
-      console.log('📊 Adding missing user_id column to job_descriptions...');
+  console.warn('📊 Adding missing user_id column to job_descriptions...');
       await pool.query('ALTER TABLE job_descriptions ADD COLUMN user_id INTEGER');
     }
 
@@ -40,7 +40,7 @@ async function runMigration() {
     `);
 
     if (checkAnalysis.rows.length === 0) {
-      console.log('📊 Adding missing analyzed_data column to job_descriptions...');
+  console.warn('📊 Adding missing analyzed_data column to job_descriptions...');
       await pool.query('ALTER TABLE job_descriptions ADD COLUMN analyzed_data JSON');
     }
 
@@ -59,7 +59,7 @@ async function runMigration() {
       `, [column]);
 
       if (checkCol.rows.length === 0) {
-        console.log(`📊 Adding missing ${column} column to resumes...`);
+  console.warn(`📊 Adding missing ${column} column to resumes...`);
         await pool.query(`ALTER TABLE resumes ADD COLUMN ${column} ${type}`);
       }
     }
@@ -83,17 +83,17 @@ async function runMigration() {
       `, [column]);
 
       if (checkCol.rows.length === 0) {
-        console.log(`📊 Adding missing ${column} column to analysis_results...`);
+  console.warn(`📊 Adding missing ${column} column to analysis_results...`);
         await pool.query(`ALTER TABLE analysis_results ADD COLUMN ${column} ${type}`);
       }
     }
 
-    console.log('✅ Database migration completed successfully!');
+  console.warn('✅ Database migration completed successfully!');
 
   } catch (error) {
     console.error('❌ Database migration failed:', error);
     // Don't exit with error code - let the app start with memory storage
-    console.log('⚠️  Continuing with memory storage fallback...');
+  console.warn('⚠️  Continuing with memory storage fallback...');
   } finally {
     await pool.end();
   }
@@ -102,7 +102,7 @@ async function runMigration() {
 // Run migration if this script is executed directly
 if (require.main === module) {
   runMigration().then(() => {
-    console.log('Migration script completed');
+  console.warn('Migration script completed');
     process.exit(0);
   }).catch((error) => {
     console.error('Migration script failed:', error);

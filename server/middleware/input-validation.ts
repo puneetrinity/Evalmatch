@@ -181,11 +181,15 @@ export const validationSchemas = {
       jobId: commonSchemas.id,
     }),
     body: z.object({
-      resumeIds: z.array(commonSchemas.id).min(1).max(10),
+      // Make resumeIds optional so API can analyze all resumes when not provided
+      resumeIds: z.array(commonSchemas.id).min(1).max(10).optional(),
+      sessionId: z.string().min(1).optional(),
+      batchId: z.string().min(1).optional(),
       analysisType: z
         .enum(["basic", "detailed", "comprehensive"])
-        .default("basic"),
-      includeRecommendations: z.boolean().default(true),
+        .default("basic")
+        .optional(),
+      includeRecommendations: z.boolean().default(true).optional(),
     }),
   }),
 
