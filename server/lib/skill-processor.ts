@@ -11,6 +11,8 @@
  */
 
 import { spawn } from 'child_process';
+import path from 'path';
+import fs from 'fs';
 import { logger } from './logger';
 import { generateEmbedding, cosineSimilarity } from './embeddings';
 
@@ -278,7 +280,26 @@ export class SkillProcessor {
 
     return new Promise((resolve) => {
       const startTime = Date.now();
-      const pythonProcess = spawn('python', ['esco_service.py'], {
+      
+      // Use production-safe path resolution
+      const escoServicePath = path.resolve(process.cwd(), 'esco_service.py');
+      
+      // Check if ESCO service exists
+      if (!fs.existsSync(escoServicePath)) {
+        logger.error('ESCO service script not found', { escoServicePath });
+        resolve({
+          skills: [],
+          domain: 'general',
+          confidence: 0,
+          processingTime: Date.now() - startTime
+        });
+        return;
+      }
+      
+      // Allow Python path override via environment variable
+      const pythonExec = process.env.PYTHON_PATH || 'python';
+      
+      const pythonProcess = spawn(pythonExec, [escoServicePath], {
         stdio: ['pipe', 'pipe', 'pipe']
       });
 
@@ -312,7 +333,7 @@ export class SkillProcessor {
             throw new Error(`ESCO process failed: ${errorOutput}`);
           }
         } catch (error) {
-          logger.warn('ESCO extraction failed, using fallback:', error);
+          logger.debug('ESCO extraction failed, using fallback:', error);
           resolve({
             skills: [],
             domain: 'general',
@@ -320,6 +341,17 @@ export class SkillProcessor {
             processingTime
           });
         }
+      });
+
+      // Handle Python process spawn errors
+      pythonProcess.on('error', (error) => {
+        logger.debug('Python process spawn failed:', { error: error.message, pythonExec });
+        resolve({
+          skills: [],
+          domain: 'general',
+          confidence: 0,
+          processingTime: Date.now() - startTime
+        });
       });
 
       // Send input to Python process
