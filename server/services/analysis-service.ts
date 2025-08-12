@@ -316,9 +316,25 @@ export class AnalysisService {
         }
 
         // Perform hybrid matching analysis
+        // Convert jobAnalysis back to full AnalyzeJobDescriptionResponse format
+        const jobAnalysisResponse = {
+          id: jobId,
+          title: jobDescription.title,
+          analyzedData: jobAnalysis,
+          processingTime: 0,
+          confidence: 0.8,
+          // Add backward compatibility properties from analyzedData
+          requiredSkills: jobAnalysis?.requiredSkills || [],
+          preferredSkills: jobAnalysis?.preferredSkills || [],
+          experienceLevel: jobAnalysis?.experienceLevel || "",
+          responsibilities: jobAnalysis?.responsibilities || [],
+          summary: jobAnalysis?.summary || "",
+          biasAnalysis: jobAnalysis?.biasAnalysis
+        };
+        
         const hybridResult = await analyzeMatchHybrid(
           resumeAnalysis as any,
-          jobAnalysis as any,
+          jobAnalysisResponse as any,
           userTierInfo,
           resume.content || "",
           jobDescription.description
