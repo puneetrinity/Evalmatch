@@ -212,10 +212,13 @@ export const validationSchemas = {
     body: z.object({
       questionTypes: z
         .array(z.enum(["technical", "behavioral", "situational"]))
-        .min(1),
+        .min(1)
+        .default(["technical", "behavioral", "situational"]),
       difficulty: z.enum(["junior", "mid", "senior"]).default("mid"),
       count: z.number().int().min(1).max(20).default(10),
-    }),
+      sessionId: z.string().optional(),
+      batchId: z.string().optional(),
+    }).default({}),
   }),
 
   // Enhanced user profile validation with comprehensive security
