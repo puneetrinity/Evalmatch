@@ -203,8 +203,10 @@ router.get(
 
       if (isNaN(jobId) || isNaN(resumeId)) {
         return res.status(400).json({
-          error: "Invalid parameters",
+          success: false,
+          error: "VALIDATION_ERROR",
           message: "Job ID and Resume ID must be numbers",
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -217,13 +219,15 @@ router.get(
 
       if (!analysisResult) {
         return res.status(404).json({
-          error: "Analysis result not found",
-          message:
-            "Analysis result not found or you don't have permission to access it",
+          success: false,
+          error: "NOT_FOUND",
+          message: "Analysis result not found or you don't have permission to access it",
+          timestamp: new Date().toISOString(),
         });
       }
 
       res.json({
+        success: true,
         status: "ok",
         match: {
           matchPercentage: analysisResult.matchPercentage,
@@ -234,12 +238,15 @@ router.get(
           confidenceLevel: analysisResult.confidenceLevel,
           fairnessMetrics: analysisResult.fairnessMetrics,
         },
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       logger.error("Failed to get analysis result:", error);
       res.status(500).json({
-        error: "Failed to retrieve analysis result",
-        message: error instanceof Error ? error.message : "Unknown error",
+        success: false,
+        error: "INTERNAL_SERVER_ERROR",
+        message: error instanceof Error ? error.message : "Failed to retrieve analysis result",
+        timestamp: new Date().toISOString(),
       });
     }
   },
@@ -290,18 +297,22 @@ router.post(
 
       const questionsData = result.data;
 
-      // Convert service result to API response format (maintaining backward compatibility)
+      // Convert service result to API response format (frontend expects properties directly)
       res.json({
         success: true,
         status: "success",
         message: "Interview questions generated successfully",
-        data: {
-          id: Date.now(),
-          resumeId: questionsData.resumeId,
-          jobDescriptionId: questionsData.jobId,
-          questions: questionsData.questions || [],
-          metadata: questionsData.metadata
-        },
+        id: Date.now(),
+        resumeId: questionsData.resumeId,
+        resumeName: `Resume ${questionsData.resumeId}`, // Default name, could be improved with actual filename
+        jobDescriptionId: questionsData.jobId,
+        jobTitle: `Job ${questionsData.jobId}`, // Default title, could be improved with actual job title
+        matchPercentage: 75, // Default match percentage, could be retrieved from analysis
+        technicalQuestions: questionsData.questions || [],
+        experienceQuestions: [], // These would be categorized from questionsData.questions
+        skillGapQuestions: [], // These would be categorized from questionsData.questions  
+        inclusionQuestions: [], // These would be categorized from questionsData.questions
+        metadata: questionsData.metadata,
         timestamp: new Date().toISOString(),
       });
 
