@@ -242,7 +242,7 @@ export class HybridMatchAnalyzer {
           };
 
           const jobProfile: JobProfile = {
-            requiredSkills: jobAnalysis.skills || [],
+            requiredSkills: jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.skills || [],
             experience: jobAnalysis.experience || "",
             technologies: [], // Extract from requirements if available
             industries: [], // Would be extracted from content
@@ -326,7 +326,7 @@ export class HybridMatchAnalyzer {
           ),
           jobTitle: jobAnalysis.title || 'Unknown Job',
           jobDescription: jobText || '',
-          requiredSkills: jobAnalysis.skills || []
+          requiredSkills: jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.skills || []
         };
 
         logger.info(`🔍 CONTAMINATION DETECTION: Detected job industry: ${jobContext.industry}`, {
@@ -619,8 +619,8 @@ export class HybridMatchAnalyzer {
         content: resumeText,
       },
       {
-        skills: jobAnalysis.skills || jobAnalysis.analyzedData?.requiredSkills || [],
-        experience: jobAnalysis.experience || "",
+        skills: jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.skills || [],
+        experience: jobAnalysis.experience || jobAnalysis.analyzedData?.experienceLevel || "",
         description: jobText,
       },
       HYBRID_SCORING_WEIGHTS,
@@ -928,7 +928,7 @@ export class HybridMatchAnalyzer {
     return {
       matchPercentage: 50,
       matchedSkills: [],
-      missingSkills: jobAnalysis.skills || [],
+      missingSkills: jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.skills || [],
       candidateStrengths: ["Resume successfully processed"],
       candidateWeaknesses: ["Detailed analysis temporarily unavailable"],
       recommendations: ["Please try analyzing again"],
