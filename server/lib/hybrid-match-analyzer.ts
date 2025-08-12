@@ -173,8 +173,8 @@ export class HybridMatchAnalyzer {
         strategy: strategy,
         hasFullText,
         userTier: userTier.tier,
-        resumeSkills: resumeAnalysis.skills?.length || 0,
-        jobSkills: jobAnalysis.skills?.length || 0,
+        resumeSkills: resumeAnalysis.analyzedData?.skills?.length || resumeAnalysis.skills?.length || 0,
+        jobSkills: jobAnalysis.analyzedData?.requiredSkills?.length || jobAnalysis.skills?.length || 0,
         resumeTextLength: resumeText?.length || 0,
         jobTextLength: jobText?.length || 0,
         aiProvidersAvailable: {
@@ -228,7 +228,7 @@ export class HybridMatchAnalyzer {
       if (resumeText && jobText) {
         try {
           const candidateProfile: CandidateProfile = {
-            skills: resumeAnalysis.skills || [],
+            skills: resumeAnalysis.analyzedData?.skills || resumeAnalysis.skills || [],
             experience: Array.isArray(resumeAnalysis.experience) 
               ? resumeAnalysis.experience.join(", ")
               : resumeAnalysis.experience || "",
@@ -609,7 +609,7 @@ export class HybridMatchAnalyzer {
   ) {
     return await calculateEnhancedMatch(
       {
-        skills: resumeAnalysis.skills || [],
+        skills: resumeAnalysis.analyzedData?.skills || resumeAnalysis.skills || [],
         experience: Array.isArray(resumeAnalysis.experience)
           ? resumeAnalysis.experience.join(", ")
           : resumeAnalysis.experience || resumeAnalysis.analyzedData?.experience || "",
