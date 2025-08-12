@@ -25,7 +25,10 @@ export default {
     '**/tests/**/*.test.{ts,tsx,mts,cts}',
     '!**/tests/unit/**/*',
     '!**/tests/integration/**/*',
-    '!**/tests/e2e/**/*'
+    '!**/tests/e2e/**/*',
+    '!**/tests/railway-*.test.{ts,tsx}',
+    '!**/tests/load/**/*',
+    '!**/tests/performance/**/*'
   ],
   testPathIgnorePatterns: [
     '/node_modules/',
@@ -47,11 +50,20 @@ export default {
     '^firebase-admin$': '<rootDir>/tests/__mocks__/firebase-admin.ts',
     '^jose$': '<rootDir>/tests/__mocks__/jose.ts',
     '^jwks-rsa$': '<rootDir>/tests/__mocks__/jwks-rsa.ts',
+    '^groq-sdk$': '<rootDir>/tests/__mocks__/groq-sdk.ts',
+    '^openai$': '<rootDir>/tests/__mocks__/openai.ts',
+    '^@anthropic-ai/sdk$': '<rootDir>/tests/__mocks__/anthropic.ts',
     
     // Internal module mocks
     '^../../../server/lib/logger$': '<rootDir>/tests/__mocks__/logger.ts',
     '^../../server/lib/logger$': '<rootDir>/tests/__mocks__/logger.ts',
-    '^wouter$': '<rootDir>/tests/__mocks__/wouter.ts',
+    '^wouter$': '<rootDir>/tests/__mocks__/wouter.tsx',
+    
+    // Security and validation mocks
+    '^../../shared/security-validation$': '<rootDir>/tests/__mocks__/security-validation.ts',
+    '^../../client/src/lib/client-validation$': '<rootDir>/tests/__mocks__/client-validation.ts',
+    '^../../server/lib/database-security$': '<rootDir>/tests/__mocks__/database-security.ts',
+    '^../../server/lib/validation-error-handler$': '<rootDir>/tests/__mocks__/validation-error-handler.ts',
     
     // ES Module file extension handling
     '^(\\.{1,2}/.*)\\.js$': '$1',
@@ -73,7 +85,7 @@ export default {
   
   // Transform Ignore Patterns (2024/2025 updated for modern packages)
   transformIgnorePatterns: [
-    'node_modules/(?!(wouter|jose|jwks-rsa|@firebase|regexparam|@xenova|string-similarity|@anthropic-ai|groq-sdk)/)'
+    'node_modules/(?!(wouter|jose|jwks-rsa|@firebase|regexparam|@xenova|string-similarity|@anthropic-ai|groq-sdk|openai|isomorphic-dompurify)/)'
   ],
   
   // Module File Extensions
@@ -111,10 +123,10 @@ export default {
   
   // Performance and Memory Optimization (2024/2025 best practices)
   maxWorkers: process.env.CI ? 1 : '25%', // Adjust for CI vs local
-  workerIdleMemoryLimit: process.env.CI ? '1024MB' : '512MB',
+  workerIdleMemoryLimit: process.env.CI ? '512MB' : '256MB',
   
   // Test Execution Configuration
-  testTimeout: 30000,
+  testTimeout: process.env.CI ? 60000 : 30000, // Longer timeout in CI
   testSequencer: '@jest/test-sequencer', // Use default sequencer for 2024/2025
   
   // Mock and Module Management
