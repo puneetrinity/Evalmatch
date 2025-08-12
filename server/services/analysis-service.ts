@@ -226,11 +226,20 @@ export class AnalysisService {
 
     // Get user's resumes
     let resumes = await this._storageProvider.getResumesByUserId(userId, sessionId, batchId);
-    // Fallback: if filtered query returns no resumes but filters were supplied, try without filters
+    
+    // Check for session/batch ID issues
     if ((!resumes || resumes.length === 0) && (sessionId || batchId)) {
-      logger.warn('No resumes found with filters; falling back to all user resumes', { userId, jobId, sessionId, batchId });
-      resumes = await this._storageProvider.getResumesByUserId(userId);
+      logger.warn('No resumes found with session/batch filters - session may be expired or invalid', { 
+        userId, 
+        jobId, 
+        sessionId, 
+        batchId,
+        message: 'User needs to refresh and start new session'
+      });
+      return failure(AppBusinessLogicError.sessionExpiredOrInvalid(sessionId, batchId));
     }
+    
+    // Check if user has any resumes at all
     if (!resumes || resumes.length === 0) {
       return failure(AppNotFoundError.resume('any'));
     }
@@ -532,6 +541,18 @@ export class AnalysisService {
       batchId
     );
 
+    // Check for session/batch ID issues when filters are provided
+    if ((!analysisResults || analysisResults.length === 0) && (sessionId || batchId)) {
+      logger.warn('No analysis results found with session/batch filters - session may be expired or invalid', { 
+        userId, 
+        jobId, 
+        sessionId, 
+        batchId,
+        message: 'User needs to refresh and start new session'
+      });
+      return failure(AppBusinessLogicError.sessionExpiredOrInvalid(sessionId, batchId));
+    }
+
     if (!analysisResults || analysisResults.length === 0) {
       return failure(AppNotFoundError.analysisResult(jobId));
     }
@@ -753,26 +774,37 @@ export class AnalysisService {
 
     try {
       // Get user tier info
-      const _userTierInfo = getUserTierInfo(userId);
+      const userTierInfo = getUserTierInfo(userId);
 
-      // Perform bias analysis using AI provider
-      // TODO: Implement bias detection functionality
-      // const { detectJobBias } = await import("../lib/bias-detection");
-      // const biasResult = await detectJobBias(jobDescription.description);
-      const biasResult = null; // Placeholder until implementation
+      // Perform bias analysis using the working AI provider implementation
+      const { analyzeBias } = await import("../lib/tiered-ai-provider");
+      const biasResult = await analyzeBias(
+        jobDescription.title,
+        jobDescription.description,
+        userTierInfo
+      );
+
+      // Store bias analysis in job description
+      try {
+        await this._storageProvider.updateJobDescriptionBiasAnalysis(jobId, biasResult);
+      } catch (error) {
+        logger.error('Failed to update job with bias analysis', { jobId, error });
+        // Continue - analysis succeeded, storage update failed (non-critical)
+      }
 
       logger.info('Bias analysis completed', {
         userId,
         jobId,
-        hasBias: false, // biasResult?.hasBias || false,
-        biasScore: 0 // biasResult?.biasScore || 0
+        hasBias: biasResult?.hasBias || false,
+        biasScore: biasResult?.overallScore || 0,
+        biasTypes: biasResult?.biasTypes?.length || 0
       });
 
       return success({
         jobId,
         biasAnalysis: biasResult,
-        suggestions: [], // biasResult?.suggestions || [],
-        overallBiasScore: 0, // biasResult?.biasScore || 0,
+        suggestions: biasResult?.suggestions || [],
+        overallBiasScore: biasResult?.overallScore || 0,
         analysisDate: new Date().toISOString()
       });
 

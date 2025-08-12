@@ -308,6 +308,21 @@ export class AppBusinessLogicError extends BaseAppError implements BusinessLogic
       `Operation '${operation}' exceeds limits for tier '${userTier}'`
     );
   }
+
+  static sessionExpiredOrInvalid(sessionId?: string, batchId?: string): AppBusinessLogicError {
+    const details = {
+      sessionId,
+      batchId,
+      solution: 'Refresh the page to start a new session and re-upload the resumes you want to analyze',
+      userAction: 'REFRESH_AND_RETRY'
+    };
+    
+    return new AppBusinessLogicError(
+      'session-management',
+      'Session or batch ID is invalid. No resumes found for the current session.',
+      details
+    );
+  }
 }
 
 // External service errors (502/503)
