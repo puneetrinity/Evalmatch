@@ -57,7 +57,7 @@ BEGIN
         SELECT 1 FROM information_schema.table_constraints 
         WHERE table_name = 'skill_memory' 
         AND constraint_type = 'UNIQUE' 
-        AND constraint_name = 'skill_memory_skill_text_key'
+        AND (constraint_name = 'skill_memory_skill_text_key' OR constraint_name = 'skill_memory_skill_text_unique')
     ) THEN
         ALTER TABLE skill_memory ADD CONSTRAINT skill_memory_skill_text_unique UNIQUE (skill_text);
     END IF;
@@ -92,7 +92,7 @@ BEGIN
             SELECT 1 FROM information_schema.table_constraints 
             WHERE table_name = 'skill_promotion_log' 
             AND constraint_type = 'FOREIGN KEY' 
-            AND constraint_name LIKE '%skill_id%'
+            AND constraint_name = 'fk_skill_promotion_log_skill_id'
         ) THEN
             ALTER TABLE skill_promotion_log 
             ADD CONSTRAINT fk_skill_promotion_log_skill_id 
