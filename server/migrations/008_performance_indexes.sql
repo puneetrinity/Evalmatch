@@ -17,11 +17,11 @@ ON CONFLICT (version) DO NOTHING;
 CREATE INDEX IF NOT EXISTS idx_analysis_results_composite 
 ON analysis_results(user_id, job_description_id, created_at DESC);
 
--- CRITICAL: Composite index for resume filtering
--- Optimizes: "Get resumes by user with batch/session filtering"
-CREATE INDEX IF NOT EXISTS idx_resumes_batch_session 
-ON resumes(user_id, batch_id, session_id) 
-WHERE batch_id IS NOT NULL OR session_id IS NOT NULL;
+-- CRITICAL: Composite index for resume filtering  
+-- Optimizes: "Get resumes by user filtering"
+-- Note: batch_id and session_id indexes will be created in later migrations
+CREATE INDEX IF NOT EXISTS idx_resumes_user_created
+ON resumes(user_id, created_at DESC);
 
 -- CRITICAL: Composite index for resume-job analysis lookups
 -- Optimizes: "Check if analysis exists for resume-job pair"
@@ -49,10 +49,10 @@ ON resumes(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_job_descriptions_user_recent
 ON job_descriptions(user_id, created_at DESC);
 
--- Optimize batch processing queries
-CREATE INDEX IF NOT EXISTS idx_resumes_batch_created
-ON resumes(batch_id, created_at DESC)
-WHERE batch_id IS NOT NULL;
+-- Optimize batch processing queries (will be created in later migration after batch_id column exists)
+-- CREATE INDEX IF NOT EXISTS idx_resumes_batch_created
+-- ON resumes(batch_id, created_at DESC)
+-- WHERE batch_id IS NOT NULL;
 
 -- ============================================================================
 -- PARTIAL INDEXES FOR COMMON FILTERS

@@ -1,6 +1,7 @@
-// Load environment variables first before any other imports
-import dotenv from 'dotenv';
-dotenv.config();
+// Only load dotenv in development, not in production (Railway provides env vars)
+if (process.env.NODE_ENV !== 'production' && !process.env.RAILWAY_ENVIRONMENT) {
+  import('dotenv').then(dotenv => dotenv.config());
+}
 
 import express from "express";
 import cors from "cors";
