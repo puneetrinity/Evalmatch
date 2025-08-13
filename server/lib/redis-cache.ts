@@ -52,7 +52,14 @@ export class CacheManager {
     }
 
     try {
-      const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+      let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+      
+      // Railway best practice: Add family=0 for dual-stack IPv4/IPv6 support if not present
+      if (redisUrl.includes('.railway.internal') && !redisUrl.includes('family=')) {
+        redisUrl += redisUrl.includes('?') ? '&family=0' : '?family=0';
+      }
+      
+      logger.info('Attempting Redis connection...', { url: redisUrl.replace(/:[^:@]+@/, ':***@') });
       
       this.redis = new Redis(redisUrl, {
         maxRetriesPerRequest: 3,
@@ -65,35 +72,51 @@ export class CacheManager {
         },
         lazyConnect: false,
         enableOfflineQueue: false,
+        connectTimeout: 10000, // 10 second timeout
+        commandTimeout: 5000,  // 5 second command timeout
       });
 
       this.redis.on('connect', () => {
         this.isConnected = true;
-        logger.info('Redis cache connected successfully');
+        logger.info('✅ Redis cache connected successfully');
       });
 
       this.redis.on('error', (error: Error) => {
-        logger.error('Redis cache error:', error);
+        logger.error('❌ Redis cache error:', error);
         this.isConnected = false;
       });
 
       this.redis.on('close', () => {
         this.isConnected = false;
-        logger.warn('Redis connection closed');
+        logger.warn('⚠️  Redis connection closed');
       });
 
-      // Test connection
-      await this.redis.ping();
+      this.redis.on('reconnecting', () => {
+        logger.info('🔄 Redis reconnecting...');
+      });
+
+      // Test connection with timeout
+      await Promise.race([
+        this.redis.ping(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Redis ping timeout')), 10000)
+        )
+      ]);
+      
       this.isConnected = true;
+      logger.info('✅ Redis ping successful, cache ready');
       
     } catch (error) {
       this.connectionAttempts++;
-      logger.warn(`Redis connection attempt ${this.connectionAttempts} failed:`, error);
+      logger.error(`❌ Redis connection attempt ${this.connectionAttempts} failed:`, error);
       this.isConnected = false;
       
       // Retry connection after delay
       if (this.connectionAttempts < this.MAX_RETRIES) {
+        logger.info(`🔄 Retrying Redis connection in 5 seconds... (${this.connectionAttempts}/${this.MAX_RETRIES})`);
         setTimeout(() => this.connect(), 5000);
+      } else {
+        logger.warn('❌ Redis connection failed permanently, cache disabled');
       }
     }
   }
