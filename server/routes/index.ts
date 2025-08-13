@@ -14,6 +14,7 @@ import debugRoutes from "./debug";
 import dbCheckRoutes from "./db-check";
 import batchRoutes from "./batches";
 import versionRoutes from "./version";
+import { monitoringRouter } from "./monitoring";
 
 /**
  * Register all modular routes with the Express app
@@ -36,6 +37,7 @@ function registerV1Routes(app: Express): void {
 
   // Health and system monitoring routes
   app.use("/api/v1", healthRoutes);
+  app.use("/api/v1/monitoring", monitoringRouter);
 
   // User and authentication routes
   app.use("/api/v1", userRoutes);
@@ -70,6 +72,7 @@ function registerLegacyRoutes(app: Express): void {
 
   // Health and system monitoring routes
   app.use("/api", healthRoutes);
+  app.use("/api/monitoring", monitoringRouter);
 
   // User and authentication routes
   app.use("/api", userRoutes);
