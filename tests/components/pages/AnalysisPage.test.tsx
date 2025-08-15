@@ -13,6 +13,7 @@
  * - Accessibility features
  */
 
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import React from 'react';
 import { within } from '@testing-library/react';
 import { screen, waitFor } from '@testing-library/dom';

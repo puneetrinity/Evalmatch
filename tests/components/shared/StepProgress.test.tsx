@@ -11,6 +11,7 @@
  * - Edge cases and error scenarios
  */
 
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import React from 'react';
 import { render, screen, within } from '@testing-library/react';
 
