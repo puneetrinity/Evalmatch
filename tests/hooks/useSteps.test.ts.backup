@@ -1,0 +1,738 @@
+/**
+ * Comprehensive Tests for useSteps Hook
+ * 
+ * Tests all functionality including:
+ * - Hook initialization and state management
+ * - Step navigation (next, previous, direct)
+ * - Step state calculation (completed, current)
+ * - Boundary conditions and edge cases
+ * - State consistency and integrity
+ * - Performance and memory efficiency
+ */
+
+import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+
+import { useSteps } from '@/hooks/use-steps';
+import {
+  setupTest,
+  cleanupTest,
+} from '../helpers/component-test-helpers';
+
+// ===== TEST DATA =====
+
+const sampleSteps = [
+  'Resume Upload',
+  'Job Description',
+  'Bias Detection',
+  'Fit Analysis',
+  'Interview Prep',
+];
+
+const singleStep = ['Only Step'];
+
+const emptySteps: string[] = [];
+
+const manySteps = Array.from({ length: 20 }, (_, index) => `Step ${index + 1}`);
+
+const stepsWithSpecialCharacters = [
+  'Step with "Quotes"',
+  'Step with <HTML>',
+  'Step with & Symbols',
+  'Step with ñ unicode',
+];
+
+// ===== TEST SETUP =====
+
+describe('useSteps Hook', () => {
+  beforeEach(() => {
+    setupTest();
+  });
+
+  afterEach(() => {
+    cleanupTest();
+  });
+
+  // ===== INITIALIZATION TESTS =====
+
+  describe('Hook Initialization', () => {
+    it('should initialize with default values', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps));
+
+      expect(result.current.currentStepIndex).toBe(0);
+      expect(result.current.isFirstStep).toBe(true);
+      expect(result.current.isLastStep).toBe(false);
+      expect(result.current.steps).toHaveLength(sampleSteps.length);
+    });
+
+    it('should initialize with custom initial step', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps, 2));
+
+      expect(result.current.currentStepIndex).toBe(2);
+      expect(result.current.isFirstStep).toBe(false);
+      expect(result.current.isLastStep).toBe(false);
+      expect(result.current.currentStep.title).toBe('Bias Detection');
+    });
+
+    it('should handle initialization with last step', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps, 4));
+
+      expect(result.current.currentStepIndex).toBe(4);
+      expect(result.current.isFirstStep).toBe(false);
+      expect(result.current.isLastStep).toBe(true);
+      expect(result.current.currentStep.title).toBe('Interview Prep');
+    });
+
+    it('should handle single step initialization', () => {
+      const { result } = renderHook(() => useSteps(singleStep));
+
+      expect(result.current.currentStepIndex).toBe(0);
+      expect(result.current.isFirstStep).toBe(true);
+      expect(result.current.isLastStep).toBe(true);
+      expect(result.current.steps).toHaveLength(1);
+      expect(result.current.currentStep.title).toBe('Only Step');
+    });
+
+    it('should handle empty steps array', () => {
+      const { result } = renderHook(() => useSteps(emptySteps));
+
+      expect(result.current.currentStepIndex).toBe(0);
+      expect(result.current.isFirstStep).toBe(true);
+      expect(result.current.isLastStep).toBe(true);
+      expect(result.current.steps).toHaveLength(0);
+    });
+  });
+
+  // ===== STEP STATE GENERATION =====
+
+  describe('Step State Generation', () => {
+    it('should generate correct step states for initial state', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps));
+
+      const steps = result.current.steps;
+
+      // First step should be current
+      expect(steps[0]).toEqual({
+        id: 'step-1',
+        title: 'Resume Upload',
+        isCompleted: false,
+        isCurrent: true,
+      });
+
+      // Subsequent steps should be pending
+      expect(steps[1]).toEqual({
+        id: 'step-2',
+        title: 'Job Description',
+        isCompleted: false,
+        isCurrent: false,
+      });
+
+      expect(steps[2]).toEqual({
+        id: 'step-3',
+        title: 'Bias Detection',
+        isCompleted: false,
+        isCurrent: false,
+      });
+    });
+
+    it('should generate correct step states for middle step', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps, 2));
+
+      const steps = result.current.steps;
+
+      // Previous steps should be completed
+      expect(steps[0].isCompleted).toBe(true);
+      expect(steps[0].isCurrent).toBe(false);
+      expect(steps[1].isCompleted).toBe(true);
+      expect(steps[1].isCurrent).toBe(false);
+
+      // Current step
+      expect(steps[2].isCompleted).toBe(false);
+      expect(steps[2].isCurrent).toBe(true);
+
+      // Future steps should be pending
+      expect(steps[3].isCompleted).toBe(false);
+      expect(steps[3].isCurrent).toBe(false);
+      expect(steps[4].isCompleted).toBe(false);
+      expect(steps[4].isCurrent).toBe(false);
+    });
+
+    it('should generate correct step IDs', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps));
+
+      const steps = result.current.steps;
+
+      steps.forEach((step, index) => {
+        expect(step.id).toBe(`step-${index + 1}`);
+      });
+    });
+
+    it('should handle steps with special characters', () => {
+      const { result } = renderHook(() => useSteps(stepsWithSpecialCharacters));
+
+      const steps = result.current.steps;
+
+      expect(steps[0].title).toBe('Step with "Quotes"');
+      expect(steps[1].title).toBe('Step with <HTML>');
+      expect(steps[2].title).toBe('Step with & Symbols');
+      expect(steps[3].title).toBe('Step with ñ unicode');
+    });
+  });
+
+  // ===== CURRENT STEP TRACKING =====
+
+  describe('Current Step Tracking', () => {
+    it('should track current step correctly', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps, 1));
+
+      expect(result.current.currentStep).toEqual({
+        id: 'step-2',
+        title: 'Job Description',
+        isCompleted: false,
+        isCurrent: true,
+      });
+    });
+
+    it('should update current step when index changes', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps));
+
+      // Initially at step 0
+      expect(result.current.currentStep.title).toBe('Resume Upload');
+
+      // Move to next step
+      act(() => {
+        result.current.goToNextStep();
+      });
+
+      expect(result.current.currentStep.title).toBe('Job Description');
+    });
+
+    it('should maintain current step consistency', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps, 2));
+
+      const currentStep = result.current.currentStep;
+      const stepsArray = result.current.steps;
+      const currentFromArray = stepsArray[result.current.currentStepIndex];
+
+      expect(currentStep).toEqual(currentFromArray);
+    });
+  });
+
+  // ===== NAVIGATION FUNCTIONS =====
+
+  describe('Navigation Functions', () => {
+    describe('goToNextStep', () => {
+      it('should move to next step when possible', () => {
+        const { result } = renderHook(() => useSteps(sampleSteps));
+
+        const success = act(() => result.current.goToNextStep());
+
+        expect(success).toBe(true);
+        expect(result.current.currentStepIndex).toBe(1);
+        expect(result.current.currentStep.title).toBe('Job Description');
+      });
+
+      it('should not move beyond last step', () => {
+        const { result } = renderHook(() => useSteps(sampleSteps, 4));
+
+        const success = act(() => result.current.goToNextStep());
+
+        expect(success).toBe(false);
+        expect(result.current.currentStepIndex).toBe(4);
+        expect(result.current.isLastStep).toBe(true);
+      });
+
+      it('should return correct success/failure status', () => {
+        const { result } = renderHook(() => useSteps(sampleSteps));
+
+        // Should succeed from first step
+        let success = act(() => result.current.goToNextStep());
+        expect(success).toBe(true);
+
+        // Move to last step
+        act(() => {
+          result.current.goToStep(4);
+        });
+
+        // Should fail from last step
+        act(() => {
+          success = result.current.goToNextStep();
+        });
+        expect(success).toBe(false);
+      });
+
+      it('should handle single step scenario', () => {
+        const { result } = renderHook(() => useSteps(singleStep));
+
+        let success: boolean;
+        act(() => {
+          success = result.current.goToNextStep();
+        });
+
+        expect(success!).toBe(false);
+        expect(result.current.currentStepIndex).toBe(0);
+      });
+    });
+
+    describe('goToPreviousStep', () => {
+      it('should move to previous step when possible', () => {
+        const { result } = renderHook(() => useSteps(sampleSteps, 2));
+
+        const success = act(() => result.current.goToPreviousStep());
+
+        expect(success).toBe(true);
+        expect(result.current.currentStepIndex).toBe(1);
+        expect(result.current.currentStep.title).toBe('Job Description');
+      });
+
+      it('should not move before first step', () => {
+        const { result } = renderHook(() => useSteps(sampleSteps));
+
+        const success = act(() => result.current.goToPreviousStep());
+
+        expect(success).toBe(false);
+        expect(result.current.currentStepIndex).toBe(0);
+        expect(result.current.isFirstStep).toBe(true);
+      });
+
+      it('should return correct success/failure status', () => {
+        const { result } = renderHook(() => useSteps(sampleSteps, 2));
+
+        // Should succeed from middle step
+        let success = act(() => result.current.goToPreviousStep());
+        expect(success).toBe(true);
+
+        // Should succeed from second step
+        success = act(() => result.current.goToPreviousStep());
+        expect(success).toBe(true);
+
+        // Should fail from first step
+        success = act(() => result.current.goToPreviousStep());
+        expect(success).toBe(false);
+      });
+
+      it('should handle single step scenario', () => {
+        const { result } = renderHook(() => useSteps(singleStep));
+
+        const success = act(() => result.current.goToPreviousStep());
+
+        expect(success).toBe(false);
+        expect(result.current.currentStepIndex).toBe(0);
+      });
+    });
+
+    describe('goToStep', () => {
+      it('should move to valid step index', () => {
+        const { result } = renderHook(() => useSteps(sampleSteps));
+
+        const success = act(() => result.current.goToStep(3));
+
+        expect(success).toBe(true);
+        expect(result.current.currentStepIndex).toBe(3);
+        expect(result.current.currentStep.title).toBe('Fit Analysis');
+      });
+
+      it('should handle first step navigation', () => {
+        const { result } = renderHook(() => useSteps(sampleSteps, 2));
+
+        const success = act(() => result.current.goToStep(0));
+
+        expect(success).toBe(true);
+        expect(result.current.currentStepIndex).toBe(0);
+        expect(result.current.isFirstStep).toBe(true);
+      });
+
+      it('should handle last step navigation', () => {
+        const { result } = renderHook(() => useSteps(sampleSteps));
+
+        const success = act(() => result.current.goToStep(4));
+
+        expect(success).toBe(true);
+        expect(result.current.currentStepIndex).toBe(4);
+        expect(result.current.isLastStep).toBe(true);
+      });
+
+      it('should reject invalid step indices', () => {
+        const { result } = renderHook(() => useSteps(sampleSteps));
+
+        // Negative index
+        let success = act(() => result.current.goToStep(-1));
+        expect(success).toBe(false);
+        expect(result.current.currentStepIndex).toBe(0);
+
+        // Out of bounds index
+        success = act(() => result.current.goToStep(10));
+        expect(success).toBe(false);
+        expect(result.current.currentStepIndex).toBe(0);
+      });
+
+      it('should handle edge case indices', () => {
+        const { result } = renderHook(() => useSteps(sampleSteps));
+
+        // Index equal to length
+        let success = act(() => result.current.goToStep(5));
+        expect(success).toBe(false);
+
+        // Very large index
+        success = act(() => result.current.goToStep(1000));
+        expect(success).toBe(false);
+
+        // Float index (should be rejected)
+        success = act(() => result.current.goToStep(2.5));
+        expect(success).toBe(false);
+      });
+    });
+  });
+
+  // ===== BOUNDARY CONDITIONS =====
+
+  describe('Boundary Conditions', () => {
+    it('should handle isFirstStep correctly', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps));
+
+      expect(result.current.isFirstStep).toBe(true);
+
+      act(() => {
+        result.current.goToNextStep();
+      });
+
+      expect(result.current.isFirstStep).toBe(false);
+
+      act(() => {
+        result.current.goToPreviousStep();
+      });
+
+      expect(result.current.isFirstStep).toBe(true);
+    });
+
+    it('should handle isLastStep correctly', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps));
+
+      expect(result.current.isLastStep).toBe(false);
+
+      act(() => {
+        result.current.goToStep(4);
+      });
+
+      expect(result.current.isLastStep).toBe(true);
+
+      act(() => {
+        result.current.goToPreviousStep();
+      });
+
+      expect(result.current.isLastStep).toBe(false);
+    });
+
+    it('should handle single step edge case', () => {
+      const { result } = renderHook(() => useSteps(singleStep));
+
+      expect(result.current.isFirstStep).toBe(true);
+      expect(result.current.isLastStep).toBe(true);
+      expect(result.current.currentStepIndex).toBe(0);
+
+      // Navigation should not work
+      act(() => {
+        result.current.goToNextStep();
+      });
+      expect(result.current.currentStepIndex).toBe(0);
+
+      act(() => {
+        result.current.goToPreviousStep();
+      });
+      expect(result.current.currentStepIndex).toBe(0);
+    });
+
+    it('should handle empty steps array', () => {
+      const { result } = renderHook(() => useSteps(emptySteps));
+
+      expect(result.current.isFirstStep).toBe(true);
+      expect(result.current.isLastStep).toBe(true);
+      expect(result.current.currentStepIndex).toBe(0);
+      expect(result.current.steps).toHaveLength(0);
+
+      // Navigation should fail gracefully
+      let success = act(() => result.current.goToNextStep());
+      expect(success).toBe(false);
+
+      success = act(() => result.current.goToPreviousStep());
+      expect(success).toBe(false);
+
+      success = act(() => result.current.goToStep(0));
+      expect(success).toBe(false);
+    });
+  });
+
+  // ===== STATE CONSISTENCY =====
+
+  describe('State Consistency', () => {
+    it('should maintain consistent state after navigation', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps));
+
+      // Navigate through all steps
+      for (let i = 1; i < sampleSteps.length; i++) {
+        act(() => {
+          result.current.goToNextStep();
+        });
+
+        expect(result.current.currentStepIndex).toBe(i);
+        expect(result.current.currentStep.title).toBe(sampleSteps[i]);
+        expect(result.current.isFirstStep).toBe(i === 0);
+        expect(result.current.isLastStep).toBe(i === sampleSteps.length - 1);
+
+        // Check step states
+        result.current.steps.forEach((step, index) => {
+          expect(step.isCompleted).toBe(index < i);
+          expect(step.isCurrent).toBe(index === i);
+        });
+      }
+    });
+
+    it('should maintain state integrity after random navigation', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps));
+
+      const testIndices = [3, 1, 4, 0, 2];
+
+      testIndices.forEach(targetIndex => {
+        act(() => {
+          result.current.goToStep(targetIndex);
+        });
+
+        expect(result.current.currentStepIndex).toBe(targetIndex);
+        expect(result.current.currentStep.title).toBe(sampleSteps[targetIndex]);
+
+        // Verify all step states
+        result.current.steps.forEach((step, index) => {
+          expect(step.isCompleted).toBe(index < targetIndex);
+          expect(step.isCurrent).toBe(index === targetIndex);
+        });
+      });
+    });
+
+    it('should handle rapid sequential navigation', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps));
+
+      // Rapid forward navigation
+      act(() => {
+        result.current.goToNextStep();
+        result.current.goToNextStep();
+        result.current.goToNextStep();
+      });
+
+      expect(result.current.currentStepIndex).toBe(3);
+
+      // Rapid backward navigation
+      act(() => {
+        result.current.goToPreviousStep();
+        result.current.goToPreviousStep();
+      });
+
+      expect(result.current.currentStepIndex).toBe(1);
+    });
+  });
+
+  // ===== PERFORMANCE TESTS =====
+
+  describe('Performance', () => {
+    it('should handle large number of steps efficiently', () => {
+      const { result } = renderHook(() => useSteps(manySteps));
+
+      expect(result.current.steps).toHaveLength(20);
+
+      // Navigation should still be efficient
+      act(() => {
+        result.current.goToStep(15);
+      });
+
+      expect(result.current.currentStepIndex).toBe(15);
+      expect(result.current.currentStep.title).toBe('Step 16');
+    });
+
+    it('should not recreate step objects unnecessarily', () => {
+      const { result, rerender } = renderHook(() => useSteps(sampleSteps));
+
+      const initialSteps = result.current.steps;
+
+      // Rerender without changing steps
+      rerender();
+
+      const afterRerender = result.current.steps;
+
+      // Steps array should be referentially equal (memoized)
+      expect(afterRerender).toEqual(initialSteps);
+    });
+
+    it('should handle frequent navigation efficiently', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps));
+
+      // Perform many navigation operations
+      const startTime = performance.now();
+
+      for (let i = 0; i < 100; i++) {
+        act(() => {
+          const targetStep = i % sampleSteps.length;
+          result.current.goToStep(targetStep);
+        });
+      }
+
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+
+      // Should complete quickly (arbitrary threshold)
+      expect(duration).toBeLessThan(1000);
+      expect(result.current.currentStepIndex).toBe(0); // 100 % 5 = 0
+    });
+  });
+
+  // ===== ERROR HANDLING =====
+
+  describe('Error Handling', () => {
+    it('should handle malformed step data gracefully', () => {
+      const malformedSteps = [
+        null,
+        undefined,
+        '',
+        'Valid Step',
+        123,
+        {},
+      ] as any[];
+
+      expect(() => {
+        renderHook(() => useSteps(malformedSteps));
+      }).not.toThrow();
+    });
+
+    it('should handle navigation with invalid parameters', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps));
+
+      // Invalid goToStep calls should not crash
+      expect(() => {
+        act(() => {
+          result.current.goToStep(null as any);
+        });
+      }).not.toThrow();
+
+      expect(() => {
+        act(() => {
+          result.current.goToStep(undefined as any);
+        });
+      }).not.toThrow();
+
+      expect(() => {
+        act(() => {
+          result.current.goToStep('invalid' as any);
+        });
+      }).not.toThrow();
+
+      // Should remain at initial position
+      expect(result.current.currentStepIndex).toBe(0);
+    });
+
+    it('should handle hook initialization with invalid parameters', () => {
+      expect(() => {
+        renderHook(() => useSteps(null as any));
+      }).not.toThrow();
+
+      expect(() => {
+        renderHook(() => useSteps(undefined as any));
+      }).not.toThrow();
+
+      expect(() => {
+        renderHook(() => useSteps(sampleSteps, -5));
+      }).not.toThrow();
+
+      expect(() => {
+        renderHook(() => useSteps(sampleSteps, 1000));
+      }).not.toThrow();
+    });
+  });
+
+  // ===== INTEGRATION SCENARIOS =====
+
+  describe('Integration Scenarios', () => {
+    it('should work correctly with dynamic step arrays', () => {
+      let currentSteps = ['Step 1', 'Step 2'];
+      
+      const { result, rerender } = renderHook(() => useSteps(currentSteps));
+
+      expect(result.current.steps).toHaveLength(2);
+
+      // Add more steps
+      currentSteps = ['Step 1', 'Step 2', 'Step 3', 'Step 4'];
+      rerender();
+
+      expect(result.current.steps).toHaveLength(4);
+      expect(result.current.currentStepIndex).toBe(0); // Should remain at same position
+    });
+
+    it('should handle step array changes while navigated', () => {
+      let currentSteps = sampleSteps;
+      
+      const { result, rerender } = renderHook(() => useSteps(currentSteps, 2));
+
+      expect(result.current.currentStepIndex).toBe(2);
+
+      // Change steps while navigated
+      currentSteps = ['New Step 1', 'New Step 2'];
+      rerender();
+
+      // Should handle gracefully - behavior depends on implementation
+      expect(result.current.steps).toHaveLength(2);
+    });
+
+    it('should work with real-world step progression', () => {
+      const { result } = renderHook(() => useSteps(sampleSteps));
+
+      // Simulate real user progression
+      expect(result.current.currentStep.title).toBe('Resume Upload');
+
+      // User completes upload, moves to job description
+      act(() => {
+        result.current.goToNextStep();
+      });
+      expect(result.current.currentStep.title).toBe('Job Description');
+
+      // User goes back to check upload
+      act(() => {
+        result.current.goToPreviousStep();
+      });
+      expect(result.current.currentStep.title).toBe('Resume Upload');
+
+      // User jumps directly to analysis
+      act(() => {
+        result.current.goToStep(3);
+      });
+      expect(result.current.currentStep.title).toBe('Fit Analysis');
+
+      // Verify completed steps
+      expect(result.current.steps[0].isCompleted).toBe(true);
+      expect(result.current.steps[1].isCompleted).toBe(true);
+      expect(result.current.steps[2].isCompleted).toBe(true);
+      expect(result.current.steps[3].isCompleted).toBe(false);
+      expect(result.current.steps[3].isCurrent).toBe(true);
+    });
+  });
+
+  // ===== MEMORY MANAGEMENT =====
+
+  describe('Memory Management', () => {
+    it('should not leak memory with frequent rerenders', () => {
+      const { result, rerender } = renderHook(() => useSteps(sampleSteps));
+
+      // Perform many rerenders
+      for (let i = 0; i < 100; i++) {
+        rerender();
+      }
+
+      expect(result.current.steps).toHaveLength(sampleSteps.length);
+      expect(result.current.currentStepIndex).toBe(0);
+    });
+
+    it('should handle hook cleanup properly', () => {
+      const { result, unmount } = renderHook(() => useSteps(sampleSteps));
+
+      expect(result.current.steps).toHaveLength(sampleSteps.length);
+
+      expect(() => unmount()).not.toThrow();
+    });
+  });
+});

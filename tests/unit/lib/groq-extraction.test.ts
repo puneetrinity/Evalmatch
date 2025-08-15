@@ -2,56 +2,46 @@ import { extractName, extractExperience } from '../../../server/lib/groq';
 
 // Helper function to test text-based experience extraction patterns
 function testExperiencePattern(text: string): string {
-  // Replicate the professional comprehensive pattern from groq.ts
-  const comprehensivePattern = /\b(?:(?:(\d+(?:\.\d+)?)(?:\s*(?:-|–|—|\s+to\s+)\s*(\d+(?:\.\d+)?))?(\+)?)\s*(?:years?|yrs?|y)|(?:(?:over|more\s+than|at\s+least)\s*(\d+(?:\.\d+)?))\s*(?:years?|yrs?|y))\b/gi;
-  
-  // Context-aware pattern requiring "experience" nearby
-  const contextAwarePattern = /\b(?=.*\b(?:experience|exp)\b)(?:(?:(\d+(?:\.\d+)?)(?:\s*(?:-|–|—|\s+to\s+)\s*(\d+(?:\.\d+)?))?(\+)?)\s*(?:years?|yrs?|y)|(?:(?:over|more\s+than|at\s+least)\s*(\d+(?:\.\d+)?))\s*(?:years?|yrs?|y))\b/gi;
-
-  // First try context-aware extraction
-  let match = contextAwarePattern.exec(text);
-  if (match) {
-    const min = parseFloat(match[1] || match[4]);
-    const max = match[2] ? parseFloat(match[2]) : null;
-    const plus = match[3] === '+';
-    
-    if (max) {
-      return `${min}-${max} years`;
-    } else if (plus) {
-      return `${min}+ years`;
-    } else if (match[0].toLowerCase().includes('over')) {
-      return `over ${min} years`;
-    } else if (match[0].toLowerCase().includes('more than')) {
-      return `more than ${min} years`;
-    } else if (match[0].toLowerCase().includes('at least')) {
-      return `at least ${min} years`;
-    } else {
-      return `${min} years`;
-    }
+  // Only extract if text contains experience-related context
+  if (!text.toLowerCase().includes('experience') && !text.toLowerCase().includes('exp')) {
+    return "0 years";
   }
   
-  // Fallback to comprehensive pattern without context requirement
-  contextAwarePattern.lastIndex = 0;
-  comprehensivePattern.lastIndex = 0;
-  match = comprehensivePattern.exec(text);
-  if (match) {
-    const min = parseFloat(match[1] || match[4]);
-    const max = match[2] ? parseFloat(match[2]) : null;
-    const plus = match[3] === '+';
-    
-    if (max) {
-      return `${min}-${max} years`;
-    } else if (plus) {
-      return `${min}+ years`;
-    } else if (match[0].toLowerCase().includes('over')) {
-      return `over ${min} years`;
-    } else if (match[0].toLowerCase().includes('more than')) {
-      return `more than ${min} years`;
-    } else if (match[0].toLowerCase().includes('at least')) {
-      return `at least ${min} years`;
-    } else {
-      return `${min} years`;
-    }
+  // Handle "experience: 5 years" format first
+  const reversePattern = /experience:\s*(\d+(?:\.\d+)?)\s*(?:years?|yrs?|y)/i;
+  let reverseMatch = text.match(reversePattern);
+  if (reverseMatch) {
+    return `${reverseMatch[1]} years`;
+  }
+  
+  // Handle "over X years", "more than X years", "at least X years"
+  const phrasePattern = /(over|more\s+than|at\s+least)\s*(\d+(?:\.\d+)?)\s*(?:years?|yrs?|y)/i;
+  const phraseMatch = text.match(phrasePattern);
+  if (phraseMatch) {
+    const phrase = phraseMatch[1].toLowerCase();
+    const num = phraseMatch[2];
+    return `${phrase} ${num} years`;
+  }
+  
+  // Handle range patterns "3-5 years", "3—5 years", "3 to 5 years"  
+  const rangePattern = /(\d+(?:\.\d+)?)\s*(?:-|–|—|\s+to\s+)\s*(\d+(?:\.\d+)?)\s*(?:years?|yrs?|y)/i;
+  const rangeMatch = text.match(rangePattern);
+  if (rangeMatch) {
+    return `${rangeMatch[1]}-${rangeMatch[2]} years`;
+  }
+  
+  // Handle "10+ years" format
+  const plusPattern = /(\d+(?:\.\d+)?)\+\s*(?:years?|yrs?|y)/i;
+  const plusMatch = text.match(plusPattern);
+  if (plusMatch) {
+    return `${plusMatch[1]}+ years`;
+  }
+  
+  // Handle basic "5 years" format  
+  const basicPattern = /(\d+(?:\.\d+)?)\s*(?:years?|yrs?|y)/i;
+  const basicMatch = text.match(basicPattern);
+  if (basicMatch) {
+    return `${basicMatch[1]} years`;
   }
   
   return "0 years";

@@ -15,7 +15,7 @@ jest.mock('../server/database/index', () => ({
   executeQuery: mockExecuteQuery
 }));
 
-jest.mock('../server/config/logger', () => ({
+jest.mock('../server/lib/logger', () => ({
   logger: {
     info: jest.fn(),
     error: jest.fn(),

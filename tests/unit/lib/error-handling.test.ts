@@ -10,7 +10,20 @@
  * - Error recovery actions
  */
 
-import {
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, jest } from '@jest/globals';
+
+// ===== MOCKS =====
+
+// Mock the toast hook before importing the error handling module
+jest.unstable_mockModule('@/hooks/use-toast', () => ({
+  toast: jest.fn()
+}));
+
+// Import the mocked toast function
+const { toast: mockToast } = await import('@/hooks/use-toast');
+
+// Now import the error handling module (after setting up mocks)
+const {
   ErrorSeverity,
   ErrorCategory,
   CircuitBreakerState,
@@ -36,17 +49,7 @@ import {
   RetryConfig,
   ErrorContext,
   BaseError,
-} from '@/lib/error-handling';
-import { toast } from '@/hooks/use-toast';
-
-// ===== MOCKS =====
-
-// Mock toast notifications
-jest.mock('@/hooks/use-toast', () => ({
-  toast: jest.fn(),
-}));
-
-const mockToast = toast as jest.MockedFunction<typeof toast>;
+} = await import('@/lib/error-handling');
 
 // Window mocking is handled in beforeEach hook for each test
 

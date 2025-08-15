@@ -7,7 +7,9 @@
  * - Provides structured logging for debugging
  */
 
-const isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development';
+const isDevelopment = (typeof import !== 'undefined' && import.meta?.env?.DEV) || 
+  (typeof import !== 'undefined' && import.meta?.env?.MODE === 'development') ||
+  (typeof process !== 'undefined' && process.env.NODE_ENV === 'development');
 
 interface LogContext {
   operation?: string;

@@ -66,9 +66,9 @@ jobs:
     strategy:
       matrix:
         test-group: [
-          'scoring-constants,api-contracts,schema-validation',
-          'error-handling,batch-persistence,hybrid-match-analyzer',
-          'components,hooks,utils'
+          'core',
+          'business',
+          'ui'
         ]
     
     steps:
@@ -85,7 +85,18 @@ jobs:
         run: npm ci --prefer-offline --no-audit
         
       - name: Run unit tests
-        run: npm run test:unit:coverage -- --testPathPattern="${{ matrix.test-group }}"
+        run: |
+          case "${{ matrix.test-group }}" in
+            "core")
+              npm run test:unit:core
+              ;;
+            "business") 
+              npm run test:unit:business
+              ;;
+            "ui")
+              npm run test:unit:ui
+              ;;
+          esac
         env:
           NODE_ENV: test
           CI: true
@@ -105,7 +116,7 @@ jobs:
           
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
-        if: matrix.test-group == 'scoring-constants,api-contracts,schema-validation'
+        if: matrix.test-group == 'core'
         with:
           files: coverage/unit/lcov.info
           flags: unit-tests
@@ -212,7 +223,7 @@ jobs:
         run: npm ci --prefer-offline --no-audit
         
       - name: Run security validation tests
-        run: npm test -- tests/security/
+        run: npm run test:security
         env:
           NODE_ENV: test
           CI: true
@@ -280,7 +291,7 @@ jobs:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/evalmatch_perf_test
           
       - name: Run file processing performance tests
-        run: npm test -- tests/performance/file-processing.test.ts
+        run: npm run test:performance
         env:
           NODE_ENV: test
           CI: true
@@ -290,7 +301,7 @@ jobs:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/evalmatch_perf_test
           
       - name: Run AI operations performance tests
-        run: npm test -- tests/performance/ai-operations.test.ts
+        run: npm run test:performance
         env:
           NODE_ENV: test
           CI: true
@@ -363,7 +374,7 @@ jobs:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/evalmatch_load_test
           
       - name: Run load tests
-        run: npm test -- tests/load/concurrent-operations.test.ts
+        run: npm run test:load
         env:
           NODE_ENV: test
           CI: true

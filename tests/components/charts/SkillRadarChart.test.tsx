@@ -14,6 +14,7 @@
 
 import React from 'react';
 import { render, screen, within } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 
 
 import SkillRadarChart from '@/components/skill-radar-chart';

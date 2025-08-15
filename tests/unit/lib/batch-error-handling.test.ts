@@ -9,6 +9,7 @@
  * - Batch-specific error types
  */
 
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import {
   BatchCircuitBreaker,
   BatchRetryManager,

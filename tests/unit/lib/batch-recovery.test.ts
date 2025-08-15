@@ -10,8 +10,8 @@
  */
 
 import { jest, describe, test, expect, beforeEach, afterEach, beforeAll, afterAll, it } from '@jest/globals';
-import { BatchError, BatchErrorType } from '../../../client/src/hooks/useBatchManager';
-import type { SessionId } from '../../../shared/api-contracts';
+import { BatchError, BatchErrorType } from '@/hooks/useBatchManager';
+import type { SessionId } from '@shared/api-contracts';
 
 // Mock types that don't exist - we'll create interfaces for these
 interface RecoveryResult {
