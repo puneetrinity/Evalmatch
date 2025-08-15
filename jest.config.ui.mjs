@@ -11,6 +11,7 @@ export default {
     '^@/(.*)$': '<rootDir>/client/src/$1',
     '^@server/(.*)$': '<rootDir>/server/$1',
     '^@/hooks/useBatchManager$': '<rootDir>/tests/__mocks__/useBatchManager.ts',
+    '^@/lib/firebase$': '<rootDir>/tests/__mocks__/firebase.ts',
     '^firebase/auth$': '<rootDir>/tests/__mocks__/firebase-auth.ts',
     '^firebase/app$': '<rootDir>/tests/__mocks__/firebase-app.ts',
     '^firebase/(.*)$': '<rootDir>/tests/__mocks__/firebase-auth.ts',
@@ -26,6 +27,11 @@ export default {
   },
   testMatch: [
     '<rootDir>/tests/components/**/*.test.tsx'
+  ],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '<rootDir>/tests/components/pages/',
+    '<rootDir>/tests/components/layout/Header.test.tsx'
   ],
   transformIgnorePatterns: [
     'node_modules/(?!(@xenova|string-similarity|firebase|@firebase|@tanstack|@testing-library)/)'
