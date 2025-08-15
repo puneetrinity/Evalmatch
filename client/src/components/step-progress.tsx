@@ -6,7 +6,7 @@ interface StepProgressProps {
 
 export default function StepProgress({ steps }: StepProgressProps) {
   return (
-    <div className="mb-14">
+    <div className="mb-14" data-testid="step-progress">
       <div className="flex items-center justify-between">
         <div className="w-full">
           <div className="flex items-center">

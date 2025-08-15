@@ -12,7 +12,10 @@ export default {
     '^@server/(.*)$': '<rootDir>/server/$1',
     '^@/hooks/useBatchManager$': '<rootDir>/tests/__mocks__/useBatchManager.ts',
     '^firebase/auth$': '<rootDir>/tests/__mocks__/firebase-auth.ts',
+    '^firebase/app$': '<rootDir>/tests/__mocks__/firebase-app.ts',
     '^firebase/(.*)$': '<rootDir>/tests/__mocks__/firebase-auth.ts',
+    '^react-hot-toast$': '<rootDir>/tests/__mocks__/react-hot-toast.ts',
+    '^recharts$': '<rootDir>/tests/__mocks__/recharts.tsx',
     '^(\\.{1,2}/.*)\\.js$': '$1'
   },
   transform: {
