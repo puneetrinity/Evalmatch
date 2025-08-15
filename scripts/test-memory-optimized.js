@@ -28,10 +28,10 @@ const TEST_BATCHES = {
     patterns: [
       'tests/unit/lib/scoring-constants.test.ts',
       'tests/unit/shared/api-contracts.test.ts',
-      'tests/unit/shared/schema-validation.test.ts'
-      // Temporarily skip problematic tests: error-handling and batch-* tests cause timeouts
-      // 'tests/unit/lib/error-handling.test.ts',
-      // 'tests/unit/lib/batch-*.test.ts'
+      'tests/unit/shared/schema-validation.test.ts',
+      'tests/unit/lib/error-handling.test.ts',
+      'tests/unit/lib/batch-persistence.test.ts',
+      'tests/unit/lib/batch-recovery.test.ts'
     ]
   },
   integration: {
