@@ -148,8 +148,23 @@ export function createMockServer(): Express {
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
   
-  // Mock authentication middleware for all /api routes
-  app.use('/api', mockAuthMiddleware);
+  // Health check route (before auth middleware)
+  app.get('/api/health', (req: Request, res: Response) => {
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0-test',
+      environment: 'test'
+    });
+  });
+  
+  // Mock authentication middleware for all /api routes except health
+  app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+    if (req.path === '/health') {
+      return next();
+    }
+    return mockAuthMiddleware(req, res, next);
+  });
   
   // Resumes routes
   app.get('/api/resumes', async (req: Request, res: Response) => {
@@ -1075,16 +1090,6 @@ export function createMockServer(): Express {
         message: (error as Error).message
       });
     }
-  });
-  
-  // Health check route
-  app.get('/api/health', (req: Request, res: Response) => {
-    res.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      version: '1.0.0-test',
-      environment: 'test'
-    });
   });
   
   return app;
