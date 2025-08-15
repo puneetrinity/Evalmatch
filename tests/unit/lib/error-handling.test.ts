@@ -781,7 +781,8 @@ describe('Error Handling Utilities', () => {
       const error = convertHttpError(response);
 
       expect(error).toBeTruthy();
-      expect(error.category).toBe(ErrorCategory.NETWORK);
+      // Status 418 is a 4xx client error, so it should be categorized as business logic
+      expect(error.category).toBe(ErrorCategory.BUSINESS_LOGIC);
     });
 
     it('should handle circular references in error objects', () => {
