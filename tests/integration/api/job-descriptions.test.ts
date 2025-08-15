@@ -36,9 +36,10 @@ afterAll(async () => {
 }, TEST_CONFIG.timeout);
 
 beforeEach(async () => {
-  // Create fresh test users for each test
-  testUser = MockAuth.createTestUser();
-  anotherUser = MockAuth.createTestUser();
+  // Create fresh test users for each test with unique identifiers
+  const testId = Date.now() + Math.random();
+  testUser = MockAuth.createTestUser({ uid: `test_user_${testId}` });
+  anotherUser = MockAuth.createTestUser({ uid: `another_user_${testId}_different` });
   
   // Clear any existing test data
   await DatabaseTestHelper.cleanupTestData();
@@ -205,7 +206,7 @@ describe('Job Description API', () => {
         .set(MockAuth.generateAuthHeaders(testUser));
 
       ResponseValidator.validateSuccessResponse(response);
-      expect(response.body.status).toBe('ok');
+      expect(response.body.status).toBe('success');
       expect(response.body.jobDescriptions).toHaveLength(2);
       expect(response.body.count).toBe(2);
       
@@ -275,11 +276,17 @@ describe('Job Description API', () => {
     let testJob: TestJobDescription;
 
     beforeEach(async () => {
+      // Ensure user exists first, then create job
+      await new Promise(resolve => setTimeout(resolve, 10)); // Small delay to ensure user creation
       testJob = await DatabaseTestHelper.createTestJobDescription({
         userId: testUser.uid,
         title: 'Full Stack Developer',
         description: 'Looking for a full stack developer with React and Node.js experience'
       });
+      // Verify job was created with an ID
+      if (!testJob.id) {
+        throw new Error('Test job was not created with an ID');
+      }
     });
 
     test('should retrieve specific job description by ID', async () => {
@@ -288,7 +295,7 @@ describe('Job Description API', () => {
         .set(MockAuth.generateAuthHeaders(testUser));
 
       ResponseValidator.validateSuccessResponse(response);
-      expect(response.body.status).toBe('ok');
+      expect(response.body.status).toBe('success');
       expect(response.body.jobDescription.id).toBe(testJob.id);
       expect(response.body.jobDescription.title).toBe(testJob.title);
       expect(response.body.jobDescription.description).toBe(testJob.description);

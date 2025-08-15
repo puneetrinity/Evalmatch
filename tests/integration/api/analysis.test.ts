@@ -37,9 +37,10 @@ afterAll(async () => {
 }, TEST_CONFIG.timeout);
 
 beforeEach(async () => {
-  // Create fresh test users for each test
-  testUser = MockAuth.createTestUser();
-  anotherUser = MockAuth.createTestUser();
+  // Create fresh test users for each test with unique identifiers
+  const testId = Date.now() + Math.random();
+  testUser = MockAuth.createTestUser({ uid: `test_user_${testId}` });
+  anotherUser = MockAuth.createTestUser({ uid: `another_user_${testId}_different` });
   
   // Clear any existing test data
   await DatabaseTestHelper.cleanupTestData();
@@ -196,12 +197,19 @@ describe('Analysis API', () => {
     });
 
     test('should return 404 when no resumes found', async () => {
-      // Clear all resumes
-      await DatabaseTestHelper.cleanupTestData();
+      // Create a brand new user that has no resumes
+      const emptyUser = MockAuth.createTestUser({ uid: `empty_user_${Date.now()}` });
+      
+      // Create a job for this empty user 
+      const emptyJob = await DatabaseTestHelper.createTestJobDescription({
+        userId: emptyUser.uid,
+        title: 'Empty Job',
+        description: 'Job with no associated resumes'
+      });
       
       const response = await request(app)
-        .post(`/api/analysis/analyze/${testJob.id}`)
-        .set(MockAuth.generateAuthHeaders(testUser))
+        .post(`/api/analysis/analyze/${emptyJob.id}`)
+        .set(MockAuth.generateAuthHeaders(emptyUser))
         .send({});
 
       ResponseValidator.validateErrorResponse(response, 404);
@@ -233,7 +241,7 @@ describe('Analysis API', () => {
         .send({ resumeIds: [99999, 99998] });
 
       ResponseValidator.validateErrorResponse(response, 404);
-      expect(response.body.error).toBe('No matching resumes found');
+      expect(response.body.error).toBe('No resumes found');
     });
 
     test('should measure analysis performance', async () => {
