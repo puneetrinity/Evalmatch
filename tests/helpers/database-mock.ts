@@ -234,7 +234,7 @@ export const mockDatabaseModule = {
 // Setup function to configure mocks
 export function setupDatabaseMock() {
   // Mock the database module using Jest
-  jest.doMock('../../../server/database/index', () => mockDatabaseModule);
+  jest.doMock('../../server/database/index', () => mockDatabaseModule);
   
   console.log('✅ Database mock configured for integration tests');
 }

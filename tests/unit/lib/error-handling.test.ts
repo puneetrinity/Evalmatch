@@ -19,11 +19,8 @@ jest.unstable_mockModule('@/hooks/use-toast', () => ({
   toast: jest.fn()
 }));
 
-// Import the mocked toast function
-const { toast: mockToast } = await import('@/hooks/use-toast');
-
-// Now import the error handling module (after setting up mocks)
-const {
+// Use regular imports for static dependencies
+import { 
   ErrorSeverity,
   ErrorCategory,
   CircuitBreakerState,
@@ -49,7 +46,10 @@ const {
   RetryConfig,
   ErrorContext,
   BaseError,
-} = await import('@/lib/error-handling');
+} from '@/lib/error-handling';
+
+// Import mocked toast
+import { toast as mockToast } from '@/hooks/use-toast';
 
 // Window mocking is handled in beforeEach hook for each test
 

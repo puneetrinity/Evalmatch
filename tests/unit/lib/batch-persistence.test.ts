@@ -155,12 +155,28 @@ Object.defineProperty(navigator, 'storage', {
   value: mockNavigatorStorage,
 });
 
-// Mock window.location
-Object.defineProperty(window, 'location', {
-  value: {
-    href: 'https://test.example.com/batch',
-  },
-});
+// Mock window.location - handle if already defined
+try {
+  Object.defineProperty(window, 'location', {
+    value: {
+      href: 'https://test.example.com/batch',
+    },
+    configurable: true,
+  });
+} catch (e) {
+  // Location already defined, just update href if possible
+  if (window.location && typeof window.location === 'object') {
+    try {
+      Object.defineProperty(window.location, 'href', {
+        value: 'https://test.example.com/batch',
+        writable: true,
+        configurable: true,
+      });
+    } catch (err) {
+      // Ignore if can't redefine
+    }
+  }
+}
 
 // Mock navigator.userAgent
 Object.defineProperty(navigator, 'userAgent', {
