@@ -225,7 +225,10 @@ describe('useSteps Hook', () => {
       it('should move to next step when possible', () => {
         const { result } = renderHook(() => useSteps(sampleSteps));
 
-        const success = act(() => result.current.goToNextStep());
+        let success: boolean;
+        act(() => {
+          success = result.current.goToNextStep();
+        });
 
         expect(success).toBe(true);
         expect(result.current.currentStepIndex).toBe(1);
@@ -235,7 +238,10 @@ describe('useSteps Hook', () => {
       it('should not move beyond last step', () => {
         const { result } = renderHook(() => useSteps(sampleSteps, 4));
 
-        const success = act(() => result.current.goToNextStep());
+        let success: boolean;
+        act(() => {
+          success = result.current.goToNextStep();
+        });
 
         expect(success).toBe(false);
         expect(result.current.currentStepIndex).toBe(4);
@@ -246,7 +252,10 @@ describe('useSteps Hook', () => {
         const { result } = renderHook(() => useSteps(sampleSteps));
 
         // Should succeed from first step
-        let success = act(() => result.current.goToNextStep());
+        let success: boolean;
+        act(() => {
+          success = result.current.goToNextStep();
+        });
         expect(success).toBe(true);
 
         // Move to last step
@@ -255,16 +264,21 @@ describe('useSteps Hook', () => {
         });
 
         // Should fail from last step
-        success = act(() => result.current.goToNextStep());
+        act(() => {
+          success = result.current.goToNextStep();
+        });
         expect(success).toBe(false);
       });
 
       it('should handle single step scenario', () => {
         const { result } = renderHook(() => useSteps(singleStep));
 
-        const success = act(() => result.current.goToNextStep());
+        let success: boolean;
+        act(() => {
+          success = result.current.goToNextStep();
+        });
 
-        expect(success).toBe(false);
+        expect(success!).toBe(false);
         expect(result.current.currentStepIndex).toBe(0);
       });
     });
@@ -273,7 +287,10 @@ describe('useSteps Hook', () => {
       it('should move to previous step when possible', () => {
         const { result } = renderHook(() => useSteps(sampleSteps, 2));
 
-        const success = act(() => result.current.goToPreviousStep());
+        let success: boolean;
+        act(() => {
+          success = result.current.goToPreviousStep();
+        });
 
         expect(success).toBe(true);
         expect(result.current.currentStepIndex).toBe(1);
@@ -283,7 +300,10 @@ describe('useSteps Hook', () => {
       it('should not move before first step', () => {
         const { result } = renderHook(() => useSteps(sampleSteps));
 
-        const success = act(() => result.current.goToPreviousStep());
+        let success: boolean;
+        act(() => {
+          success = result.current.goToPreviousStep();
+        });
 
         expect(success).toBe(false);
         expect(result.current.currentStepIndex).toBe(0);
@@ -294,22 +314,32 @@ describe('useSteps Hook', () => {
         const { result } = renderHook(() => useSteps(sampleSteps, 2));
 
         // Should succeed from middle step
-        let success = act(() => result.current.goToPreviousStep());
+        let success: boolean;
+        act(() => {
+          success = result.current.goToPreviousStep();
+        });
         expect(success).toBe(true);
 
         // Should succeed from second step
-        success = act(() => result.current.goToPreviousStep());
+        act(() => {
+          success = result.current.goToPreviousStep();
+        });
         expect(success).toBe(true);
 
         // Should fail from first step
-        success = act(() => result.current.goToPreviousStep());
+        act(() => {
+          success = result.current.goToPreviousStep();
+        });
         expect(success).toBe(false);
       });
 
       it('should handle single step scenario', () => {
         const { result } = renderHook(() => useSteps(singleStep));
 
-        const success = act(() => result.current.goToPreviousStep());
+        let success: boolean;
+        act(() => {
+          success = result.current.goToPreviousStep();
+        });
 
         expect(success).toBe(false);
         expect(result.current.currentStepIndex).toBe(0);
@@ -320,9 +350,12 @@ describe('useSteps Hook', () => {
       it('should move to valid step index', () => {
         const { result } = renderHook(() => useSteps(sampleSteps));
 
-        const success = act(() => result.current.goToStep(3));
+        let success: boolean;
+        act(() => {
+          success = result.current.goToStep(3);
+        });
 
-        expect(success).toBe(true);
+        expect(success!).toBe(true);
         expect(result.current.currentStepIndex).toBe(3);
         expect(result.current.currentStep.title).toBe('Fit Analysis');
       });
@@ -330,9 +363,12 @@ describe('useSteps Hook', () => {
       it('should handle first step navigation', () => {
         const { result } = renderHook(() => useSteps(sampleSteps, 2));
 
-        const success = act(() => result.current.goToStep(0));
+        let success: boolean;
+        act(() => {
+          success = result.current.goToStep(0);
+        });
 
-        expect(success).toBe(true);
+        expect(success!).toBe(true);
         expect(result.current.currentStepIndex).toBe(0);
         expect(result.current.isFirstStep).toBe(true);
       });
@@ -340,9 +376,12 @@ describe('useSteps Hook', () => {
       it('should handle last step navigation', () => {
         const { result } = renderHook(() => useSteps(sampleSteps));
 
-        const success = act(() => result.current.goToStep(4));
+        let success: boolean;
+        act(() => {
+          success = result.current.goToStep(4);
+        });
 
-        expect(success).toBe(true);
+        expect(success!).toBe(true);
         expect(result.current.currentStepIndex).toBe(4);
         expect(result.current.isLastStep).toBe(true);
       });
@@ -351,13 +390,18 @@ describe('useSteps Hook', () => {
         const { result } = renderHook(() => useSteps(sampleSteps));
 
         // Negative index
-        let success = act(() => result.current.goToStep(-1));
-        expect(success).toBe(false);
+        let success: boolean;
+        act(() => {
+          success = result.current.goToStep(-1);
+        });
+        expect(success!).toBe(false);
         expect(result.current.currentStepIndex).toBe(0);
 
         // Out of bounds index
-        success = act(() => result.current.goToStep(10));
-        expect(success).toBe(false);
+        act(() => {
+          success = result.current.goToStep(10);
+        });
+        expect(success!).toBe(false);
         expect(result.current.currentStepIndex).toBe(0);
       });
 
@@ -365,16 +409,23 @@ describe('useSteps Hook', () => {
         const { result } = renderHook(() => useSteps(sampleSteps));
 
         // Index equal to length
-        let success = act(() => result.current.goToStep(5));
-        expect(success).toBe(false);
+        let success: boolean;
+        act(() => {
+          success = result.current.goToStep(5);
+        });
+        expect(success!).toBe(false);
 
         // Very large index
-        success = act(() => result.current.goToStep(1000));
-        expect(success).toBe(false);
+        act(() => {
+          success = result.current.goToStep(1000);
+        });
+        expect(success!).toBe(false);
 
         // Float index (should be rejected)
-        success = act(() => result.current.goToStep(2.5));
-        expect(success).toBe(false);
+        act(() => {
+          success = result.current.goToStep(2.5);
+        });
+        expect(success!).toBe(false);
       });
     });
   });
@@ -446,14 +497,21 @@ describe('useSteps Hook', () => {
       expect(result.current.steps).toHaveLength(0);
 
       // Navigation should fail gracefully
-      let success = act(() => result.current.goToNextStep());
-      expect(success).toBe(false);
+      let success: boolean;
+      act(() => {
+        success = result.current.goToNextStep();
+      });
+      expect(success!).toBe(false);
 
-      success = act(() => result.current.goToPreviousStep());
-      expect(success).toBe(false);
+      act(() => {
+        success = result.current.goToPreviousStep();
+      });
+      expect(success!).toBe(false);
 
-      success = act(() => result.current.goToStep(0));
-      expect(success).toBe(false);
+      act(() => {
+        success = result.current.goToStep(0);
+      });
+      expect(success!).toBe(false);
     });
   });
 
