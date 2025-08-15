@@ -121,7 +121,7 @@ const isTestEnv = process.env.NODE_ENV === 'test';
 const batchOperationsRateLimit = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: isTestEnv ? 10000 : 30, // Much higher limit for tests
-  skip: isTestEnv ? () => true : undefined, // Skip rate limiting in test environment
+  skip: () => isTestEnv, // Skip rate limiting in test environment
   message: "Too many batch operation requests. Please slow down.",
   standardHeaders: true,
   legacyHeaders: false,
@@ -130,7 +130,7 @@ const batchOperationsRateLimit = rateLimit({
 const batchClaimRateLimit = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
   max: isTestEnv ? 10000 : 3, // Much higher limit for tests
-  skip: isTestEnv ? () => true : undefined, // Skip rate limiting in test environment
+  skip: () => isTestEnv, // Skip rate limiting in test environment
   message: "Too many batch claim attempts. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
@@ -139,7 +139,7 @@ const batchClaimRateLimit = rateLimit({
 const batchDeleteRateLimit = rateLimit({
   windowMs: 2 * 60 * 1000, // 2 minutes
   max: isTestEnv ? 10000 : 5, // Much higher limit for tests
-  skip: isTestEnv ? () => true : undefined, // Skip rate limiting in test environment
+  skip: () => isTestEnv, // Skip rate limiting in test environment
   message: "Too many batch deletion attempts. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
@@ -473,7 +473,7 @@ router.get(
   rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: isTestEnv ? 10000 : 10, // Much higher limit for tests
-    skip: isTestEnv ? () => true : undefined, // Skip rate limiting in test environment
+    skip: () => isTestEnv, // Skip rate limiting in test environment
     message: "Too many cleanup candidate requests. Please slow down.",
     standardHeaders: true,
     legacyHeaders: false,

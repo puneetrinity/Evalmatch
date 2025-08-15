@@ -81,7 +81,7 @@ const isTestEnv = process.env.NODE_ENV === 'test';
 const batchValidationRateLimit = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: isTestEnv ? 10000 : 20, // Much higher limit for tests
-  skip: isTestEnv ? () => true : undefined, // Skip rate limiting in test environment
+  skip: () => isTestEnv, // Skip rate limiting in test environment
   message: "Too many batch validation requests. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
@@ -90,7 +90,7 @@ const batchValidationRateLimit = rateLimit({
 const batchClaimRateLimit = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
   max: isTestEnv ? 10000 : 3, // Much higher limit for tests
-  skip: isTestEnv ? () => true : undefined, // Skip rate limiting in test environment
+  skip: () => isTestEnv, // Skip rate limiting in test environment
   message: "Too many batch claim attempts. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
@@ -532,11 +532,13 @@ export function validateBatchAccess(
 ) {
   return asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
-      // Apply rate limiting based on access type
-      if (accessType === "claim") {
-        batchClaimRateLimit(req, res, () => {});
-      } else {
-        batchValidationRateLimit(req, res, () => {});
+      // Apply rate limiting based on access type - Skip in test environment
+      if (!isTestEnv) {
+        if (accessType === "claim") {
+          batchClaimRateLimit(req, res, () => {});
+        } else {
+          batchValidationRateLimit(req, res, () => {});
+        }
       }
 
       // Extract batch and session IDs from request

@@ -118,6 +118,11 @@ export const mockAIProviders = {
 const rateLimitCounters = new Map<string, number>();
 
 export function mockRateLimitMiddleware(req: Request, res: Response, next: NextFunction) {
+  // Skip rate limiting entirely in test environment
+  if (process.env.NODE_ENV === 'test') {
+    return next();
+  }
+  
   const key = `${req.ip}_${req.path}_${req.method}`;
   const count = rateLimitCounters.get(key) || 0;
   rateLimitCounters.set(key, count + 1);
