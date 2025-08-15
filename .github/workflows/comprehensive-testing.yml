@@ -89,6 +89,9 @@ jobs:
         env:
           NODE_ENV: test
           CI: true
+          AUTH_BYPASS_MODE: true
+          DISABLE_EXTERNAL_SERVICES: true
+          MOCK_AI_PROVIDERS: true
           
       - name: Upload unit test results
         uses: actions/upload-artifact@v4
@@ -169,6 +172,9 @@ jobs:
         env:
           NODE_ENV: test
           CI: true
+          AUTH_BYPASS_MODE: true
+          DISABLE_EXTERNAL_SERVICES: true
+          MOCK_AI_PROVIDERS: true
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/evalmatch_test
           REDIS_URL: redis://localhost:6379
           FIREBASE_PROJECT_ID: test-project
@@ -210,6 +216,9 @@ jobs:
         env:
           NODE_ENV: test
           CI: true
+          AUTH_BYPASS_MODE: true
+          DISABLE_EXTERNAL_SERVICES: true
+          MOCK_AI_PROVIDERS: true
           
       - name: Run OWASP ZAP baseline scan
         uses: zaproxy/action-baseline@v0.10.0
@@ -275,6 +284,9 @@ jobs:
         env:
           NODE_ENV: test
           CI: true
+          AUTH_BYPASS_MODE: true
+          DISABLE_EXTERNAL_SERVICES: true
+          MOCK_AI_PROVIDERS: true
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/evalmatch_perf_test
           
       - name: Run AI operations performance tests
@@ -282,6 +294,9 @@ jobs:
         env:
           NODE_ENV: test
           CI: true
+          AUTH_BYPASS_MODE: true
+          DISABLE_EXTERNAL_SERVICES: true
+          MOCK_AI_PROVIDERS: true
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/evalmatch_perf_test
           
       - name: Upload performance test results
@@ -352,6 +367,9 @@ jobs:
         env:
           NODE_ENV: test
           CI: true
+          AUTH_BYPASS_MODE: true
+          DISABLE_EXTERNAL_SERVICES: true
+          MOCK_AI_PROVIDERS: true
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/evalmatch_load_test
           REDIS_URL: redis://localhost:6379
           
@@ -417,6 +435,9 @@ jobs:
           sleep 30 # Wait for server to start
         env:
           NODE_ENV: test
+          AUTH_BYPASS_MODE: true
+          DISABLE_EXTERNAL_SERVICES: true
+          MOCK_AI_PROVIDERS: true
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/evalmatch_e2e_test
           PORT: 3000
           
