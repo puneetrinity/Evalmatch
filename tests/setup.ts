@@ -93,6 +93,19 @@ beforeAll(async () => {
     console.warn('⚠️  No test database URL provided. Some tests may fail.');
   }
 
+  // Ensure upload directories exist for tests
+  const fs = await import('fs');
+  const path = await import('path');
+  
+  const uploadDirs = ['uploads', 'uploads/quarantine', 'uploads/pending', 'uploads/processed'];
+  for (const dir of uploadDirs) {
+    try {
+      await fs.promises.mkdir(dir, { recursive: true });
+    } catch (error) {
+      // Directory might already exist, ignore error
+    }
+  }
+
   console.log('🧪 Test environment initialized');
   console.log(`   Database: ${process.env.TEST_DATABASE_URL ? 'Test DB' : 'Main DB'}`);
   console.log(`   Auth bypass: ${process.env.AUTH_BYPASS_MODE}`);

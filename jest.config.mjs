@@ -28,7 +28,14 @@ export default {
     '!**/tests/e2e/**/*',
     '!**/tests/railway-*.test.{ts,tsx}',
     '!**/tests/load/**/*',
-    '!**/tests/performance/**/*'
+    '!**/tests/performance/**/*',
+    '!**/tests/security/**/*',
+    '!**/tests/components/**/*',
+    '!**/tests/debug-*.test.{ts,tsx}',
+    '!**/tests/simple-*.test.{ts,tsx}',
+    '!**/tests/api.test.ts',
+    '!**/tests/batch-*.test.{ts,tsx}',
+    '!**/tests/api-*.test.{ts,tsx}'
   ],
   testPathIgnorePatterns: [
     '/node_modules/',

@@ -1,3 +1,4 @@
+import { jest, describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
 import express, { Express } from 'express';
 import { IStorage } from '../server/storage';
@@ -308,7 +309,9 @@ describe('API Routes', () => {
   it('should get health status', async () => {
     const response = await request(app).get('/api/health');
     expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('status', 'ok');
+    expect(response.body).toHaveProperty('success', true);
+    expect(response.body.data).toHaveProperty('status');
+    expect(['healthy', 'degraded']).toContain(response.body.data.status);
   });
 
   it('should get all job descriptions', async () => {
