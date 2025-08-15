@@ -17,6 +17,159 @@ import { getErrorStatusCode, getErrorCode, getErrorMessage, getErrorTimestamp } 
 
 const router = Router();
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     JobDescriptionInput:
+ *       type: object
+ *       properties:
+ *         title:
+ *           type: string
+ *           minLength: 1
+ *           maxLength: 200
+ *           example: "Senior Full Stack Developer"
+ *         description:
+ *           type: string
+ *           minLength: 50
+ *           example: "We are seeking a talented Senior Full Stack Developer to join our dynamic team..."
+ *         requirements:
+ *           type: array
+ *           items:
+ *             type: string
+ *           example: ["5+ years React experience", "Node.js expertise", "Bachelor's degree"]
+ *       required:
+ *         - title
+ *         - description
+ *
+ *     JobListResponse:
+ *       allOf:
+ *         - $ref: '#/components/schemas/ApiResponse'
+ *         - type: object
+ *           properties:
+ *             data:
+ *               type: object
+ *               properties:
+ *                 jobs:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/JobDescription'
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page: { type: integer, example: 1 }
+ *                     limit: { type: integer, example: 20 }
+ *                     total: { type: integer, example: 12 }
+ *                     totalPages: { type: integer, example: 1 }
+ */
+
+/**
+ * @swagger
+ * /job-descriptions:
+ *   post:
+ *     tags: [Job Descriptions]
+ *     summary: Create a new job description
+ *     description: |
+ *       Create a new job description with automatic AI analysis to extract skills, 
+ *       requirements, and experience levels. The job description is immediately 
+ *       analyzed to enable efficient candidate matching.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/JobDescriptionInput'
+ *           example:
+ *             title: "Senior Full Stack Developer"
+ *             description: "We are seeking a talented Senior Full Stack Developer to join our dynamic team. You will be responsible for developing and maintaining both frontend and backend systems using modern technologies."
+ *             requirements:
+ *               - "5+ years of experience in full-stack development"
+ *               - "Proficiency in React and Node.js"
+ *               - "Experience with PostgreSQL databases"
+ *               - "Bachelor's degree in Computer Science or related field"
+ *     responses:
+ *       200:
+ *         description: Job description created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         jobDescription:
+ *                           allOf:
+ *                             - $ref: '#/components/schemas/JobDescription'
+ *                             - type: object
+ *                               properties:
+ *                                 skills:
+ *                                   type: array
+ *                                   items: { type: string }
+ *                                   example: ["React", "Node.js", "PostgreSQL", "JavaScript"]
+ *                                 analyzedData:
+ *                                   type: object
+ *                                   description: "AI analysis results"
+ *                         analysis:
+ *                           type: object
+ *                           properties:
+ *                             skillsExtracted: { type: integer, example: 4 }
+ *                             requirementsFound: { type: integer, example: 4 }
+ *                             experienceLevel: { type: string, example: "Senior (5+ years)" }
+ *                         processingTime:
+ *                           type: number
+ *                           description: "Analysis processing time in milliseconds"
+ *                           example: 1250
+ *             example:
+ *               success: true
+ *               data:
+ *                 jobDescription:
+ *                   id: 456
+ *                   title: "Senior Full Stack Developer"
+ *                   description: "We are seeking a talented Senior Full Stack Developer..."
+ *                   skills: ["React", "Node.js", "PostgreSQL", "JavaScript"]
+ *                   requirements: ["5+ years experience", "React proficiency", "Node.js expertise"]
+ *                   experience: "Senior (5+ years)"
+ *                   createdAt: "2025-01-14T10:40:00.000Z"
+ *                   userId: "firebase_user_123"
+ *                 analysis:
+ *                   skillsExtracted: 4
+ *                   requirementsFound: 4
+ *                   experienceLevel: "Senior (5+ years)"
+ *                 processingTime: 1250
+ *               timestamp: "2025-01-14T10:40:00.000Z"
+ *       400:
+ *         description: Invalid input data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *             examples:
+ *               missingTitle:
+ *                 summary: Missing title
+ *                 value:
+ *                   success: false
+ *                   error:
+ *                     code: "VALIDATION_ERROR"
+ *                     message: "Job title is required"
+ *                   timestamp: "2025-01-14T10:40:00.000Z"
+ *               shortDescription:
+ *                 summary: Description too short
+ *                 value:
+ *                   success: false
+ *                   error:
+ *                     code: "VALIDATION_ERROR"
+ *                     message: "Job description must be at least 50 characters long"
+ *                   timestamp: "2025-01-14T10:40:00.000Z"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 // Create new job description
 router.post("/", authenticateUser, validators.createJob, async (req: Request, res: Response) => {
   try {

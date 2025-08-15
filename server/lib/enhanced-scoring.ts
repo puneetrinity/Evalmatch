@@ -1,6 +1,7 @@
 import { logger } from "./logger";
 import {
   calculateSemanticSimilarity,
+  calculateSemanticSimilarityFromEmbeddings,
   cosineSimilarity,
   generateEmbedding as _generateEmbedding,
   generateBatchEmbeddings,
@@ -445,7 +446,7 @@ export function scoreEducation(
 }
 
 /**
- * ESCO-Enhanced scoring function
+ * ESCO-Enhanced scoring function with optional embedding optimization
  * Uses ESCO taxonomy for improved skill matching
  */
 export async function calculateEnhancedMatchWithESCO(
@@ -454,11 +455,17 @@ export async function calculateEnhancedMatchWithESCO(
     experience: string;
     education: string;
     content: string;
+    // Optional stored embeddings for performance optimization
+    embedding?: number[] | null;
+    skillsEmbedding?: number[] | null;
   },
   jobData: {
     skills: string[];
     experience: string;
     description: string;
+    // Optional stored embeddings for performance optimization
+    embedding?: number[] | null;
+    skillsEmbedding?: number[] | null;
   },
   weights: ScoringWeights = DEFAULT_SCORING_WEIGHTS,
 ): Promise<EnhancedMatchResult> {
@@ -542,15 +549,28 @@ export async function calculateEnhancedMatchWithESCO(
     logger.info('Starting education scoring...');
     const educationMatch = scoreEducation(resumeData.education);
 
-    // 5. Semantic similarity (keeping minimal weight)
+    // 5. Semantic similarity (with optimization for stored embeddings)
     logger.info('Starting semantic similarity calculation...');
-    const semanticScore = await calculateSemanticSimilarity(
-      resumeData.content,
-      jobData.description,
-    ).catch(error => {
-      logger.error('Semantic similarity calculation failed:', error);
-      return 50;
-    });
+    let semanticScore: number;
+    
+    // Use optimized embedding comparison if both embeddings are available
+    if (resumeData.embedding && jobData.embedding) {
+      logger.info('Using pre-stored embeddings for semantic similarity (optimized)');
+      semanticScore = calculateSemanticSimilarityFromEmbeddings(
+        resumeData.embedding,
+        jobData.embedding
+      );
+    } else {
+      // Fallback to generating embeddings on-the-fly
+      logger.info('Generating embeddings on-the-fly for semantic similarity (slower)');
+      semanticScore = await calculateSemanticSimilarity(
+        resumeData.content,
+        jobData.description,
+      ).catch(error => {
+        logger.error('Semantic similarity calculation failed:', error);
+        return 50;
+      });
+    }
 
     // 6. Domain-specific bonus (pharmaceutical skills detected)
     let domainBonus = 0;

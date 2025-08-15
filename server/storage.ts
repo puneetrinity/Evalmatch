@@ -194,6 +194,17 @@ export interface IStorage {
   updateJobDescriptionAnalysis(_id: number, _analysis: AnalyzeJobDescriptionResponse): Promise<JobDescription>;
   
   /**
+   * Updates job description embeddings for semantic similarity matching.
+   * 
+   * @param id - The unique identifier of the job description to update
+   * @param embedding - The content embedding vector (384 dimensions) or null
+   * @param requirementsEmbedding - The requirements embedding vector (384 dimensions) or null
+   * @returns Promise resolving to the updated job description object
+   * @throws {Error} If job description not found or update fails
+   */
+  updateJobDescriptionEmbeddings(_id: number, _embedding: number[] | null, _requirementsEmbedding: number[] | null): Promise<JobDescription>;
+
+  /**
    * Updates a job description with bias analysis results.
    * 
    * @param id - The unique identifier of the job description to update

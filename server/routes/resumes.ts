@@ -16,6 +16,117 @@ import { getErrorStatusCode, getErrorCode, getErrorMessage, getErrorTimestamp } 
 
 const router = Router();
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     ResumeListResponse:
+ *       allOf:
+ *         - $ref: '#/components/schemas/ApiResponse'
+ *         - type: object
+ *           properties:
+ *             data:
+ *               type: object
+ *               properties:
+ *                 resumes:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Resume'
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page: { type: integer, example: 1 }
+ *                     limit: { type: integer, example: 20 }
+ *                     total: { type: integer, example: 45 }
+ *                     totalPages: { type: integer, example: 3 }
+ */
+
+/**
+ * @swagger
+ * /resumes:
+ *   get:
+ *     tags: [Resumes]
+ *     summary: Get all resumes for authenticated user
+ *     description: |
+ *       Retrieve all resumes uploaded by the authenticated user with optional filtering and pagination.
+ *       Supports filtering by file type, analysis status, session, and batch.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         description: Page number for pagination
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *           example: 1
+ *       - name: limit
+ *         in: query
+ *         description: Number of resumes per page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *           example: 20
+ *       - name: fileType
+ *         in: query
+ *         description: Filter by file type
+ *         schema:
+ *           type: string
+ *           enum: [pdf, docx, txt]
+ *           example: pdf
+ *       - name: hasAnalysis
+ *         in: query
+ *         description: Filter by analysis status
+ *         schema:
+ *           type: boolean
+ *           example: true
+ *       - name: sessionId
+ *         in: query
+ *         description: Filter by session ID
+ *         schema:
+ *           type: string
+ *           example: "session_123"
+ *       - name: batchId
+ *         in: query
+ *         description: Filter by batch ID
+ *         schema:
+ *           type: string
+ *           example: "batch_456"
+ *     responses:
+ *       200:
+ *         description: Resumes retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ResumeListResponse'
+ *             example:
+ *               success: true
+ *               data:
+ *                 resumes:
+ *                   - id: 123
+ *                     filename: "john_doe_resume.pdf"
+ *                     originalName: "John Doe Resume.pdf"
+ *                     fileSize: 245760
+ *                     mimeType: "application/pdf"
+ *                     status: "analyzed"
+ *                     uploadedAt: "2025-01-14T10:30:00.000Z"
+ *                     userId: "firebase_user_123"
+ *                 pagination:
+ *                   page: 1
+ *                   limit: 20
+ *                   total: 45
+ *                   totalPages: 3
+ *               timestamp: "2025-01-14T10:30:00.000Z"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       429:
+ *         $ref: '#/components/responses/RateLimitError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 // Get all resumes for the authenticated user
 router.get("/", authenticateUser, validators.getResumes, async (req: Request, res: Response) => {
   try {
@@ -75,6 +186,67 @@ router.get("/", authenticateUser, validators.getResumes, async (req: Request, re
   }
 });
 
+/**
+ * @swagger
+ * /resumes/{id}:
+ *   get:
+ *     tags: [Resumes]
+ *     summary: Get specific resume by ID
+ *     description: |
+ *       Retrieve a specific resume by its ID. Only the owner of the resume can access it.
+ *       Returns full resume details including extracted content.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/ResumeId'
+ *     responses:
+ *       200:
+ *         description: Resume retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         resume:
+ *                           $ref: '#/components/schemas/Resume'
+ *             example:
+ *               success: true
+ *               data:
+ *                 resume:
+ *                   id: 123
+ *                   filename: "john_doe_resume.pdf"
+ *                   originalName: "John Doe Resume.pdf"
+ *                   content: "John Doe\nSoftware Engineer\n5 years of experience..."
+ *                   fileSize: 245760
+ *                   mimeType: "application/pdf"
+ *                   status: "analyzed"
+ *                   uploadedAt: "2025-01-14T10:30:00.000Z"
+ *                   userId: "firebase_user_123"
+ *               timestamp: "2025-01-14T10:30:00.000Z"
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       404:
+ *         description: Resume not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *             example:
+ *               success: false
+ *               error:
+ *                 code: "RESUME_NOT_FOUND"
+ *                 message: "Resume not found or access denied"
+ *               timestamp: "2025-01-14T10:30:00.000Z"
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 // Get specific resume by ID
 router.get("/:id", authenticateUser, validators.getResume, async (req: Request, res: Response) => {
   try {
@@ -124,6 +296,128 @@ router.get("/:id", authenticateUser, validators.getResume, async (req: Request, 
 });
 
 // Upload and analyze new resume
+/**
+ * @swagger
+ * /resumes:
+ *   post:
+ *     tags: [Resumes]
+ *     summary: Upload a resume
+ *     description: |
+ *       Upload a resume file for processing and analysis. Supports PDF, DOCX, and TXT formats.
+ *       Files are automatically processed and analyzed unless explicitly disabled.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Resume file (PDF, DOCX, or TXT)
+ *               sessionId:
+ *                 type: string
+ *                 description: Optional session identifier for grouping uploads
+ *                 example: "session_123"
+ *               batchId:
+ *                 type: string
+ *                 description: Optional batch identifier for bulk operations
+ *                 example: "batch_456"
+ *               autoAnalyze:
+ *                 type: boolean
+ *                 description: Whether to automatically analyze the resume after upload
+ *                 default: true
+ *                 example: true
+ *             required:
+ *               - file
+ *           encoding:
+ *             file:
+ *               contentType: application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain
+ *     responses:
+ *       200:
+ *         description: Resume uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         resume:
+ *                           $ref: '#/components/schemas/Resume'
+ *                         processing:
+ *                           type: object
+ *                           properties:
+ *                             contentExtracted: { type: boolean, example: true }
+ *                             analysisStarted: { type: boolean, example: true }
+ *                             estimatedTime: { type: string, example: "30 seconds" }
+ *             example:
+ *               success: true
+ *               data:
+ *                 resume:
+ *                   id: 124
+ *                   filename: "new_resume.pdf"
+ *                   originalName: "New Resume.pdf"
+ *                   fileSize: 245760
+ *                   mimeType: "application/pdf"
+ *                   status: "processing"
+ *                   uploadedAt: "2025-01-14T10:35:00.000Z"
+ *                   userId: "firebase_user_123"
+ *                 processing:
+ *                   contentExtracted: true
+ *                   analysisStarted: true
+ *                   estimatedTime: "30 seconds"
+ *               timestamp: "2025-01-14T10:35:00.000Z"
+ *       400:
+ *         description: Invalid file or validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *             examples:
+ *               noFile:
+ *                 summary: No file provided
+ *                 value:
+ *                   success: false
+ *                   error:
+ *                     code: "VALIDATION_ERROR"
+ *                     message: "Please select a resume file to upload"
+ *                   timestamp: "2025-01-14T10:35:00.000Z"
+ *               invalidFormat:
+ *                 summary: Unsupported file format
+ *                 value:
+ *                   success: false
+ *                   error:
+ *                     code: "FILE_FORMAT_ERROR"
+ *                     message: "Only PDF, DOCX, and TXT files are supported"
+ *                   timestamp: "2025-01-14T10:35:00.000Z"
+ *               fileTooLarge:
+ *                 summary: File size exceeds limit
+ *                 value:
+ *                   success: false
+ *                   error:
+ *                     code: "FILE_TOO_LARGE"
+ *                     message: "File size cannot exceed 10MB"
+ *                   timestamp: "2025-01-14T10:35:00.000Z"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       413:
+ *         description: File too large
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       429:
+ *         $ref: '#/components/responses/RateLimitError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 router.post(
   "/",
   authenticateUser,

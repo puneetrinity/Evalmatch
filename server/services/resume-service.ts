@@ -33,6 +33,7 @@ import { QueryBuilder, ResumeQueryBuilder } from '../lib/query-builder';
 import { analyzeResumeWithCache } from '../lib/cached-ai-operations';
 import { getUserTierInfo } from '../lib/user-tiers';
 import { parseDocument } from '../lib/document-parser';
+import { generateEmbedding } from '../lib/embeddings';
 import {
   success,
   failure,
@@ -336,6 +337,28 @@ export class ResumeService {
         
         if (isSuccess(analysisResult)) {
           analyzedData = analysisResult.data.analyzedData;
+          
+          // Generate embeddings for semantic similarity matching
+          try {
+            logger.info('Generating embeddings for resume', { resumeId: resume.id });
+            const contentEmbedding = await generateEmbedding(extractedText);
+            const skillsText = analyzedData.skills?.join(' ') || '';
+            const skillsEmbedding = skillsText ? await generateEmbedding(skillsText) : null;
+            
+            // Update resume with embeddings
+            await this.getStorageProvider().updateResumeEmbeddings(resume.id, contentEmbedding, skillsEmbedding);
+            logger.info('Embeddings generated and stored successfully', { 
+              resumeId: resume.id,
+              contentEmbeddingDim: contentEmbedding?.length || 0,
+              skillsEmbeddingDim: skillsEmbedding?.length || 0
+            });
+          } catch (error) {
+            logger.error('Failed to generate or store embeddings', {
+              resumeId: resume.id,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+            // Continue - embeddings are not critical for basic functionality
+          }
           
           // Update resume with analysis (store the analyzed data part only)
           try {
@@ -668,6 +691,28 @@ export class ResumeService {
     
     if (isFailure(analysisResult)) {
       return failure(AppExternalServiceError.aiProviderFailure('ResumeAnalysis', 'analysis', analysisResult.error.message));
+    }
+
+    // Generate embeddings for semantic similarity matching  
+    try {
+      logger.info('Generating embeddings for resume analysis', { resumeId });
+      const contentEmbedding = await generateEmbedding(resume.content);
+      const skillsText = analysisResult.data.analyzedData.skills?.join(' ') || '';
+      const skillsEmbedding = skillsText ? await generateEmbedding(skillsText) : null;
+      
+      // Update resume with embeddings
+      await this.getStorageProvider().updateResumeEmbeddings(resumeId, contentEmbedding, skillsEmbedding);
+      logger.info('Embeddings generated and stored successfully', { 
+        resumeId,
+        contentEmbeddingDim: contentEmbedding?.length || 0,
+        skillsEmbeddingDim: skillsEmbedding?.length || 0
+      });
+    } catch (error) {
+      logger.error('Failed to generate or store embeddings during analysis', {
+        resumeId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      // Continue - embeddings are not critical for basic functionality
     }
 
     // Update resume with analysis

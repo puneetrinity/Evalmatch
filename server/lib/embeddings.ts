@@ -261,6 +261,8 @@ export async function findMostSimilar(
 
 /**
  * Calculate semantic similarity between resume and job description
+ * LEGACY: This generates embeddings on-the-fly (slow)
+ * Use calculateSemanticSimilarityFromEmbeddings() for better performance when embeddings are stored
  */
 export async function calculateSemanticSimilarity(
   resumeText: string,
@@ -276,6 +278,34 @@ export async function calculateSemanticSimilarity(
     return Math.max(0, Math.min(100, similarity * 100));
   } catch (error) {
     logger.error("Error calculating semantic similarity:", error);
+    return 0;
+  }
+}
+
+/**
+ * Calculate semantic similarity using pre-stored embeddings (OPTIMIZED)
+ * This is much faster than generateEmbedding on-the-fly
+ */
+export function calculateSemanticSimilarityFromEmbeddings(
+  resumeEmbedding: number[] | null,
+  jobEmbedding: number[] | null,
+): number {
+  try {
+    // Check if embeddings exist
+    if (!resumeEmbedding || !jobEmbedding) {
+      logger.warn("Cannot calculate semantic similarity: missing embeddings", {
+        hasResumeEmbedding: !!resumeEmbedding,
+        hasJobEmbedding: !!jobEmbedding
+      });
+      return 0;
+    }
+
+    const similarity = cosineSimilarity(resumeEmbedding, jobEmbedding);
+
+    // Convert to 0-100 scale
+    return Math.max(0, Math.min(100, similarity * 100));
+  } catch (error) {
+    logger.error("Error calculating semantic similarity from embeddings:", error);
     return 0;
   }
 }

@@ -17,6 +17,127 @@ import { getErrorStatusCode, getErrorCode, getErrorMessage, getErrorTimestamp } 
 
 const router = Router();
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     AnalysisRequest:
+ *       type: object
+ *       properties:
+ *         resumeIds:
+ *           type: array
+ *           items:
+ *             type: integer
+ *           description: Array of resume IDs to analyze (optional - if not provided, analyzes all user resumes)
+ *           example: [123, 124, 125]
+ *         sessionId:
+ *           type: string
+ *           description: Optional session ID for grouping
+ *           example: "session_123"
+ *         batchId:
+ *           type: string
+ *           description: Optional batch ID for bulk operations
+ *           example: "batch_456"
+ *
+ *     BiasAnalysisRequest:
+ *       type: object
+ *       properties:
+ *         includeRecommendations:
+ *           type: boolean
+ *           description: Include bias reduction recommendations
+ *           default: true
+ *           example: true
+ */
+
+/**
+ * @swagger
+ * /analysis/analyze/{jobId}:
+ *   post:
+ *     tags: [Analysis]
+ *     summary: Analyze resumes against job description
+ *     description: |
+ *       Perform AI-powered analysis of resumes against a specific job description.
+ *       Returns matching scores, skill matches, strengths, and improvement areas.
+ *       Can analyze specific resumes or all user resumes if no IDs provided.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/JobIdParam'
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/AnalysisRequest'
+ *           example:
+ *             resumeIds: [123, 124, 125]
+ *             sessionId: "session_123"
+ *             batchId: "batch_456"
+ *     responses:
+ *       200:
+ *         description: Analysis completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     analysisId:
+ *                       type: integer
+ *                       example: 789
+ *                     jobId:
+ *                       type: integer
+ *                       example: 456
+ *                     results:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/AnalysisResult'
+ *             example:
+ *               success: true
+ *               analysisId: 789
+ *               jobId: 456
+ *               results:
+ *                 - resumeId: 123
+ *                   filename: "john_doe_resume.pdf"
+ *                   candidateName: "John Doe"
+ *                   matchPercentage: 87.5
+ *                   matchedSkills: ["React", "Node.js", "JavaScript"]
+ *                   missingSkills: ["Docker", "Kubernetes"]
+ *                   candidateStrengths: ["Strong React experience", "Full-stack capabilities"]
+ *                   candidateWeaknesses: ["Limited DevOps experience"]
+ *                   overallScore: 87.5
+ *                   confidenceScore: 92.3
+ *                   analyzedAt: "2025-01-14T10:45:00.000Z"
+ *               timestamp: "2025-01-14T10:45:00.000Z"
+ *       400:
+ *         description: Invalid job ID or request data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *             example:
+ *               success: false
+ *               error:
+ *                 code: "VALIDATION_ERROR"
+ *                 message: "Job ID must be a number"
+ *               timestamp: "2025-01-14T10:45:00.000Z"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       404:
+ *         description: Job description not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *             example:
+ *               success: false
+ *               error:
+ *                 code: "JOB_NOT_FOUND"
+ *                 message: "Job description not found or access denied"
+ *               timestamp: "2025-01-14T10:45:00.000Z"
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 // Analyze resumes against a job description
 router.post(
   "/analyze/:jobId",
@@ -335,6 +456,86 @@ router.post(
   },
 );
 
+/**
+ * @swagger
+ * /analysis/analyze-bias/{jobId}:
+ *   post:
+ *     tags: [Bias Detection]
+ *     summary: Analyze job description for bias
+ *     description: |
+ *       Analyze a job description for potential bias in language, requirements, and tone.
+ *       Identifies problematic language patterns and provides recommendations for improvement.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/JobIdParam'
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/BiasAnalysisRequest'
+ *           example:
+ *             includeRecommendations: true
+ *     responses:
+ *       200:
+ *         description: Bias analysis completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/BiasAnalysis'
+ *             example:
+ *               success: true
+ *               status: "success"
+ *               message: "Bias analysis completed"
+ *               data:
+ *                 jobId: 456
+ *                 overallBiasScore: 15.2
+ *                 biasCategories:
+ *                   - category: "gender"
+ *                     score: 25.0
+ *                     examples: ["young professional", "competitive environment"]
+ *                   - category: "age"
+ *                     score: 10.5
+ *                     examples: ["digital native", "energetic team"]
+ *                 suggestions:
+ *                   - "Replace 'young professional' with 'early-career professional'"
+ *                   - "Use inclusive language for team culture descriptions"
+ *                 analyzedAt: "2025-01-14T10:50:00.000Z"
+ *               timestamp: "2025-01-14T10:50:00.000Z"
+ *       400:
+ *         description: Invalid job ID
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *             example:
+ *               success: false
+ *               error:
+ *                 code: "VALIDATION_ERROR"
+ *                 message: "Job ID must be a number"
+ *               timestamp: "2025-01-14T10:50:00.000Z"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       404:
+ *         description: Job description not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *             example:
+ *               success: false
+ *               error:
+ *                 code: "JOB_NOT_FOUND"
+ *                 message: "Job description not found or access denied"
+ *               timestamp: "2025-01-14T10:50:00.000Z"
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 // Analyze bias in job description
 router.post(
   "/analyze-bias/:jobId",

@@ -29,6 +29,8 @@ import { globalErrorHandler, initializeGlobalErrorHandling } from "./middleware/
 import { initializeHealthChecks } from "./middleware/health-checks";
 import { apiVersioningMiddleware } from './middleware/api-versioning';
 import { validateEnvironmentOrExit } from "./lib/env-validator";
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from '../docs/api/swagger-config.js';
 
 const app = express();
 
@@ -231,6 +233,39 @@ if (process.env.NODE_ENV === "development") {
     } else {
       logger.info('🧠 Skill learning scheduler disabled (no database)');
     }
+
+    // Setup Swagger UI before registering routes
+    logger.info('📚 Setting up API documentation...');
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+      explorer: true,
+      customCss: '.swagger-ui .topbar { display: none }',
+      customSiteTitle: 'EvalMatch API Documentation',
+      customfavIcon: '/favicon.ico',
+      swaggerOptions: {
+        persistAuthorization: true,
+        displayRequestDuration: true,
+        filter: true,
+        tryItOutEnabled: true,
+        requestSnippetsEnabled: true,
+        requestSnippets: {
+          generators: {
+            curl_bash: { title: 'cURL (bash)', syntax: 'bash' },
+            curl_powershell: { title: 'cURL (PowerShell)', syntax: 'powershell' },
+            javascript_fetch: { title: 'JavaScript (fetch)', syntax: 'javascript' }
+          },
+          defaultExpanded: true,
+          languages: ['curl_bash', 'javascript_fetch']
+        }
+      }
+    }));
+
+    // Serve raw OpenAPI spec
+    app.get('/api-docs.json', (req, res) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.send(swaggerSpec);
+    });
+
+    logger.info('✅ API documentation available at /api-docs');
 
     // Register all routes AFTER storage is initialized
     logger.info('🚗 Registering application routes...');

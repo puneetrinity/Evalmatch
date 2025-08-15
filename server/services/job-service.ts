@@ -32,6 +32,7 @@ import { getStorage, IStorage } from '../storage';
 import { QueryBuilder } from '../lib/query-builder';
 import { analyzeJobDescriptionWithCache } from '../lib/cached-ai-operations';
 import { getUserTierInfo } from '../lib/user-tiers';
+import { generateEmbedding } from '../lib/embeddings';
 // import { detectJobBias } from '../lib/bias-detection'; // Function not implemented yet
 import {
   success,
@@ -210,6 +211,13 @@ export class JobService {
           await this.getStorageProvider().updateJobDescription(jobDescription.id, {
             analyzedData
           });
+          
+          // Generate embeddings for semantic matching
+          const allSkills = [
+            ...(analyzedData.requiredSkills || []),
+            ...(analyzedData.preferredSkills || [])
+          ];
+          await this.generateJobEmbeddings(jobDescription.id, options.description, allSkills);
         } else {
           logger.warn('Job analysis failed but job was created', {
             jobId: jobDescription.id,
@@ -468,6 +476,13 @@ export class JobService {
           await this.getStorageProvider().updateJobDescription(options.jobId, {
             analyzedData
           });
+          
+          // Generate embeddings for semantic matching
+          const allSkills = [
+            ...(analyzedData.requiredSkills || []),
+            ...(analyzedData.preferredSkills || [])
+          ];
+          await this.generateJobEmbeddings(options.jobId, options.description, allSkills);
         }
       }
 
@@ -602,6 +617,13 @@ export class JobService {
       await this.getStorageProvider().updateJobDescription(jobId, {
         analyzedData
       });
+      
+      // Generate embeddings for semantic matching
+      const allSkills = [
+        ...(analyzedData.requiredSkills || []),
+        ...(analyzedData.preferredSkills || [])
+      ];
+      await this.generateJobEmbeddings(jobId, job.description, allSkills);
 
       logger.info('Job description analyzed successfully', {
         userId,
@@ -628,6 +650,41 @@ export class JobService {
   }
 
   // ===== PRIVATE HELPER METHODS =====
+
+  /**
+   * Generate and store embeddings for job description
+   */
+  private async generateJobEmbeddings(
+    jobId: number,
+    jobDescription: string,
+    analyzedSkills?: string[]
+  ): Promise<void> {
+    try {
+      logger.info('Generating embeddings for job description', { jobId });
+      
+      // Generate content embedding
+      const contentEmbedding = await generateEmbedding(jobDescription);
+      
+      // Generate requirements embedding if skills are available
+      const requirementsText = analyzedSkills?.join(' ') || '';
+      const requirementsEmbedding = requirementsText ? await generateEmbedding(requirementsText) : null;
+      
+      // Update job with embeddings
+      await this.getStorageProvider().updateJobDescriptionEmbeddings(jobId, contentEmbedding, requirementsEmbedding);
+      
+      logger.info('Job embeddings generated and stored successfully', {
+        jobId,
+        contentEmbeddingDim: contentEmbedding?.length || 0,
+        requirementsEmbeddingDim: requirementsEmbedding?.length || 0
+      });
+    } catch (error) {
+      logger.error('Failed to generate or store job embeddings', {
+        jobId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      // Don't throw - embeddings are not critical for basic functionality
+    }
+  }
 
   /**
    * Validate job input parameters
