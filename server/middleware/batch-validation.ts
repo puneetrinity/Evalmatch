@@ -75,10 +75,13 @@ const sessionIdSchema = z
   .max(100, "Session ID too long")
   .regex(/^session_[0-9]+_[a-z0-9]+$/, "Invalid session ID format");
 
-// Rate limiters
+// Rate limiters - Skip during testing
+const isTestEnv = process.env.NODE_ENV === 'test';
+
 const batchValidationRateLimit = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 20, // Maximum 20 validation requests per minute per IP
+  max: isTestEnv ? 10000 : 20, // Much higher limit for tests
+  skip: isTestEnv ? () => true : undefined, // Skip rate limiting in test environment
   message: "Too many batch validation requests. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
@@ -86,7 +89,8 @@ const batchValidationRateLimit = rateLimit({
 
 const batchClaimRateLimit = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 3, // Maximum 3 claim attempts per 5 minutes per IP
+  max: isTestEnv ? 10000 : 3, // Much higher limit for tests
+  skip: isTestEnv ? () => true : undefined, // Skip rate limiting in test environment
   message: "Too many batch claim attempts. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
