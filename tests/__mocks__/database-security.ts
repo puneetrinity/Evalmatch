@@ -5,13 +5,13 @@ import { jest } from '@jest/globals';
 
 export class DatabaseSecurity {
   static sanitizeQuery = jest.fn((query: string) => {
-    // Mock SQL injection protection
-    return query.replace(/[';--]/g, '');
+    // Mock SQL injection protection - fix regex pattern
+    return query.replace(/[';\-]/g, '').replace(/--/g, '');
   });
 
   static validateParameters = jest.fn((params: any[]) => {
     return params.map(param => 
-      typeof param === 'string' ? param.replace(/[';--]/g, '') : param
+      typeof param === 'string' ? param.replace(/[';\-]/g, '').replace(/--/g, '') : param
     );
   });
 

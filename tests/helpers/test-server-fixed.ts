@@ -126,8 +126,11 @@ export async function createFixedTestApp(): Promise<express.Application> {
     testData.jobs.push(job);
     
     res.json({
-      status: 'success',
-      jobDescription: job
+      success: true,
+      status: 'success', 
+      data: {
+        jobDescription: job
+      }
     });
   });
 
@@ -356,8 +359,19 @@ export async function createFixedTestApp(): Promise<express.Application> {
       testData.resumes.push(resume);
       
       res.json({
+        success: true,
         status: 'success',
-        resume
+        data: {
+          resume: {
+            ...resume,
+            analyzedData: {
+              skills: ['JavaScript', 'TypeScript', 'React', 'Node.js'],
+              experience: '5 years',
+              education: 'Bachelor of Science in Computer Science',
+              summary: 'Experienced software engineer'
+            }
+          }
+        }
       });
 
     } catch (error) {

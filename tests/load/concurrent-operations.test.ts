@@ -6,7 +6,25 @@
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
 import { performance } from 'perf_hooks';
-import { API_ROUTES } from '../../shared/api-contracts';
+// import { API_ROUTES } from '../../shared/api-contracts';
+
+// Use direct API routes for load testing
+const API_ROUTES = {
+  HEALTH: {
+    BASIC: '/api/health'
+  },
+  JOBS: {
+    CREATE: '/api/job-descriptions'
+  },
+  RESUMES: {
+    UPLOAD: '/api/resumes'
+  },
+  ANALYSIS: {
+    ANALYZE_JOB: '/api/analysis/analyze',
+    ANALYZE_BIAS: '/api/analysis/analyze-bias',
+    GENERATE_INTERVIEW: '/api/analysis/interview-questions'
+  }
+};
 
 describe('Concurrent Operations Load Tests', () => {
   let app: any;
@@ -26,6 +44,11 @@ describe('Concurrent Operations Load Tests', () => {
   beforeAll(async () => {
     const { createFixedTestApp } = await import('../helpers/test-server-fixed');
     app = await createFixedTestApp();
+    console.log('Load test app setup complete, app defined:', !!app);
+    
+    if (!app) {
+      throw new Error('Failed to create test app for load tests');
+    }
   });
 
   afterAll(async () => {
@@ -165,7 +188,12 @@ describe('Concurrent Operations Load Tests', () => {
         })
         .expect(200);
 
-      const jobId = jobResponse.body.jobDescription.id;
+      const jobId = jobResponse.body.data?.jobDescription?.id || jobResponse.body.jobDescription?.id || jobResponse.body.id;
+      
+      if (!jobId) {
+        throw new Error('Failed to create test job for load test - no job ID returned');
+      }
+      
       const concurrency = 50;
       const testName = 'job_retrieval_load';
 
@@ -313,7 +341,7 @@ describe('Concurrent Operations Load Tests', () => {
     let testJobId: number;
     let testResumeIds: number[];
 
-    test.beforeAll(async () => {
+    beforeAll(async () => {
       // Set up test data for analysis operations
       const jobResponse = await request(app)
         .post(API_ROUTES.JOBS.CREATE)
@@ -324,7 +352,11 @@ describe('Concurrent Operations Load Tests', () => {
         })
         .expect(200);
 
-      testJobId = jobResponse.body.jobDescription.id;
+      testJobId = jobResponse.body.data?.jobDescription?.id || jobResponse.body.jobDescription?.id;
+      
+      if (!testJobId) {
+        throw new Error('Failed to create test job for analysis tests');
+      }
 
       // Create multiple resumes for analysis
       const resumePromises = Array(10).fill(null).map((_, i) =>
@@ -336,7 +368,11 @@ describe('Concurrent Operations Load Tests', () => {
       );
 
       const resumeResponses = await Promise.all(resumePromises);
-      testResumeIds = resumeResponses.map(res => res.body.resume.id);
+      testResumeIds = resumeResponses.map(res => res.body.data?.resume?.id || res.body.resume?.id).filter(id => id);
+      
+      if (testResumeIds.length === 0) {
+        throw new Error('Failed to create any test resumes for analysis tests');
+      }
     });
 
     test('should handle concurrent bias analysis requests', async () => {

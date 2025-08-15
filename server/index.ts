@@ -30,7 +30,7 @@ import { initializeHealthChecks } from "./middleware/health-checks";
 import { apiVersioningMiddleware } from './middleware/api-versioning';
 import { validateEnvironmentOrExit } from "./lib/env-validator";
 import swaggerUi from 'swagger-ui-express';
-import { swaggerSpec } from '../docs/api/swagger-config.js';
+import { swaggerSpec } from './config/swagger-config.js';
 
 const app = express();
 

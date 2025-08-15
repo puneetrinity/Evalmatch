@@ -98,7 +98,7 @@ export class SecurityValidator {
     
     // Remove SQL injection patterns
     cleaned = cleaned.replace(/(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE|UNION|DECLARE)\b)/gi, '');
-    cleaned = cleaned.replace(/('|(\\')|(;)|(--)|(\|)|(\*)|(%)|(<)|(>)|(\{)|(\})|(\[)|(\]))/g, '');
+    cleaned = cleaned.replace(/(')|(\\')|(;)|(--)|(\|)|(\*)|(%)|(<)|(>)|(\{)|(\})|(\[)|(\])/g, '');
     
     // Remove command injection patterns
     cleaned = cleaned.replace(/(\||&|;|\$|`|>|<|\n|\r)/g, '');

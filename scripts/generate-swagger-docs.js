@@ -30,7 +30,7 @@ async function validateSwaggerSetup() {
   console.log('✅ All dependencies installed');
   
   // Check if swagger config exists
-  const swaggerConfigPath = path.join(process.cwd(), 'docs', 'api', 'swagger-config.ts');
+  const swaggerConfigPath = path.join(process.cwd(), 'server', 'config', 'swagger-config.ts');
   if (!fs.existsSync(swaggerConfigPath)) {
     console.error('❌ Swagger config not found at:', swaggerConfigPath);
     process.exit(1);

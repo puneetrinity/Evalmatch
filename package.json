@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
-    "prebuild": "node scripts/inject-env.js",
+    "prebuild": "node scripts/inject-env.cjs",
     "build:client": "vite build",
     "build:server": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=build",
     "copy:migrations": "mkdir -p build/migrations && cp server/migrations/*.sql build/migrations/ && cp server/migrate.cjs build/",
