@@ -42,7 +42,7 @@
     "test:load": "node --experimental-vm-modules --max_old_space_size=2048 --max-semi-space-size=256 node_modules/.bin/jest --config jest.config.integration.mjs tests/load/ --ci --runInBand",
     "test:unit:core": "node --experimental-vm-modules --max_old_space_size=1536 --max-semi-space-size=128 node_modules/.bin/jest --config jest.config.unit.mjs --testPathPattern='scoring-constants|api-contracts|schema-validation' --ci --coverage",
     "test:unit:business": "node --experimental-vm-modules --max_old_space_size=1536 --max-semi-space-size=128 node_modules/.bin/jest --config jest.config.unit.mjs --testPathPattern='regex-patterns|groq-extraction|enhanced-experience-extraction' --ci --coverage",
-    "test:unit:ui": "node --experimental-vm-modules --max_old_space_size=1536 --max-semi-space-size=128 node_modules/.bin/jest --config jest.config.unit.mjs --testPathPattern='components|hooks|utils' --ci --coverage",
+    "test:unit:ui": "node --experimental-vm-modules --max_old_space_size=1536 --max-semi-space-size=128 node_modules/.bin/jest --config jest.config.ui.mjs --testPathPattern='components|hooks|utils' --ci --coverage",
     "test:memory-optimized:unit": "node scripts/test-memory-optimized.js --batch unit",
     "test:memory-optimized:integration": "node scripts/test-memory-optimized.js --batch integration,integration-large",
     "test:monitor": "node scripts/monitor-test-memory.js",

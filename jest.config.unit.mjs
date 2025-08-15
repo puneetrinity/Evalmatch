@@ -5,8 +5,8 @@
 export default {
   displayName: 'unit',
   preset: 'ts-jest/presets/default-esm',
-  testEnvironment: 'node',
-  extensionsToTreatAsEsm: ['.ts'],
+  testEnvironment: 'jsdom',
+  extensionsToTreatAsEsm: ['.ts', '.tsx'],
   moduleNameMapper: {
     '^@shared/(.*)$': '<rootDir>/shared/$1',
     '^@/(.*)$': '<rootDir>/client/src/$1',
@@ -22,10 +22,12 @@ export default {
     '^../../../server/lib/skill-processor$': '<rootDir>/tests/__mocks__/skill-processor.ts',
     '^../../../server/lib/hybrid-match-analyzer$': '<rootDir>/tests/__mocks__/hybrid-match-analyzer.ts',
     '^@/hooks/useBatchManager$': '<rootDir>/tests/__mocks__/useBatchManager.ts',
+    '^firebase/auth$': '<rootDir>/tests/__mocks__/firebase-auth.ts',
+    '^firebase/(.*)$': '<rootDir>/tests/__mocks__/firebase-auth.ts',
     '^(\\.{1,2}/.*)\\.js$': '$1'
   },
   transform: {
-    '^.+\\.ts$': ['ts-jest', {
+    '^.+\\.(ts|tsx)$': ['ts-jest', {
       useESM: true,
       tsconfig: 'tsconfig.test.json'
     }]
@@ -34,15 +36,17 @@ export default {
     '<rootDir>/tests/unit/**/*.test.ts'
   ],
   transformIgnorePatterns: [
-    'node_modules/(?!(@xenova|string-similarity)/)'
+    'node_modules/(?!(@xenova|string-similarity|firebase|@firebase|@tanstack)/)'
   ],
   setupFiles: ['<rootDir>/tests/setup-globals.ts'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup-unit.ts'],
   collectCoverageFrom: [
     'server/**/*.ts',
     'shared/**/*.ts',
+    'client/src/**/*.{ts,tsx}',
     '!server/**/*.d.ts',
-    '!**/*.test.ts',
+    '!**/*.test.{ts,tsx}',
+    '!**/*.d.ts',
     '!**/node_modules/**'
   ],
   coverageDirectory: 'coverage/unit',
