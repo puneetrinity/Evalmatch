@@ -27,7 +27,10 @@ export default {
     'node_modules/(?!(jose|jwks-rsa|@firebase)/)'
   ],
   roots: ['<rootDir>/tests'],
-  testMatch: ['**/*.test.ts'],
+  testMatch: [
+    '**/*.test.ts',
+    '!**/unit/**/*.test.ts' // Exclude unit tests from integration test runs
+  ],
   collectCoverageFrom: [
     'server/**/*.{ts,js}',
     'shared/**/*.{ts,js}',
