@@ -1103,9 +1103,9 @@ export function setupServerMocks() {
   jest.doMock('firebase-admin', () => mockFirebaseAdmin);
   
   // Mock AI providers
-  jest.doMock('../../../server/lib/anthropic', () => mockAIProviders);
-  jest.doMock('../../../server/lib/openai', () => mockAIProviders);
-  jest.doMock('../../../server/lib/groq', () => mockAIProviders);
+  jest.doMock('../../server/lib/anthropic', () => mockAIProviders);
+  jest.doMock('../../server/lib/openai', () => mockAIProviders);
+  jest.doMock('../../server/lib/groq', () => mockAIProviders);
   
   console.log('✅ Server mocks configured for integration tests');
 }

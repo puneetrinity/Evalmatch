@@ -38,12 +38,11 @@ const TEST_BATCHES = {
     memory: INTEGRATION_TEST_MEMORY_MB,
     config: 'jest.config.integration.mjs',
     patterns: [
-      'tests/schema-validation.test.ts'
-      // Temporarily skip API integration tests that have mock path issues:
-      // 'tests/integration/api/auth.test.ts',
-      // 'tests/integration/api/analysis.test.ts', 
-      // 'tests/integration/api/resumes.test.ts',
-      // 'tests/integration/api/job-descriptions.test.ts'
+      'tests/schema-validation.test.ts',
+      'tests/integration/api/auth.test.ts',
+      'tests/integration/api/analysis.test.ts', 
+      'tests/integration/api/resumes.test.ts',
+      'tests/integration/api/job-descriptions.test.ts'
     ]
   },
   'integration-large': {
