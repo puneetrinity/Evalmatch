@@ -16,6 +16,12 @@ export const signInWithEmailAndPassword = jest.fn();
 export const createUserWithEmailAndPassword = jest.fn();
 export const signOut = jest.fn();
 export const onAuthStateChanged = jest.fn();
+export const GoogleAuthProvider = jest.fn().mockImplementation(() => ({
+  providerId: 'google.com',
+  addScope: jest.fn(),
+  setCustomParameters: jest.fn(),
+}));
+export const signInWithPopup = jest.fn();
 
 export default {
   getAuth,
@@ -23,4 +29,6 @@ export default {
   createUserWithEmailAndPassword, 
   signOut,
   onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
 };

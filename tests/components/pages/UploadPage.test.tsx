@@ -61,7 +61,7 @@ describe('UploadPage Component', () => {
       // Check main elements
       expect(screen.getByRole('main')).toBeInTheDocument();
       expect(screen.getByText('Upload Resumes')).toBeInTheDocument();
-      expect(screen.getByText(/Upload up to 100 resumes/)).toBeInTheDocument();
+      expect(screen.getByText(/Upload up to 5 resumes in PDF, DOC, or DOCX format/)).toBeInTheDocument();
       
       // Check upload area
       expect(screen.getByText('Drag and drop your resumes here')).toBeInTheDocument();
@@ -69,7 +69,7 @@ describe('UploadPage Component', () => {
       
       // Check file list section
       expect(screen.getByText('Uploaded Resumes')).toBeInTheDocument();
-      expect(screen.getByText('Reset Session')).toBeInTheDocument();
+      expect(screen.getByText('Start New Session')).toBeInTheDocument();
       
       // Check continue button
       expect(screen.getByText('Continue to Job Description')).toBeInTheDocument();
@@ -648,7 +648,7 @@ describe('UploadPage Component', () => {
       renderWithProviders(<UploadPage />);
 
       // Check for descriptive text
-      expect(screen.getByText(/Upload up to 100 resumes/)).toBeInTheDocument();
+      expect(screen.getByText(/Upload up to 5 resumes in PDF, DOC, or DOCX format/)).toBeInTheDocument();
       expect(screen.getByText(/Supported formats: PDF, DOC, DOCX/)).toBeInTheDocument();
 
       // Check for status messages

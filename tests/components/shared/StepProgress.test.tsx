@@ -200,9 +200,14 @@ describe('StepProgress Component', () => {
     it('should apply correct styles to pending steps', () => {
       render(<StepProgress steps={mockSteps} />);
 
-      const pendingStepContainer = screen.getByText('Fit Analysis').closest('div')?.parentElement;
-      const pendingStepCircle = pendingStepContainer?.querySelector('.h-12.w-12');
+      // Look for pending step circle more directly
+      const pendingStepCircles = document.querySelectorAll('.h-12.w-12');
+      const pendingStepCircle = Array.from(pendingStepCircles).find(circle => {
+        const container = circle.closest('div');
+        return container && container.textContent?.includes('Fit Analysis');
+      });
       
+      expect(pendingStepCircle).toBeTruthy();
       expect(pendingStepCircle).toHaveClass('bg-white');
       expect(pendingStepCircle).toHaveClass('border-gray-300');
       expect(pendingStepCircle).toHaveClass('text-gray-500');

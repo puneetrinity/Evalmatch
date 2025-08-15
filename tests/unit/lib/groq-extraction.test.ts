@@ -3,7 +3,10 @@ import { extractName, extractExperience } from '../../../server/lib/groq';
 // Helper function to test text-based experience extraction patterns
 function testExperiencePattern(text: string): string {
   // Only extract if text contains experience-related context
-  if (!text.toLowerCase().includes('experience') && !text.toLowerCase().includes('exp')) {
+  const experienceKeywords = ['experience', 'exp', 'working as', 'work', 'professional', 'industry'];
+  const hasExperienceContext = experienceKeywords.some(keyword => text.toLowerCase().includes(keyword));
+  
+  if (!hasExperienceContext) {
     return "0 years";
   }
   
