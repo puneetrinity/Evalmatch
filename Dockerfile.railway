@@ -50,8 +50,8 @@ RUN mkdir -p uploads uploads/temp data build build/public dist && \
 # Copy source files (this layer changes most frequently)
 COPY . .
 
-# Make start script executable
-RUN chmod +x start.sh
+# Make start script executable with full permissions and ensure proper ownership
+RUN chmod 755 start.sh && chown root:root start.sh && ls -la start.sh
 
 # Build arguments for Firebase environment variables with defaults
 ARG VITE_FIREBASE_API_KEY=placeholder-api-key
@@ -163,8 +163,8 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${PORT:-3000}/api/health/railway || exit 1
 
-# Add curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Add curl for health checks and bash for the start script
+RUN apt-get update && apt-get install -y curl bash && rm -rf /var/lib/apt/lists/*
 
 # Use shell form to ensure NODE_OPTIONS is applied
-CMD /bin/sh -c "export NODE_OPTIONS='--max-old-space-size=7168 --max-semi-space-size=256' && ./start.sh"
+CMD ["/bin/bash", "-c", "export NODE_OPTIONS='--max-old-space-size=7168 --max-semi-space-size=256' && /app/start.sh"]
