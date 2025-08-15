@@ -19,24 +19,56 @@
   }
 };
 
-// Mock window and related browser globals for Node.js test environment
+// Mock complete browser environment for tests
 const mockWindow = {
-  navigator: { userAgent: 'Node.js Test Environment' },
-  location: { href: 'http://localhost:3000/test' }
+  navigator: { 
+    userAgent: 'Node.js Test Environment',
+    onLine: true,
+    connection: {
+      effectiveType: '4g',
+      addEventListener: () => {},
+      removeEventListener: () => {}
+    }
+  },
+  location: { 
+    href: 'http://localhost:3000/test',
+    reload: () => {}
+  },
+  addEventListener: () => {},
+  removeEventListener: () => {},
+  localStorage: {
+    clear: () => {}
+  },
+  sessionStorage: {
+    clear: () => {}
+  },
+  caches: {
+    keys: () => Promise.resolve([]),
+    delete: () => Promise.resolve(true)
+  }
 };
 
 global.window = mockWindow as any;
+global.navigator = mockWindow.navigator as any;
 
 // Mock Response constructor to handle invalid status codes gracefully for tests
 global.Response = class MockResponse {
   status: number;
   statusText: string;
   ok: boolean;
+  url: string;
 
   constructor(body?: any, init?: { status?: number; statusText?: string }) {
-    this.status = init?.status ?? 200;
+    // Validate status codes to be in proper range
+    const status = init?.status ?? 200;
+    if (status < 200 || status > 599) {
+      throw new RangeError(`init["status"] must be in the range of 200 to 599, inclusive.`);
+    }
+    
+    this.status = status;
     this.statusText = init?.statusText ?? 'OK';
     this.ok = this.status >= 200 && this.status < 300;
+    this.url = 'https://test.example.com/test';
   }
 } as any;
 

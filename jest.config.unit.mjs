@@ -22,6 +22,9 @@ export default {
     '^../../../server/lib/skill-processor$': '<rootDir>/tests/__mocks__/skill-processor.ts',
     '^../../../server/lib/hybrid-match-analyzer$': '<rootDir>/tests/__mocks__/hybrid-match-analyzer.ts',
     '^@/hooks/useBatchManager$': '<rootDir>/tests/__mocks__/useBatchManager.ts',
+    '^@/hooks/use-toast$': '<rootDir>/tests/__mocks__/use-toast.ts',
+    '^../../../client/src/hooks/use-toast$': '<rootDir>/tests/__mocks__/use-toast.ts',
+    '^../../../client/src/lib/error-handling$': '<rootDir>/client/src/lib/error-handling.ts',
     '^firebase/auth$': '<rootDir>/tests/__mocks__/firebase-auth.ts',
     '^firebase/(.*)$': '<rootDir>/tests/__mocks__/firebase-auth.ts',
     '^(\\.{1,2}/.*)\\.js$': '$1'

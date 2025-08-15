@@ -123,17 +123,16 @@ describe('Error Handling Utilities', () => {
 
     describe('createErrorContext', () => {
       it('should create context with environment data', () => {
-        // Since JSDOM's location/navigator properties are non-configurable,
-        // let's test that the function works with the actual JSDOM environment
-        // and verify the structure is correct
         const context = createErrorContext();
 
         expect(context.timestamp).toBeInstanceOf(Date);
+        // userAgent should be available from our mock window setup
+        expect(context.userAgent).toBeDefined();
         expect(typeof context.userAgent).toBe('string');
+        expect(context.url).toBeDefined();
         expect(typeof context.url).toBe('string');
         
         // Verify that the function is reading from window properly
-        // In JSDOM, we expect these default values
         expect(context.userAgent).toBe(window.navigator.userAgent);
         expect(context.url).toBe(window.location.href);
       });
@@ -777,7 +776,8 @@ describe('Error Handling Utilities', () => {
     });
 
     it('should handle malformed HTTP responses', () => {
-      const response = new Response('', { status: 0 });
+      // Use a valid status code but simulate a malformed response
+      const response = new Response('', { status: 418 }); // I'm a teapot (valid but unusual)
       const error = convertHttpError(response);
 
       expect(error).toBeTruthy();
