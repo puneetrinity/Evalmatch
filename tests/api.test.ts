@@ -43,7 +43,7 @@ class MockStorage implements IStorage {
         experience: 'Developer at Test Company for 2 years',
         education: 'BS Computer Science from Test University'
       },
-      sessionId: 'test-session',
+      sessionId: 'session_1234567890_test1',
       batchId: 'batch_1234567890_abcdef',
       userId: 'test-user-1',
       created: new Date(),
@@ -55,7 +55,7 @@ class MockStorage implements IStorage {
       fileSize: 2048,
       fileType: 'application/pdf',
       content: 'Test resume content 2',
-      sessionId: 'test-session-2',
+      sessionId: 'session_1234567890_test2',
       batchId: 'batch_1234567890_ghijkl',
       userId: null,
       created: new Date(Date.now() - 48 * 60 * 60 * 1000), // 48 hours ago
@@ -289,10 +289,20 @@ describe('API Routes', () => {
   let app: Express;
   let mockStorage: MockStorage;
   let server: import('http').Server;
+  const mockAuthToken = 'test-auth-token';
 
   beforeAll(async () => {
     app = express();
     app.use(express.json());
+    
+    // Add mock authentication middleware for tests
+    app.use((req: any, res: any, next: any) => {
+      if (req.headers.authorization) {
+        req.user = { uid: 'test-user-1', email: 'test@example.com' };
+      }
+      next();
+    });
+    
     mockStorage = new MockStorage();
     // @ts-ignore - using mock storage for testing
     server = await registerRoutes(app, mockStorage);
@@ -364,7 +374,7 @@ describe('Batch Service Integration Tests', () => {
         validateBatchAccess: jest.fn().mockResolvedValue({
           data: {
             batchId: 'batch_1234567890_abcdef',
-            sessionId: 'test-session',
+            sessionId: 'session_1234567890_test1',
             userId: 'test-user-1',
             valid: true,
             status: 'active',
@@ -388,7 +398,7 @@ describe('Batch Service Integration Tests', () => {
         getBatchStatus: jest.fn().mockResolvedValue({
           data: {
             batchId: 'batch_1234567890_abcdef',
-            sessionId: 'test-session',
+            sessionId: 'session_1234567890_test1',
             userId: 'test-user-1',
             status: 'active',
             resumeCount: 1,
@@ -441,7 +451,7 @@ describe('Batch Service Integration Tests', () => {
             resumeCount: 1,
             analysisResultsUpdated: 0,
             previousOwner: {
-              sessionId: 'test-session-2',
+              sessionId: 'session_1234567890_test2',
               userId: null
             },
             warnings: [],
@@ -464,7 +474,7 @@ describe('Batch Service Integration Tests', () => {
           data: {
             candidates: [{
               batchId: 'batch_1234567890_ghijkl',
-              sessionId: 'test-session-2',
+              sessionId: 'session_1234567890_test2',
               userId: null,
               resumeCount: 1,
               createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
@@ -590,7 +600,7 @@ describe('Batch Service Integration Tests', () => {
       const response = await request(app)
         .post('/api/batches/batch_1234567890_ghijkl/claim')
         .send({
-          sessionId: 'session_new_owner',
+          sessionId: 'session_1234567890_newowner',
           userId: 'new-user-123',
           force: false
         });
@@ -607,7 +617,7 @@ describe('Batch Service Integration Tests', () => {
       const response = await request(app)
         .post('/api/batches/batch_1234567890_abcdef/claim')
         .send({
-          sessionId: 'session_attacker',
+          sessionId: 'session_1234567890_attacker',
           userId: 'attacker-123',
           force: false
         });
@@ -620,7 +630,7 @@ describe('Batch Service Integration Tests', () => {
       const response = await request(app)
         .post('/api/batches/batch_1234567890_ghijkl/claim')
         .send({
-          sessionId: 'invalid-session-format',
+          sessionId: 'invalid_session_format',
           userId: 'new-user-123'
         });
       
