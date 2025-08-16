@@ -1,6 +1,5 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { registerRoutes } from './routes.js';
 import { drizzle as _drizzle } from 'drizzle-orm/neon-serverless';
 import * as _schema from "@shared/schema";

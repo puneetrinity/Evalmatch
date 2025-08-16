@@ -3,7 +3,6 @@ import { sql } from "drizzle-orm";
 import { logger } from "./logger";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 
 // ES modules equivalent of __dirname - handle both CommonJS and ES modules
 let currentDirPath: string;
