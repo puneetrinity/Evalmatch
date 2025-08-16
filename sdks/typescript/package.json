@@ -1,0 +1,70 @@
+{
+  "name": "@evalmatch/sdk",
+  "version": "1.0.0",
+  "description": "TypeScript SDK for EvalMatch API - AI-powered recruitment platform",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "evalmatch",
+    "recruitment",
+    "ai",
+    "resume",
+    "analysis",
+    "typescript",
+    "sdk",
+    "api-client"
+  ],
+  "author": "EvalMatch",
+  "license": "Commercial",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/puneetrinity/Evalmatch.git",
+    "directory": "sdks/typescript"
+  },
+  "homepage": "https://evalmatch.app",
+  "bugs": {
+    "url": "https://github.com/puneetrinity/Evalmatch/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.7.0"
+  },
+  "peerDependencies": {
+    "firebase": ">=10.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.0.0",
+    "ts-jest": "^29.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ]
+}

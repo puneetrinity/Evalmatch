@@ -1,0 +1,334 @@
+name: TypeScript SDK CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths: 
+      - 'docs/api/**'
+      - 'sdks/typescript/**'
+      - 'server/config/swagger-config.ts'
+      - '.github/workflows/typescript-sdk-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/api/**'
+      - 'sdks/typescript/**'
+      - 'server/config/swagger-config.ts'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Force publish to NPM'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '20'
+  SDK_DIR: 'sdks/typescript'
+
+jobs:
+  # Generate OpenAPI spec and SDK
+  generate:
+    runs-on: ubuntu-latest
+    outputs:
+      spec-changed: ${{ steps.changes.outputs.changed }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate OpenAPI specification
+        run: npx tsx scripts/generate-openapi.js
+
+      - name: Check for spec changes
+        id: changes
+        run: |
+          if git diff --quiet docs/api/openapi.yaml; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Regenerate TypeScript SDK
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          chmod +x scripts/generate-typescript-sdk.sh
+          ./scripts/generate-typescript-sdk.sh
+
+      - name: Upload generated SDK
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-sdk
+          path: ${{ env.SDK_DIR }}/src/generated/
+          retention-days: 1
+
+      - name: Upload OpenAPI spec
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: docs/api/openapi.yaml
+          retention-days: 7
+
+  # Test and build SDK
+  test:
+    runs-on: ubuntu-latest
+    needs: generate
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download generated SDK
+        if: needs.generate.outputs.spec-changed == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-sdk
+          path: ${{ env.SDK_DIR }}/src/generated/
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.SDK_DIR }}/package-lock.json
+
+      - name: Install SDK dependencies
+        working-directory: ${{ env.SDK_DIR }}
+        run: npm ci
+
+      - name: Run TypeScript type checking
+        working-directory: ${{ env.SDK_DIR }}
+        run: npm run typecheck
+
+      - name: Run ESLint
+        working-directory: ${{ env.SDK_DIR }}
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Build SDK
+        working-directory: ${{ env.SDK_DIR }}
+        run: npm run build
+
+      - name: Test SDK functionality
+        working-directory: ${{ env.SDK_DIR }}
+        run: node test-sdk.js
+
+      - name: Check bundle size
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          echo "📦 Bundle sizes:"
+          ls -lh dist/
+          echo "ESM Bundle: $(du -h dist/index.mjs | cut -f1)"
+          echo "CJS Bundle: $(du -h dist/index.js | cut -f1)"
+          echo "Type Definitions: $(du -h dist/index.d.ts | cut -f1)"
+
+      - name: Upload build artifacts
+        if: matrix.node-version == 20
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-dist
+          path: ${{ env.SDK_DIR }}/dist/
+          retention-days: 30
+
+  # Publish to NPM
+  publish:
+    runs-on: ubuntu-latest
+    needs: [generate, test]
+    if: |
+      (github.ref == 'refs/heads/main' && 
+       (needs.generate.outputs.spec-changed == 'true' || github.event.inputs.publish == 'true')) ||
+      startsWith(github.ref, 'refs/tags/sdk-v')
+    environment: npm-publishing
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download generated SDK
+        if: needs.generate.outputs.spec-changed == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-sdk
+          path: ${{ env.SDK_DIR }}/src/generated/
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: sdk-dist
+          path: ${{ env.SDK_DIR }}/dist/
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+          cache-dependency-path: ${{ env.SDK_DIR }}/package-lock.json
+
+      - name: Install SDK dependencies
+        working-directory: ${{ env.SDK_DIR }}
+        run: npm ci
+
+      - name: Determine version strategy
+        id: version
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/sdk-v* ]]; then
+            # Tagged release - use tag version
+            VERSION=${GITHUB_REF#refs/tags/sdk-v}
+            echo "strategy=tagged" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.generate.outputs.spec-changed }}" == "true" ]]; then
+            # Auto-increment patch version for spec changes
+            CURRENT_VERSION=$(npm version --json | jq -r '.["@evalmatch/sdk"]' 2>/dev/null || echo "1.0.0")
+            NEW_VERSION=$(npm version patch --no-git-tag-version | sed 's/^v//')
+            echo "strategy=auto-patch" >> $GITHUB_OUTPUT
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          else
+            # Manual publish - use current version
+            CURRENT_VERSION=$(node -p "require('./package.json').version")
+            echo "strategy=manual" >> $GITHUB_OUTPUT
+            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update package version
+        if: steps.version.outputs.strategy != 'manual'
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          npm version ${{ steps.version.outputs.version }} --no-git-tag-version
+          echo "📦 Publishing version: ${{ steps.version.outputs.version }}"
+
+      - name: Update package metadata
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          # Update package.json with build metadata
+          node -e "
+            const pkg = require('./package.json');
+            pkg.publishConfig = {
+              access: 'public',
+              registry: 'https://registry.npmjs.org/'
+            };
+            pkg.repository.url = '${{ github.server_url }}/${{ github.repository }}.git';
+            pkg.bugs.url = '${{ github.server_url }}/${{ github.repository }}/issues';
+            pkg.homepage = 'https://evalmatch.app';
+            require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));
+          "
+
+      - name: Generate changelog entry
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          echo "# Changelog" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "## [${{ steps.version.outputs.version }}] - $(date +%Y-%m-%d)" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          if [[ "${{ steps.version.outputs.strategy }}" == "auto-patch" ]]; then
+            echo "### Changed" >> CHANGELOG.md
+            echo "- Updated API client from OpenAPI specification changes" >> CHANGELOG.md
+            echo "- Regenerated TypeScript types and interfaces" >> CHANGELOG.md
+          else
+            echo "### Release" >> CHANGELOG.md
+            echo "- Manual release of TypeScript SDK" >> CHANGELOG.md
+          fi
+          echo "" >> CHANGELOG.md
+          echo "**Generated from commit:** \`${{ github.sha }}\`" >> CHANGELOG.md
+
+      - name: Dry run publish
+        working-directory: ${{ env.SDK_DIR }}
+        run: npm publish --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish to NPM
+        working-directory: ${{ env.SDK_DIR }}
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create Git tag
+        if: steps.version.outputs.strategy == 'auto-patch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "sdk-v${{ steps.version.outputs.version }}" -m "TypeScript SDK v${{ steps.version.outputs.version }}"
+          git push origin "sdk-v${{ steps.version.outputs.version }}"
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: sdk-v${{ steps.version.outputs.version }}
+          release_name: TypeScript SDK v${{ steps.version.outputs.version }}
+          body: |
+            ## EvalMatch TypeScript SDK v${{ steps.version.outputs.version }}
+            
+            ### 📦 Package
+            ```bash
+            npm install @evalmatch/sdk@${{ steps.version.outputs.version }}
+            ```
+            
+            ### 🔄 Changes
+            - Auto-generated from OpenAPI specification
+            - Updated TypeScript types and client interfaces
+            - See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/sdks/typescript/CHANGELOG.md) for details
+            
+            ### 📊 Bundle Information
+            - **ESM Bundle**: ~22KB
+            - **CJS Bundle**: ~24KB  
+            - **TypeScript Definitions**: ~29KB
+            - **Node.js Support**: 18+
+            - **Browser Support**: Modern browsers (ES2020+)
+            
+            **Generated from commit:** `${{ github.sha }}`
+          draft: false
+          prerelease: false
+
+  # Security and quality checks
+  security:
+    runs-on: ubuntu-latest
+    needs: generate
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download generated SDK
+        if: needs.generate.outputs.spec-changed == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-sdk
+          path: ${{ env.SDK_DIR }}/src/generated/
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.SDK_DIR }}/package-lock.json
+
+      - name: Install SDK dependencies
+        working-directory: ${{ env.SDK_DIR }}
+        run: npm ci
+
+      - name: Run security audit
+        working-directory: ${{ env.SDK_DIR }}
+        run: npm audit --audit-level moderate
+
+      - name: Check for outdated dependencies
+        working-directory: ${{ env.SDK_DIR }}
+        run: npm outdated || true
+
+      - name: Validate package.json
+        working-directory: ${{ env.SDK_DIR }}
+        run: npm ls --depth=0
