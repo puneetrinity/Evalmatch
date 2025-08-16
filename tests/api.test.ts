@@ -3,17 +3,6 @@ import request from 'supertest';
 import express, { Express } from 'express';
 import { IStorage } from '../server/storage';
 import { registerRoutes } from '../server/routes';
-
-// Skip this test file in CI - it requires proper storage initialization
-if (process.env.CI) {
-  describe.skip('API Routes', () => {
-    it('skipped in CI', () => {});
-  });
-  describe.skip('Batch Service Integration Tests', () => {
-    it('skipped in CI', () => {});
-  });
-} else {
-
 import {
   type Resume, type InsertResume,
   type JobDescription, type InsertJobDescription,
@@ -22,6 +11,9 @@ import {
   type AnalyzeResumeResponse, type AnalyzeJobDescriptionResponse,
   type User, type InsertUser
 } from '@shared/schema';
+
+// Skip this test file in CI - it requires proper storage initialization
+const skipInCI = process.env.CI === 'true';
 
 // Mock storage implementation for testing
 class MockStorage implements IStorage {
