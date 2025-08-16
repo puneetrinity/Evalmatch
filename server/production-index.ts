@@ -4,9 +4,16 @@ import { fileURLToPath } from 'url';
 import { registerRoutes } from "./routes";
 import { logger } from "./config/logger";
 
-// For ES modules in Node.js
-const currentFilePath = fileURLToPath(import.meta.url);
-const currentDirPath = path.dirname(currentFilePath);
+// For ES modules in Node.js - handle both CommonJS and ES modules
+let currentDirPath: string;
+if (typeof __dirname !== 'undefined') {
+  // CommonJS environment (e.g., Jest)
+  currentDirPath = __dirname;
+} else {
+  // ES modules environment
+  const currentFilePath = fileURLToPath(import.meta.url);
+  currentDirPath = path.dirname(currentFilePath);
+}
 
 // Check for OpenAI API Key
 if (!process.env.OPENAI_API_KEY) {

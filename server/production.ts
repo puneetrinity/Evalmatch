@@ -7,8 +7,16 @@ import * as _schema from "@shared/schema";
 import { logger } from './lib/logger.js';
 // import { createDeploymentPool, getServerConfig } from './deployment-helper.js';
 
-const currentFilePath = fileURLToPath(import.meta.url);
-const currentDirPath = path.dirname(currentFilePath);
+// ES modules equivalent of __dirname - handle both CommonJS and ES modules
+let currentDirPath: string;
+if (typeof __dirname !== 'undefined') {
+  // CommonJS environment (e.g., Jest)
+  currentDirPath = __dirname;
+} else {
+  // ES modules environment
+  const currentFilePath = fileURLToPath(import.meta.url);
+  currentDirPath = path.dirname(currentFilePath);
+}
 
 logger.info('Initializing specialized database configuration for Replit deployment');
 

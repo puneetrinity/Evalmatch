@@ -15,9 +15,16 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// ES modules equivalent of currentDirPath
-const currentFilePath = fileURLToPath(import.meta.url);
-const currentDirPath = path.dirname(currentFilePath);
+// ES modules equivalent of __dirname - handle both CommonJS and ES modules
+let currentDirPath: string;
+if (typeof __dirname !== 'undefined') {
+  // CommonJS environment (e.g., Jest)
+  currentDirPath = __dirname;
+} else {
+  // ES modules environment
+  const currentFilePath = fileURLToPath(import.meta.url);
+  currentDirPath = path.dirname(currentFilePath);
+}
 
 // Database connection pool
 let pool: Pool | null = null;
