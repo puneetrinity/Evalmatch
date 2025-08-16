@@ -738,4 +738,4 @@ describe.skip('Batch Service Integration Tests', () => {
       expect(deleteResponse.body.data.deletedItems.resumes).toBeGreaterThan(0);
     });
   });
-});}
+});
