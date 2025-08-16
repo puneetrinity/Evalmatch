@@ -65,7 +65,7 @@ describe('Comprehensive API Integration Tests', () => {
       
       if (response.status === 200) {
         expect(response.body).toHaveProperty('status');
-        if (response.body.checks) {
+        if (response.body.checks !== undefined) {
           expect(Array.isArray(response.body.checks)).toBe(true);
         }
       }
@@ -81,7 +81,7 @@ describe('Comprehensive API Integration Tests', () => {
       
       if (response.status === 200) {
         expect(response.body).toHaveProperty('status');
-        if (response.body.migrations) {
+        if (response.body.migrations !== undefined) {
           expect(Array.isArray(response.body.migrations)).toBe(true);
         }
       }
