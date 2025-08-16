@@ -5,8 +5,8 @@ import { registerRoutes } from "./routes";
 import { logger } from "./config/logger";
 
 // For ES modules in Node.js
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDirPath = path.dirname(currentFilePath);
 
 // Check for OpenAI API Key
 if (!process.env.OPENAI_API_KEY) {
@@ -66,7 +66,7 @@ app.use((req, res, next) => {
   });
 
   // Serve static files from the React app
-  const clientPath = path.join(__dirname, '../client');
+  const clientPath = path.join(currentDirPath, '../client');
   app.use(express.static(clientPath));
 
   // For all other routes, serve the React app

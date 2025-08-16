@@ -7,8 +7,8 @@ import * as _schema from "@shared/schema";
 import { logger } from './lib/logger.js';
 // import { createDeploymentPool, getServerConfig } from './deployment-helper.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDirPath = path.dirname(currentFilePath);
 
 logger.info('Initializing specialized database configuration for Replit deployment');
 
@@ -26,7 +26,7 @@ const app: Express = express();
 app.use(express.json());
 
 // Configure static file serving for the production build
-app.use(express.static(path.join(__dirname, '../client')));
+app.use(express.static(path.join(currentDirPath, '../client')));
 
 // Set up API routes
 try {
@@ -44,7 +44,7 @@ app.use((err: Error | unknown, _req: Request, res: Response, _next: NextFunction
 
 // For all other routes, serve the React app
 app.get('*', (_req: Request, res: Response) => {
-  res.sendFile(path.join(__dirname, '../client/index.html'));
+  res.sendFile(path.join(currentDirPath, '../client/index.html'));
 });
 
 // Get server config from deployment helper

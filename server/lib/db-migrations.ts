@@ -5,9 +5,9 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// ES modules equivalent of __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ES modules equivalent of currentDirPath
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDirPath = path.dirname(currentFilePath);
 
 /**
  * Consolidated Database Migration System
@@ -93,7 +93,7 @@ async function executeMigration(migration: Migration): Promise<void> {
     path.join(process.cwd(), "server", "migrations", migration.filename),
     // Alternative locations
     path.join(process.cwd(), "migrations", migration.filename),
-    path.join(__dirname, "..", "migrations", migration.filename),
+    path.join(currentDirPath, "..", "migrations", migration.filename),
   ];
 
   let migrationPath: string | null = null;
@@ -108,7 +108,7 @@ async function executeMigration(migration: Migration): Promise<void> {
     // Debug: List what files actually exist
     const debugInfo = {
       cwd: process.cwd(),
-      __dirname,
+      currentDirPath,
       possiblePaths,
       distContents: fs.existsSync(path.join(process.cwd(), "dist"))
         ? fs.readdirSync(path.join(process.cwd(), "dist"))

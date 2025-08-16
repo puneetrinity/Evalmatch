@@ -15,9 +15,9 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// ES modules equivalent of __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ES modules equivalent of currentDirPath
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDirPath = path.dirname(currentFilePath);
 
 // Database connection pool
 let pool: Pool | null = null;
@@ -522,7 +522,7 @@ export async function initializeDatabase(): Promise<void> {
         '../migrate.cjs',
         './migrate.cjs', 
         '../../migrate.cjs',
-        path.join(__dirname, '..', 'migrate.cjs'),
+        path.join(currentDirPath, '..', 'migrate.cjs'),
         path.join(process.cwd(), 'server', 'migrate.cjs'),
         path.join(process.cwd(), 'build', 'migrate.cjs'),
       ];
@@ -530,7 +530,7 @@ export async function initializeDatabase(): Promise<void> {
       let migrationScript = null;
       for (const scriptPath of possibleMigrationScripts) {
         try {
-          const resolved = path.resolve(scriptPath.startsWith('/') ? scriptPath : path.join(__dirname, scriptPath));
+          const resolved = path.resolve(scriptPath.startsWith('/') ? scriptPath : path.join(currentDirPath, scriptPath));
           if (fs.existsSync(resolved)) {
             migrationScript = require(resolved);
             logger.debug(`Found emergency migration script: ${resolved}`);
@@ -1188,9 +1188,9 @@ async function runMigrations(): Promise<void> {
 
     // Try multiple possible locations for migrations directory
     const possibleMigrationDirs = [
-      path.join(__dirname, "..", "migrations"),              // server/migrations (dev)
-      path.join(__dirname, "migrations"),                    // database/migrations 
-      path.join(__dirname, "..", "..", "migrations"),        // root/migrations
+      path.join(currentDirPath, "..", "migrations"),              // server/migrations (dev)
+      path.join(currentDirPath, "migrations"),                    // database/migrations 
+      path.join(currentDirPath, "..", "..", "migrations"),        // root/migrations
       path.join(process.cwd(), "server", "migrations"),      // from project root
       path.join(process.cwd(), "build", "migrations"),       // production build
       path.join(process.cwd(), "migrations"),                // direct in working dir
@@ -1211,7 +1211,7 @@ async function runMigrations(): Promise<void> {
       logger.warn("No migrations directory found - assuming database is already set up", {
         searchedPaths: possibleMigrationDirs,
         currentWorkingDir: process.cwd(),
-        __dirname,
+        currentDirPath,
       });
       return;
     }
