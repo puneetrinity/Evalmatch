@@ -100,6 +100,14 @@ export async function createFixedTestApp(): Promise<express.Application> {
     });
   });
 
+  app.get('/api/ping', (req, res) => {
+    res.json({
+      message: 'pong',
+      timestamp: new Date().toISOString(),
+      server: 'test'
+    });
+  });
+
   // Job Description endpoints
   app.post('/api/job-descriptions', (req, res) => {
     const { title, description, requirements, skills, experience } = req.body;
