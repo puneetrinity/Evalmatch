@@ -6,13 +6,13 @@ import { logger } from "./config/logger";
 
 // For ES modules in Node.js - handle both CommonJS and ES modules
 let currentDirPath: string;
-if (typeof __dirname !== 'undefined') {
-  // CommonJS environment (e.g., Jest)
-  currentDirPath = __dirname;
+
+// In test environment or when __dirname is not available, use process.cwd()
+// This avoids syntax errors with import.meta.url in CommonJS environments
+if (process.env.NODE_ENV === 'test' || typeof __dirname === 'undefined') {
+  currentDirPath = path.join(process.cwd(), 'server');
 } else {
-  // ES modules environment
-  const currentFilePath = fileURLToPath(import.meta.url);
-  currentDirPath = path.dirname(currentFilePath);
+  currentDirPath = __dirname;
 }
 
 // Check for OpenAI API Key
