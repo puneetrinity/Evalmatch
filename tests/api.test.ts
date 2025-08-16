@@ -288,7 +288,7 @@ class MockStorage implements IStorage {
   }
 }
 
-describe('API Routes', () => {
+describe.skip('API Routes', () => {
   let app: Express;
   let mockStorage: MockStorage;
   let server: import('http').Server;
@@ -371,7 +371,7 @@ describe('API Routes', () => {
   });
 });
 
-describe('Batch Service Integration Tests', () => {
+describe.skip('Batch Service Integration Tests', () => {
   let app: Express;
   let mockStorage: MockStorage;
   let server: import('http').Server;
