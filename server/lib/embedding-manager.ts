@@ -12,15 +12,18 @@ export class EmbeddingManager {
   private readonly CLEANUP_INTERVAL = 300000; // 5 minutes
   private readonly MAX_AGE = 3600000; // 1 hour
   private cleanupTimer: NodeJS.Timeout | null = null;
+  private memoryMonitorTimer: NodeJS.Timeout | null = null;
   private accessOrder: string[] = []; // LRU tracking
 
   constructor() {
     // Start periodic cleanup
     this.cleanupTimer = setInterval(() => this.cleanup(), this.CLEANUP_INTERVAL);
     
-    // Graceful shutdown
-    process.on('SIGTERM', () => this.shutdown());
-    process.on('SIGINT', () => this.shutdown());
+    // Graceful shutdown - only in non-test environments
+    if (process.env.NODE_ENV !== 'test') {
+      process.on('SIGTERM', () => this.shutdown());
+      process.on('SIGINT', () => this.shutdown());
+    }
     
     // Monitor memory usage
     this.monitorMemory();
@@ -148,7 +151,7 @@ export class EmbeddingManager {
    * Monitor memory usage and alert
    */
   private monitorMemory(): void {
-    setInterval(() => {
+    this.memoryMonitorTimer = setInterval(() => {
       const memoryUsage = process.memoryUsage();
       const heapUsedMB = Math.round(memoryUsage.heapUsed / 1024 / 1024);
       const heapTotalMB = Math.round(memoryUsage.heapTotal / 1024 / 1024);
@@ -177,11 +180,15 @@ export class EmbeddingManager {
   /**
    * Graceful shutdown
    */
-  private shutdown(): void {
+  public shutdown(): void {
     logger.info("Shutting down embedding manager");
     
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer);
+    }
+    
+    if (this.memoryMonitorTimer) {
+      clearInterval(this.memoryMonitorTimer);
     }
     
     this.embeddings.clear();

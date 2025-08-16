@@ -41,27 +41,39 @@ const CIRCUIT_BREAKER_MAX_ENTRIES = 1000; // Prevent memory leaks
 const CIRCUIT_BREAKER_CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 // Cleanup stale circuit breaker entries to prevent memory leaks
-setInterval(() => {
-  const now = Date.now();
-  const staleEntries: string[] = [];
-  
-  for (const [key, breaker] of circuitBreakers.entries()) {
-    // Remove entries older than 1 hour or if we exceed max entries
-    const isStale = breaker.lastFailureTime && (now - breaker.lastFailureTime) > 60 * 60 * 1000;
-    if (isStale || circuitBreakers.size > CIRCUIT_BREAKER_MAX_ENTRIES) {
-      staleEntries.push(key);
+let circuitBreakerCleanupTimer: NodeJS.Timeout | null = null;
+
+if (process.env.NODE_ENV !== 'test') {
+  circuitBreakerCleanupTimer = setInterval(() => {
+    const now = Date.now();
+    const staleEntries: string[] = [];
+    
+    for (const [key, breaker] of circuitBreakers.entries()) {
+      // Remove entries older than 1 hour or if we exceed max entries
+      const isStale = breaker.lastFailureTime && (now - breaker.lastFailureTime) > 60 * 60 * 1000;
+      if (isStale || circuitBreakers.size > CIRCUIT_BREAKER_MAX_ENTRIES) {
+        staleEntries.push(key);
+      }
     }
+    
+    staleEntries.forEach(key => circuitBreakers.delete(key));
+    
+    if (staleEntries.length > 0) {
+      logger.info(`Circuit breaker cleanup: removed ${staleEntries.length} stale entries`, {
+        totalEntries: circuitBreakers.size,
+        maxEntries: CIRCUIT_BREAKER_MAX_ENTRIES
+      });
+    }
+  }, CIRCUIT_BREAKER_CLEANUP_INTERVAL);
+}
+
+// Export cleanup function for tests
+export function cleanupCircuitBreakerTimer(): void {
+  if (circuitBreakerCleanupTimer) {
+    clearInterval(circuitBreakerCleanupTimer);
+    circuitBreakerCleanupTimer = null;
   }
-  
-  staleEntries.forEach(key => circuitBreakers.delete(key));
-  
-  if (staleEntries.length > 0) {
-    logger.info(`Circuit breaker cleanup: removed ${staleEntries.length} stale entries`, {
-      totalEntries: circuitBreakers.size,
-      maxEntries: CIRCUIT_BREAKER_MAX_ENTRIES
-    });
-  }
-}, CIRCUIT_BREAKER_CLEANUP_INTERVAL);
+}
 
 // PERFORMANCE: Implement LRU eviction when approaching memory limits
 function evictOldestCircuitBreaker(): void {

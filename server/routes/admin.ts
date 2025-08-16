@@ -15,14 +15,26 @@ const router = Router();
 const adminAttempts = new Map<string, { count: number; resetTime: number; blocked: boolean }>();
 
 // Cleanup old entries periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, data] of adminAttempts.entries()) {
-    if (now > data.resetTime) {
-      adminAttempts.delete(key);
+let adminCleanupTimer: NodeJS.Timeout | null = null;
+
+if (process.env.NODE_ENV !== 'test') {
+  adminCleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [key, data] of adminAttempts.entries()) {
+      if (now > data.resetTime) {
+        adminAttempts.delete(key);
+      }
     }
+  }, 60000); // Cleanup every minute
+}
+
+// Export cleanup function for tests
+export function cleanupAdminTimer(): void {
+  if (adminCleanupTimer) {
+    clearInterval(adminCleanupTimer);
+    adminCleanupTimer = null;
   }
-}, 60000); // Cleanup every minute
+}
 
 // ENHANCED: Timing-safe admin authentication with rate limiting
 const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {

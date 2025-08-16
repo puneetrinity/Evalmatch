@@ -4,15 +4,19 @@ import { success, failure, isSuccess, isFailure } from '@shared/result-types';
 import { AppNotFoundError } from '@shared/errors';
 import type { SessionId } from '@shared/api-contracts';
 
-// Mock dependencies
-const mockExecuteQuery = jest.fn();
-const mockTransaction = jest.fn();
+// Create function references that will be mocked
+let mockExecuteQuery: any = jest.fn();
+let mockTransaction: any = jest.fn();
 
+// Mock modules first
 jest.mock('../server/database/index', () => ({
   getDatabase: () => ({
-    transaction: mockTransaction
+    transaction: (...args: any[]) => mockTransaction(...args)
   }),
-  executeQuery: mockExecuteQuery
+  executeQuery: (...args: any[]) => {
+    console.log('executeQuery called with:', args);
+    return mockExecuteQuery(...args);
+  }
 }));
 
 jest.mock('../server/lib/logger', () => ({
@@ -28,34 +32,31 @@ describe('BatchService', () => {
   const mockStorage = {} as any;
 
   beforeEach(() => {
-    batchService = new BatchService(mockStorage);
+    // Clear mocks but don't recreate them
     jest.clearAllMocks();
+    
+    batchService = new BatchService(mockStorage);
   });
 
   describe('validateBatchAccess', () => {
     it('should validate a valid batch successfully', async () => {
-      mockExecuteQuery.mockImplementation((query: string) => {
-        if (query.includes('COUNT(r.id) as resume_count')) {
-          return Promise.resolve([{
-            batch_id: 'batch_123',
-            session_id: 'session_123',
-            user_id: 'user_123',
-            resume_count: '5',
-            created_at: new Date(),
-            last_updated: new Date(),
-            analysis_count: '3'
-          }]);
-        }
-        if (query.includes('empty_content')) {
-          return Promise.resolve([{
-            empty_content: '0',
-            empty_filename: '0',
-            unanalyzed: '2',
-            total: '5'
-          }]);
-        }
-        return Promise.resolve([]);
-      });
+      // Mock the two queries that validateBatchAccess makes
+      mockExecuteQuery
+        .mockResolvedValueOnce([{
+          batch_id: 'batch_123',
+          session_id: 'session_123',
+          user_id: 'user_123',
+          resume_count: '5',
+          created_at: new Date(),
+          last_updated: new Date(),
+          analysis_count: '3'
+        }])
+        .mockResolvedValueOnce([{
+          empty_content: '0',
+          empty_filename: '0',
+          unanalyzed: '2',
+          total: '5'
+        }]);
 
       const result = await batchService.validateBatchAccess({
         batchId: 'batch_123',
@@ -63,6 +64,10 @@ describe('BatchService', () => {
         userId: 'user_123'
       });
 
+      // Check if mock was called
+      console.log('mockExecuteQuery call count:', mockExecuteQuery.mock.calls.length);
+      console.log('Result:', result);
+      
       expect(isSuccess(result)).toBe(true);
       if (isSuccess(result)) {
         expect(result.data.valid).toBe(true);
@@ -142,7 +147,7 @@ describe('BatchService', () => {
     it('should successfully claim an orphaned batch', async () => {
       mockTransaction.mockImplementation(async (fn: Function) => {
         const mockTx = {
-          execute: jest.fn().mockImplementation((query: string) => {
+          execute: (query: string) => {
             if (query.includes('GROUP BY r.batch_id')) {
               return Promise.resolve([{
                 batch_id: 'batch_123',
@@ -163,7 +168,7 @@ describe('BatchService', () => {
               return Promise.resolve({ rowsAffected: 2 });
             }
             return Promise.resolve([]);
-          })
+          }
         };
         return fn(mockTx);
       });
@@ -188,7 +193,7 @@ describe('BatchService', () => {
     it('should delete batch with cascade', async () => {
       mockTransaction.mockImplementation(async (fn: Function) => {
         const mockTx = {
-          execute: jest.fn().mockImplementation((query: string) => {
+          execute: (query: string) => {
             if (query.includes('COUNT(r.id) as resume_count')) {
               return Promise.resolve([{
                 resume_count: '5',
@@ -212,7 +217,7 @@ describe('BatchService', () => {
               ]);
             }
             return Promise.resolve([]);
-          })
+          }
         };
         return fn(mockTx);
       });

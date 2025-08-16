@@ -15,6 +15,7 @@ export default {
   // Setup and Environment Configuration
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   setupFiles: [
+    '<rootDir>/tests/jest-env.mjs',
     '<rootDir>/tests/jest.setup.mjs', 
     '<rootDir>/tests/helpers/jsdom-navigation-polyfill.mjs',
     '<rootDir>/tests/__mocks__/import-meta-env.mjs'
@@ -26,7 +27,6 @@ export default {
     '!**/tests/unit/**/*',
     '!**/tests/integration/**/*',
     '!**/tests/e2e/**/*',
-    '!**/tests/railway-*.test.{ts,tsx}',
     '!**/tests/load/**/*',
     '!**/tests/performance/**/*',
     '!**/tests/security/**/*',
@@ -34,8 +34,10 @@ export default {
     '!**/tests/debug-*.test.{ts,tsx}',
     '!**/tests/simple-*.test.{ts,tsx}',
     '!**/tests/api.test.ts',
-    '!**/tests/batch-*.test.{ts,tsx}',
-    '!**/tests/api-*.test.{ts,tsx}'
+    '!**/tests/api-*.test.{ts,tsx}',
+    '!**/tests/railway-deployment.test.ts',
+    '!**/tests/integration-working-demo.test.ts',
+    '!**/tests/schema-validation.test.ts'
   ],
   testPathIgnorePatterns: [
     '/node_modules/',
@@ -87,6 +89,13 @@ export default {
       diagnostics: {
         ignoreCodes: [1343], // Ignore import assertions warnings
       },
+      // Fix for incorrect line numbers in test errors
+      isolatedModules: true,
+      tsconfig: {
+        sourceMap: true,
+        inlineSourceMap: true,
+        inlineSources: true
+      }
     }]
   },
   

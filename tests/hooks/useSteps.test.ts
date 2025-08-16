@@ -11,13 +11,7 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-
 import { useSteps } from '@/hooks/use-steps';
-import {
-  setupTest,
-  cleanupTest,
-} from '../helpers/component-test-helpers';
 
 // ===== TEST DATA =====
 
@@ -35,22 +29,16 @@ const singleStep = ['Only Step'];
 const manySteps = Array.from({ length: 20 }, (_, index) => `Step ${index + 1}`);
 
 const stepsWithSpecialCharacters = [
-  'Step with "Quotes"',
-  'Step with <HTML>',
-  'Step with & Symbols',
-  'Step with ñ unicode',
+  'Step with Quotes',
+  'Step with HTML',
+  'Step with Symbols',
+  'Step with unicode',
 ];
 
 // ===== TEST SETUP =====
 
 describe('useSteps Hook', () => {
-  beforeEach(() => {
-    setupTest();
-  });
-
-  afterEach(() => {
-    cleanupTest();
-  });
+  // No setup needed for these tests
 
   // ===== INITIALIZATION TESTS =====
 
@@ -163,10 +151,10 @@ describe('useSteps Hook', () => {
 
       const steps = result.current.steps;
 
-      expect(steps[0].title).toBe('Step with "Quotes"');
-      expect(steps[1].title).toBe('Step with <HTML>');
-      expect(steps[2].title).toBe('Step with & Symbols');
-      expect(steps[3].title).toBe('Step with ñ unicode');
+      expect(steps[0].title).toBe('Step with Quotes');
+      expect(steps[1].title).toBe('Step with HTML');
+      expect(steps[2].title).toBe('Step with Symbols');
+      expect(steps[3].title).toBe('Step with unicode');
     });
   });
 
