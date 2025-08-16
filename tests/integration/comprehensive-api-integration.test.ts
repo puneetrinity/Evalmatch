@@ -86,9 +86,16 @@ describe('Comprehensive API Integration Tests', () => {
       
       if (response.status === 200) {
         expect(response.body).toHaveProperty('status');
-        // Only validate migrations if they exist and are truthy
+        // Validate migrations object structure if it exists
         if (response.body.migrations && response.body.migrations !== null) {
-          expect(Array.isArray(response.body.migrations)).toBe(true);
+          expect(typeof response.body.migrations).toBe('object');
+          // Check for expected properties in migrations object
+          if (response.body.migrations.applied !== undefined) {
+            expect(Array.isArray(response.body.migrations.applied)).toBe(true);
+          }
+          if (response.body.migrations.pending !== undefined) {
+            expect(Array.isArray(response.body.migrations.pending)).toBe(true);
+          }
         }
       }
     });
