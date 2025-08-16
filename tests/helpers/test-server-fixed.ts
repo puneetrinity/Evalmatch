@@ -573,12 +573,21 @@ export async function createFixedTestApp(): Promise<express.Application> {
   });
 
   // Global error handler
-  app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    // Handle body-parser JSON errors silently in tests
+    if (err.type === 'entity.parse.failed') {
+      return res.status(400).json({ 
+        error: 'Invalid JSON in request body'
+      });
+    }
+    
+    // Only log non-JSON parse errors
     console.error('Test server error:', err);
-    res.status(500).json({ 
+    
+    const status = err.status || err.statusCode || 500;
+    res.status(status).json({ 
       success: false,
-      error: 'Internal server error',
-      message: err.message 
+      error: err.message || 'Internal server error'
     });
   });
 
