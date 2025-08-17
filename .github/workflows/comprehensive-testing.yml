@@ -65,11 +65,8 @@ jobs:
     
     strategy:
       matrix:
-        test-group: [
-          'core',
-          'business',
-          'ui'
-        ]
+        shard: [1, 2, 3, 4]  # Run tests in 4 shards
+      fail-fast: false  # Continue running other shards if one fails
     
     steps:
       - name: Checkout code
@@ -84,31 +81,48 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
         
-      - name: Run unit tests
+      - name: Run unit tests (shard ${{ matrix.shard }}/4)
+        id: test_run
         run: |
-          case "${{ matrix.test-group }}" in
-            "core")
-              npm run test:unit:core || echo "Core tests failed - continuing for now"
-              ;;
-            "business") 
-              npm run test:unit:business || echo "Business tests failed - continuing for now"
-              ;;
-            "ui")
-              npm run test:unit:ui || echo "UI tests failed - continuing for now"
-              ;;
-          esac
+          node --experimental-vm-modules --max_old_space_size=2048 \
+            node_modules/.bin/jest \
+            --config jest.config.unit.mjs \
+            --shard=${{ matrix.shard }}/4 \
+            --ci \
+            --coverage
         env:
           NODE_ENV: test
           CI: true
           AUTH_BYPASS_MODE: true
           DISABLE_EXTERNAL_SERVICES: true
           MOCK_AI_PROVIDERS: true
+          JEST_SHARD_INDEX: ${{ matrix.shard }}
+          JEST_TOTAL_SHARDS: 4
+          
+      - name: Retry failed tests once
+        if: failure() && steps.test_run.outcome == 'failure'
+        run: |
+          echo "First test run failed, retrying once..."
+          node --experimental-vm-modules --max_old_space_size=2048 \
+            node_modules/.bin/jest \
+            --config jest.config.unit.mjs \
+            --shard=${{ matrix.shard }}/4 \
+            --ci \
+            --onlyFailures
+        env:
+          NODE_ENV: test
+          CI: true
+          AUTH_BYPASS_MODE: true
+          DISABLE_EXTERNAL_SERVICES: true
+          MOCK_AI_PROVIDERS: true
+          JEST_SHARD_INDEX: ${{ matrix.shard }}
+          JEST_TOTAL_SHARDS: 4
           
       - name: Upload unit test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: unit-test-results-${{ matrix.test-group }}
+          name: unit-test-results-shard-${{ matrix.shard }}
           path: |
             coverage/unit/
             test-results-unit.xml
@@ -223,7 +237,7 @@ jobs:
         run: npm ci --prefer-offline --no-audit
         
       - name: Run security validation tests
-        run: npm run test:security || echo "Security tests failed - continuing for now"
+        run: npm run test:security
         env:
           NODE_ENV: test
           CI: true
@@ -291,7 +305,7 @@ jobs:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/evalmatch_perf_test
           
       - name: Run file processing performance tests
-        run: npm run test:performance || echo "Performance tests failed - continuing for now"
+        run: npm run test:performance
         env:
           NODE_ENV: test
           CI: true
@@ -301,7 +315,7 @@ jobs:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/evalmatch_perf_test
           
       - name: Run AI operations performance tests
-        run: npm run test:performance || echo "AI performance tests failed - continuing for now"
+        run: npm run test:ai-performance
         env:
           NODE_ENV: test
           CI: true
@@ -374,7 +388,7 @@ jobs:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/evalmatch_load_test
           
       - name: Run load tests
-        run: npm run test:load || echo "Load tests failed - continuing for now"
+        run: npm run test:load
         env:
           NODE_ENV: test
           CI: true
@@ -457,7 +471,7 @@ jobs:
           timeout 60 bash -c 'until curl -f http://localhost:3000/api/health; do sleep 2; done'
           
       - name: Run Playwright E2E tests
-        run: npx playwright test || echo "E2E tests failed - continuing for now"
+        run: npx playwright test
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
           
