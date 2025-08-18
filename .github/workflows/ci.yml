@@ -49,6 +49,21 @@ jobs:
     timeout-minutes: 15
     needs: essential-checks
     
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: evalmatch_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -62,14 +77,24 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
         
+      - name: Setup test database
+        run: |
+          PGPASSWORD=test_password psql -h localhost -U test_user -d evalmatch_test -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
+          npm run db:push || echo "Database push failed - continuing with existing schema"
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/evalmatch_test
+        
       - name: Run working integration tests
-        run: npm run test:integration tests/api-integration.test.ts
+        run: |
+          npm run test:integration tests/api-integration.test.ts
+          npm run test:integration:batch
         env:
           NODE_ENV: test
           CI: true
           AUTH_BYPASS_MODE: true
           DISABLE_EXTERNAL_SERVICES: true
           MOCK_AI_PROVIDERS: true
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/evalmatch_test
 
   # Unit tests
   unit-tests:
