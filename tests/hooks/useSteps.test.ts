@@ -1,4 +1,8 @@
 /**
+ * @jest-environment jsdom
+ */
+
+/**
  * Comprehensive Tests for useSteps Hook
  * 
  * Tests all functionality including:
