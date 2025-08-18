@@ -26,6 +26,7 @@
     "test:unit:coverage": "node --experimental-vm-modules --max_old_space_size=2048 node_modules/.bin/jest --config jest.config.unit.mjs --coverage",
     "test:integration": "node --experimental-vm-modules --max_old_space_size=2048 node_modules/.bin/jest --config jest.config.integration.mjs tests/api-integration.test.ts --runInBand",
     "test:integration:watch": "node --experimental-vm-modules --max_old_space_size=2048 node_modules/.bin/jest --config jest.config.integration.mjs tests/api-integration.test.ts --watch",
+    "test:integration:batch": "node --experimental-vm-modules --max_old_space_size=2048 node_modules/.bin/jest --config jest.config.integration.mjs tests/integration/batch-service.integration.test.ts --runInBand",
     "test:schema": "node --experimental-vm-modules --max_old_space_size=2048 node_modules/.bin/jest --config jest.config.integration.mjs tests/schema-validation.test.ts",
     "test:e2e": "node --experimental-vm-modules --max_old_space_size=2048 node_modules/.bin/jest tests/e2e-workflow.test.ts --no-coverage --runInBand --verbose --detectOpenHandles --forceExit",
     "test:all": "npm run test:unit && npm run test:integration && npm run test:schema",

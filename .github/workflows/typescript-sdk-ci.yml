@@ -114,7 +114,6 @@ jobs:
       - name: Run ESLint
         working-directory: ${{ env.SDK_DIR }}
         run: npm run lint
-        continue-on-error: true
 
       - name: Build SDK
         working-directory: ${{ env.SDK_DIR }}

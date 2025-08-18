@@ -193,7 +193,9 @@ jobs:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/evalmatch_test
           
       - name: Run integration tests
-        run: npm run test:integration tests/api-integration.test.ts
+        run: |
+          npm run test:integration tests/api-integration.test.ts
+          npm run test:integration:batch
         env:
           NODE_ENV: test
           CI: true
