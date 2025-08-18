@@ -497,7 +497,8 @@ jobs:
       integration-tests,
       security-tests,
       performance-tests,
-      e2e-tests
+      e2e-tests,
+      load-tests
     ]
     if: always()
     timeout-minutes: 10
