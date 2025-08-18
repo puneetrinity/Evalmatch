@@ -17,7 +17,7 @@
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
     "test": "jest",
     "test:watch": "jest --watch",
-    "lint": "eslint src/**/*.ts",
+    "lint": "eslint src/**/*.ts --no-warn-ignored",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
