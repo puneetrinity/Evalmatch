@@ -43,6 +43,29 @@ export interface EvalMatchConfig {
    * @default false
    */
   debug?: boolean;
+  
+  /**
+   * Maximum number of retry attempts for failed requests
+   * @default 3
+   */
+  retries?: number;
+  
+  /**
+   * Circuit breaker configuration
+   */
+  circuitBreaker?: {
+    /**
+     * Number of failures before opening circuit
+     * @default 5
+     */
+    threshold?: number;
+    
+    /**
+     * Time to wait before attempting to close circuit (ms)
+     * @default 30000
+     */
+    timeout?: number;
+  };
 }
 
 export interface ClientOptions {

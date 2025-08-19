@@ -15,6 +15,7 @@ import dbCheckRoutes from "./db-check";
 import batchRoutes from "./batches";
 import versionRoutes from "./version";
 import { monitoringRouter } from "./monitoring";
+import { tokensRouter } from "./tokens";
 
 /**
  * Register all modular routes with the Express app
@@ -41,6 +42,9 @@ function registerV1Routes(app: Express): void {
 
   // User and authentication routes
   app.use("/api/v1", userRoutes);
+  
+  // Token management routes
+  app.use("/api/v1/tokens", tokensRouter);
 
   // Resume management routes
   app.use("/api/v1/resumes", resumeRoutes);
@@ -76,6 +80,9 @@ function registerLegacyRoutes(app: Express): void {
 
   // User and authentication routes
   app.use("/api", userRoutes);
+  
+  // Token management routes (legacy)
+  app.use("/api/tokens", tokensRouter);
 
   // Resume management routes
   app.use("/api/resumes", resumeRoutes);
@@ -111,10 +118,11 @@ export function getRoutesSummary(): {
   };
 } {
   return {
-    totalModules: 8,
+    totalModules: 9,
     modules: [
       "health (5 routes)",
       "user (2 routes)",
+      "tokens (6 routes)",
       "resumes (4 routes)",
       "batches (6 routes)",
       "jobs (5 routes)",
@@ -122,10 +130,10 @@ export function getRoutesSummary(): {
       "admin (5 routes)",
       "debug (6 routes)",
     ],
-    estimatedRoutes: 78, // Double routes for v1 + legacy support
+    estimatedRoutes: 90, // Double routes for v1 + legacy support
     versioning: {
-      v1Routes: 39,
-      legacyRoutes: 39,
+      v1Routes: 45,
+      legacyRoutes: 45,
       deprecationNotice: "Legacy /api/* routes are deprecated. Use /api/v1/* instead."
     }
   };

@@ -1,0 +1,58 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/sdks/typescript/.claude/hooks/check-typescript.sh",
+            "description": "TypeScript validation and linting"
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/sdks/typescript/.claude/hooks/coverage-check.sh",
+            "description": "Test coverage validation (85%+ target)"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit.*src/.*\\.ts$|Write.*src/.*\\.ts$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/sdks/typescript/.claude/hooks/bundle-size-check.sh",
+            "description": "Bundle size monitoring (<50KB limit)"
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/sdks/typescript/.claude/hooks/security-scan.sh",
+            "description": "Security vulnerability scanning"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '🚀 EvalMatch SDK Session Active - Following Phase 1 completion standards'",
+            "description": "SDK development context reminder"
+          }
+        ]
+      }
+    ]
+  },
+  "context": {
+    "project": "EvalMatch TypeScript SDK",
+    "phase": "Phase 1 Complete (Foundation) → Phase 2 (Core Optimization)",
+    "standards": {
+      "test_coverage": "85%+",
+      "bundle_size": "<50KB",
+      "typescript": "strict mode",
+      "error_handling": "Result<T,E> pattern"
+    }
+  }
+}

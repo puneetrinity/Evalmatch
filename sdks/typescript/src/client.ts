@@ -1,6 +1,6 @@
 /**
  * Main EvalMatch SDK Client
- * Provides a convenient wrapper around the generated API client
+ * Provides a convenient wrapper around the generated API client with advanced error handling
  */
 
 import {
@@ -13,11 +13,17 @@ import {
 } from './generated/sdk.gen';
 
 import type { AuthProvider, EvalMatchConfig, ClientOptions } from './types';
-import { EvalMatchError, ValidationError, AuthenticationError, RateLimitError, ServerError } from './errors';
+import { RetryableHTTPClient, RetryConfig, CircuitBreakerConfig } from './core/retry-client';
+import { ErrorFactory, EvalMatchError, CircuitBreakerError } from './core/errors';
+import { createDefaultInterceptors } from './core/interceptors';
 
 export class EvalMatchClient {
   private authProvider: AuthProvider;
-  private config: Required<Omit<EvalMatchConfig, 'authProvider'>> & { authProvider: AuthProvider };
+  private config: Required<Omit<EvalMatchConfig, 'authProvider' | 'circuitBreaker'>> & { 
+    authProvider: AuthProvider;
+    circuitBreaker?: EvalMatchConfig['circuitBreaker'];
+  };
+  private httpClient: RetryableHTTPClient;
 
   constructor(config: EvalMatchConfig) {
     this.authProvider = config.authProvider;
@@ -26,8 +32,69 @@ export class EvalMatchClient {
       timeout: config.timeout || 30000,
       headers: config.headers || {},
       debug: config.debug || false,
-      authProvider: config.authProvider
+      retries: config.retries || 2,
+      authProvider: config.authProvider,
+      circuitBreaker: config.circuitBreaker
     };
+
+    // Initialize HTTP client with retry logic and circuit breaker
+    const retryConfig: RetryConfig = {
+      maxAttempts: (config.retries || 2) + 1, // retries + 1 initial attempt
+      baseDelay: 100,
+      maxDelay: 5000,
+      backoffFactor: 2,
+      retryCondition: (error: any) => {
+        // Custom retry logic for EvalMatch API
+        if (error.response) {
+          const status = error.response.status;
+          return status >= 500 || status === 429 || status === 408;
+        }
+        return true; // Retry network errors
+      }
+    };
+
+    const circuitBreakerConfig: CircuitBreakerConfig = {
+      threshold: config.circuitBreaker?.threshold || 5,
+      timeout: config.circuitBreaker?.timeout || 30000, // 30 seconds
+      monitoringPeriod: 10000
+    };
+
+    this.httpClient = new RetryableHTTPClient(
+      {
+        baseURL: this.config.baseUrl,
+        timeout: this.config.timeout,
+        headers: this.config.headers
+      },
+      retryConfig,
+      circuitBreakerConfig
+    );
+
+    // Setup default interceptors
+    this.setupDefaultInterceptors();
+  }
+
+  /**
+   * Setup default interceptors for the client
+   */
+  private setupDefaultInterceptors(): void {
+    const { requestInterceptors, responseInterceptors, errorInterceptors } = 
+      createDefaultInterceptors(
+        () => this.authProvider.getToken(),
+        this.config.debug
+      );
+
+    // Add all default interceptors
+    requestInterceptors.forEach(interceptor => {
+      this.httpClient.interceptors.addRequestInterceptor(interceptor);
+    });
+
+    responseInterceptors.forEach(interceptor => {
+      this.httpClient.interceptors.addResponseInterceptor(interceptor);
+    });
+
+    errorInterceptors.forEach(interceptor => {
+      this.httpClient.interceptors.addErrorInterceptor(interceptor);
+    });
   }
 
   /**
@@ -39,33 +106,43 @@ export class EvalMatchClient {
   }
 
   /**
-   * Handle API errors consistently
+   * Handle API errors consistently using enhanced error factory
    */
-  private handleError(error: any): never {
-    if (error.response) {
-      const { status, data } = error.response;
-      
-      switch (status) {
-        case 400:
-          throw new ValidationError(data?.error?.message || 'Validation failed', data?.error?.details);
-        case 401:
-          throw new AuthenticationError(data?.error?.message);
-        case 429:
-          const retryAfter = error.response.headers['x-ratelimit-reset'];
-          throw new RateLimitError(data?.error?.message || 'Rate limit exceeded', retryAfter);
-        case 500:
-          throw new ServerError(data?.error?.message);
-        default:
-          throw new EvalMatchError(
-            data?.error?.message || 'API request failed',
-            data?.error?.code || 'API_ERROR',
-            status,
-            data?.error?.details
-          );
-      }
+  private handleError(error: any, requestConfig?: any): never {
+    // Check if circuit breaker is open
+    if (this.httpClient.circuitBreakerState === 'open') {
+      throw ErrorFactory.createCircuitBreakerError({
+        circuitBreakerState: this.httpClient.circuitBreakerState,
+        endpoint: requestConfig?.url,
+        method: requestConfig?.method?.toUpperCase()
+      });
     }
-    
-    throw new EvalMatchError('Network error', 'NETWORK_ERROR');
+
+    // Use error factory for consistent error handling
+    throw ErrorFactory.createFromHttpError(error, {
+      circuitBreakerState: this.httpClient.circuitBreakerState,
+      endpoint: requestConfig?.url,
+      method: requestConfig?.method?.toUpperCase()
+    });
+  }
+
+  /**
+   * Enhanced request method with retry logic
+   */
+  private async request<T>(config: any): Promise<T> {
+    try {
+      const response = await this.httpClient.request(config);
+      return response.data as T;
+    } catch (error) {
+      this.handleError(error, config);
+    }
+  }
+
+  /**
+   * Expose internal request method for testing
+   */
+  public async _internalRequest<T>(config: any): Promise<T> {
+    return this.request(config);
   }
 
   /**
@@ -76,47 +153,43 @@ export class EvalMatchClient {
      * List user's resumes
      */
     list: async (options: ClientOptions = {}) => {
-      try {
-        const headers = await this.getAuthHeaders();
-        return await getResumes({ 
-          headers,
-          throwOnError: options.throwOnError ?? true 
-        });
-      } catch (error) {
-        this.handleError(error);
-      }
+      const headers = await this.getAuthHeaders();
+      return this.request({
+        method: 'GET',
+        url: '/resumes',
+        headers
+      });
     },
 
     /**
      * Upload a new resume
      */
     upload: async (file: File | Blob, options: ClientOptions = {}) => {
-      try {
-        const headers = await this.getAuthHeaders();
-        return await postResumes({ 
-          body: { file },
-          headers,
-          throwOnError: options.throwOnError ?? true 
-        });
-      } catch (error) {
-        this.handleError(error);
-      }
+      const headers = await this.getAuthHeaders();
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      return this.request({
+        method: 'POST',
+        url: '/resumes',
+        data: formData,
+        headers: {
+          ...headers,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
     },
 
     /**
      * Get specific resume by ID
      */
     get: async (id: number, options: ClientOptions = {}) => {
-      try {
-        const headers = await this.getAuthHeaders();
-        return await getResumesById({ 
-          path: { id },
-          headers,
-          throwOnError: options.throwOnError ?? true 
-        });
-      } catch (error) {
-        this.handleError(error);
-      }
+      const headers = await this.getAuthHeaders();
+      return this.request({
+        method: 'GET',
+        url: `/resumes/${id}`,
+        headers
+      });
     }
   };
 
@@ -128,16 +201,13 @@ export class EvalMatchClient {
      * Create a new job description
      */
     create: async (data: { title: string; description: string; requirements?: string[] }, options: ClientOptions = {}) => {
-      try {
-        const headers = await this.getAuthHeaders();
-        return await postJobDescriptions({
-          body: data,
-          headers,
-          throwOnError: options.throwOnError ?? true
-        });
-      } catch (error) {
-        this.handleError(error);
-      }
+      const headers = await this.getAuthHeaders();
+      return this.request({
+        method: 'POST',
+        url: '/job-descriptions',
+        data,
+        headers
+      });
     }
   };
 
@@ -149,34 +219,26 @@ export class EvalMatchClient {
      * Analyze resumes against a job description
      */
     analyze: async (jobId: number, resumeIds?: number[], options: ClientOptions = {}) => {
-      try {
-        const headers = await this.getAuthHeaders();
-        return await postAnalysisAnalyzeByJobId({
-          path: { jobId },
-          body: resumeIds ? { resumeIds } : {},
-          headers,
-          throwOnError: options.throwOnError ?? true
-        });
-      } catch (error) {
-        this.handleError(error);
-      }
+      const headers = await this.getAuthHeaders();
+      return this.request({
+        method: 'POST',
+        url: `/analysis/analyze/${jobId}`,
+        data: resumeIds ? { resumeIds } : {},
+        headers
+      });
     },
 
     /**
      * Analyze job description for bias
      */
     analyzeBias: async (jobId: number, options: ClientOptions = {}) => {
-      try {
-        const headers = await this.getAuthHeaders();
-        return await postAnalysisAnalyzeBiasByJobId({
-          path: { jobId },
-          body: {},
-          headers,
-          throwOnError: options.throwOnError ?? true
-        });
-      } catch (error) {
-        this.handleError(error);
-      }
+      const headers = await this.getAuthHeaders();
+      return this.request({
+        method: 'POST',
+        url: `/analysis/analyze-bias/${jobId}`,
+        data: {},
+        headers
+      });
     }
   };
 
@@ -192,5 +254,19 @@ export class EvalMatchClient {
    */
   public getConfig(): Readonly<EvalMatchConfig> {
     return { ...this.config };
+  }
+
+  /**
+   * Get interceptor manager for advanced customization
+   */
+  public getInterceptors() {
+    return this.httpClient.interceptors;
+  }
+
+  /**
+   * Get circuit breaker state for monitoring
+   */
+  public getCircuitBreakerState() {
+    return this.httpClient.circuitBreakerState;
   }
 }

@@ -369,6 +369,57 @@ export type InsertSkillMemoryStats = typeof skillMemoryStats.$inferInsert;
 export type SkillPromotionLog = typeof skillPromotionLog.$inferSelect;
 export type InsertSkillPromotionLog = typeof skillPromotionLog.$inferInsert;
 
+// Token Usage System tables
+export const userApiLimits = pgTable("user_api_limits", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().unique(), // Firebase UID
+  tier: varchar("tier", { length: 50 }).notNull().default('testing'),
+  maxCalls: integer("max_calls").notNull().default(200),
+  usedCalls: integer("used_calls").notNull().default(0),
+  resetPeriod: varchar("reset_period", { length: 20 }).notNull().default('monthly'),
+  lastReset: timestamp("last_reset").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const apiCallLogs = pgTable("api_call_logs", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(), // Firebase UID
+  endpoint: text("endpoint").notNull(),
+  method: varchar("method", { length: 10 }).notNull(),
+  statusCode: integer("status_code"),
+  processingTime: integer("processing_time"), // milliseconds
+  requestSize: integer("request_size"), // bytes
+  responseSize: integer("response_size"), // bytes
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const userTokens = pgTable("user_tokens", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(), // Firebase UID
+  tokenId: text("token_id").notNull().unique(), // Generated token identifier
+  tokenName: text("token_name"), // User-provided token name
+  expiresAt: timestamp("expires_at"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastUsedAt: timestamp("last_used_at"),
+  totalRequests: integer("total_requests").default(0),
+});
+
+export const usageStatistics = pgTable("usage_statistics", {
+  id: serial("id").primaryKey(),
+  date: date("date").notNull(),
+  totalUsers: integer("total_users").default(0),
+  totalApiCalls: integer("total_api_calls").default(0),
+  uniqueActiveUsers: integer("unique_active_users").default(0),
+  averageCallsPerUser: real("average_calls_per_user").default(0),
+  tierDistribution: json("tier_distribution").$type<Record<string, number>>().default({}),
+  topEndpoints: json("top_endpoints").$type<Array<{endpoint: string; count: number}>>().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Enhanced Zod schemas for runtime validation - MUST be defined before insert schemas
 export const resumeFileSchema = z.object({
   originalname: z.string().min(1, 'Filename is required'),
@@ -772,4 +823,64 @@ export interface ValidationError {
   value: unknown;
   message: string;
   code: string;
+}
+
+// Token Usage System types
+export type UserApiLimits = typeof userApiLimits.$inferSelect;
+export type InsertUserApiLimits = typeof userApiLimits.$inferInsert;
+
+export type ApiCallLog = typeof apiCallLogs.$inferSelect;
+export type InsertApiCallLog = typeof apiCallLogs.$inferInsert;
+
+export type UserToken = typeof userTokens.$inferSelect;
+export type InsertUserToken = typeof userTokens.$inferInsert;
+
+export type UsageStatistics = typeof usageStatistics.$inferSelect;
+export type InsertUsageStatistics = typeof usageStatistics.$inferInsert;
+
+// Token usage interfaces
+export interface TokenGenerationRequest {
+  tokenName?: string;
+  expiresIn?: '1h' | '24h' | '7d' | '30d' | 'never';
+}
+
+export interface TokenGenerationResponse {
+  tokenId: string;
+  token: string;
+  expiresAt?: Date;
+  usage: {
+    remaining: number;
+    total: number;
+    resetDate?: Date;
+  };
+}
+
+export interface UsageOverview {
+  currentUsage: number;
+  limit: number;
+  tier: string;
+  remainingCalls: number;
+  resetDate?: Date;
+  tokens: Array<{
+    id: string;
+    name?: string;
+    createdAt: Date;
+    lastUsedAt?: Date;
+    totalRequests: number;
+    isActive: boolean;
+  }>;
+}
+
+export interface ApiUsageMetrics {
+  totalCalls: number;
+  callsToday: number;
+  callsThisWeek: number;
+  callsThisMonth: number;
+  topEndpoints: Array<{
+    endpoint: string;
+    count: number;
+    avgResponseTime: number;
+  }>;
+  errorRate: number;
+  avgResponseTime: number;
 }
