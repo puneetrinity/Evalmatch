@@ -32,12 +32,7 @@ CREATE TABLE IF NOT EXISTS api_call_logs (
     response_size INTEGER, -- bytes
     ip_address INET,
     user_agent TEXT,
-    created_at TIMESTAMP DEFAULT NOW(),
-    
-    -- Indexing for performance
-    INDEX idx_api_calls_user_date (user_id, created_at),
-    INDEX idx_api_calls_endpoint (endpoint),
-    INDEX idx_api_calls_status (status_code)
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
 -- Create user tokens table for tracking generated tokens
@@ -55,12 +50,7 @@ CREATE TABLE IF NOT EXISTS user_tokens (
     -- Foreign key to user_api_limits
     CONSTRAINT fk_user_tokens_user_id 
         FOREIGN KEY (user_id) REFERENCES user_api_limits(user_id) 
-        ON DELETE CASCADE,
-    
-    -- Indexing
-    INDEX idx_user_tokens_user_id (user_id),
-    INDEX idx_user_tokens_token_id (token_id),
-    INDEX idx_user_tokens_active (is_active)
+        ON DELETE CASCADE
 );
 
 -- Create usage statistics table for analytics
@@ -83,6 +73,12 @@ CREATE TABLE IF NOT EXISTS usage_statistics (
 CREATE INDEX IF NOT EXISTS idx_user_api_limits_user_id ON user_api_limits(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_api_limits_tier ON user_api_limits(tier);
 CREATE INDEX IF NOT EXISTS idx_api_call_logs_created_at ON api_call_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_api_calls_user_date ON api_call_logs(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_api_calls_endpoint ON api_call_logs(endpoint);
+CREATE INDEX IF NOT EXISTS idx_api_calls_status ON api_call_logs(status_code);
+CREATE INDEX IF NOT EXISTS idx_user_tokens_user_id ON user_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_tokens_token_id ON user_tokens(token_id);
+CREATE INDEX IF NOT EXISTS idx_user_tokens_active ON user_tokens(is_active);
 
 -- Add trigger to update updated_at on user_api_limits
 CREATE OR REPLACE FUNCTION update_user_api_limits_updated_at()

@@ -73,7 +73,7 @@ export const SKILL_DICTIONARY = {
       related: ['Django', 'Flask', 'FastAPI', 'NumPy', 'Pandas']
     },
     'TypeScript': {
-      aliases: ['TS'],
+      aliases: ['TypeScript Language', 'TypeScript Development'],
       category: 'programming',
       importance: 'important',
       embeddings: null,
@@ -108,7 +108,7 @@ export const SKILL_DICTIONARY = {
       related: ['Database Design', 'Data Modeling']
     },
     'Machine Learning': {
-      aliases: ['ML', 'AI', 'Artificial Intelligence'],
+      aliases: ['ML', 'Artificial Intelligence', 'Machine Learning Models'],
       category: 'data-science',
       importance: 'critical',
       embeddings: null,
@@ -161,7 +161,7 @@ export const SKILL_DICTIONARY = {
       related: ['Communication', 'Leadership']
     },
     'Project Management': {
-      aliases: ['PM', 'Project Planning', 'Agile', 'Scrum'],
+      aliases: ['Project Planning', 'Agile', 'Scrum', 'Project Coordination'],
       category: 'management',
       importance: 'important',
       embeddings: null,
@@ -239,7 +239,7 @@ export class SkillProcessor {
       const escoResults = await this.extractESCOSkills(text, domain);
       
       // Step 2: Local extraction using skill dictionary
-      const localSkills = this.extractLocalSkills(text);
+      const localSkills = this.extractLocalSkills(text, domain);
       
       // Step 3: Merge and deduplicate
       const allSkills = this.mergeSkillSets(escoResults.skills, localSkills);
@@ -367,22 +367,45 @@ export class SkillProcessor {
   /**
    * Local skill extraction using dictionary (consolidated from skill-hierarchy.ts)
    */
-  private extractLocalSkills(text: string): string[] {
+  private extractLocalSkills(text: string, domain: string = 'auto'): string[] {
     const foundSkills: Set<string> = new Set();
     const normalizedText = text.toLowerCase();
     
     // Check all skill categories
-  for (const [_category, skills] of Object.entries(SKILL_DICTIONARY)) {
+    for (const [category, skills] of Object.entries(SKILL_DICTIONARY)) {
+      // Domain filtering: Skip categories that don't match the domain
+      if (this.shouldSkipCategory(category, domain)) {
+        continue;
+      }
+      
       for (const [skillName, skillData] of Object.entries(skills)) {
-        // Check main skill name
-        if (normalizedText.includes(skillName.toLowerCase())) {
-          foundSkills.add(skillName);
+        // Check main skill name with word boundaries
+        try {
+          const skillRegex = new RegExp(`\\b${this.escapeRegex(skillName.toLowerCase())}\\b`, 'i');
+          if (skillRegex.test(normalizedText)) {
+            foundSkills.add(skillName);
+          }
+        } catch (error) {
+          // Fallback for regex issues
+          logger.debug(`Regex failed for skill: ${skillName}`, error);
+          if (normalizedText.includes(` ${skillName.toLowerCase()} `)) {
+            foundSkills.add(skillName);
+          }
         }
         
-        // Check aliases
+        // Check aliases with word boundaries
         for (const alias of skillData.aliases) {
-          if (normalizedText.includes(alias.toLowerCase())) {
-            foundSkills.add(skillName);
+          try {
+            const aliasRegex = new RegExp(`\\b${this.escapeRegex(alias.toLowerCase())}\\b`, 'i');
+            if (aliasRegex.test(normalizedText)) {
+              foundSkills.add(skillName);
+            }
+          } catch (error) {
+            // Fallback for regex issues
+            logger.debug(`Regex failed for alias: ${alias}`, error);
+            if (normalizedText.includes(` ${alias.toLowerCase()} `)) {
+              foundSkills.add(skillName);
+            }
           }
         }
       }
@@ -456,6 +479,56 @@ export class SkillProcessor {
   }
 
   // ==================== HELPER METHODS ====================
+
+  /**
+   * Escape special regex characters in skill names
+   */
+  private escapeRegex(text: string): string {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /**
+   * Domain filtering: Skip categories that don't match the domain
+   */
+  private shouldSkipCategory(category: string, domain: string): boolean {
+    // If domain is auto or general, allow all categories
+    if (domain === 'auto' || domain === 'general') {
+      return false;
+    }
+    
+    // Domain-specific filtering rules
+    switch (domain) {
+      case 'technology':
+        // For tech jobs, skip pharma-specific skills but allow technical and soft skills
+        return category === 'domain' && this.isDomainCategoryPharmaceutical(category);
+      
+      case 'pharmaceutical':
+        // For pharma jobs, allow domain and soft skills, but limit technical skills
+        if (category === 'technical') {
+          // Allow some technical skills that are relevant to pharma (data analysis, etc.)
+          return false; // For now, allow technical skills - can be more restrictive later
+        }
+        return false;
+      
+      default:
+        // For other domains (hr, sales, etc.), skip highly technical categories
+        if (category === 'technical') {
+          return true; // Skip programming skills for HR/sales jobs
+        }
+        if (category === 'domain') {
+          return true; // Skip pharmaceutical-specific skills for non-pharma jobs
+        }
+        return false; // Allow soft skills for all domains
+    }
+  }
+
+  /**
+   * Check if domain category is pharmaceutical-specific
+   */
+  private isDomainCategoryPharmaceutical(category: string): boolean {
+    // This is a simplified check - in a real implementation, you'd check the actual skills
+    return category === 'domain'; // Currently all domain skills are pharma-specific
+  }
 
   private mergeSkillSets(escoSkills: string[], localSkills: string[]): string[] {
     const merged = new Set([...escoSkills, ...localSkills]);
