@@ -513,11 +513,11 @@ export async function initializeDatabase(): Promise<void> {
     stats.connectedSince = new Date();
     logger.info("✅ PostgreSQL connection established successfully");
 
-    // Initialize Drizzle ORM
+    // Initialize Drizzle ORM (without automatic migrations)
     db = drizzle(pool, { schema });
     logger.info("✅ Drizzle ORM initialized");
 
-    // Run migrations
+    // Run ONLY custom SQL migrations (Drizzle meta migrations disabled to prevent conflicts)
     await runMigrations();
     
     // Also run emergency migrations from migrate.cjs as a backup
@@ -1222,10 +1222,10 @@ async function runMigrations(): Promise<void> {
       return;
     }
 
-    // Get all SQL migration files and sort them
+    // Get all SQL migration files and sort them (exclude disabled files)
     const migrationFiles = fs
       .readdirSync(migrationsDir)
-      .filter((file) => file.endsWith(".sql"))
+      .filter((file) => file.endsWith(".sql") && !file.includes(".disabled"))
       .sort();
 
     if (migrationFiles.length === 0) {

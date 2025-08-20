@@ -26,7 +26,7 @@ interface Migration {
   filename: string;
 }
 
-// Available migrations in order
+// Available migrations in order (0000_baseline_schema excluded to prevent conflicts)
 const MIGRATIONS: Migration[] = [
   {
     version: "001_consolidated_schema",
