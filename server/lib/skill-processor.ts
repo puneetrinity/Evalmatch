@@ -222,6 +222,7 @@ export class SkillProcessor {
   private static instance: SkillProcessor;
   private embeddingCache = new Map<string, number[]>();
   private escoCache = new Map<string, ESCOResult>();
+  private regexCache = new Map<string, RegExp>();
 
   static getInstance(): SkillProcessor {
     if (!SkillProcessor.instance) {
@@ -379,9 +380,9 @@ export class SkillProcessor {
       }
       
       for (const [skillName, skillData] of Object.entries(skills)) {
-        // Check main skill name with word boundaries
+        // Check main skill name with cached regex
         try {
-          const skillRegex = new RegExp(`\\b${this.escapeRegex(skillName.toLowerCase())}\\b`, 'i');
+          const skillRegex = this.getSkillRegex(skillName);
           if (skillRegex.test(normalizedText)) {
             foundSkills.add(skillName);
           }
@@ -393,10 +394,10 @@ export class SkillProcessor {
           }
         }
         
-        // Check aliases with word boundaries
+        // Check aliases with cached regex
         for (const alias of skillData.aliases) {
           try {
-            const aliasRegex = new RegExp(`\\b${this.escapeRegex(alias.toLowerCase())}\\b`, 'i');
+            const aliasRegex = this.getSkillRegex(alias);
             if (aliasRegex.test(normalizedText)) {
               foundSkills.add(skillName);
             }
@@ -488,6 +489,21 @@ export class SkillProcessor {
   }
 
   /**
+   * Get cached regex for skill matching (performance optimization)
+   */
+  private getSkillRegex(skillText: string): RegExp {
+    const cacheKey = skillText.toLowerCase();
+    
+    if (!this.regexCache.has(cacheKey)) {
+      const escaped = this.escapeRegex(cacheKey);
+      const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+      this.regexCache.set(cacheKey, regex);
+    }
+    
+    return this.regexCache.get(cacheKey)!;
+  }
+
+  /**
    * Domain filtering: Skip categories that don't match the domain
    */
   private shouldSkipCategory(category: string, domain: string): boolean {
@@ -499,26 +515,16 @@ export class SkillProcessor {
     // Domain-specific filtering rules
     switch (domain) {
       case 'technology':
-        // For tech jobs, skip pharma-specific skills but allow technical and soft skills
-        return category === 'domain' && this.isDomainCategoryPharmaceutical(category);
+        // For tech jobs, skip pharmaceutical domain skills but allow technical and soft
+        return category === 'domain'; // Skip pharma-specific skills
       
       case 'pharmaceutical':
-        // For pharma jobs, allow domain and soft skills, but limit technical skills
-        if (category === 'technical') {
-          // Allow some technical skills that are relevant to pharma (data analysis, etc.)
-          return false; // For now, allow technical skills - can be more restrictive later
-        }
-        return false;
+        // For pharma jobs, allow domain and soft skills, skip some technical
+        return false; // Allow all for now - pharma can use technical tools
       
       default:
-        // For other domains (hr, sales, etc.), skip highly technical categories
-        if (category === 'technical') {
-          return true; // Skip programming skills for HR/sales jobs
-        }
-        if (category === 'domain') {
-          return true; // Skip pharmaceutical-specific skills for non-pharma jobs
-        }
-        return false; // Allow soft skills for all domains
+        // For other domains (hr, sales, etc.), skip technical AND domain categories
+        return category === 'technical' || category === 'domain';
     }
   }
 
