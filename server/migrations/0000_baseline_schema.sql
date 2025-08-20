@@ -1,4 +1,4 @@
-CREATE TABLE "analysis_results" (
+CREATE TABLE IF NOT EXISTS "analysis_results" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" text,
 	"resume_id" integer,
@@ -26,7 +26,7 @@ CREATE TABLE "analysis_results" (
 	"updated_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "api_call_logs" (
+CREATE TABLE IF NOT EXISTS "api_call_logs" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"endpoint" text NOT NULL,
@@ -40,7 +40,7 @@ CREATE TABLE "api_call_logs" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "interview_questions" (
+CREATE TABLE IF NOT EXISTS "interview_questions" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" text,
 	"resume_id" integer,
@@ -51,7 +51,7 @@ CREATE TABLE "interview_questions" (
 	"updated_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "job_descriptions" (
+CREATE TABLE IF NOT EXISTS "job_descriptions" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" text,
 	"title" text NOT NULL,
@@ -66,7 +66,7 @@ CREATE TABLE "job_descriptions" (
 	"updated_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "resumes" (
+CREATE TABLE IF NOT EXISTS "resumes" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" text,
 	"session_id" text,
@@ -85,7 +85,7 @@ CREATE TABLE "resumes" (
 	"updated_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "skill_categories" (
+CREATE TABLE IF NOT EXISTS "skill_categories" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" varchar(255) NOT NULL,
 	"parent_id" integer,
@@ -94,7 +94,7 @@ CREATE TABLE "skill_categories" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "skill_memory" (
+CREATE TABLE IF NOT EXISTS "skill_memory" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"skill_text" varchar(255) NOT NULL,
 	"normalized_skill_text" varchar(255) NOT NULL,
@@ -119,7 +119,7 @@ CREATE TABLE "skill_memory" (
 	CONSTRAINT "skill_memory_skill_text_unique" UNIQUE("skill_text")
 );
 --> statement-breakpoint
-CREATE TABLE "skill_memory_stats" (
+CREATE TABLE IF NOT EXISTS "skill_memory_stats" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"date" date DEFAULT now(),
 	"total_skills_discovered" integer DEFAULT 0,
@@ -129,7 +129,7 @@ CREATE TABLE "skill_memory_stats" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "skill_promotion_log" (
+CREATE TABLE IF NOT EXISTS "skill_promotion_log" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"skill_id" integer,
 	"main_skill_id" integer,
@@ -139,7 +139,7 @@ CREATE TABLE "skill_promotion_log" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "skills" (
+CREATE TABLE IF NOT EXISTS "skills" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" varchar(255) NOT NULL,
 	"normalized_name" varchar(255) NOT NULL,
@@ -151,7 +151,7 @@ CREATE TABLE "skills" (
 	CONSTRAINT "skills_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
-CREATE TABLE "usage_statistics" (
+CREATE TABLE IF NOT EXISTS "usage_statistics" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"date" date NOT NULL,
 	"total_users" integer DEFAULT 0,
@@ -163,7 +163,7 @@ CREATE TABLE "usage_statistics" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "user_api_limits" (
+CREATE TABLE IF NOT EXISTS "user_api_limits" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"tier" varchar(50) DEFAULT 'testing' NOT NULL,
@@ -176,7 +176,7 @@ CREATE TABLE "user_api_limits" (
 	CONSTRAINT "user_api_limits_user_id_unique" UNIQUE("user_id")
 );
 --> statement-breakpoint
-CREATE TABLE "user_tokens" (
+CREATE TABLE IF NOT EXISTS "user_tokens" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"token_id" text NOT NULL,
@@ -189,7 +189,7 @@ CREATE TABLE "user_tokens" (
 	CONSTRAINT "user_tokens_token_id_unique" UNIQUE("token_id")
 );
 --> statement-breakpoint
-CREATE TABLE "users" (
+CREATE TABLE IF NOT EXISTS "users" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"username" varchar(100) NOT NULL,
 	"email" varchar(255),
