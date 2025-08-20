@@ -89,10 +89,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_update_user_api_limits_updated_at
-    BEFORE UPDATE ON user_api_limits
-    FOR EACH ROW
-    EXECUTE FUNCTION update_user_api_limits_updated_at();
+-- Create trigger with IF NOT EXISTS check
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.triggers 
+        WHERE trigger_name = 'trigger_update_user_api_limits_updated_at' 
+        AND event_object_table = 'user_api_limits'
+    ) THEN
+        CREATE TRIGGER trigger_update_user_api_limits_updated_at
+            BEFORE UPDATE ON user_api_limits
+            FOR EACH ROW
+            EXECUTE FUNCTION update_user_api_limits_updated_at();
+    END IF;
+END $$;
 
 -- Add function to reset usage based on reset_period
 CREATE OR REPLACE FUNCTION reset_user_usage_if_needed()
