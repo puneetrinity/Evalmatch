@@ -1,0 +1,410 @@
+{
+  "info": {
+    "name": "EvalMatch Job Description API Tests",
+    "description": "Test collection for Job Description Management APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Job Description",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has correct structure\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('data');",
+              "    pm.expect(jsonData.data).to.have.property('jobDescription');",
+              "    pm.expect(jsonData.data).to.have.property('analysis');",
+              "    pm.expect(jsonData.data).to.have.property('processingTime');",
+              "});",
+              "",
+              "pm.test(\"Job description structure is correct\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    const job = jsonData.data.jobDescription;",
+              "    pm.expect(job).to.have.property('id');",
+              "    pm.expect(job).to.have.property('title');",
+              "    pm.expect(job).to.have.property('description');",
+              "    pm.expect(job).to.have.property('skills');",
+              "    pm.expect(job).to.have.property('requirements');",
+              "    pm.expect(job).to.have.property('experience');",
+              "    pm.expect(job).to.have.property('createdAt');",
+              "    pm.expect(job).to.have.property('userId');",
+              "    ",
+              "    // Store job ID for later tests",
+              "    if (job.id) {",
+              "        pm.environment.set('job_id', job.id);",
+              "    }",
+              "});",
+              "",
+              "pm.test(\"Analysis structure is correct\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    const analysis = jsonData.data.analysis;",
+              "    pm.expect(analysis).to.have.property('skillsExtracted');",
+              "    pm.expect(analysis).to.have.property('requirementsFound');",
+              "    pm.expect(analysis).to.have.property('experienceLevel');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}",
+            "description": "Firebase ID Token"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Senior Full Stack Developer\",\n  \"description\": \"We are seeking a talented Senior Full Stack Developer to join our dynamic team. You will be responsible for developing and maintaining both frontend and backend systems using modern technologies. The ideal candidate will have extensive experience with React, Node.js, and database technologies.\",\n  \"requirements\": [\n    \"5+ years of experience in full-stack development\",\n    \"Proficiency in React and Node.js\",\n    \"Experience with PostgreSQL databases\",\n    \"Bachelor's degree in Computer Science or related field\"\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/job-descriptions",
+          "host": ["{{base_url}}"],
+          "path": ["api", "job-descriptions"]
+        }
+      }
+    },
+    {
+      "name": "Create Job Description - Minimal",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Minimal job creation works\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.data.jobDescription.title).to.equal('Data Scientist');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Data Scientist\",\n  \"description\": \"We're seeking a Data Scientist to help us make data-driven decisions. You'll work with large datasets, build machine learning models, and create insights that drive business growth. Experience with Python, SQL, and machine learning frameworks is essential.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/job-descriptions",
+          "host": ["{{base_url}}"],
+          "path": ["api", "job-descriptions"]
+        }
+      }
+    },
+    {
+      "name": "Get Job Description by ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Job details structure is correct\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData.data).to.have.property('jobDescription');",
+              "});",
+              "",
+              "pm.test(\"Job has required fields\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    const job = jsonData.data.jobDescription;",
+              "    pm.expect(job).to.have.property('id');",
+              "    pm.expect(job).to.have.property('title');",
+              "    pm.expect(job).to.have.property('description');",
+              "    pm.expect(job).to.have.property('skills');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/job-descriptions/{{job_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "job-descriptions", "{{job_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Get All Job Descriptions",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Job list structure is correct\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData.data).to.have.property('jobs');",
+              "    pm.expect(jsonData.data).to.have.property('totalCount');",
+              "});",
+              "",
+              "pm.test(\"Jobs array contains valid job objects\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    const jobs = jsonData.data.jobs;",
+              "    ",
+              "    if (jobs.length > 0) {",
+              "        const firstJob = jobs[0];",
+              "        pm.expect(firstJob).to.have.property('id');",
+              "        pm.expect(firstJob).to.have.property('title');",
+              "        pm.expect(firstJob).to.have.property('description');",
+              "        pm.expect(firstJob).to.have.property('skills');",
+              "        pm.expect(firstJob).to.have.property('createdAt');",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/job-descriptions",
+          "host": ["{{base_url}}"],
+          "path": ["api", "job-descriptions"]
+        }
+      }
+    },
+    {
+      "name": "Create Job Description - Missing Title",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test(\"Error response structure\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', false);",
+              "    pm.expect(jsonData).to.have.property('error');",
+              "    pm.expect(jsonData.error).to.have.property('code', 'VALIDATION_ERROR');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"This job description is missing a title\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/job-descriptions",
+          "host": ["{{base_url}}"],
+          "path": ["api", "job-descriptions"]
+        }
+      }
+    },
+    {
+      "name": "Create Job Description - No Auth",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test(\"Unauthorized response structure\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', false);",
+              "    pm.expect(jsonData).to.have.property('error');",
+              "    pm.expect(jsonData.error.code).to.include('AUTH');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Unauthorized Job\",\n  \"description\": \"This request should fail due to missing authentication\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/job-descriptions",
+          "host": ["{{base_url}}"],
+          "path": ["api", "job-descriptions"]
+        }
+      }
+    },
+    {
+      "name": "Update Job Description",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 or 404\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "    pm.test(\"Update successful\", function () {",
+              "        const jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.be.true;",
+              "    });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Senior Full Stack Developer - Updated\",\n  \"description\": \"Updated: We are seeking a talented Senior Full Stack Developer to join our dynamic team. This is an updated version of the original job description.\",\n  \"requirements\": [\n    \"5+ years of experience in full-stack development\",\n    \"Proficiency in React and Node.js\",\n    \"Experience with PostgreSQL databases\",\n    \"Strong problem-solving skills\"\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/job-descriptions/{{job_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "job-descriptions", "{{job_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Delete Job Description",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 or 404\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "    pm.test(\"Deletion successful\", function () {",
+              "        const jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.be.true;",
+              "    });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/job-descriptions/{{job_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "job-descriptions", "{{job_id}}"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://evalmatch.app",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string",
+      "description": "Firebase ID Token - update this before running tests"
+    },
+    {
+      "key": "job_id",
+      "value": "",
+      "type": "string",
+      "description": "Job ID from create response"
+    }
+  ]
+}
