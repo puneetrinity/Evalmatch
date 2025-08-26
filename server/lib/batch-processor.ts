@@ -33,7 +33,7 @@ interface MatchProcessResult {
   resumeId: number;
   jobId: number;
   success: boolean;
-  dbStore?: Promise<any>;
+  dbStore?: Promise<void>;
   matchId: string;
   error?: string;
 }
@@ -94,29 +94,59 @@ export async function processBatchResumes(
           experienceYears: analysis.experienceYears || 0,
         });
 
-        // Generate embeddings for the resume
+        // Generate embeddings for the resume in parallel
         let contentEmbedding: number[] | null = null;
         let skillsEmbedding: number[] | null = null;
 
         try {
           const { generateEmbedding } = await import("./embeddings");
-          
-          // Generate embedding for full resume content
           const embeddingStartTime = Date.now();
-          contentEmbedding = await generateEmbedding(resume.content);
           
-          // Generate embedding for skills if available
+          // Prepare embedding tasks
+          const embeddingTasks: Promise<{ type: string; embedding: number[] | null }>[] = [
+            // Content embedding task
+            generateEmbedding(resume.content).then(embedding => ({ type: 'content', embedding })).catch(error => {
+              logger.warn(`Content embedding failed for resume ${resume.id}:`, {
+                resumeId: resume.id,
+                error: error instanceof Error ? error.message : "Unknown error",
+              });
+              return { type: 'content', embedding: null };
+            })
+          ];
+          
+          // Skills embedding task (if skills available)
           if (analysis.analyzedData?.skills && analysis.analyzedData.skills.length > 0) {
             const skillsText = analysis.analyzedData.skills.join(", ");
-            skillsEmbedding = await generateEmbedding(skillsText);
+            embeddingTasks.push(
+              generateEmbedding(skillsText).then(embedding => ({ type: 'skills', embedding })).catch(error => {
+                logger.warn(`Skills embedding failed for resume ${resume.id}:`, {
+                  resumeId: resume.id,
+                  error: error instanceof Error ? error.message : "Unknown error",
+                });
+                return { type: 'skills', embedding: null };
+              })
+            );
+          }
+          
+          // Execute all embedding tasks in parallel
+          const embeddingResults = await Promise.all(embeddingTasks);
+          
+          // Extract results
+          for (const result of embeddingResults) {
+            if (result.type === 'content') {
+              contentEmbedding = result.embedding;
+            } else if (result.type === 'skills') {
+              skillsEmbedding = result.embedding;
+            }
           }
           
           const embeddingTime = Date.now() - embeddingStartTime;
-          logger.debug(`Embeddings generated for resume ${resume.id}`, {
+          logger.debug(`Parallel embeddings generated for resume ${resume.id}`, {
             resumeId: resume.id,
             embeddingTime,
             contentEmbeddingDims: contentEmbedding?.length || 0,
             skillsEmbeddingDims: skillsEmbedding?.length || 0,
+            tasksExecuted: embeddingTasks.length,
           });
         } catch (embeddingError) {
           logger.warn(`Failed to generate embeddings for resume ${resume.id}:`, {
@@ -130,6 +160,10 @@ export async function processBatchResumes(
         
         // Update the resume with embeddings via storage layer
         const dbUpdatePromise = (async () => {
+          if (!storage) {
+            throw new Error("Storage not initialized");
+          }
+          
           // First update the analysis
           await storage.updateResumeAnalysis(resume.id, analysis);
           
@@ -451,6 +485,11 @@ export async function processBatchMatches(
 
             // Store analysis result asynchronously (don't wait)
             logger.debug(`Starting database store for match ${matchId}`);
+            
+            if (!storage) {
+              throw new Error("Storage not initialized");
+            }
+            
             const dbStorePromise = storage.createAnalysisResult({
               userId: null, // Will be set by caller
               resumeId: resumes[i].id,
@@ -462,7 +501,7 @@ export async function processBatchMatches(
               candidateWeaknesses: matchAnalysis.candidateWeaknesses,
               confidenceLevel: matchAnalysis.confidenceLevel || "medium",
               fairnessMetrics: matchAnalysis.fairnessMetrics,
-            });
+            }).then(() => undefined);
 
             return {
               resumeId: resumes[i].id,
@@ -621,7 +660,7 @@ export async function processBatchMatches(
  */
 export async function processSmartBatch<T, R>(
   items: T[],
-  processor: (item: T) => Promise<R>,
+  processor: (_item: T) => Promise<R>,
   maxConcurrency: number = 10,
 ): Promise<{
   results: (R | undefined)[];

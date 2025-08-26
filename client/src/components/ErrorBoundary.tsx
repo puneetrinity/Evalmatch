@@ -241,16 +241,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   private logError(error: AppError, errorInfo: ErrorInfo) {
-    console.group(`🚨 Error Boundary: ${error.code}`);
-    console.error('Error:', error);
-    console.error('Error Info:', errorInfo);
-    console.error('Component Stack:', errorInfo.componentStack);
-    console.error('Error ID:', this.errorId);
-    console.groupEnd();
+    // Only log in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.group(`🚨 Error Boundary: ${error.code}`);
+      console.error('Error:', error);
+      console.error('Error Info:', errorInfo);
+      console.error('Component Stack:', errorInfo.componentStack);
+      console.error('Error ID:', this.errorId);
+      console.groupEnd();
+    }
 
-    // In a production app, send to monitoring service
+    // In production, send to monitoring service instead
     if (process.env.NODE_ENV === 'production') {
-      // Example: send to monitoring service
+      // Send to monitoring service (implement your monitoring solution)
       // sendErrorToMonitoring(error, errorInfo);
     }
   }
@@ -519,7 +522,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      onClick={() => console.error('Full Error Object:', error)}
+                      onClick={() => {
+                        // Only log in development
+                        console.error('Full Error Object:', error);
+                      }}
                       className="flex items-center gap-1"
                     >
                       <ExternalLink className="h-3 w-3" />
@@ -583,7 +589,10 @@ export function useErrorHandler() {
   };
 
   const reportError = (error: AppError, context?: Record<string, unknown>) => {
-    console.error('Manual error report:', error, context);
+    // Only log in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Manual error report:', error, context);
+    }
     showErrorToast(error);
   };
 

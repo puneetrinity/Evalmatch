@@ -97,7 +97,13 @@ export default function InterviewPage() {
       
       console.log(`Fetching interview questions from: ${url}`);
       
-      const response = await apiRequest("POST", url);
+      const response = await apiRequest("POST", url, {
+        questionTypes: ["technical", "behavioral", "situational"],
+        difficulty: "mid",
+        count: 10,
+        sessionId: sessionId || undefined,
+        batchId: batchId || undefined
+      });
       
       if (!response.ok) {
         throw new Error("Failed to generate interview questions");

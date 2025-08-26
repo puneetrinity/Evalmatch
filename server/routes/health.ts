@@ -10,12 +10,34 @@ import {
   detailedHealthCheck,
   readinessProbe,
   livenessProbe,
+  railwayHealthCheck,
 } from "../middleware/health-checks";
 
 const router = Router();
 
 // Basic health check endpoint - Fast response for load balancers
-router.get("/health", basicHealthCheck);
+// Enhanced for Railway compatibility
+router.get("/health", (req: Request, res: Response) => {
+  // For Railway deployments, use the Railway-optimized health check
+  if (process.env.RAILWAY_ENVIRONMENT) {
+    return railwayHealthCheck(req, res);
+  }
+  // Otherwise use the standard basic health check
+  return basicHealthCheck(req, res);
+});
+
+// Railway-optimized health check endpoint - Ultra-fast for deployment validation
+router.get("/health/railway", railwayHealthCheck);
+
+// Ultra-simple ping endpoint - Minimal response time for Railway deployment checks
+router.get("/ping", (req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    status: "alive",
+    timestamp: Date.now(),
+    uptime: Math.round(process.uptime())
+  });
+});
 
 // Detailed health check endpoint - Comprehensive system status
 router.get("/health/detailed", detailedHealthCheck);
@@ -53,46 +75,135 @@ router.get("/migration-status", async (req: Request, res: Response) => {
 // Database health status endpoint - Monitor database connection health
 router.get("/db-status", async (req: Request, res: Response) => {
   try {
-    // Default status when hybrid storage is not available
-    let dbHealthStatus = {
-      available: false,
-      connectionStatus: "unknown",
-      lastCheck: new Date().toISOString(),
-      message: "Hybrid storage not available",
-    };
+    // Get comprehensive database status
+    const { 
+      getConnectionStats, 
+      getPoolHealth, 
+      getConnectionLeakDetails, 
+      testDatabaseConnection,
+      isDatabaseAvailable 
+    } = await import("../database/index");
 
-    // Check if hybrid storage is available
-    const { storage } = await import("../storage");
+    const startTime = Date.now();
+    
+    // Perform multiple health checks in parallel
+    const [connectionStats, poolHealth, leakDetails, connectivityTest] = await Promise.allSettled([
+      Promise.resolve(getConnectionStats()),
+      Promise.resolve(getPoolHealth()),
+      Promise.resolve(getConnectionLeakDetails()),
+      testDatabaseConnection(),
+    ]);
 
-    if (
-      storage &&
-      "getHealthStatus" in storage &&
-      typeof storage.getHealthStatus === "function"
-    ) {
-      try {
-        dbHealthStatus = await storage.getHealthStatus();
-      } catch (healthError) {
-        logger.error("Health status check failed:", healthError);
-        dbHealthStatus = {
-          available: false,
-          connectionStatus: "error",
-          lastCheck: new Date().toISOString(),
-          message:
-            healthError instanceof Error
-              ? healthError.message
-              : "Health check failed",
-        };
-      }
+    const responseTime = Date.now() - startTime;
+    const isAvailable = isDatabaseAvailable();
+
+    // Process results safely
+    const stats = connectionStats.status === 'fulfilled' ? connectionStats.value : null;
+    const health = poolHealth.status === 'fulfilled' ? poolHealth.value : null;
+    const leaks = leakDetails.status === 'fulfilled' ? leakDetails.value : null;
+    const connectivity = connectivityTest.status === 'fulfilled' ? connectivityTest.value : null;
+
+    // Determine overall database status
+    let overallStatus = 'healthy';
+    const issues = [];
+
+    if (!isAvailable) {
+      overallStatus = 'unhealthy';
+      issues.push('Database not available');
+    } else if (!health?.healthy) {
+      overallStatus = 'degraded';
+      issues.push('Pool health issues detected');
+    } else if (connectivity && !connectivity.success) {
+      overallStatus = 'degraded';
+      issues.push('Connectivity test failed');
     }
 
-    res.json({
-      success: true,
+    // Check for specific issues
+    if ((leaks as any)?.summary?.potentialLeaks > 0) {
+      if ((leaks as any).summary.potentialLeaks > 5) {
+        overallStatus = 'unhealthy';
+      } else if (overallStatus === 'healthy') {
+        overallStatus = 'degraded';
+      }
+      issues.push(`${(leaks as any).summary.potentialLeaks} potential connection leaks detected`);
+    }
+
+    if ((stats as any)?.connectionSuccessRate < 95) {
+      if (overallStatus === 'healthy') overallStatus = 'degraded';
+      issues.push(`Low connection success rate: ${(stats as any).connectionSuccessRate}%`);
+    }
+
+    if ((stats as any)?.querySuccessRate < 90) {
+      overallStatus = 'unhealthy';
+      issues.push(`Low query success rate: ${(stats as any).querySuccessRate}%`);
+    }
+
+    const response = {
+      success: overallStatus !== 'unhealthy',
       data: {
-        status: dbHealthStatus.available ? "healthy" : "degraded",
-        database: dbHealthStatus,
+        status: overallStatus,
+        available: isAvailable,
+        responseTime,
+        issues: issues.length > 0 ? issues : undefined,
+        connectivity: connectivity ? {
+          success: connectivity.success,
+          message: connectivity.message,
+          details: connectivity.details,
+        } : null,
+        connectionPool: stats ? {
+          totalConnections: stats.totalConnections,
+          activeConnections: stats.activeConnections,
+          failedConnections: stats.failedConnections,
+          connectionSuccessRate: stats.connectionSuccessRate,
+          uptime: stats.uptime,
+          poolInfo: stats.poolInfo,
+          circuitBreakerState: stats.circuitBreakerState,
+        } : null,
+        queryPerformance: stats ? {
+          totalQueries: stats.totalQueries,
+          successfulQueries: stats.successfulQueries,
+          failedQueries: stats.failedQueries,
+          querySuccessRate: stats.querySuccessRate,
+          averageQueryTime: stats.queryPerformance.averageTime,
+          maxQueryTime: stats.queryPerformance.maxTime,
+          slowQueries: stats.queryPerformance.slowQueries,
+          lastSuccessfulQuery: stats.lastSuccessfulQuery,
+        } : null,
+        connectionLeaks: leaks ? {
+          summary: leaks.summary,
+          thresholds: leaks.thresholds,
+          activeConnections: leaks.activeConnections.length > 0 ? leaks.activeConnections.slice(0, 10) : undefined, // Limit to top 10
+        } : null,
+        healthMetrics: health ? {
+          healthy: health.healthy,
+          connections: health.metrics.connections,
+          performance: health.metrics.performance,
+          errors: health.metrics.errors,
+          circuitBreaker: health.metrics.circuitBreaker,
+        } : null,
       },
       timestamp: new Date().toISOString(),
+    };
+
+    // Set appropriate HTTP status
+    const httpStatus = overallStatus === 'unhealthy' ? 503 : overallStatus === 'degraded' ? 200 : 200;
+    if (overallStatus === 'degraded') {
+      res.setHeader('X-Health-Warning', 'degraded');
+    } else if (overallStatus === 'unhealthy') {
+      res.setHeader('X-Health-Status', 'unhealthy');
+    }
+
+    res.status(httpStatus).json(response);
+
+    // Log detailed health check results
+    logger.info('Database health check completed', {
+      status: overallStatus,
+      responseTime,
+      issues: issues.length,
+      connectionLeaks: leaks?.summary.potentialLeaks || 0,
+      querySuccessRate: stats?.querySuccessRate || 0,
     });
+
   } catch (error) {
     logger.error("Database status check failed:", error);
     res.status(500).json({
@@ -104,15 +215,128 @@ router.get("/db-status", async (req: Request, res: Response) => {
   }
 });
 
+// Connection leak monitoring endpoint - Detailed leak detection information
+router.get("/connection-leaks", async (req: Request, res: Response) => {
+  try {
+    const { getConnectionLeakDetails, getConnectionStats } = await import("../database/index");
+    
+    const startTime = Date.now();
+    const [leakDetails, connectionStats] = await Promise.allSettled([
+      Promise.resolve(getConnectionLeakDetails()),
+      Promise.resolve(getConnectionStats()),
+    ]);
+
+    const responseTime = Date.now() - startTime;
+
+    const leaks = leakDetails.status === 'fulfilled' ? leakDetails.value : null;
+    const stats = connectionStats.status === 'fulfilled' ? connectionStats.value : null;
+
+    if (!leaks) {
+      return res.status(500).json({
+        success: false,
+        error: "Failed to retrieve connection leak details",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Determine alert level based on leak severity
+    let alertLevel = 'info';
+    const recommendations = [];
+
+    if (leaks.summary.potentialLeaks > 10) {
+      alertLevel = 'critical';
+      recommendations.push('Immediate investigation required - high number of connection leaks detected');
+      recommendations.push('Consider restarting the application to clear leaked connections');
+    } else if (leaks.summary.potentialLeaks > 5) {
+      alertLevel = 'warning';
+      recommendations.push('Monitor connection usage patterns and investigate potential leaks');
+    } else if (leaks.summary.staleConnections > 0) {
+      alertLevel = 'warning';
+      recommendations.push('Stale connections detected - review query patterns and connection handling');
+    } else if (leaks.summary.total > 20) {
+      alertLevel = 'info';
+      recommendations.push('High number of active connections - monitor for performance impact');
+    }
+
+    // Add specific recommendations based on patterns
+    if (leaks.summary.healthCheckConnections > 5) {
+      recommendations.push('High number of health check connections - may indicate health check issues');
+    }
+
+    if (leaks.summary.oldestConnectionAge > 600000) { // 10 minutes
+      recommendations.push('Very old connections detected - investigate long-running operations');
+    }
+
+    const response = {
+      success: true,
+      data: {
+        alertLevel,
+        summary: {
+          ...leaks.summary,
+          oldestConnectionAgeMinutes: Math.round(leaks.summary.oldestConnectionAge / 60000),
+          responseTime,
+        },
+        thresholds: {
+          ...leaks.thresholds,
+          leakThresholdMinutes: Math.round(leaks.thresholds.leakThreshold / 60000),
+          staleThresholdMinutes: Math.round(leaks.thresholds.staleThreshold / 60000),
+        },
+        activeConnections: leaks.activeConnections.map(conn => ({
+          ...conn,
+          ageMinutes: Math.round(conn.age / 60000),
+          timeSinceLastUseMinutes: Math.round(conn.timeSinceLastUse / 60000),
+        })),
+        poolStatistics: stats ? {
+          totalConnections: stats.totalConnections,
+          activeConnections: stats.activeConnections,
+          poolInfo: stats.poolInfo,
+          connectionLeaks: (stats as any).connectionLeaks,
+        } : null,
+        recommendations: recommendations.length > 0 ? recommendations : undefined,
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    // Set appropriate HTTP status and headers based on alert level
+    let httpStatus = 200;
+    if (alertLevel === 'critical') {
+      httpStatus = 503;
+      res.setHeader('X-Alert-Level', 'critical');
+    } else if (alertLevel === 'warning') {
+      res.setHeader('X-Alert-Level', 'warning');
+    }
+
+    res.status(httpStatus).json(response);
+
+    // Log connection leak monitoring results
+    logger.info('Connection leak monitoring completed', {
+      alertLevel,
+      totalConnections: leaks.summary.total,
+      potentialLeaks: leaks.summary.potentialLeaks,
+      staleConnections: leaks.summary.staleConnections,
+      responseTime,
+    });
+
+  } catch (error) {
+    logger.error("Connection leak monitoring failed:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to monitor connection leaks",
+      message: error instanceof Error ? error.message : "Unknown error",
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 // Debug endpoint - System debugging information
 router.get("/debug", async (req: Request, res: Response) => {
   try {
-    const { config } = await import("../config");
+    const { config } = await import("../config/unified-config");
 
     const debugInfo = {
       timestamp: new Date().toISOString(),
       nodeEnv: process.env.NODE_ENV,
-      isDatabaseEnabled: config.isDatabaseEnabled,
+      isDatabaseEnabled: config.database.enabled,
       platform: process.platform,
       nodeVersion: process.version,
       uptime: process.uptime(),
@@ -180,8 +404,8 @@ router.get("/service-status", async (req: Request, res: Response) => {
       const openai = await import("../lib/openai");
       const openaiStatus = openai.getOpenAIServiceStatus();
       services.openai = {
-        available: (openaiStatus as any).isAvailable || false,
-        configured: !!(openaiStatus as any).apiUsageStats,
+        available: (typeof openaiStatus === 'object' && openaiStatus && 'isAvailable' in openaiStatus) ? Boolean(openaiStatus.isAvailable) : false,
+        configured: !!(typeof openaiStatus === 'object' && openaiStatus && 'apiUsageStats' in openaiStatus && openaiStatus.apiUsageStats),
         statusMessage: "OpenAI service available",
       };
     } catch (error) {

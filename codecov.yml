@@ -1,0 +1,81 @@
+# Codecov Configuration for Evalmatch
+# https://docs.codecov.com/docs/codecov-yaml
+
+codecov:
+  # Require CI to pass before updating coverage
+  require_ci_to_pass: true
+  # Wait for builds to complete before posting status
+  max_report_age: 24
+  # Disable Codecov's own CI checks
+  disable_default_path_fixes: false
+
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+  
+  status:
+    project:
+      default:
+        target: 85%
+        threshold: 1%
+        base: auto
+        flags: []
+        paths: []
+    patch:
+      default:
+        target: 80%
+        threshold: 1%
+        base: auto
+
+# Files to ignore
+ignore:
+  - "tests/**/*"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts" 
+  - "**/*.spec.tsx"
+  - "**/jest.config.*"
+  - "**/playwright.config.*"
+  - "**/*.d.ts"
+  - "build/**/*"
+  - "dist/**/*"
+  - "coverage/**/*"
+  - "node_modules/**/*"
+  - "**/__mocks__/**/*"
+  - "**/fixtures/**/*"
+  - "**/*.stories.*"
+  - "vite.config.*"
+  - "tailwind.config.*"
+  - "postcss.config.*"
+
+# Comment configuration
+comment:
+  layout: "reach,diff,flags,tree"
+  behavior: default
+  require_changes: false
+  require_base: no
+  require_head: yes
+
+# GitHub integration
+github_checks:
+  annotations: true
+
+# Flags for different parts of codebase
+flags:
+  frontend:
+    paths:
+      - client/src/
+    carryforward: true
+  backend:
+    paths:
+      - server/
+    carryforward: true
+  shared:
+    paths:
+      - shared/
+    carryforward: true
+  integration:
+    paths:
+      - tests/
+    carryforward: false

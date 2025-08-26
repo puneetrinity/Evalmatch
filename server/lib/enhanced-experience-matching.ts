@@ -417,7 +417,7 @@ async function calculateRoleRelevanceScore(
 function generateExperienceInsights(
   resumeAnalysis: ExperienceAnalysis,
   jobAnalysis: ExperienceAnalysis,
-  scores: { yearsScore: number; domainScore: number; seniorityScore: number; roleRelevanceScore: number }
+  _scores: { yearsScore: number; domainScore: number; seniorityScore: number; roleRelevanceScore: number }
 ): {
   yearsComparison: string;
   domainAlignment: string;
@@ -451,7 +451,7 @@ function generateExperienceInsights(
  */
 function generateExperienceExplanation(
   totalScore: number,
-  insights: any,
+  insights: { yearsComparison: string },
 ): string {
   if (totalScore >= 85) {
     return `Excellent experience alignment (${totalScore}%). ${insights.yearsComparison}. Strong domain match and appropriate seniority level.`;

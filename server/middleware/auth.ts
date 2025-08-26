@@ -40,21 +40,86 @@ export async function authenticateUser(
   try {
     // Auth bypass mode for testing (NEVER allowed in production)
     if (process.env.AUTH_BYPASS_MODE === "true") {
-      if (config.env === "production") {
-        logger.error("SECURITY VIOLATION: AUTH_BYPASS_MODE cannot be enabled in production");
-        return res.status(500).json({
-          error: "Security configuration error",
-          message: "Invalid authentication configuration for production environment",
-          code: "INVALID_PRODUCTION_CONFIG",
+      // SECURITY FIX: Stricter production detection with fail-safe approach
+      // Primary check: explicit production environment variables
+      const isProduction = [
+        config.env === "production",
+        process.env.NODE_ENV === "production",
+        process.env.RAILWAY_ENVIRONMENT === "production",
+        process.env.VERCEL_ENV === "production"
+      ].some(Boolean);
+      
+      // Secondary check: fail-safe - any non-development context
+      const isDevelopment = [
+        config.env === "development",
+        config.env === "test",
+        process.env.NODE_ENV === "development",
+        process.env.NODE_ENV === "test"
+      ].some(Boolean);
+      
+      // CRITICAL: If not explicitly development OR if any production indicator, DENY
+      if (isProduction || !isDevelopment) {
+        logger.error("🚨 CRITICAL SECURITY VIOLATION: AUTH_BYPASS_MODE blocked - production/unknown environment", {
+          configEnv: config.env,
+          nodeEnv: process.env.NODE_ENV,
+          railwayEnv: process.env.RAILWAY_ENVIRONMENT,
+          vercelEnv: process.env.VERCEL_ENV,
+          isProduction,
+          isDevelopment,
+          // Only log safe host information for security
+          hostSafe: req.get('host')?.includes('localhost') ? 'localhost' : 'external',
+          ip: req.ip?.startsWith('127.') || req.ip?.startsWith('::1') ? 'local' : 'external',
+          timestamp: new Date().toISOString(),
+          severity: 'CRITICAL',
+          action: 'TERMINATING_PROCESS'
+        });
+        
+        // Immediate process termination to prevent security breach
+        process.exit(1);
+      }
+      
+      // Additional localhost verification for extra security
+      const isLocalhost = [
+        req.get('host')?.includes('localhost'),
+        req.get('host')?.includes('127.0.0.1'),
+        req.get('host')?.includes('.local'),
+        req.ip?.startsWith('127.'),
+        req.ip?.startsWith('::1')
+      ].some(Boolean);
+      
+      if (!isLocalhost) {
+        logger.error("🛡️ AUTH_BYPASS_MODE security violation: Not connecting from localhost", {
+          currentEnv: config.env,
+          hostSafe: 'external-host',
+          ipSafe: 'external-ip',
+          timestamp: new Date().toISOString(),
+        });
+        
+        return res.status(403).json({
+          error: "Authentication bypass not allowed",
+          message: "Auth bypass only permitted from localhost in development",
+          code: "AUTH_BYPASS_FORBIDDEN",
         });
       }
       
-      logger.warn("Auth bypass mode enabled, creating mock user");
+      // ENHANCED: Add rate limiting for bypass mode (prevent abuse)
+      const _bypassAttemptKey = `auth_bypass:${req.ip}`;
+      // This would integrate with rate limiting middleware if available
+      
+      logger.warn("⚠️ Auth bypass mode enabled for development/testing", {
+        environment: config.env,
+        host: req.get('host'),
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        timestamp: new Date().toISOString(),
+        warning: "This should NEVER appear in production logs"
+      });
+      
       req.user = {
-        uid: "test-user-123",
-        email: "test@example.com",
+        uid: "test-user-dev-123",
+        email: "test@development.local",
         emailVerified: true,
-        displayName: "Test User",
+        displayName: "Development Test User",
       };
       return next();
     }
@@ -228,7 +293,7 @@ export async function optionalAuth(
  * Middleware to check if user owns a resource
  */
 export function requireResourceOwnership(
-  getUserIdFromResource: (req: Request) => Promise<string | null>,
+  getUserIdFromResource: (_req: Request) => Promise<string | null>,
 ) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {

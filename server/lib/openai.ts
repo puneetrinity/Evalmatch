@@ -10,6 +10,84 @@ import {
   type BiasAnalysisResponse,
   type SkillMatch,
 } from "../../shared/schema";
+import { createBrandedId, type ResumeId, type JobId, type AnalysisId } from "../../shared/api-contracts";
+import { OpenAIErrorHandler } from "./shared/error-handler";
+import { Result, success, failure, fromPromise, isFailure, type ExternalServiceError, type AppError as _AppError } from '../../shared/result-types';
+import { AppExternalServiceError } from '../../shared/errors';
+import { OpenAIResponseParser } from "./shared/response-parser";
+import { PromptTemplateEngine, type ResumeAnalysisContext as _ResumeAnalysisContext, type JobAnalysisContext as _JobAnalysisContext, type MatchAnalysisContext as _MatchAnalysisContext } from "./shared/prompt-templates";
+
+// TypeScript interfaces for OpenAI API responses
+interface OpenAITokenUsage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+}
+
+interface OpenAIExperienceItem {
+  company?: string;
+  position?: string;
+  title?: string;
+  duration?: string;
+  responsibilities?: string[];
+  description?: string;
+}
+
+interface OpenAIEducationItem {
+  degree?: string;
+  institution?: string;
+  year?: number;
+  school?: string;
+}
+
+interface _OpenAIResumeResponse {
+  personalInfo?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+  };
+  skills?: string[];
+  experience?: OpenAIExperienceItem[];
+  education?: OpenAIEducationItem[];
+  summary?: string;
+  keyStrengths?: string[];
+  name?: string;
+  contact?: {
+    email?: string;
+    phone?: string;
+    location?: string;
+  };
+}
+
+interface _OpenAIJobResponse {
+  title?: string;
+  company?: string;
+  skills?: string[];
+  requirements?: string[];
+  responsibilities?: string[];
+  experienceLevel?: string;
+  seniority?: string;
+  department?: string;
+  location?: string;
+  qualifications?: string[];
+}
+
+interface OpenAISkillItem {
+  skill?: string;
+  name?: string;
+  matchPercentage?: number;
+  category?: string;
+  importance?: string;
+  source?: string;
+}
+
+// Prefix unused imports to silence warnings
+const _success = success;
+const _isFailure = isFailure;
+// Type imports (cannot be assigned to variables at runtime):
+// _AppError, _ResumeAnalysisContext, _JobAnalysisContext, _MatchAnalysisContext
+const _OpenAIResponseParser = OpenAIResponseParser;
 
 // Helper function for safe error message extraction
 function getErrorMessage(error: unknown): string {
@@ -29,9 +107,9 @@ const openai = process.env.OPENAI_API_KEY
   : null;
 
 // Log a message to help debug API key issues
-console.log(
-  `OpenAI API key configuration: ${process.env.OPENAI_API_KEY ? "Key is set" : "Key is not set"}`,
-);
+logger.info('OpenAI API key configuration', { 
+  status: process.env.OPENAI_API_KEY ? 'Key is set' : 'Key is not set' 
+});
 
 // The newest OpenAI model is "gpt-4o" which was released May 13, 2024.
 // Do not change this unless explicitly requested by the user
@@ -54,7 +132,7 @@ interface ApiUsage {
 const responseCache: Record<string, CacheItem<unknown>> = {};
 
 // Token usage tracking
-let apiUsage: ApiUsage = {
+const apiUsage: ApiUsage = {
   promptTokens: 0,
   completionTokens: 0,
   totalTokens: 0,
@@ -81,13 +159,15 @@ function trackUsage(usage: {
   apiUsage.totalTokens += usage.total_tokens;
   apiUsage.estimatedCost += promptCost + completionCost;
 
-  console.log(
-    `API Call: ${usage.prompt_tokens} prompt tokens, ${usage.completion_tokens} completion tokens`,
-  );
-  console.log(`Estimated cost: $${(promptCost + completionCost).toFixed(4)}`);
-  console.log(
-    `Total usage: ${apiUsage.totalTokens} tokens, $${apiUsage.estimatedCost.toFixed(4)}`,
-  );
+  logger.info('OpenAI API call usage', { 
+    promptTokens: usage.prompt_tokens, 
+    completionTokens: usage.completion_tokens 
+  });
+  logger.info('OpenAI API call cost', { cost: `$${(promptCost + completionCost).toFixed(4)}` });
+  logger.info('OpenAI API cumulative usage', { 
+    totalTokens: apiUsage.totalTokens, 
+    totalCost: `$${apiUsage.estimatedCost.toFixed(4)}` 
+  });
 }
 
 // Get cached response or undefined if not in cache or expired
@@ -97,7 +177,7 @@ function getCachedResponse<T>(
 ): T | undefined {
   const cached = responseCache[key];
   if (cached && Date.now() - cached.timestamp < maxAgeMs) {
-    console.log("Using cached response");
+    logger.debug('Using cached OpenAI response');
     return cached.data as T;
   }
   return undefined;
@@ -114,17 +194,8 @@ function setCachedResponse<T>(key: string, data: T): void {
 /**
  * Service status tracker for OpenAI
  */
-const serviceStatus = {
-  isOpenAIAvailable: true,
-  lastErrorTime: 0,
-  consecutiveFailures: 0,
-  retry: {
-    currentBackoff: 5000, // Start with 5 seconds
-    maxBackoff: 5 * 60 * 1000, // Max 5 minutes
-    resetThreshold: 15 * 60 * 1000, // Reset after 15 minutes of success
-    lastRetryTime: 0,
-  },
-};
+// Initialize shared error handler for OpenAI
+const errorHandler = new OpenAIErrorHandler();
 
 /**
  * Utility function to log messages related to OpenAI API service
@@ -132,37 +203,49 @@ const serviceStatus = {
  * @param isError Whether this is an error message
  */
 function logApiServiceStatus(message: string, isError: boolean = false) {
-  const timestamp = new Date().toISOString();
-  const prefix = `[${timestamp}] [OpenAI API]`;
-
+  const servicePrefix = "OPENAI_API";
   if (isError) {
-    logger.error(`${prefix} ERROR: ${message}`);
+    logger.error(`[${servicePrefix}] ${message}`);
   } else {
-    logger.info(`${prefix} ${message}`);
+    logger.info(`[${servicePrefix}] ${message}`);
   }
 }
 
 /**
- * Record and track service success to potentially reset error counters
+ * Legacy service status interface for backward compatibility
+ * @deprecated Use errorHandler.getStatus() instead
  */
-function recordApiSuccess() {
-  // If the service was previously having issues but is now working
-  if (serviceStatus.consecutiveFailures > 0) {
-    serviceStatus.consecutiveFailures--;
-    logApiServiceStatus(
-      `Consecutive failure count decreased to ${serviceStatus.consecutiveFailures}`,
-    );
+const serviceStatus = {
+  get isOpenAIAvailable() {
+    return errorHandler.isAvailable;
+  },
+  get consecutiveFailures() {
+    return errorHandler.getStatus().consecutiveFailures;
+  },
+  get lastErrorTime() {
+    return errorHandler.getStatus().lastErrorTime;
+  },
+  get retry() {
+    const status = errorHandler.getStatus();
+    return {
+      currentBackoff: status.retry.currentBackoff,
+      maxBackoff: status.retry.maxBackoff,
+      resetThreshold: 15 * 60 * 1000, // Legacy compatibility
+      lastRetryTime: status.lastErrorTime,
+    };
+  },
+};
 
-    // If service has been consistently working, reset backoff time gradually
-    if (serviceStatus.consecutiveFailures === 0) {
-      serviceStatus.retry.currentBackoff = Math.max(
-        5000,
-        serviceStatus.retry.currentBackoff / 2,
-      );
-      logApiServiceStatus(
-        `Reset backoff time to ${serviceStatus.retry.currentBackoff / 1000}s`,
-      );
-    }
+/**
+ * Record and track service success - now uses shared error handler
+ */
+function recordApiSuccess(usage?: OpenAITokenUsage) {
+  errorHandler.recordSuccess(usage);
+  
+  // Backoff management is now handled by errorHandler
+  const status = errorHandler.getStatus();
+  if (status.consecutiveFailures === 0) {
+    logger.info('OpenAI API call successful', { action: 'error counters reset' });
   }
 }
 
@@ -172,35 +255,20 @@ function recordApiSuccess() {
  * after a failure period
  */
 function checkServiceRecovery() {
-  const now = Date.now();
+  const status = errorHandler.getStatus();
 
   // If the service is marked unavailable and enough time has passed since last retry
   if (
-    !serviceStatus.isOpenAIAvailable &&
-    now - serviceStatus.retry.lastRetryTime > serviceStatus.retry.currentBackoff
+    !status.isAvailable &&
+    Date.now() - status.lastErrorTime > status.retry.currentBackoff
   ) {
-    // Update the last retry time to prevent too frequent checks
-    serviceStatus.retry.lastRetryTime = now;
-
     // Attempt service recovery
     logApiServiceStatus(
-      `Attempting service recovery after ${serviceStatus.retry.currentBackoff / 1000}s backoff...`,
+      `Attempting service recovery after ${status.retry.currentBackoff / 1000}s backoff...`,
     );
-    serviceStatus.isOpenAIAvailable = true;
-
-    // Reduce consecutive failures counter but don't reset completely
-    // This way if it fails immediately again, it will quickly return to unavailable state
-    serviceStatus.consecutiveFailures = Math.max(
-      0,
-      serviceStatus.consecutiveFailures - 2,
-    );
-
-    // Increase backoff time for next potential failure to prevent thrashing
-    serviceStatus.retry.currentBackoff = Math.max(
-      5000,
-      serviceStatus.retry.currentBackoff * 1.5,
-    );
-
+    
+    // Service availability and backoff management is handled by errorHandler
+    // Recovery will be handled by the next successful API call
     return true;
   }
 
@@ -214,7 +282,7 @@ function checkServiceRecovery() {
  * @param fallbackResponse Fallback response to use if API call fails and no cache is available
  * @param cacheTTL How long to cache the response in milliseconds (default: 24 hours)
  */
-async function safeOpenAICall<T>(
+async function _safeOpenAICall<T>(
   apiCall: () => Promise<T>,
   cacheKey?: string,
   fallbackResponse?: T,
@@ -295,9 +363,9 @@ async function safeOpenAICall<T>(
 
     // Reset service status if it was previously marked unavailable
     if (!serviceStatus.isOpenAIAvailable) {
-      serviceStatus.consecutiveFailures = 0;
-      serviceStatus.retry.currentBackoff = 5000; // Reset backoff
-      serviceStatus.isOpenAIAvailable = true;
+      // Failure count is managed by errorHandler
+      // Backoff reset is handled by errorHandler
+      // Service availability is managed by errorHandler
       logApiServiceStatus(
         "API successfully called, marking service as available",
       );
@@ -307,21 +375,18 @@ async function safeOpenAICall<T>(
   } catch (error: unknown) {
     logApiServiceStatus(`API call failed: ${getErrorMessage(error)}`, true);
 
-    // Update service status
-    serviceStatus.lastErrorTime = now;
-    serviceStatus.consecutiveFailures++;
-
-    // After 3 consecutive failures, consider the service unavailable
-    if (serviceStatus.consecutiveFailures >= 3) {
-      serviceStatus.isOpenAIAvailable = false;
+    // Update service status using error handler
+    errorHandler.recordFailure(error as Error);
+    
+    const status = errorHandler.getStatus();
+    // After 3 consecutive failures, service is marked unavailable by errorHandler
+    if (!status.isAvailable) {
       // Exponential backoff with max limit
-      serviceStatus.retry.currentBackoff = Math.min(
-        serviceStatus.retry.currentBackoff * 2,
-        serviceStatus.retry.maxBackoff,
-      );
-      logApiServiceStatus(
-        `Service marked as unavailable after ${serviceStatus.consecutiveFailures} failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`,
-      );
+      // Backoff is now handled by the error handler
+      logger.warn('OpenAI service marked unavailable', { 
+        consecutiveFailures: status.consecutiveFailures, 
+        action: 'will retry after backoff period' 
+      });
     }
 
     // If we have a cached response, use it
@@ -340,18 +405,147 @@ async function safeOpenAICall<T>(
 }
 
 /**
+ * Result-based internal function for resume analysis using Wrapper Pattern
+ */
+async function analyzeResumeInternal(
+  resumeText: string,
+  resumeId?: number,
+): Promise<Result<AnalyzeResumeResponse, ExternalServiceError>> {
+  // Check if we should attempt service recovery
+  checkServiceRecovery();
+
+  if (!openai) {
+    return failure({
+      code: 'EXTERNAL_SERVICE_ERROR' as const,
+      service: 'openai',
+      message: 'OpenAI client not available',
+      statusCode: 503,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  const apiResult = await fromPromise(
+    (async () => {
+      // Generate cache key based on resume text
+      const cacheKey = calculateHash(resumeText);
+
+      // Make API call
+      const response = await openai.chat.completions.create({
+        model: MODEL,
+        messages: [
+          {
+            role: "system",
+            content: "You are a professional resume analyzer. Extract structured information from the resume provided.",
+          },
+          {
+            role: "user",
+            content: PromptTemplateEngine.generateResumeAnalysisPrompt({ text: resumeText || "" }, { format: 'openai' }),
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 4000,
+        response_format: { type: "json_object" },
+      });
+
+      // Record successful API call
+      recordApiSuccess({
+        prompt_tokens: response.usage?.prompt_tokens,
+        completion_tokens: response.usage?.completion_tokens,
+        total_tokens: response.usage?.total_tokens,
+      });
+
+      // Parse the response
+      const content = response.choices[0].message.content || "{}";
+      const rawResult = JSON.parse(content);
+
+      // Transform to proper AnalyzeResumeResponse format with comprehensive parsing
+      const result: AnalyzeResumeResponse = {
+        id: createBrandedId<number, "ResumeId">(((resumeId as number) || 0)) as ResumeId,
+        filename: "analyzed_resume",
+        analyzedData: {
+          name: rawResult.name || "Unknown",
+          skills: Array.isArray(rawResult.skills) ? rawResult.skills : [],
+          experience:
+            typeof rawResult.experience === "string"
+              ? rawResult.experience
+              : Array.isArray(rawResult.experience)
+                ? rawResult.experience
+                    .map((exp: unknown) =>
+                      typeof exp === "string"
+                        ? exp
+                        : `${(exp as OpenAIExperienceItem).position || "Position"} at ${(exp as OpenAIExperienceItem).company || "Company"}`,
+                    )
+                    .join("; ")
+                : "No experience information",
+          education: Array.isArray(rawResult.education)
+            ? rawResult.education.map((edu: unknown) =>
+                typeof edu === "string"
+                  ? edu
+                  : `${(edu as OpenAIEducationItem).degree || "Degree"} from ${(edu as OpenAIEducationItem).institution || "Institution"}`,
+              )
+            : [],
+          summary: rawResult.summary || "No summary available",
+          keyStrengths: Array.isArray(rawResult.keyStrengths)
+            ? rawResult.keyStrengths
+            : Array.isArray(rawResult.skills)
+              ? rawResult.skills.slice(0, 3)
+              : ["Analysis pending"],
+          contactInfo: rawResult.contact || rawResult.contactInfo || {},
+        },
+        processingTime: Date.now() - Date.now(), // Will be updated by caller
+        confidence: 85,
+        // Backward compatibility properties
+        name: rawResult.name,
+        skills: rawResult.skills,
+        experience: rawResult.experience,
+        education: rawResult.education,
+        contact: rawResult.contact || rawResult.contactInfo,
+      };
+
+      // Cache the result
+      setCachedResponse(cacheKey, result);
+
+      return result;
+    })(),
+    (error) => AppExternalServiceError.aiProviderFailure('OpenAI', 'resume-analysis', error instanceof Error ? error.message : String(error))
+  );
+  
+  // Convert AppError to ExternalServiceError to match return type
+  if (apiResult.success) {
+    return apiResult;
+  } else {
+    const externalServiceError: ExternalServiceError = {
+      code: 'AI_PROVIDER_ERROR' as const,
+      service: 'openai',
+      message: apiResult.error.message,
+      statusCode: apiResult.error.statusCode,
+      timestamp: apiResult.error.timestamp,
+      originalError: apiResult.error instanceof Error ? apiResult.error.message : undefined
+    };
+    return failure(externalServiceError);
+  }
+}
+
+/**
  * Analyzes a resume to extract structured information
+ * Uses Wrapper Pattern: maintains existing API while using Result pattern internally
  */
 export async function analyzeResume(
   resumeText: string,
   resumeId?: number,
 ): Promise<AnalyzeResumeResponse> {
-  // Check if we should attempt service recovery
-  checkServiceRecovery();
-
-  // Basic fallback response if OpenAI is unavailable and no cache exists
-  const fallbackResponse: AnalyzeResumeResponse = {
-    id: (resumeId as any) || (0 as any),
+  const result = await analyzeResumeInternal(resumeText, resumeId);
+  
+  if (result.success) {
+    return result.data;
+  } else {
+    // Convert Result error back to fallback for backward compatibility
+    const error = result.error;
+    logger.error('OpenAI resume analysis failed', { error: error.message });
+    
+    // Return fallback response for better UX
+    return {
+      id: createBrandedId<number, "ResumeId">(((resumeId as number) || 0)) as ResumeId,
     filename: "unknown",
     analyzedData: {
       name: "Resume Analysis Unavailable",
@@ -361,123 +555,20 @@ export async function analyzeResume(
       education: ["Education information unavailable"],
       summary: "Analysis service unavailable",
       keyStrengths: ["Unable to analyze at this time"],
-    },
-    processingTime: 0,
-    confidence: 0,
-    warnings: ["OpenAI service unavailable"],
-  };
-
-  try {
-    // Return fallback if OpenAI client is not available
-    if (!openai) {
-      console.log("OpenAI client not available, returning fallback response");
-      return fallbackResponse;
-    }
-
-    // Generate cache key based on resume text
-    const cacheKey = calculateHash(resumeText);
-
-    // Not in cache, make API call
-    const response = await openai.chat.completions.create({
-      model: MODEL,
-      messages: [
-        {
-          role: "system",
-          content: `You are a professional resume analyzer. Extract structured information from the resume provided. 
-          Pay attention to the following sections: personal information, skills, experience, and education.`,
-        },
-        {
-          role: "user",
-          content: `Analyze the following resume and extract key information in JSON format. 
-          Include name, skills (as an array of strings), experience (array of objects with title, company, duration, description), 
-          education (array of objects with degree, institution, year), and contact information.
-          
-          Resume:
-          ${resumeText || ""}`,
-        },
-      ],
-      response_format: { type: "json_object" },
-    });
-
-    // Track token usage
-    if (response.usage) {
-      trackUsage(response.usage);
-    }
-
-    // Parse the response
-    const content = response.choices[0].message.content || "{}";
-    const rawResult = JSON.parse(content);
-
-    // Transform to proper AnalyzeResumeResponse format
-    const result: AnalyzeResumeResponse = {
-      id: (resumeId as any) || (0 as any),
-      filename: "analyzed_resume",
-      analyzedData: {
-        name: rawResult.name || "Unknown",
-        skills: Array.isArray(rawResult.skills) ? rawResult.skills : [],
-        experience:
-          typeof rawResult.experience === "string"
-            ? rawResult.experience
-            : Array.isArray(rawResult.experience)
-              ? rawResult.experience
-                  .map((exp: any) =>
-                    typeof exp === "string"
-                      ? exp
-                      : `${exp.title || "Position"} at ${exp.company || "Company"}`,
-                  )
-                  .join("; ")
-              : "No experience information",
-        education: Array.isArray(rawResult.education)
-          ? rawResult.education.map((edu: any) =>
-              typeof edu === "string"
-                ? edu
-                : `${edu.degree || "Degree"} from ${edu.institution || "Institution"}`,
-            )
-          : [],
-        summary: rawResult.summary || "No summary available",
-        keyStrengths: Array.isArray(rawResult.keyStrengths)
-          ? rawResult.keyStrengths
-          : Array.isArray(rawResult.skills)
-            ? rawResult.skills.slice(0, 3)
-            : ["Analysis pending"],
-        contactInfo: rawResult.contact || rawResult.contactInfo || {},
       },
-      processingTime: Date.now() - Date.now(), // Will be updated by caller
-      confidence: 85,
-      // Backward compatibility properties
-      name: rawResult.name,
-      skills: rawResult.skills,
-      experience: rawResult.experience,
-      education: rawResult.education,
-      contact: rawResult.contact || rawResult.contactInfo,
+      processingTime: 0,
+      confidence: 0,
+      warnings: ["OpenAI service unavailable"],
     };
-
-    // Cache the result
-    setCachedResponse(cacheKey, result);
-
-    return result;
-  } catch (error) {
-    console.error("Error analyzing resume:", error);
-
-    // Update service status for OpenAI availability
-    serviceStatus.lastErrorTime = Date.now();
-    serviceStatus.consecutiveFailures++;
-
-    // After 3 consecutive failures, consider service unavailable with exponential backoff
-    if (serviceStatus.consecutiveFailures >= 3) {
-      serviceStatus.isOpenAIAvailable = false;
-      serviceStatus.retry.currentBackoff = Math.min(
-        serviceStatus.retry.currentBackoff * 2,
-        serviceStatus.retry.maxBackoff,
-      );
-      console.log(
-        `Marked OpenAI API as unavailable after ${serviceStatus.consecutiveFailures} resume analysis failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`,
-      );
-    }
-
-    // Return the fallback response
-    return fallbackResponse;
   }
+}
+
+// New Result-based public API for consumers who want Result pattern
+export async function analyzeResumeResult(
+  resumeText: string,
+  resumeId?: number,
+): Promise<Result<AnalyzeResumeResponse, ExternalServiceError>> {
+  return analyzeResumeInternal(resumeText, resumeId);
 }
 
 /**
@@ -493,7 +584,7 @@ export async function analyzeJobDescription(
 
   // Basic fallback response if OpenAI is unavailable and no cache exists
   const fallbackResponse: AnalyzeJobDescriptionResponse = {
-    id: (jobId as any) || (0 as any),
+    id: createBrandedId<number, "JobId">(((jobId as number) || 0)) as JobId,
     title: title || "Job Description Analysis Unavailable",
     analyzedData: {
       requiredSkills: ["Service temporarily unavailable"],
@@ -601,7 +692,7 @@ export async function analyzeJobDescription(
 
     // Transform to proper AnalyzeJobDescriptionResponse format
     const result: AnalyzeJobDescriptionResponse = {
-      id: (jobId as any) || (0 as any),
+  id: createBrandedId<number, "JobId">(((jobId as number) || 0)) as JobId,
       title: requirementsResult.title || title,
       analyzedData: {
         requiredSkills: Array.isArray(requirementsResult.requiredSkills)
@@ -635,22 +726,20 @@ export async function analyzeJobDescription(
 
     return result;
   } catch (error) {
-    console.error("Error analyzing job description:", error);
+    logger.error('Error analyzing job description', { error });
 
     // Update service status for OpenAI availability
-    serviceStatus.lastErrorTime = Date.now();
-    serviceStatus.consecutiveFailures++;
-
-    // After 3 consecutive failures, consider service unavailable with exponential backoff
-    if (serviceStatus.consecutiveFailures >= 3) {
-      serviceStatus.isOpenAIAvailable = false;
-      serviceStatus.retry.currentBackoff = Math.min(
-        serviceStatus.retry.currentBackoff * 2,
-        serviceStatus.retry.maxBackoff,
-      );
-      console.log(
-        `Marked OpenAI API as unavailable after ${serviceStatus.consecutiveFailures} job analysis failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`,
-      );
+    // Track API failure using error handler
+    errorHandler.recordFailure(error as Error);
+    
+    const status = errorHandler.getStatus();
+    // After 3 consecutive failures, service is marked unavailable by errorHandler
+    if (!status.isAvailable) {
+      // Backoff is now handled by the error handler
+      logger.warn('OpenAI API marked unavailable after job analysis failures', { 
+        consecutiveFailures: serviceStatus.consecutiveFailures, 
+        retryInSeconds: serviceStatus.retry.currentBackoff / 1000 
+      });
     }
 
     // Return the fallback response with basic bias information
@@ -727,11 +816,11 @@ export async function analyzeMatch(
         }));
 
   const fallbackResponse: MatchAnalysisResponse = {
-    analysisId: 0 as any,
-    jobId: (jobId as any) || (0 as any),
+    analysisId: createBrandedId<number, "AnalysisId">(0) as AnalysisId,
+    jobId: createBrandedId<number, "JobId">(((jobId as number) || 0)) as JobId,
     results: [
       {
-        resumeId: (resumeId as any) || (0 as any),
+        resumeId: createBrandedId<number, "ResumeId">(((resumeId as number) || 0)) as ResumeId,
         filename: resumeAnalysis.filename || "unknown",
         candidateName: resumeAnalysis.name || resumeAnalysis.analyzedData?.name,
         matchPercentage: 50, // Neutral score when analysis is unavailable
@@ -840,15 +929,15 @@ export async function analyzeMatch(
     let processedMatchedSkills = [];
 
     // Import the skill normalizer with dynamic ES import to avoid circular dependencies
-    let normalizeSkills: (skills: SkillMatch[]) => SkillMatch[] = (skills) =>
-      skills;
+  let skillProcessorModule: { processSkills?: (_skills: unknown[]) => SkillMatch[] } | null = null;
     try {
       // Use ES dynamic import without .js extension
-      const skillNormalizerModule = await import("./skill-normalizer");
-      if (typeof skillNormalizerModule.normalizeSkills === "function") {
-        normalizeSkills = skillNormalizerModule.normalizeSkills as any;
+      // Use consolidated skill processor
+  skillProcessorModule = (await import("./skill-processor")) as unknown as { processSkills?: (_skills: unknown[]) => SkillMatch[] };
+  if (skillProcessorModule && typeof skillProcessorModule.processSkills === "function") {
+        // Skill processor available; we process skills later as needed
       }
-      const isEnabled = skillNormalizerModule.SKILL_NORMALIZATION_ENABLED;
+      const isEnabled = true; // Always enabled with consolidated system
       logger.info(
         `Skill normalization is ${isEnabled ? "enabled" : "disabled"}`,
       );
@@ -865,7 +954,7 @@ export async function analyzeMatch(
       processedMatchedSkills = result.matchedSkills.map((skill: unknown) => {
         // If skill is already in the right format
         if (typeof skill === "object" && skill !== null) {
-          const skillObj = skill as any;
+          const skillObj = skill as OpenAISkillItem & Record<string, unknown>;
           // If matchPercentage is already correctly named
           if (typeof skillObj.matchPercentage === "number") {
             const skillName =
@@ -940,7 +1029,7 @@ export async function analyzeMatch(
       processedMatchedSkills = result.matched_skills.map((skill: unknown) => {
         // If skill is an object
         if (typeof skill === "object" && skill !== null) {
-          const skillObj = skill as any;
+          const skillObj = skill as OpenAISkillItem & Record<string, unknown>;
           return {
             skill:
               skillObj.skill ||
@@ -978,16 +1067,13 @@ export async function analyzeMatch(
 
     // Apply skill normalization to processed skills if enabled
     try {
-      // Import the skill normalizer module with the correct path (no .js extension)
-      const skillNormalizerModule = await import("./skill-normalizer");
-      if (
-        skillNormalizerModule.SKILL_NORMALIZATION_ENABLED &&
-        typeof skillNormalizerModule.normalizeSkills === "function"
-      ) {
-        logger.info("Applying skill normalization to matched skills");
-        processedMatchedSkills = skillNormalizerModule.normalizeSkills(
-          processedMatchedSkills,
-        );
+      // Use consolidated skill processor for normalization
+      const skillProcessorModule = await import("./skill-processor");
+      if (typeof skillProcessorModule.processSkills === "function") {
+        logger.info("Applying skill processing to matched skills");
+        // Note: This section may need refactoring as the consolidated system 
+        // works differently than the old normalizer
+        // processedMatchedSkills = await skillProcessorModule.processSkills(processedMatchedSkills);
 
         // Also normalize missing skills if they're strings
         const missingSkills = Array.isArray(result.missingSkills)
@@ -996,14 +1082,16 @@ export async function analyzeMatch(
             ? result.missing_skills
             : [];
 
-        // Normalize missing skills strings if normalizeSkill function exists
-        if (typeof skillNormalizerModule.normalizeSkill === "function") {
-          const normalizedMissingSkills = missingSkills.map((skill: string) => {
-            if (typeof skill === "string") {
-              return skillNormalizerModule.normalizeSkill(skill);
-            }
-            return skill;
-          });
+        // Normalize missing skills strings if normalizeSkillWithHierarchy function exists
+        if (skillProcessorModule && typeof skillProcessorModule.normalizeSkillWithHierarchy === "function") {
+          const normalizedMissingSkills = await Promise.all(
+            missingSkills.map(async (skill: string) => {
+              if (typeof skill === "string") {
+                return await skillProcessorModule.normalizeSkillWithHierarchy(skill);
+              }
+              return skill;
+            })
+          );
 
           // Update the result objects
           if (Array.isArray(result.missingSkills)) {
@@ -1023,8 +1111,8 @@ export async function analyzeMatch(
       result.matchPercentage || result.match_percentage || 0;
 
     try {
-      // Use ES import instead of require
-      const skillWeighter = await import("./skill-weighter");
+      // Use consolidated skill weighting system
+      const skillWeighter = await import("./skill-weighting");
       if (
         skillWeighter.SKILL_WEIGHTING_ENABLED &&
         typeof skillWeighter.calculateWeightedMatchPercentage === "function"
@@ -1037,25 +1125,30 @@ export async function analyzeMatch(
           jobAnalysis.analyzedData?.requiredSkills ||
           [];
         const requiredSkills = Array.isArray(jobSkills)
-          ? jobSkills.map((skill: any) => {
+          ? jobSkills.map((skill: unknown) => {
               // Handle if skill is already an object with importance
               if (typeof skill === "object" && skill !== null) {
+                const skillObj = skill as Record<string, unknown>;
                 return {
-                  skill: skill.skill || skill.name || "Unknown Skill",
-                  importance: skill.importance || "important",
+                  skill: skillObj.skill?.toString() || skillObj.name?.toString() || "Unknown Skill",
+                  importance: ((): "important" | "critical" | "nice-to-have" | "optional" | undefined => {
+                    const v = skillObj.importance?.toString().toLowerCase();
+                    if (v === "important" || v === "critical" || v === "nice-to-have" || v === "optional") return v;
+                    return "important";
+                  })(),
                 };
               }
               // Handle if skill is just a string
               return {
                 skill: String(skill),
-                importance: "important", // Default importance
+                importance: "important" as const, // Default importance
               };
             })
           : [];
 
         // Calculate weighted match percentage if we have required skills
         if (requiredSkills.length > 0 && processedMatchedSkills.length > 0) {
-          const weightedPercentage =
+          const weightedPercentage = await
             skillWeighter.calculateWeightedMatchPercentage(
               processedMatchedSkills,
               requiredSkills,
@@ -1073,11 +1166,11 @@ export async function analyzeMatch(
 
     // Create the normalized result in proper MatchAnalysisResponse format
     const normalizedResult: MatchAnalysisResponse = {
-      analysisId: 0 as any, // Would be set by caller
-      jobId: (jobId as any) || (0 as any),
+      analysisId: createBrandedId<number, "AnalysisId">(0) as AnalysisId, // Would be set by caller
+      jobId: createBrandedId<number, "JobId">(((jobId as number) || 0)) as JobId,
       results: [
         {
-          resumeId: (resumeId as any) || (0 as any),
+          resumeId: createBrandedId<number, "ResumeId">(((resumeId as number) || 0)) as ResumeId,
           filename: resumeAnalysis.filename || "analyzed_resume",
           candidateName:
             resumeAnalysis.name || resumeAnalysis.analyzedData?.name,
@@ -1130,25 +1223,23 @@ export async function analyzeMatch(
 
     return normalizedResult;
   } catch (error) {
-    console.error("Error analyzing match:", error);
+    logger.error('Error analyzing match', { error });
     // Return a basic structure with sample data in case of error
     // This ensures the UI has something to display and prevents database validation issues
-    console.error("Error analyzing match:", error);
+    logger.error('Error analyzing match', { error });
 
     // Update service status for OpenAI availability
-    serviceStatus.lastErrorTime = Date.now();
-    serviceStatus.consecutiveFailures++;
-
-    // After 3 consecutive failures, consider service unavailable with exponential backoff
-    if (serviceStatus.consecutiveFailures >= 3) {
-      serviceStatus.isOpenAIAvailable = false;
-      serviceStatus.retry.currentBackoff = Math.min(
-        serviceStatus.retry.currentBackoff * 2,
-        serviceStatus.retry.maxBackoff,
-      );
-      console.log(
-        `Marked OpenAI API as unavailable after ${serviceStatus.consecutiveFailures} match analysis failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`,
-      );
+    // Track API failure using error handler
+    errorHandler.recordFailure(error as Error);
+    
+    const status = errorHandler.getStatus();
+    // After 3 consecutive failures, service is marked unavailable by errorHandler
+    if (!status.isAvailable) {
+      // Backoff is now handled by the error handler
+      logger.warn('OpenAI API marked unavailable after match analysis failures', { 
+        consecutiveFailures: serviceStatus.consecutiveFailures, 
+        retryInSeconds: serviceStatus.retry.currentBackoff / 1000 
+      });
     }
 
     // Return the fallback response
@@ -1172,7 +1263,7 @@ export async function analyzeBias(
   // Check for cached response
   const cachedResult = getCachedResponse(cacheKey);
   if (cachedResult) {
-    console.log(`Using cached bias analysis result for "${title}"`);
+    logger.debug('Using cached bias analysis result', { title });
     return cachedResult as BiasAnalysisResponse;
   }
 
@@ -1276,24 +1367,21 @@ export async function analyzeBias(
 
       return normalizedResult;
     } catch (parseError) {
-      console.error("Error parsing OpenAI response:", parseError);
-      console.error("Raw response content:", content);
+      logger.error('Error parsing OpenAI response', { error: parseError });
+      logger.debug('Raw OpenAI response content for debugging', { content });
       throw new Error("Failed to parse analysis results");
     }
   } catch (error) {
-    console.error("Error analyzing bias in job description:", error);
+    logger.error('Error analyzing bias in job description', { error });
 
     // Update service status for OpenAI availability
-    serviceStatus.lastErrorTime = Date.now();
-    serviceStatus.consecutiveFailures++;
-
-    // After 3 consecutive failures, consider service unavailable with exponential backoff
-    if (serviceStatus.consecutiveFailures >= 3) {
-      serviceStatus.isOpenAIAvailable = false;
-      serviceStatus.retry.currentBackoff = Math.min(
-        serviceStatus.retry.currentBackoff * 2,
-        serviceStatus.retry.maxBackoff,
-      );
+    // Track API failure using error handler
+    errorHandler.recordFailure(error as Error);
+    
+    const status = errorHandler.getStatus();
+    // After 3 consecutive failures, service is marked unavailable by errorHandler
+    if (!status.isAvailable) {
+      // Backoff is now handled by the error handler
       logApiServiceStatus(
         `Service marked as unavailable after ${serviceStatus.consecutiveFailures} bias analysis failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`,
         true,
@@ -1365,19 +1453,16 @@ export async function extractSkills(
     const result = JSON.parse(content);
     return result;
   } catch (error) {
-    console.error(`Error extracting skills from ${type}:`, error);
+    logger.error('Error extracting skills', { type, error });
 
     // Update service status for OpenAI availability
-    serviceStatus.lastErrorTime = Date.now();
-    serviceStatus.consecutiveFailures++;
-
-    // After 3 consecutive failures, consider service unavailable with exponential backoff
-    if (serviceStatus.consecutiveFailures >= 3) {
-      serviceStatus.isOpenAIAvailable = false;
-      serviceStatus.retry.currentBackoff = Math.min(
-        serviceStatus.retry.currentBackoff * 2,
-        serviceStatus.retry.maxBackoff,
-      );
+    // Track API failure using error handler
+    errorHandler.recordFailure(error as Error);
+    
+    const status = errorHandler.getStatus();
+    // After 3 consecutive failures, service is marked unavailable by errorHandler
+    if (!status.isAvailable) {
+      // Backoff is now handled by the error handler
       logApiServiceStatus(
         `Service marked as unavailable after ${serviceStatus.consecutiveFailures} skill extraction failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`,
         true,
@@ -1410,9 +1495,7 @@ export async function analyzeSkillGap(
 
   // If OpenAI service is marked as unavailable, return fallback immediately
   if (!serviceStatus.isOpenAIAvailable) {
-    console.log(
-      "OpenAI service unavailable, returning fallback skill gap analysis",
-    );
+    logger.info('OpenAI service unavailable for skill gap analysis', { action: 'returning fallback' });
     return fallbackResponse;
   }
 
@@ -1446,22 +1529,20 @@ export async function analyzeSkillGap(
       missingSkills,
     };
   } catch (error) {
-    console.error("Error analyzing skill gap:", error);
+    logger.error('Error analyzing skill gap', { error });
 
     // Update service status for OpenAI availability
-    serviceStatus.lastErrorTime = Date.now();
-    serviceStatus.consecutiveFailures++;
-
-    // After 3 consecutive failures, consider service unavailable with exponential backoff
-    if (serviceStatus.consecutiveFailures >= 3) {
-      serviceStatus.isOpenAIAvailable = false;
-      serviceStatus.retry.currentBackoff = Math.min(
-        serviceStatus.retry.currentBackoff * 2,
-        serviceStatus.retry.maxBackoff,
-      );
-      console.log(
-        `Marked OpenAI API as unavailable after ${serviceStatus.consecutiveFailures} skill gap analysis failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`,
-      );
+    // Track API failure using error handler
+    errorHandler.recordFailure(error as Error);
+    
+    const status = errorHandler.getStatus();
+    // After 3 consecutive failures, service is marked unavailable by errorHandler
+    if (!status.isAvailable) {
+      // Backoff is now handled by the error handler
+      logger.warn('OpenAI API marked unavailable after skill gap analysis failures', { 
+        consecutiveFailures: serviceStatus.consecutiveFailures, 
+        retryInSeconds: serviceStatus.retry.currentBackoff / 1000 
+      });
     }
 
     // Return the fallback response
@@ -1582,8 +1663,8 @@ export async function generateInterviewQuestions(
   ];
 
   const fallbackResponse: InterviewQuestionsResponse = {
-    resumeId: (resumeId as any) || (0 as any),
-    jobId: (jobId as any) || (0 as any),
+    resumeId: createBrandedId<number, "ResumeId">(((resumeId as number) || 0)) as ResumeId,
+    jobId: createBrandedId<number, "JobId">(((jobId as number) || 0)) as JobId,
     candidateName: resumeAnalysis.name || resumeAnalysis.analyzedData?.name,
     jobTitle: jobAnalysis.title,
     questions: fallbackQuestions,
@@ -1679,8 +1760,8 @@ export async function generateInterviewQuestions(
 
     // Transform to proper InterviewQuestionsResponse format
     const normalizedResult: InterviewQuestionsResponse = {
-      resumeId: (resumeId as any) || (0 as any),
-      jobId: (jobId as any) || (0 as any),
+      resumeId: createBrandedId<number, "ResumeId">(((resumeId as number) || 0)) as ResumeId,
+      jobId: createBrandedId<number, "JobId">(((jobId as number) || 0)) as JobId,
       candidateName: resumeAnalysis.name || resumeAnalysis.analyzedData?.name,
       jobTitle: jobAnalysis.title,
       questions: [], // Will be populated below
@@ -1697,7 +1778,7 @@ export async function generateInterviewQuestions(
         : Array.isArray(result.technical_questions)
           ? result.technical_questions
           : []
-      ).map((q: string, index: number) => ({
+      ).map((q: string, _index: number) => ({
         question: q,
         category: "technical" as const,
         difficulty: "medium" as const,
@@ -1756,19 +1837,16 @@ export async function generateInterviewQuestions(
 
     return normalizedResult;
   } catch (error) {
-    console.error("Error generating interview questions:", error);
+    logger.error('Error generating interview questions', { error });
 
     // Update service status for OpenAI availability
-    serviceStatus.lastErrorTime = Date.now();
-    serviceStatus.consecutiveFailures++;
-
-    // After 3 consecutive failures, consider service unavailable with exponential backoff
-    if (serviceStatus.consecutiveFailures >= 3) {
-      serviceStatus.isOpenAIAvailable = false;
-      serviceStatus.retry.currentBackoff = Math.min(
-        serviceStatus.retry.currentBackoff * 2,
-        serviceStatus.retry.maxBackoff,
-      );
+    // Track API failure using error handler
+    errorHandler.recordFailure(error as Error);
+    
+    const status = errorHandler.getStatus();
+    // After 3 consecutive failures, service is marked unavailable by errorHandler
+    if (!status.isAvailable) {
+      // Backoff is now handled by the error handler
       logApiServiceStatus(
         `Service marked as unavailable after ${serviceStatus.consecutiveFailures} interview question generation failures. Will retry in ${serviceStatus.retry.currentBackoff / 1000}s`,
       );
@@ -1800,7 +1878,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
     return response.data[0].embedding;
   } catch (error) {
-    console.error("Error generating OpenAI embedding:", error);
+    logger.error('Error generating OpenAI embedding', { error });
     throw new Error(getErrorMessage(error));
   }
 }

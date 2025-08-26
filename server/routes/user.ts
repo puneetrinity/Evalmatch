@@ -5,6 +5,7 @@
 
 import { Router, Request, Response } from "express";
 import { authenticateUser } from "../middleware/auth";
+import { validators } from "../middleware/input-validation";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -35,7 +36,7 @@ router.get(
 );
 
 // Test authentication endpoint - Debug authentication issues
-router.post("/debug/test-auth", async (req: Request, res: Response) => {
+router.post("/debug/test-auth", validators.rateLimitStrict, async (req: Request, res: Response) => {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader?.startsWith("Bearer ")
@@ -60,8 +61,8 @@ router.post("/debug/test-auth", async (req: Request, res: Response) => {
       });
     }
 
-    // Verify token with Firebase Admin
-    const { verifyFirebaseToken } = await import("../lib/firebase-admin");
+    // Verify token with unified Firebase auth system
+    const { verifyFirebaseToken } = await import("../auth/firebase-auth");
 
     try {
       const decodedToken = await verifyFirebaseToken(token);
@@ -80,15 +81,15 @@ router.post("/debug/test-auth", async (req: Request, res: Response) => {
         user: {
           uid: decodedToken.uid,
           email: decodedToken.email,
-          emailVerified: decodedToken.email_verified,
-          authTime: new Date(decodedToken.auth_time * 1000).toISOString(),
-          iat: new Date(decodedToken.iat * 1000).toISOString(),
-          exp: new Date(decodedToken.exp * 1000).toISOString(),
+          emailVerified: decodedToken.emailVerified,
+          authTime: new Date((decodedToken as any).auth_time * 1000).toISOString(),
+          iat: new Date((decodedToken as any).iat * 1000).toISOString(),
+          exp: new Date((decodedToken as any).exp * 1000).toISOString(),
         },
         tokenInfo: {
           length: token.length,
-          issuer: decodedToken.iss,
-          audience: decodedToken.aud,
+          issuer: (decodedToken as any).iss,
+          audience: (decodedToken as any).aud,
         },
       });
     } catch (tokenError: unknown) {
@@ -101,8 +102,8 @@ router.post("/debug/test-auth", async (req: Request, res: Response) => {
             ? tokenError.message
             : "Invalid Firebase token",
         code:
-          tokenError instanceof Error && "code" in tokenError
-            ? (tokenError as any).code
+          tokenError instanceof Error && "code" in tokenError && typeof (tokenError as { code?: string }).code === "string"
+            ? (tokenError as { code: string }).code
             : "auth/invalid-token",
         tokenLength: token.length,
       });

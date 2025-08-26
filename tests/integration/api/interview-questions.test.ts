@@ -37,9 +37,10 @@ afterAll(async () => {
 }, TEST_CONFIG.timeout);
 
 beforeEach(async () => {
-  // Create fresh test users for each test
-  testUser = MockAuth.createTestUser();
-  anotherUser = MockAuth.createTestUser();
+  // Create fresh test users for each test with unique identifiers
+  const testId = Date.now() + Math.random();
+  testUser = MockAuth.createTestUser({ uid: `test_user_${testId}` });
+  anotherUser = MockAuth.createTestUser({ uid: `another_user_${testId}_different` });
   
   // Clear any existing test data
   await DatabaseTestHelper.cleanupTestData();

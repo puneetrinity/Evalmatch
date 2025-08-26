@@ -8,11 +8,6 @@
 import { logger } from "./logger";
 import { validateScoreConsistency } from "./consistent-scoring";
 import * as groq from "./groq";
-import type {
-  AnalyzeResumeResponse,
-  AnalyzeJobDescriptionResponse,
-  MatchAnalysisResponse,
-} from "@shared/schema";
 
 export interface ConsistencyTestResult {
   testId: string;
@@ -253,12 +248,13 @@ export async function quickConsistencyTest(
   const isConsistent = result.analysis.isConsistent;
   const variance = result.analysis.variance;
 
-  console.log(`\n🧪 Quick Consistency Test Results:`);
-  console.log(`✅ Consistent: ${isConsistent}`);
-  console.log(`📊 Variance: ${variance.toFixed(2)}`);
-  console.log(`📈 Average Score: ${result.analysis.averageScore.toFixed(1)}`);
-  console.log(`📏 Range: ${result.analysis.range.toFixed(1)}`);
-  console.log(`💡 ${result.analysis.recommendation}\n`);
+  logger.info('Quick Consistency Test Results', {
+    consistent: isConsistent,
+    variance: variance.toFixed(2),
+    averageScore: result.analysis.averageScore.toFixed(1),
+    range: result.analysis.range.toFixed(1),
+    recommendation: result.analysis.recommendation
+  });
 
   return isConsistent;
 }

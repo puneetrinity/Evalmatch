@@ -1,6 +1,6 @@
 import { logger } from "./logger";
-import { generateEmbedding, cosineSimilarity } from "./embeddings";
-import stringSimilarity from "string-similarity";
+import { generateEmbedding as _generateEmbedding, cosineSimilarity as _cosineSimilarity } from "./embeddings";
+import _stringSimilarity from "string-similarity";
 
 export interface IndustryMatchResult {
   score: number;
@@ -450,7 +450,7 @@ function extractIndustries(text: string): string[] {
 function extractTechnologies(text: string): string[] {
   const foundTech: string[] = [];
 
-  for (const [category, definition] of Object.entries(TECHNOLOGY_STACKS)) {
+  for (const [_category, definition] of Object.entries(TECHNOLOGY_STACKS)) {
     for (const tech of definition.technologies) {
       if (text.includes(tech)) {
         foundTech.push(tech);
@@ -722,7 +722,7 @@ async function calculateTechnologyStackScore(
 function calculateTechnologyCategoryMatches(resumeTech: string[], jobTech: string[]): number {
   let categoryScore = 0;
 
-  for (const [category, definition] of Object.entries(TECHNOLOGY_STACKS)) {
+  for (const [_category, definition] of Object.entries(TECHNOLOGY_STACKS)) {
     const resumeHasCategory = definition.technologies.some(tech => 
       resumeTech.some(rTech => rTech.toLowerCase().includes(tech.toLowerCase()))
     );
@@ -772,7 +772,7 @@ function calculateTechnologyProficiencyScore(resumeTech: string[], jobTech: stri
   let proficiencyScore = 0;
   let totalWeight = 0;
 
-  for (const [category, definition] of Object.entries(TECHNOLOGY_STACKS)) {
+  for (const [_category, definition] of Object.entries(TECHNOLOGY_STACKS)) {
     // Check if this category is relevant (both resume and job have techs from this category)
     const resumeCategoryTechs = definition.technologies.filter(tech => 
       resumeTech.some(rTech => rTech.toLowerCase().includes(tech.toLowerCase()))
@@ -891,7 +891,7 @@ function calculateWorkEnvironmentScore(
 function generateIndustryInsights(
   resumeAnalysis: IndustryAnalysis,
   jobAnalysis: IndustryAnalysis,
-  scores: { industryAlignment: number; technologyStack: number; companySize: number; workEnvironment: number }
+  _scores: { industryAlignment: number; technologyStack: number; companySize: number; workEnvironment: number }
 ): {
   primaryIndustry: string;
   technologyOverlap: string[];
@@ -927,7 +927,7 @@ function generateIndustryInsights(
  */
 function generateIndustryExplanation(
   totalScore: number,
-  insights: any
+  insights: { primaryIndustry: string; technologyOverlap: unknown[] }
 ): string {
   if (totalScore >= 85) {
     return `Excellent industry alignment (${totalScore}%). Strong match in ${insights.primaryIndustry} with ${insights.technologyOverlap.length} overlapping technologies.`;

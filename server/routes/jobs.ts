@@ -1,364 +1,459 @@
 /**
  * Job Description Management Routes
  * Handles job description creation, retrieval, and management
+ * Updated to use JobService for improved maintainability and testability
  */
 
 import { Router, Request, Response } from "express";
 import { authenticateUser } from "../middleware/auth";
 import { validateRequest } from "../middleware/validation";
+import { validators } from "../middleware/input-validation";
 import { insertJobDescriptionSchema } from "@shared/schema";
 import { logger } from "../lib/logger";
-import { storage } from "../storage";
+import { createJobService } from "../services/job-service";
+import { getStorage } from "../storage";
+import { isFailure } from "@shared/result-types";
+import { getErrorStatusCode, getErrorCode, getErrorMessage, getErrorTimestamp } from "@shared/type-utilities";
 
 const router = Router();
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     JobDescriptionInput:
+ *       type: object
+ *       properties:
+ *         title:
+ *           type: string
+ *           minLength: 1
+ *           maxLength: 200
+ *           example: "Senior Full Stack Developer"
+ *         description:
+ *           type: string
+ *           minLength: 50
+ *           example: "We are seeking a talented Senior Full Stack Developer to join our dynamic team..."
+ *         requirements:
+ *           type: array
+ *           items:
+ *             type: string
+ *           example: ["5+ years React experience", "Node.js expertise", "Bachelor's degree"]
+ *       required:
+ *         - title
+ *         - description
+ *
+ *     JobListResponse:
+ *       allOf:
+ *         - $ref: '#/components/schemas/ApiResponse'
+ *         - type: object
+ *           properties:
+ *             data:
+ *               type: object
+ *               properties:
+ *                 jobs:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/JobDescription'
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page: { type: integer, example: 1 }
+ *                     limit: { type: integer, example: 20 }
+ *                     total: { type: integer, example: 12 }
+ *                     totalPages: { type: integer, example: 1 }
+ */
+
+/**
+ * @swagger
+ * /job-descriptions:
+ *   post:
+ *     tags: [Job Descriptions]
+ *     summary: Create a new job description
+ *     description: |
+ *       Create a new job description with automatic AI analysis to extract skills, 
+ *       requirements, and experience levels. The job description is immediately 
+ *       analyzed to enable efficient candidate matching.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/JobDescriptionInput'
+ *           example:
+ *             title: "Senior Full Stack Developer"
+ *             description: "We are seeking a talented Senior Full Stack Developer to join our dynamic team. You will be responsible for developing and maintaining both frontend and backend systems using modern technologies."
+ *             requirements:
+ *               - "5+ years of experience in full-stack development"
+ *               - "Proficiency in React and Node.js"
+ *               - "Experience with PostgreSQL databases"
+ *               - "Bachelor's degree in Computer Science or related field"
+ *     responses:
+ *       200:
+ *         description: Job description created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         jobDescription:
+ *                           allOf:
+ *                             - $ref: '#/components/schemas/JobDescription'
+ *                             - type: object
+ *                               properties:
+ *                                 skills:
+ *                                   type: array
+ *                                   items: { type: string }
+ *                                   example: ["React", "Node.js", "PostgreSQL", "JavaScript"]
+ *                                 analyzedData:
+ *                                   type: object
+ *                                   description: "AI analysis results"
+ *                         analysis:
+ *                           type: object
+ *                           properties:
+ *                             skillsExtracted: { type: integer, example: 4 }
+ *                             requirementsFound: { type: integer, example: 4 }
+ *                             experienceLevel: { type: string, example: "Senior (5+ years)" }
+ *                         processingTime:
+ *                           type: number
+ *                           description: "Analysis processing time in milliseconds"
+ *                           example: 1250
+ *             example:
+ *               success: true
+ *               data:
+ *                 jobDescription:
+ *                   id: 456
+ *                   title: "Senior Full Stack Developer"
+ *                   description: "We are seeking a talented Senior Full Stack Developer..."
+ *                   skills: ["React", "Node.js", "PostgreSQL", "JavaScript"]
+ *                   requirements: ["5+ years experience", "React proficiency", "Node.js expertise"]
+ *                   experience: "Senior (5+ years)"
+ *                   createdAt: "2025-01-14T10:40:00.000Z"
+ *                   userId: "firebase_user_123"
+ *                 analysis:
+ *                   skillsExtracted: 4
+ *                   requirementsFound: 4
+ *                   experienceLevel: "Senior (5+ years)"
+ *                 processingTime: 1250
+ *               timestamp: "2025-01-14T10:40:00.000Z"
+ *       400:
+ *         description: Invalid input data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *             examples:
+ *               missingTitle:
+ *                 summary: Missing title
+ *                 value:
+ *                   success: false
+ *                   error:
+ *                     code: "VALIDATION_ERROR"
+ *                     message: "Job title is required"
+ *                   timestamp: "2025-01-14T10:40:00.000Z"
+ *               shortDescription:
+ *                 summary: Description too short
+ *                 value:
+ *                   success: false
+ *                   error:
+ *                     code: "VALIDATION_ERROR"
+ *                     message: "Job description must be at least 50 characters long"
+ *                   timestamp: "2025-01-14T10:40:00.000Z"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 // Create new job description
-router.post("/", authenticateUser, async (req: Request, res: Response) => {
+router.post("/", authenticateUser, validators.createJob, async (req: Request, res: Response) => {
   try {
     // Validate request body
     const jobDescData = validateRequest(insertJobDescriptionSchema, req.body);
-
     const userId = req.user!.uid;
 
-    logger.info(`Creating job description for user ${userId}`, {
-      title: jobDescData.title,
-      descriptionLength: jobDescData.description?.length || 0,
-    });
-
-    // Get user tier info for AI analysis
-    const { getUserTierInfo } = await import("../lib/user-tiers");
-    const userTierInfo = getUserTierInfo(userId);
-
-    // Create job description record
-    const jobDescription = await storage.createJobDescription({
+    // Create JobService instance with current storage
+    const storage = getStorage();
+    const jobServiceInstance = createJobService(storage);
+    
+    // Use JobService to create job with analysis
+    const result = await jobServiceInstance.createJobDescription({
+      userId,
       title: jobDescData.title,
       description: jobDescData.description,
-      userId: userId,
-      requirements: jobDescData.requirements || null,
-      skills: jobDescData.skills || null,
-      experience: jobDescData.experience || null,
+      requirements: jobDescData.requirements || [],
+      analyzeImmediately: true,
+      includeBiasAnalysis: false
     });
 
-    logger.info(`Job description created with ID ${jobDescription.id}`);
+    if (isFailure(result)) {
+      // Handle different error types appropriately using type-safe utilities
+      const statusCode = getErrorStatusCode(result.error, 500);
+      return res.status(statusCode).json({
+        success: false,
+        error: getErrorCode(result.error),
+        message: getErrorMessage(result.error),
+        timestamp: getErrorTimestamp(result.error)
+      });
+    }
 
-    // Analyze job description with AI
-    try {
-      const { analyzeJobDescription } = await import(
-        "../lib/tiered-ai-provider"
-      );
-      const analysis = await analyzeJobDescription(
-        jobDescription.title,
-        jobDescription.description,
-        userTierInfo,
-      );
+    const { job, analysis, processingTime } = result.data;
 
-      // Update job description with analysis
-      await storage.updateJobDescriptionAnalysis(jobDescription.id, analysis);
-
-      // Generate embeddings for the job description
-      try {
-        const { generateEmbedding } = await import("../lib/embeddings");
-        
-        // Generate embedding for full job description
-        const contentEmbedding = await generateEmbedding(jobDescription.description);
-        
-        // Generate embedding for requirements if available
-        let requirementsEmbedding: number[] | null = null;
-        if (analysis.requirements && analysis.requirements.length > 0) {
-          const requirementsText = analysis.requirements.join(", ");
-          requirementsEmbedding = await generateEmbedding(requirementsText);
-        }
-        
-        // Update job description with embeddings
-        await storage.updateJobDescriptionEmbeddings(jobDescription.id, contentEmbedding, requirementsEmbedding);
-        
-        logger.info(`Generated and stored embeddings for job description ${jobDescription.id}`, {
-          contentEmbeddingDims: contentEmbedding?.length || 0,
-          requirementsEmbeddingDims: requirementsEmbedding?.length || 0,
-        });
-        
-      } catch (embeddingError) {
-        logger.warn(`Failed to generate embeddings for job description ${jobDescription.id}:`, {
-          error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
-        });
-      }
-
-      logger.info(
-        `Job description ${jobDescription.id} analyzed successfully`,
-        {
-          skillsFound: analysis.skills?.length || 0,
-          requirementsFound: analysis.requirements?.length || 0,
-        },
-      );
-
-      res.json({
-        status: "success",
-        message: "Job description created and analyzed successfully",
+    // Return successful response
+    res.json({
+      success: true,
+      status: "success",
+      message: "Job description created and analyzed successfully",
+      data: {
         jobDescription: {
-          id: jobDescription.id,
-          title: jobDescription.title,
-          description: jobDescription.description,
-          skills: analysis.skills || [],
-          requirements: analysis.requirements || [],
-          experience: analysis.experience,
+          id: job.id,
+          title: job.title,
+          description: job.description,
+          skills: analysis?.skills || [],
+          requirements: analysis?.requirements || [],
+          experience: analysis?.experience,
           analyzedData: analysis,
-          createdAt: jobDescription.createdAt,
+          createdAt: job.createdAt,
         },
-        analysis: {
+        analysis: analysis ? {
           skillsExtracted: analysis.skills?.length || 0,
           requirementsFound: analysis.requirements?.length || 0,
           experienceLevel: analysis.experience || "Not specified",
-        },
-      });
-    } catch (analysisError) {
-      logger.error(
-        `Job analysis failed for job ${jobDescription.id}:`,
-        analysisError,
-      );
+        } : undefined,
+        processingTime
+      }
+    });
 
-      // Return job description even if analysis fails
-      res.json({
-        status: "partial_success",
-        message:
-          "Job description created, but analysis failed. You can still use it for matching.",
-        jobDescription: {
-          id: jobDescription.id,
-          title: jobDescription.title,
-          description: jobDescription.description,
-          createdAt: jobDescription.createdAt,
-        },
-        warning: "AI analysis temporarily unavailable",
-      });
-    }
   } catch (error) {
-    logger.error("Job description creation failed:", error);
-
-    if (error instanceof Error && error.message.includes("validation")) {
-      return res.status(400).json({
-        error: "Invalid job description data",
-        message: error.message,
-      });
-    }
-
+    logger.error("Job description creation route failed:", error);
     res.status(500).json({
-      error: "Failed to create job description",
-      message: error instanceof Error ? error.message : "Unknown error",
+      success: false,
+      error: "ROUTE_ERROR",
+      message: "Failed to create job description",
+      timestamp: new Date().toISOString()
     });
   }
 });
 
 // Get all job descriptions for the authenticated user
-router.get("/", authenticateUser, async (req: Request, res: Response) => {
+router.get("/", authenticateUser, validators.getAnalysis, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const page = parseInt(req.query.page as string) || 1;
+    const searchQuery = req.query.search as string;
 
-    logger.info(`Getting job descriptions for user ${userId}`, {
+    // Create JobService instance with current storage
+    const storage = getStorage();
+    const jobServiceInstance = createJobService(storage);
+    
+    // Use JobService to get paginated results
+    const result = await jobServiceInstance.getUserJobDescriptions({
+      userId,
+      page,
       limit,
-      offset,
+      searchQuery
     });
 
-    const allJobDescriptions = await storage.getJobDescriptionsByUserId(userId);
-    // Apply pagination manually since the storage interface doesn't support it
-    const jobDescriptions = allJobDescriptions.slice(offset, offset + limit);
+    if (isFailure(result)) {
+      const statusCode = getErrorStatusCode(result.error, 500);
+      return res.status(statusCode).json({
+        success: false,
+        error: getErrorCode(result.error),
+        message: getErrorMessage(result.error),
+        timestamp: getErrorTimestamp(result.error)
+      });
+    }
+
+    const { jobs, total, totalPages } = result.data;
 
     res.json({
+      success: true,
       status: "ok",
-      jobDescriptions: jobDescriptions || [],
-      count: jobDescriptions?.length || 0,
-      pagination: {
-        limit,
-        offset,
-        hasMore: (jobDescriptions?.length || 0) === limit,
+      data: {
+        jobDescriptions: jobs,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasMore: page < totalPages,
+        }
       },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    logger.error("Failed to get job descriptions:", error);
+    logger.error("Job descriptions retrieval route failed:", error);
     res.status(500).json({
-      error: "Failed to retrieve job descriptions",
-      message: error instanceof Error ? error.message : "Unknown error",
+      success: false,
+      error: "ROUTE_ERROR",
+      message: "Failed to retrieve job descriptions",
+      timestamp: new Date().toISOString()
     });
   }
 });
 
 // Get specific job description by ID
-router.get("/:id", authenticateUser, async (req: Request, res: Response) => {
+router.get("/:id", authenticateUser, validators.getResume, async (req: Request, res: Response) => {
   try {
     const jobId = parseInt(req.params.id);
     const userId = req.user!.uid;
 
     if (isNaN(jobId)) {
       return res.status(400).json({
-        error: "Invalid job description ID",
+        success: false,
+        error: "VALIDATION_ERROR",
         message: "Job description ID must be a number",
+        timestamp: new Date().toISOString()
       });
     }
 
-    logger.info(`Getting job description ${jobId} for user ${userId}`);
+    // Create JobService instance with current storage
+    const storage = getStorage();
+    const jobServiceInstance = createJobService(storage);
+    
+    // Use JobService to get job by ID
+    const result = await jobServiceInstance.getJobDescriptionById(userId, jobId);
 
-    const jobDescription = await storage.getJobDescriptionById(jobId, userId);
-
-    if (!jobDescription) {
-      return res.status(404).json({
-        error: "Job description not found",
-        message:
-          "Job description not found or you don't have permission to access it",
+    if (isFailure(result)) {
+      const statusCode = getErrorStatusCode(result.error, 500);
+      return res.status(statusCode).json({
+        success: false,
+        error: getErrorCode(result.error),
+        message: getErrorMessage(result.error),
+        timestamp: getErrorTimestamp(result.error)
       });
     }
 
     res.json({
+      success: true,
       status: "ok",
-      jobDescription,
-      isAnalyzed: !!jobDescription.analyzedData,
+      data: {
+        jobDescription: result.data,
+        isAnalyzed: !!result.data.analyzedData,
+      },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    logger.error("Failed to get job description:", error);
+    logger.error("Job description retrieval by ID route failed:", error);
     res.status(500).json({
-      error: "Failed to retrieve job description",
-      message: error instanceof Error ? error.message : "Unknown error",
+      success: false,
+      error: "ROUTE_ERROR", 
+      message: "Failed to retrieve job description",
+      timestamp: new Date().toISOString()
     });
   }
 });
 
 // Update job description
-router.patch("/:id", authenticateUser, async (req: Request, res: Response) => {
+router.patch("/:id", authenticateUser, validators.updateJob, async (req: Request, res: Response) => {
   try {
     const jobId = parseInt(req.params.id);
     const userId = req.user!.uid;
 
     if (isNaN(jobId)) {
       return res.status(400).json({
-        error: "Invalid job description ID",
+        success: false,
+        error: "VALIDATION_ERROR",
         message: "Job description ID must be a number",
+        timestamp: new Date().toISOString()
       });
     }
 
-    // Validate that user owns this job description
-    const existingJob = await storage.getJobDescriptionById(jobId, userId);
-    if (!existingJob) {
-      return res.status(404).json({
-        error: "Job description not found",
-        message:
-          "Job description not found or you don't have permission to modify it",
+    // Create JobService instance with current storage
+    const storage = getStorage();
+    const jobServiceInstance = createJobService(storage);
+    
+    // Use JobService to update job description
+    const result = await jobServiceInstance.updateJobDescription({
+      userId,
+      jobId,
+      title: req.body.title,
+      description: req.body.description,
+      requirements: req.body.requirements,
+      reanalyze: !!req.body.description // Re-analyze if description changed
+    });
+
+    if (isFailure(result)) {
+      const statusCode = getErrorStatusCode(result.error, 500);
+      return res.status(statusCode).json({
+        success: false,
+        error: getErrorCode(result.error),
+        message: getErrorMessage(result.error),
+        timestamp: getErrorTimestamp(result.error)
       });
-    }
-
-    logger.info(`Updating job description ${jobId} for user ${userId}`);
-
-    // Update job description
-    const updatedJob = await storage.updateJobDescription(jobId, req.body);
-
-    // If description was changed, re-analyze
-    if (
-      req.body.description &&
-      req.body.description !== existingJob.description
-    ) {
-      try {
-        const { getUserTierInfo } = await import("../lib/user-tiers");
-        const userTierInfo = getUserTierInfo(userId);
-
-        const { analyzeJobDescription } = await import(
-          "../lib/tiered-ai-provider"
-        );
-        const analysis = await analyzeJobDescription(
-          updatedJob.title,
-          updatedJob.description,
-          userTierInfo,
-        );
-
-        await storage.updateJobDescriptionAnalysis(jobId, analysis);
-
-        // Generate embeddings for the updated job description
-        try {
-          const { generateEmbedding } = await import("../lib/embeddings");
-          
-          // Generate embedding for full job description
-          const contentEmbedding = await generateEmbedding(updatedJob.description);
-          
-          // Generate embedding for requirements if available
-          let requirementsEmbedding: number[] | null = null;
-          if (analysis.requirements && analysis.requirements.length > 0) {
-            const requirementsText = analysis.requirements.join(", ");
-            requirementsEmbedding = await generateEmbedding(requirementsText);
-          }
-          
-          // Update job description with embeddings
-          await storage.updateJobDescriptionEmbeddings(jobId, contentEmbedding, requirementsEmbedding);
-          
-          logger.info(`Generated embeddings for updated job description ${jobId}`, {
-            contentEmbeddingDims: contentEmbedding?.length || 0,
-            requirementsEmbeddingDims: requirementsEmbedding?.length || 0,
-          });
-          
-        } catch (embeddingError) {
-          logger.warn(`Failed to generate embeddings for updated job description ${jobId}:`, {
-            error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
-          });
-        }
-
-        logger.info(`Job description ${jobId} re-analyzed after update`);
-      } catch (analysisError) {
-        logger.error(
-          `Re-analysis failed for updated job ${jobId}:`,
-          analysisError,
-        );
-        // Continue without failing the update
-      }
     }
 
     res.json({
+      success: true,
       status: "success",
       message: "Job description updated successfully",
-      jobDescription: updatedJob,
+      data: {
+        jobDescription: result.data,
+      },
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
-    logger.error("Job description update failed:", error);
+    logger.error("Job description update route failed:", error);
     res.status(500).json({
-      error: "Failed to update job description",
-      message: error instanceof Error ? error.message : "Unknown error",
+      success: false,
+      error: "ROUTE_ERROR",
+      message: "Failed to update job description",
+      timestamp: new Date().toISOString()
     });
   }
 });
 
 // Delete job description
-router.delete("/:id", authenticateUser, async (req: Request, res: Response) => {
+router.delete("/:id", authenticateUser, validators.getResume, async (req: Request, res: Response) => {
   try {
     const jobId = parseInt(req.params.id);
     const userId = req.user!.uid;
 
     if (isNaN(jobId)) {
       return res.status(400).json({
-        error: "Invalid job description ID",
+        success: false,
+        error: "VALIDATION_ERROR",
         message: "Job description ID must be a number",
+        timestamp: new Date().toISOString()
       });
     }
 
-    // Validate that user owns this job description
-    const existingJob = await storage.getJobDescriptionById(jobId, userId);
-    if (!existingJob) {
-      return res.status(404).json({
-        error: "Job description not found",
-        message:
-          "Job description not found or you don't have permission to delete it",
+    // Create JobService instance with current storage
+    const storage = getStorage();
+    const jobServiceInstance = createJobService(storage);
+    
+    // Use JobService to delete job description
+    const result = await jobServiceInstance.deleteJobDescription(userId, jobId);
+
+    if (isFailure(result)) {
+      const statusCode = getErrorStatusCode(result.error, 500);
+      return res.status(statusCode).json({
+        success: false,
+        error: getErrorCode(result.error),
+        message: getErrorMessage(result.error),
+        timestamp: getErrorTimestamp(result.error)
       });
     }
-
-    logger.info(`Deleting job description ${jobId} for user ${userId}`);
-
-    await storage.deleteJobDescription(jobId);
 
     res.json({
+      success: true,
       status: "success",
       message: "Job description deleted successfully",
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
-    logger.error("Job description deletion failed:", error);
+    logger.error("Job description deletion route failed:", error);
     res.status(500).json({
-      error: "Failed to delete job description",
-      message: error instanceof Error ? error.message : "Unknown error",
+      success: false,
+      error: "ROUTE_ERROR",
+      message: "Failed to delete job description",
+      timestamp: new Date().toISOString()
     });
   }
 });

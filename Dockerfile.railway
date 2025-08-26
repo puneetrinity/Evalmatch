@@ -50,8 +50,8 @@ RUN mkdir -p uploads uploads/temp data build build/public dist && \
 # Copy source files (this layer changes most frequently)
 COPY . .
 
-# Make start script executable
-RUN chmod +x start.sh
+# Make start script executable with full permissions and ensure proper ownership
+RUN chmod 755 start.sh && chown root:root start.sh && ls -la start.sh
 
 # Build arguments for Firebase environment variables with defaults
 ARG VITE_FIREBASE_API_KEY=placeholder-api-key
@@ -128,7 +128,7 @@ RUN npm prune --omit=dev --ignore-scripts && npm install vite
 
 # Set runtime environment variables
 ENV NODE_ENV=production
-ENV PORT=8080
+# Don't set PORT - let Railway assign it dynamically
 
 # Enable static file serving - Railway single container
 ENV SERVE_STATIC=true
@@ -155,15 +155,16 @@ ENV NODE_OPTIONS="--max-old-space-size=7168 --max-semi-space-size=256"
 # Create cache directory for AI models
 RUN mkdir -p /tmp/transformers_cache && chmod 755 /tmp/transformers_cache
 
-# Expose the port the app runs on
-EXPOSE 8080
+# Expose the port the app runs on (Railway will assign actual port via PORT env var)
+EXPOSE 3000
 
-# Add simplified health check for Railway (avoid comprehensive AI checks)
-HEALTHCHECK --interval=60s --timeout=15s --start-period=120s --retries=2 \
-    CMD curl -f http://localhost:8080/api/health || exit 1
+# Add Railway-optimized health check endpoint
+# Use PORT environment variable that Railway assigns (defaults to 3000 for local testing)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-3000}/api/health/railway || exit 1
 
-# Add curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Add curl for health checks and bash for the start script
+RUN apt-get update && apt-get install -y curl bash && rm -rf /var/lib/apt/lists/*
 
 # Use shell form to ensure NODE_OPTIONS is applied
-CMD /bin/sh -c "export NODE_OPTIONS='--max-old-space-size=7168 --max-semi-space-size=256' && ./start.sh"
+CMD ["/bin/bash", "-c", "export NODE_OPTIONS='--max-old-space-size=7168 --max-semi-space-size=256' && /app/start.sh"]

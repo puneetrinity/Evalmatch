@@ -25,26 +25,26 @@ export default function HomePage() {
               <CardContent className="p-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
                   <div>
-                    <div className="bg-primary/10 p-4 rounded-lg inline-block mb-4">
+                    <div className="bg-primary/10 p-4 rounded-lg inline-block mb-4" aria-hidden="true">
                       <i className="fas fa-file-upload text-3xl text-primary"></i>
                     </div>
-                    <h3 className="text-xl font-semibold mb-2">Upload Resumes</h3>
+                    <h2 className="text-xl font-semibold mb-2">Upload Resumes</h2>
                     <p className="text-gray-600">Upload up to 100 resumes for AI-powered analysis</p>
                   </div>
                   
                   <div>
-                    <div className="bg-primary/10 p-4 rounded-lg inline-block mb-4">
+                    <div className="bg-primary/10 p-4 rounded-lg inline-block mb-4" aria-hidden="true">
                       <i className="fas fa-search text-3xl text-primary"></i>
                     </div>
-                    <h3 className="text-xl font-semibold mb-2">Match to Jobs</h3>
+                    <h2 className="text-xl font-semibold mb-2">Match to Jobs</h2>
                     <p className="text-gray-600">Compare resumes to job descriptions</p>
                   </div>
                   
                   <div>
-                    <div className="bg-primary/10 p-4 rounded-lg inline-block mb-4">
+                    <div className="bg-primary/10 p-4 rounded-lg inline-block mb-4" aria-hidden="true">
                       <i className="fas fa-comments text-3xl text-primary"></i>
                     </div>
-                    <h3 className="text-xl font-semibold mb-2">Interview Prep</h3>
+                    <h2 className="text-xl font-semibold mb-2">Interview Prep</h2>
                     <p className="text-gray-600">Generate customized interview questions</p>
                   </div>
                 </div>
@@ -55,7 +55,7 @@ export default function HomePage() {
               className="mt-12 px-10 py-6 text-lg"
               onClick={() => setLocation("/upload")}
             >
-              Get Started <i className="fas fa-arrow-right ml-2"></i>
+              Get Started <i className="fas fa-arrow-right ml-2" aria-hidden="true"></i>
             </Button>
           </div>
         </div>

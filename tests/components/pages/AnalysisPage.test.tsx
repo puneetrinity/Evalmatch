@@ -13,6 +13,7 @@
  * - Accessibility features
  */
 
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import React from 'react';
 import { within } from '@testing-library/react';
 import { screen, waitFor } from '@testing-library/dom';
@@ -73,7 +74,7 @@ describe('AnalysisPage Component', () => {
 
       expect(screen.getByRole('main')).toBeInTheDocument();
       expect(screen.getByText('Candidate Fit Analysis')).toBeInTheDocument();
-      expect(screen.getByText(/We've analyzed your job description/)).toBeInTheDocument();
+      expect(screen.getByText(/We've analyzed your job description and candidate resumes/)).toBeInTheDocument();
     });
 
     it('should render step progress component', async () => {

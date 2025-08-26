@@ -10,7 +10,7 @@ if (typeof globalThis !== 'undefined' && !globalThis.Buffer) {
   (globalThis as any).Buffer = Buffer;
 }
 
-// Make it available on window as well for legacy compatibility
+// Make it available on window as well for legacy compatibility  
 if (typeof window !== 'undefined' && !(window as any).Buffer) {
   (window as any).Buffer = Buffer;
 }

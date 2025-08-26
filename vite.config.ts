@@ -27,26 +27,71 @@ export default defineConfig({
     },
   },
   define: {
+    // Simple global polyfill - esbuild compatible
     global: 'globalThis',
   },
   root: path.resolve(__dirname, "client"),
   build: {
     outDir: path.resolve(__dirname, "build/public"),
     emptyOutDir: true,
+    // PERFORMANCE: Optimize build settings
+    cssCodeSplit: true,
+    sourcemap: process.env.NODE_ENV === 'development',
+    minify: process.env.NODE_ENV === 'production' ? 'esbuild' : false,
     rollupOptions: {
+      // PERFORMANCE: External dependencies to reduce bundle size
+      external: process.env.NODE_ENV === 'production' ? [] : [
+        // Keep all deps internal for production, external for dev
+      ],
       output: {
-        manualChunks: {
-          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-slot', '@radix-ui/react-toast'],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-firebase': ['firebase/app', 'firebase/auth'],
-          'vendor-ai': ['@anthropic-ai/sdk', 'groq-sdk', 'openai'],
-          'vendor-charts': ['recharts'],
-          'vendor-utils': ['clsx', 'tailwind-merge', 'class-variance-authority']
-        }
+        // PERFORMANCE: Better compression and caching
+        format: 'es',
+        entryFileNames: '[name]-[hash].js',
+        assetFileNames: '[name]-[hash].[ext]',
+        // Standard chunk configuration
+        inlineDynamicImports: false,
+        chunkFileNames: '[name]-[hash].js',
+        // CRITICAL FIX: Use automatic chunking to prevent circular dependencies
+        // The circular dependency issue was caused by React importing from vendor-common
+        // while vendor-common was importing from React. Automatic chunking resolves this.
+        manualChunks: undefined
       },
     },
-    chunkSizeWarningLimit: 1000,
+    // PERFORMANCE: Optimized build settings
+    chunkSizeWarningLimit: 500, // Stricter chunk size limit
     target: 'esnext',
-    minify: 'esbuild'
+    reportCompressedSize: false, // Speed up build
+  },
+  
+  // PERFORMANCE: Optimize dev server
+  server: {
+    hmr: {
+      overlay: false, // Reduce dev overhead
+    },
+  },
+  
+  // PERFORMANCE: Optimize dependencies
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react/jsx-runtime',
+      'react/jsx-dev-runtime',
+      '@tanstack/react-query',
+      'wouter',
+      'lucide-react',
+    ],
+    exclude: [
+      // Exclude heavy dev-only dependencies
+      '@replit/vite-plugin-runtime-error-modal',
+      '@replit/vite-plugin-cartographer',
+    ],
+    // Ensure pre-bundling for consistent behavior
+    force: true,
+    esbuildOptions: {
+      define: {
+        global: 'globalThis',
+      },
+    },
   },
 });

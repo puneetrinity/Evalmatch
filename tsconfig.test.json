@@ -1,27 +1,98 @@
 {
   "extends": "./tsconfig.json",
-  "include": ["tests/**/*", "client/**/*", "shared/**/*", "server/**/*", "tests/types/**/*.d.ts"],
-  "exclude": ["node_modules", "build", "dist"],
+  "include": [
+    "tests/**/*", 
+    "client/**/*", 
+    "shared/**/*", 
+    "server/**/*", 
+    "tests/types/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules", 
+    "build", 
+    "dist", 
+    "coverage",
+    "*.config.{js,mjs,cjs}"
+  ],
   "compilerOptions": {
+    // Core compilation options
     "noEmit": true,
     "module": "ESNext",
-    "target": "ES2020",
+    "target": "ES2022",
+    "lib": ["ES2022", "dom", "dom.iterable", "webworker"],
+    
+    // Strict type checking
     "strict": true,
-    "lib": ["ES2020", "dom", "dom.iterable"],
-    "jsx": "react-jsx",
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "exactOptionalPropertyTypes": false, // Keep false for Jest compatibility
+    
+    // Module resolution (2024/2025 best practices)
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
+    "allowArbitraryExtensions": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    
+    // ES Module interoperability
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": false, // Keep false for Jest compatibility
+    
+    // JavaScript support
+    "allowJs": true,
+    "checkJs": false,
+    
+    // React/JSX configuration
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    
+    // Performance and compatibility
     "skipLibCheck": true,
-    "moduleResolution": "node",
+    "skipDefaultLibCheck": true,
+    
+    // Base URL and path mapping
     "baseUrl": ".",
-    "resolveJsonModule": true,
-    "allowImportingTsExtensions": false,
-    "types": ["node", "jest", "@testing-library/jest-dom", "@types/jest"],
     "paths": {
       "@/*": ["./client/src/*"],
       "@shared/*": ["./shared/*"],
       "@server/*": ["./server/*"],
       "@/tests/*": ["./tests/*"]
-    }
+    },
+    
+    // Type definitions for testing environment
+    "types": [
+      "node",
+      "jest",
+      "@testing-library/jest-dom",
+      "@types/jest"
+    ],
+    
+    // Additional compiler options for 2024/2025
+    "useDefineForClassFields": true,
+    "noUncheckedIndexedAccess": false, // Keep false for test flexibility
+    "noPropertyAccessFromIndexSignature": false, // Keep false for test flexibility
+    
+    // Import/Export handling
+    "preserveValueImports": false,
+    "importsNotUsedAsValues": "remove",
+    
+    // Declaration and source map settings
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "inlineSourceMap": false,
+    "inlineSources": false
+  },
+  
+  // TypeScript 5.x+ options
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
   }
 }

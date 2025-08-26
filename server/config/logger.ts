@@ -1,12 +1,6 @@
 import pino from "pino";
 import { Request, Response } from "express";
-
-// Define environment enum locally to avoid circular dependency
-enum Environment {
-  Development = "development",
-  Production = "production",
-  Test = "test",
-}
+import { Environment } from "../types/environment";
 
 /**
  * Logger Configuration
@@ -25,7 +19,7 @@ const logLevels = {
 
 // Base configuration for all environments
 const baseConfig = {
-  level: logLevels[process.env.NODE_ENV as Environment] || "info",
+  level: logLevels[process.env.NODE_ENV as keyof typeof logLevels] || "info",
   timestamp: true,
   redact: {
     paths: [

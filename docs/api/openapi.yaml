@@ -1,0 +1,1181 @@
+openapi: 3.0.0
+info:
+  title: EvalMatch API
+  version: 2.1.0
+  description: |2-
+
+            AI-powered recruitment platform API for intelligent resume analysis and bias-free hiring.
+            
+            ## Features
+            - Multi-format resume processing (PDF, DOCX, TXT)
+            - AI-powered candidate matching with 85% accuracy
+            - Bias detection in job descriptions
+            - Interview question generation
+            - Enterprise-grade security and validation
+            
+            ## Authentication
+            All protected endpoints require Firebase JWT authentication.
+            Include the token in the Authorization header: `Bearer <jwt-token>`
+            
+            ## Rate Limiting
+            - Resume uploads: 50 requests per 15 minutes
+            - Analysis endpoints: 20 requests per 15 minutes
+            - General endpoints: 100 requests per 15 minutes
+          
+  contact:
+    name: EvalMatch API Support
+    url: 'https://evalmatch.app/docs/api'
+    email: api-support@evalmatch.app
+  license:
+    name: Commercial License
+    url: 'https://evalmatch.app/license'
+  termsOfService: 'https://evalmatch.app/terms'
+servers:
+- url: 'https://evalmatch.app/api'
+  description: Production server
+- url: 'https://recruitment-corner.scholavar.com/api'
+  description: Scholavar production server
+- url: 'http://localhost:3000/api'
+  description: Development server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Firebase JWT token. Get it from Firebase Auth SDK.
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          description: Response data (varies by endpoint)
+        timestamp:
+          type: string
+          format: date-time
+          example: '2025-01-14T10:30:00.000Z'
+      required:
+      - success
+      - timestamp
+    ApiError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              example: Invalid input provided
+            details:
+              type: object
+              description: Additional error details
+          required:
+          - code
+          - message
+        timestamp:
+          type: string
+          format: date-time
+          example: '2025-01-14T10:30:00.000Z'
+      required:
+      - success
+      - error
+      - timestamp
+    Resume:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 123
+        filename:
+          type: string
+          example: john_doe_resume.pdf
+        originalName:
+          type: string
+          example: John Doe Resume.pdf
+        content:
+          type: string
+          description: Extracted text content from the resume
+        fileSize:
+          type: integer
+          description: File size in bytes
+          example: 245760
+        mimeType:
+          type: string
+          example: application/pdf
+        status:
+          type: string
+          enum:
+          - uploaded
+          - processing
+          - analyzed
+          - error
+          example: analyzed
+        uploadedAt:
+          type: string
+          format: date-time
+          example: '2025-01-14T10:30:00.000Z'
+        userId:
+          type: string
+          description: Firebase user ID
+      required:
+      - id
+      - filename
+      - status
+      - uploadedAt
+      - userId
+    JobDescription:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 456
+        title:
+          type: string
+          example: Senior Full Stack Developer
+        description:
+          type: string
+          description: Full job description text
+        requirements:
+          type: array
+          items:
+            type: string
+          example:
+          - 5+ years experience
+          - React expertise
+          - Node.js knowledge
+        location:
+          type: string
+          example: 'San Francisco, CA'
+        employmentType:
+          type: string
+          enum:
+          - full-time
+          - part-time
+          - contract
+          - freelance
+          example: full-time
+        salaryRange:
+          type: object
+          properties:
+            min:
+              type: number
+              example: 120000
+            max:
+              type: number
+              example: 180000
+            currency:
+              type: string
+              example: USD
+        createdAt:
+          type: string
+          format: date-time
+          example: '2025-01-14T10:30:00.000Z'
+        userId:
+          type: string
+          description: Firebase user ID
+      required:
+      - id
+      - title
+      - description
+      - createdAt
+      - userId
+    AnalysisResult:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 789
+        resumeId:
+          type: integer
+          example: 123
+        jobId:
+          type: integer
+          example: 456
+        overallScore:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 87.5
+          description: Overall matching score (0-100)
+        confidenceScore:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 92.3
+          description: AI confidence in the analysis (0-100)
+        strengths:
+          type: array
+          items:
+            type: string
+          example:
+          - Strong React experience
+          - Full-stack capabilities
+          - Leadership skills
+        improvements:
+          type: array
+          items:
+            type: string
+          example:
+          - Could benefit from more DevOps experience
+          - GraphQL knowledge would be valuable
+        skillsMatch:
+          type: object
+          properties:
+            matched:
+              type: array
+              items:
+                type: string
+              example:
+              - JavaScript
+              - React
+              - Node.js
+            missing:
+              type: array
+              items:
+                type: string
+              example:
+              - Docker
+              - Kubernetes
+            score:
+              type: number
+              example: 85.5
+        experienceMatch:
+          type: object
+          properties:
+            yearsRequired:
+              type: number
+              example: 5
+            yearsCandidate:
+              type: number
+              example: 7
+            score:
+              type: number
+              example: 95
+        analyzedAt:
+          type: string
+          format: date-time
+          example: '2025-01-14T10:30:00.000Z'
+      required:
+      - id
+      - resumeId
+      - jobId
+      - overallScore
+      - confidenceScore
+      - analyzedAt
+    BiasAnalysis:
+      type: object
+      properties:
+        jobId:
+          type: integer
+          example: 456
+        overallBiasScore:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 15.2
+          description: Lower scores indicate less bias (0-100)
+        biasCategories:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+                enum:
+                - gender
+                - age
+                - race
+                - disability
+                - education
+                - other
+                example: gender
+              score:
+                type: number
+                example: 25
+              examples:
+                type: array
+                items:
+                  type: string
+                example:
+                - young professional
+                - competitive environment
+        suggestions:
+          type: array
+          items:
+            type: string
+          example:
+          - Replace "young professional" with "early-career professional"
+          - Use inclusive language for team culture
+        analyzedAt:
+          type: string
+          format: date-time
+          example: '2025-01-14T10:30:00.000Z'
+      required:
+      - jobId
+      - overallBiasScore
+      - biasCategories
+      - analyzedAt
+    InterviewQuestions:
+      type: object
+      properties:
+        resumeId:
+          type: integer
+          example: 123
+        jobId:
+          type: integer
+          example: 456
+        questions:
+          type: array
+          items:
+            type: object
+            properties:
+              question:
+                type: string
+                example: Can you describe your experience with React hooks and how you have used them in production?
+              category:
+                type: string
+                enum:
+                - technical
+                - behavioral
+                - situational
+                - experience
+                example: technical
+              difficulty:
+                type: string
+                enum:
+                - beginner
+                - intermediate
+                - advanced
+                example: intermediate
+              reasoning:
+                type: string
+                example: Based on their React experience mentioned in the resume
+        generatedAt:
+          type: string
+          format: date-time
+          example: '2025-01-14T10:30:00.000Z'
+      required:
+      - resumeId
+      - jobId
+      - questions
+      - generatedAt
+    AnalysisRequest:
+      type: object
+      properties:
+        resumeIds:
+          type: array
+          items:
+            type: integer
+          description: 'Array of resume IDs to analyze (optional - if not provided, analyzes all user resumes)'
+          example:
+          - 123
+          - 124
+          - 125
+        sessionId:
+          type: string
+          description: Optional session ID for grouping
+          example: session_123
+        batchId:
+          type: string
+          description: Optional batch ID for bulk operations
+          example: batch_456
+    BiasAnalysisRequest:
+      type: object
+      properties:
+        includeRecommendations:
+          type: boolean
+          description: Include bias reduction recommendations
+          default: true
+          example: true
+    JobDescriptionInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Senior Full Stack Developer
+        description:
+          type: string
+          minLength: 50
+          example: We are seeking a talented Senior Full Stack Developer to join our dynamic team...
+        requirements:
+          type: array
+          items:
+            type: string
+          example:
+          - 5+ years React experience
+          - Node.js expertise
+          - Bachelor's degree
+      required:
+      - title
+      - description
+    JobListResponse:
+      allOf:
+      - $ref: '#/components/schemas/ApiResponse'
+      - type: object
+        properties:
+          data:
+            type: object
+            properties:
+              jobs:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JobDescription'
+              pagination:
+                type: object
+                properties:
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 12
+                  totalPages:
+                    type: integer
+                    example: 1
+    ResumeListResponse:
+      allOf:
+      - $ref: '#/components/schemas/ApiResponse'
+      - type: object
+        properties:
+          data:
+            type: object
+            properties:
+              resumes:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Resume'
+              pagination:
+                type: object
+                properties:
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 45
+                  totalPages:
+                    type: integer
+                    example: 3
+  responses:
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            success: false
+            error:
+              code: AUTH_TOKEN_MISSING
+              message: Authentication required
+            timestamp: '2025-01-14T10:30:00.000Z'
+    ForbiddenError:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            success: false
+            error:
+              code: INSUFFICIENT_PERMISSIONS
+              message: Access denied
+            timestamp: '2025-01-14T10:30:00.000Z'
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            success: false
+            error:
+              code: VALIDATION_ERROR
+              message: Invalid input provided
+              details:
+                field: email
+                issue: Invalid email format
+            timestamp: '2025-01-14T10:30:00.000Z'
+    RateLimitError:
+      description: Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Request limit per time window
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests in current window
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Time window reset timestamp
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            success: false
+            error:
+              code: RATE_LIMIT_EXCEEDED
+              message: Too many requests. Try again in 15 minutes.
+            timestamp: '2025-01-14T10:30:00.000Z'
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            success: false
+            error:
+              code: INTERNAL_ERROR
+              message: An unexpected error occurred
+            timestamp: '2025-01-14T10:30:00.000Z'
+  parameters:
+    ResumeId:
+      name: id
+      in: path
+      required: true
+      description: Resume ID
+      schema:
+        type: integer
+        example: 123
+    JobId:
+      name: id
+      in: path
+      required: true
+      description: Job description ID
+      schema:
+        type: integer
+        example: 456
+    JobIdParam:
+      name: jobId
+      in: path
+      required: true
+      description: Job description ID
+      schema:
+        type: integer
+        example: 456
+    ResumeIdParam:
+      name: resumeId
+      in: path
+      required: true
+      description: Resume ID
+      schema:
+        type: integer
+        example: 123
+security:
+- bearerAuth: []
+tags:
+- name: Health
+  description: System health and status endpoints
+- name: Authentication
+  description: User authentication and profile management
+- name: Resumes
+  description: Resume upload and management
+- name: Job Descriptions
+  description: Job description creation and management
+- name: Analysis
+  description: AI-powered resume analysis and matching
+- name: Bias Detection
+  description: Job description bias analysis
+- name: Interview Questions
+  description: AI-generated interview questions
+paths:
+  '/analysis/analyze/{jobId}':
+    post:
+      tags:
+      - Analysis
+      summary: Analyze resumes against job description
+      description: |
+        Perform AI-powered analysis of resumes against a specific job description.
+        Returns matching scores, skill matches, strengths, and improvement areas.
+        Can analyze specific resumes or all user resumes if no IDs provided.
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/JobIdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisRequest'
+            example:
+              resumeIds:
+              - 123
+              - 124
+              - 125
+              sessionId: session_123
+              batchId: batch_456
+      responses:
+        '200':
+          description: Analysis completed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    analysisId:
+                      type: integer
+                      example: 789
+                    jobId:
+                      type: integer
+                      example: 456
+                    results:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/AnalysisResult'
+              example:
+                success: true
+                analysisId: 789
+                jobId: 456
+                results:
+                - resumeId: 123
+                  filename: john_doe_resume.pdf
+                  candidateName: John Doe
+                  matchPercentage: 87.5
+                  matchedSkills:
+                  - React
+                  - Node.js
+                  - JavaScript
+                  missingSkills:
+                  - Docker
+                  - Kubernetes
+                  candidateStrengths:
+                  - Strong React experience
+                  - Full-stack capabilities
+                  candidateWeaknesses:
+                  - Limited DevOps experience
+                  overallScore: 87.5
+                  confidenceScore: 92.3
+                  analyzedAt: '2025-01-14T10:45:00.000Z'
+                timestamp: '2025-01-14T10:45:00.000Z'
+        '400':
+          description: Invalid job ID or request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                success: false
+                error:
+                  code: VALIDATION_ERROR
+                  message: Job ID must be a number
+                timestamp: '2025-01-14T10:45:00.000Z'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Job description not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                success: false
+                error:
+                  code: JOB_NOT_FOUND
+                  message: Job description not found or access denied
+                timestamp: '2025-01-14T10:45:00.000Z'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  '/analysis/analyze-bias/{jobId}':
+    post:
+      tags:
+      - Bias Detection
+      summary: Analyze job description for bias
+      description: |
+        Analyze a job description for potential bias in language, requirements, and tone.
+        Identifies problematic language patterns and provides recommendations for improvement.
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/JobIdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BiasAnalysisRequest'
+            example:
+              includeRecommendations: true
+      responses:
+        '200':
+          description: Bias analysis completed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/BiasAnalysis'
+              example:
+                success: true
+                status: success
+                message: Bias analysis completed
+                data:
+                  jobId: 456
+                  overallBiasScore: 15.2
+                  biasCategories:
+                  - category: gender
+                    score: 25
+                    examples:
+                    - young professional
+                    - competitive environment
+                  - category: age
+                    score: 10.5
+                    examples:
+                    - digital native
+                    - energetic team
+                  suggestions:
+                  - Replace 'young professional' with 'early-career professional'
+                  - Use inclusive language for team culture descriptions
+                  analyzedAt: '2025-01-14T10:50:00.000Z'
+                timestamp: '2025-01-14T10:50:00.000Z'
+        '400':
+          description: Invalid job ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                success: false
+                error:
+                  code: VALIDATION_ERROR
+                  message: Job ID must be a number
+                timestamp: '2025-01-14T10:50:00.000Z'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Job description not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                success: false
+                error:
+                  code: JOB_NOT_FOUND
+                  message: Job description not found or access denied
+                timestamp: '2025-01-14T10:50:00.000Z'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /job-descriptions:
+    post:
+      tags:
+      - Job Descriptions
+      summary: Create a new job description
+      description: |
+        Create a new job description with automatic AI analysis to extract skills, 
+        requirements, and experience levels. The job description is immediately 
+        analyzed to enable efficient candidate matching.
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobDescriptionInput'
+            example:
+              title: Senior Full Stack Developer
+              description: We are seeking a talented Senior Full Stack Developer to join our dynamic team. You will be responsible for developing and maintaining both frontend and backend systems using modern technologies.
+              requirements:
+              - 5+ years of experience in full-stack development
+              - Proficiency in React and Node.js
+              - Experience with PostgreSQL databases
+              - Bachelor's degree in Computer Science or related field
+      responses:
+        '200':
+          description: Job description created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        jobDescription:
+                          allOf:
+                          - $ref: '#/components/schemas/JobDescription'
+                          - type: object
+                            properties:
+                              skills:
+                                type: array
+                                items:
+                                  type: string
+                                example:
+                                - React
+                                - Node.js
+                                - PostgreSQL
+                                - JavaScript
+                              analyzedData:
+                                type: object
+                                description: AI analysis results
+                        analysis:
+                          type: object
+                          properties:
+                            skillsExtracted:
+                              type: integer
+                              example: 4
+                            requirementsFound:
+                              type: integer
+                              example: 4
+                            experienceLevel:
+                              type: string
+                              example: Senior (5+ years)
+                        processingTime:
+                          type: number
+                          description: Analysis processing time in milliseconds
+                          example: 1250
+              example:
+                success: true
+                data:
+                  jobDescription:
+                    id: 456
+                    title: Senior Full Stack Developer
+                    description: We are seeking a talented Senior Full Stack Developer...
+                    skills:
+                    - React
+                    - Node.js
+                    - PostgreSQL
+                    - JavaScript
+                    requirements:
+                    - 5+ years experience
+                    - React proficiency
+                    - Node.js expertise
+                    experience: Senior (5+ years)
+                    createdAt: '2025-01-14T10:40:00.000Z'
+                    userId: firebase_user_123
+                  analysis:
+                    skillsExtracted: 4
+                    requirementsFound: 4
+                    experienceLevel: Senior (5+ years)
+                  processingTime: 1250
+                timestamp: '2025-01-14T10:40:00.000Z'
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              examples:
+                missingTitle:
+                  summary: Missing title
+                  value:
+                    success: false
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Job title is required
+                    timestamp: '2025-01-14T10:40:00.000Z'
+                shortDescription:
+                  summary: Description too short
+                  value:
+                    success: false
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Job description must be at least 50 characters long
+                    timestamp: '2025-01-14T10:40:00.000Z'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /resumes:
+    get:
+      tags:
+      - Resumes
+      summary: Get all resumes for authenticated user
+      description: |
+        Retrieve all resumes uploaded by the authenticated user with optional filtering and pagination.
+        Supports filtering by file type, analysis status, session, and batch.
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: page
+        in: query
+        description: Page number for pagination
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          example: 1
+      - name: limit
+        in: query
+        description: Number of resumes per page
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+          example: 20
+      - name: fileType
+        in: query
+        description: Filter by file type
+        schema:
+          type: string
+          enum:
+          - pdf
+          - docx
+          - txt
+          example: pdf
+      - name: hasAnalysis
+        in: query
+        description: Filter by analysis status
+        schema:
+          type: boolean
+          example: true
+      - name: sessionId
+        in: query
+        description: Filter by session ID
+        schema:
+          type: string
+          example: session_123
+      - name: batchId
+        in: query
+        description: Filter by batch ID
+        schema:
+          type: string
+          example: batch_456
+      responses:
+        '200':
+          description: Resumes retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumeListResponse'
+              example:
+                success: true
+                data:
+                  resumes:
+                  - id: 123
+                    filename: john_doe_resume.pdf
+                    originalName: John Doe Resume.pdf
+                    fileSize: 245760
+                    mimeType: application/pdf
+                    status: analyzed
+                    uploadedAt: '2025-01-14T10:30:00.000Z'
+                    userId: firebase_user_123
+                  pagination:
+                    page: 1
+                    limit: 20
+                    total: 45
+                    totalPages: 3
+                timestamp: '2025-01-14T10:30:00.000Z'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags:
+      - Resumes
+      summary: Upload a resume
+      description: |
+        Upload a resume file for processing and analysis. Supports PDF, DOCX, and TXT formats.
+        Files are automatically processed and analyzed unless explicitly disabled.
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 'Resume file (PDF, DOCX, or TXT)'
+                sessionId:
+                  type: string
+                  description: Optional session identifier for grouping uploads
+                  example: session_123
+                batchId:
+                  type: string
+                  description: Optional batch identifier for bulk operations
+                  example: batch_456
+                autoAnalyze:
+                  type: boolean
+                  description: Whether to automatically analyze the resume after upload
+                  default: true
+                  example: true
+              required:
+              - file
+            encoding:
+              file:
+                contentType: 'application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain'
+      responses:
+        '200':
+          description: Resume uploaded successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        resume:
+                          $ref: '#/components/schemas/Resume'
+                        processing:
+                          type: object
+                          properties:
+                            contentExtracted:
+                              type: boolean
+                              example: true
+                            analysisStarted:
+                              type: boolean
+                              example: true
+                            estimatedTime:
+                              type: string
+                              example: 30 seconds
+              example:
+                success: true
+                data:
+                  resume:
+                    id: 124
+                    filename: new_resume.pdf
+                    originalName: New Resume.pdf
+                    fileSize: 245760
+                    mimeType: application/pdf
+                    status: processing
+                    uploadedAt: '2025-01-14T10:35:00.000Z'
+                    userId: firebase_user_123
+                  processing:
+                    contentExtracted: true
+                    analysisStarted: true
+                    estimatedTime: 30 seconds
+                timestamp: '2025-01-14T10:35:00.000Z'
+        '400':
+          description: Invalid file or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              examples:
+                noFile:
+                  summary: No file provided
+                  value:
+                    success: false
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Please select a resume file to upload
+                    timestamp: '2025-01-14T10:35:00.000Z'
+                invalidFormat:
+                  summary: Unsupported file format
+                  value:
+                    success: false
+                    error:
+                      code: FILE_FORMAT_ERROR
+                      message: 'Only PDF, DOCX, and TXT files are supported'
+                    timestamp: '2025-01-14T10:35:00.000Z'
+                fileTooLarge:
+                  summary: File size exceeds limit
+                  value:
+                    success: false
+                    error:
+                      code: FILE_TOO_LARGE
+                      message: File size cannot exceed 10MB
+                    timestamp: '2025-01-14T10:35:00.000Z'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  '/resumes/{id}':
+    get:
+      tags:
+      - Resumes
+      summary: Get specific resume by ID
+      description: |
+        Retrieve a specific resume by its ID. Only the owner of the resume can access it.
+        Returns full resume details including extracted content.
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ResumeId'
+      responses:
+        '200':
+          description: Resume retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        resume:
+                          $ref: '#/components/schemas/Resume'
+              example:
+                success: true
+                data:
+                  resume:
+                    id: 123
+                    filename: john_doe_resume.pdf
+                    originalName: John Doe Resume.pdf
+                    content: |-
+                      John Doe
+                      Software Engineer
+                      5 years of experience...
+                    fileSize: 245760
+                    mimeType: application/pdf
+                    status: analyzed
+                    uploadedAt: '2025-01-14T10:30:00.000Z'
+                    userId: firebase_user_123
+                timestamp: '2025-01-14T10:30:00.000Z'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Resume not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                success: false
+                error:
+                  code: RESUME_NOT_FOUND
+                  message: Resume not found or access denied
+                timestamp: '2025-01-14T10:30:00.000Z'
+        '500':
+          $ref: '#/components/responses/ServerError'

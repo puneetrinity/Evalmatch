@@ -17,6 +17,7 @@ import {
   getFirebaseAuthStatus,
 } from "../auth/firebase-auth";
 import { logger } from "../config/logger";
+import { getStorage, storage } from "../storage";
 
 const router = Router();
 
@@ -418,7 +419,8 @@ router.get("/auth-status", async (req: Request, res: Response) => {
 // Database schema inspection endpoint
 router.get("/db-schema", async (req: Request, res: Response) => {
   try {
-    const { db } = await import("../db");
+    const { getDatabase } = await import("../database");
+    const db = getDatabase();
     const { sql } = await import("drizzle-orm");
 
     // Check resumes table schema
@@ -465,6 +467,60 @@ router.get("/db-schema", async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({
       error: "Database schema check failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
+ * Storage system diagnostic endpoint
+ */
+router.get("/storage", async (req: Request, res: Response) => {
+  try {
+    const diagnostic = {
+      timestamp: new Date().toISOString(),
+      storageSystem: {
+        initialized: !!storage,
+        type: storage ? storage.constructor.name : 'null',
+        accessSuccessful: false,
+        basicOperationsWorking: false,
+        testData: null as any,
+        operationError: null as string | null,
+        accessError: null as string | null,
+      }
+    };
+
+    // Test storage access
+    try {
+      const storageInstance = getStorage();
+      diagnostic.storageSystem.accessSuccessful = true;
+      diagnostic.storageSystem.type = storageInstance.constructor.name;
+      
+      // Test basic storage operations
+      try {
+        const testResumes = await storageInstance.getResumes();
+        diagnostic.storageSystem.basicOperationsWorking = true;
+        diagnostic.storageSystem.testData = {
+          resumesCount: testResumes.length,
+          canReadResumes: true
+        };
+      } catch (opError) {
+        diagnostic.storageSystem.basicOperationsWorking = false;
+        diagnostic.storageSystem.operationError = opError instanceof Error ? opError.message : 'Unknown operation error';
+      }
+      
+    } catch (accessError) {
+      diagnostic.storageSystem.accessSuccessful = false;
+      diagnostic.storageSystem.accessError = accessError instanceof Error ? accessError.message : 'Unknown access error';
+    }
+
+    res.json(diagnostic);
+  } catch (error) {
+    logger.error("Storage diagnostic failed:", error);
+    res.status(500).json({
+      status: "error",
+      error: "Storage diagnostic failed",
       message: error instanceof Error ? error.message : "Unknown error",
       timestamp: new Date().toISOString(),
     });

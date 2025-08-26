@@ -14,7 +14,7 @@
 
 import React from 'react';
 import { render, screen, within } from '@testing-library/react';
-
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 
 import SkillRadarChart from '@/components/skill-radar-chart';
 import {
@@ -25,39 +25,10 @@ import {
 
 // ===== MOCK RECHARTS =====
 
-// Mock Recharts components
-jest.mock('recharts', () => ({
-  Radar: ({ dataKey, stroke, fill, fillOpacity }: any) => (
-    <g data-testid="radar" data-datakey={dataKey} data-stroke={stroke} data-fill={fill} data-fillopacity={fillOpacity}>
-      <path d="M0,0 L100,100" />
-    </g>
-  ),
-  RadarChart: ({ children, cx, cy, outerRadius, data }: any) => (
-    <svg data-testid="radar-chart" data-cx={cx} data-cy={cy} data-outerradius={outerRadius} data-length={data?.length}>
-      {children}
-    </svg>
-  ),
-  PolarGrid: () => <g data-testid="polar-grid" />,
-  PolarAngleAxis: ({ dataKey, tick, tickFormatter }: any) => (
-    <g data-testid="polar-angle-axis" data-datakey={dataKey}>
-      {tick && <text data-testid="axis-tick">Sample Tick</text>}
-    </g>
-  ),
-  PolarRadiusAxis: ({ angle, domain }: any) => (
-    <g data-testid="polar-radius-axis" data-angle={angle} data-domain={domain?.join(',')}>
-      <text>0</text>
-      <text>100</text>
-    </g>
-  ),
-  ResponsiveContainer: ({ children, width, height }: any) => (
-    <div data-testid="responsive-container" data-width={width} data-height={height}>
-      {children}
-    </div>
-  ),
-}));
+// Recharts components are mocked in __mocks__/recharts.tsx
 
 // Mock mobile hook
-jest.mock('@/hooks/use-mobile', () => ({
+jest.unstable_mockModule('@/hooks/use-mobile', () => ({
   useIsMobile: jest.fn(() => false),
 }));
 
@@ -118,9 +89,6 @@ const extremeValues = [
 describe('SkillRadarChart Component', () => {
   beforeEach(() => {
     setupTest();
-    // Reset mobile mock
-    const { useIsMobile } = require('@/hooks/use-mobile');
-    useIsMobile.mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -312,13 +280,18 @@ describe('SkillRadarChart Component', () => {
 
   describe('Responsive Design', () => {
     it('should adapt to mobile screens', () => {
-      const { useIsMobile } = require('@/hooks/use-mobile');
-      useIsMobile.mockReturnValue(true);
+      // Mock the hook to return true for mobile
+      jest.doMock('@/hooks/use-mobile', () => ({
+        useIsMobile: jest.fn(() => true),
+      }));
 
       render(<SkillRadarChart matchedSkills={validSkillsData} />);
 
       // Chart should still render on mobile
       expect(screen.getByTestId('radar-chart')).toBeInTheDocument();
+      
+      // Clean up the mock
+      jest.dontMock('@/hooks/use-mobile');
     });
 
     it('should handle different screen sizes', () => {
@@ -471,17 +444,21 @@ describe('SkillRadarChart Component', () => {
     });
 
     it('should handle console logging gracefully', () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
+      
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
       render(<SkillRadarChart matchedSkills={validSkillsData} />);
 
-      // Should log skills data for debugging
+      // Should log skills data for debugging in development mode
       expect(consoleSpy).toHaveBeenCalledWith(
         'Skills data received by chart:',
         validSkillsData
       );
 
       consoleSpy.mockRestore();
+      process.env.NODE_ENV = originalEnv;
     });
 
     it('should handle unexpected data types', () => {

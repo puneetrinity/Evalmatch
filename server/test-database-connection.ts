@@ -1,34 +1,40 @@
-import { db } from './db';
+import { getDatabase } from './database';
 import { withRetry } from './lib/db-retry';
+import { logger } from './config/logger';
 
 /**
  * Simple test to verify database connectivity
  * This script will try to execute a simple query to check if the database is accessible
  */
 async function testDatabaseConnection() {
-  console.log('Testing database connection...');
+  logger.info('Testing database connection...');
   
   try {
     // Simple test query that doesn't modify any data
     const result = await withRetry(async () => {
-      return await db.execute('SELECT 1 as test');
+      return await getDatabase().execute('SELECT 1 as test');
     }, 'test-database-connection');
     
-    console.log('Database connection successful!');
-    console.log('Query result:', result);
+    logger.info('Database connection successful!');
+    logger.info('Query result:', result);
     
     // Try to get the PostgreSQL version for more information
     const versionResult = await withRetry(async () => {
-      return await db.execute('SELECT version()');
+      return await getDatabase().execute('SELECT version()');
     }, 'check-database-version');
     
-    console.log('Database version:');
-    console.log(versionResult[0].version);
+    logger.info('Database version:');
+    const rows = (versionResult as unknown as { rows?: Array<{ version: string }> }).rows || [];
+    if (rows.length > 0) {
+      logger.info(rows[0].version);
+    } else {
+      logger.info('Version information not available');
+    }
     
     return true;
   } catch (error) {
-    console.error('Database connection failed:');
-    console.error(error);
+    logger.error('Database connection failed:');
+    logger.error(error);
     return false;
   }
 }
@@ -37,13 +43,13 @@ async function testDatabaseConnection() {
 testDatabaseConnection()
   .then(success => {
     if (success) {
-      console.log('✅ Database connection test completed successfully');
+      logger.info('✅ Database connection test completed successfully');
     } else {
-      console.log('❌ Database connection test failed');
+      logger.info('❌ Database connection test failed');
     }
     process.exit(success ? 0 : 1);
   })
   .catch(error => {
-    console.error('Unexpected error during test:', error);
+    logger.error('Unexpected error during test:', error);
     process.exit(1);
   });

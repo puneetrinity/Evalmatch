@@ -1,6 +1,6 @@
 // Legacy type declarations - quick fixes for TypeScript errors
 declare module 'isomorphic-dompurify' {
-  const DOMPurify: any;
+  const DOMPurify: { sanitize: (_input: string, _config?: object) => string };
   export default DOMPurify;
 }
 
@@ -10,8 +10,8 @@ declare global {
     interface Request {
       id?: string;
       startTime?: number;
-      user?: any;
-      batchValidation?: any;
+      user?: { uid: string; email?: string };
+      batchValidation?: object;
     }
   }
   
@@ -32,15 +32,15 @@ declare global {
   
   // Storage interface extension
   interface IStorage {
-    storage?: any;
-    firebaseConnection?: any;
-    updateResume?: any;
+    storage?: object;
+    firebaseConnection?: object;
+    updateResume?: (_id: number, _data: object) => Promise<object>;
   }
   
   // Resume interface extension
   interface Resume {
     created?: Date;
-    analysis?: any;
+    analysis?: object;
   }
   
   // Job description interface extension  
@@ -50,8 +50,8 @@ declare global {
   
   // Interview questions interface extension
   interface InterviewQuestions {
-    technicalQuestions?: any[];
-    experienceQuestions?: any[];
-    skillGapQuestions?: any[];
+    technicalQuestions?: string[];
+    experienceQuestions?: string[];
+    skillGapQuestions?: string[];
   }
 }

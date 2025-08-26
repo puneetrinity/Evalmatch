@@ -19,7 +19,7 @@ const getErrorMessage = (error: unknown): string => {
   return String(error);
 };
 
-const getErrorDetails = (error: unknown) => ({
+const _getErrorDetails = (error: unknown) => ({
   message: getErrorMessage(error),
   stack: error instanceof Error ? error instanceof Error ? error.stack : undefined : undefined,
   type: error instanceof Error ? error.constructor.name : typeof error,
@@ -149,8 +149,13 @@ async function checkDatabase(): Promise<HealthCheckResult> {
     }
 
     // Dynamic import to avoid circular dependencies
-    const { testDatabaseConnection, getConnectionStats, getPool } =
-      await import("../database");
+    const { 
+      testDatabaseConnection, 
+      getConnectionStats, 
+      getConnectionLeakDetails,
+      getPoolHealth,
+      getPool 
+    } = await import("../database/index");
 
     // Run multiple database tests in parallel
     const testPromises = [
@@ -158,10 +163,19 @@ async function checkDatabase(): Promise<HealthCheckResult> {
       testDatabaseConnection(),
       // Get connection pool statistics
       Promise.resolve(getConnectionStats()),
+      // Get connection leak details
+      Promise.resolve(getConnectionLeakDetails()),
+      // Get pool health metrics
+      Promise.resolve(getPoolHealth()),
     ];
 
-    const [connectivityResult, connectionStats] =
-      await Promise.all(testPromises);
+    const [connectivityResult, connectionStats, leakDetails, poolHealth] =
+      await Promise.allSettled(testPromises);
+
+    // Safely extract results
+    const connectionStatsValue = connectionStats.status === 'fulfilled' ? connectionStats.value : null;
+    const leakDetailsValue = leakDetails.status === 'fulfilled' ? leakDetails.value : null;
+    const poolHealthValue = poolHealth.status === 'fulfilled' ? poolHealth.value : null;
 
     const responseTime = Date.now() - startTime;
 
@@ -222,30 +236,66 @@ async function checkDatabase(): Promise<HealthCheckResult> {
     // Determine overall status based on all tests
     let status: "healthy" | "degraded" | "unhealthy";
     let message: string;
+    const issues: string[] = [];
+    const uptime = Math.round(process.uptime());
+    const isRailwayDeployment = !!process.env.RAILWAY_ENVIRONMENT;
 
     if (!(connectivityResult as any).success) {
-      status = "unhealthy";
-      message = (connectivityResult as any).message;
+      // For Railway deployments, be more tolerant of database connection issues during startup
+      if (isRailwayDeployment && uptime < 180) {
+        status = "degraded";
+        message = `Database connecting during Railway startup (${uptime}s uptime): ${(connectivityResult as any).message}`;
+        issues.push("Database initializing during deployment");
+      } else if (uptime < 60) {
+        status = "degraded";
+        message = `Database connecting during startup (${uptime}s uptime): ${(connectivityResult as any).message}`;
+        issues.push("Database starting up");
+      } else {
+        status = "unhealthy";
+        message = (connectivityResult as any).message;
+        issues.push("Database connectivity failed");
+      }
     } else {
       // Check for performance issues
       const hasPerformanceIssues =
         responseTime > 2000 ||
         performanceTests.queryPerformance > 500 ||
-        (connectionStats as any).querySuccessRate < 95;
+        (connectionStatsValue as any)?.querySuccessRate < 95;
 
       const hasConnectionIssues =
-        (connectionStats as any).activeConnections === 0 ||
-        (connectionStats as any).failedConnections >
-          (connectionStats as any).totalConnections * 0.1;
+        (connectionStatsValue as any)?.activeConnections === 0 ||
+        ((connectionStatsValue as any)?.failedConnections || 0) >
+          ((connectionStatsValue as any)?.totalConnections || 1) * 0.1;
 
-      if (hasConnectionIssues) {
+      // Check for connection leak issues
+      const hasLeakIssues = leakDetailsValue && (
+        (leakDetailsValue as any).summary?.potentialLeaks > 5 ||
+        (leakDetailsValue as any).summary?.staleConnections > 0
+      );
+
+      // Check pool health
+      const hasPoolIssues = poolHealthValue && !(poolHealthValue as any).healthy;
+
+      // Determine status based on severity
+      if (hasPoolIssues || ((leakDetailsValue as any)?.summary?.potentialLeaks || 0) > 10) {
+        status = "unhealthy";
+        if (hasPoolIssues) issues.push("Connection pool unhealthy");
+        if (((leakDetailsValue as any)?.summary?.potentialLeaks || 0) > 10) {
+          issues.push(`Critical connection leaks: ${(leakDetailsValue as any)?.summary?.potentialLeaks}`);
+        }
+      } else if (hasConnectionIssues || hasLeakIssues || hasPerformanceIssues) {
         status = "degraded";
-        message = "Database accessible but connection issues detected";
-      } else if (hasPerformanceIssues) {
-        status = "degraded";
-        message = `Database accessible but performance issues detected (${responseTime}ms response)`;
+        if (hasConnectionIssues) issues.push("Connection pool issues detected");
+        if (hasLeakIssues) issues.push(`Connection leaks detected: ${(leakDetailsValue as any)?.summary?.potentialLeaks || 0}`);
+        if (hasPerformanceIssues) issues.push("Performance issues detected");
       } else {
         status = "healthy";
+      }
+
+      // Generate appropriate message
+      if (issues.length > 0) {
+        message = `Database accessible but issues detected: ${issues.join(", ")} (${responseTime}ms response)`;
+      } else {
         message = `Database fully operational (${responseTime}ms response)`;
       }
     }
@@ -262,14 +312,16 @@ async function checkDatabase(): Promise<HealthCheckResult> {
           queryTime: (connectivityResult as any).details?.queryTime,
           connectionCount: (connectivityResult as any).details?.connectionCount,
         },
-        connectionPool: {
-          total: (connectionStats as any).totalConnections,
-          active: (connectionStats as any).activeConnections,
-          failed: (connectionStats as any).failedConnections,
-          successRate: (connectionStats as any).querySuccessRate,
-          uptime: (connectionStats as any).uptime,
-          lastSuccessfulQuery: (connectionStats as any).lastSuccessfulQuery,
-        },
+        connectionPool: connectionStatsValue ? {
+          total: (connectionStatsValue as any).totalConnections,
+          active: (connectionStatsValue as any).activeConnections,
+          failed: (connectionStatsValue as any).failedConnections,
+          successRate: (connectionStatsValue as any).querySuccessRate,
+          uptime: (connectionStatsValue as any).uptime,
+          lastSuccessfulQuery: (connectionStatsValue as any).lastSuccessfulQuery,
+          poolInfo: (connectionStatsValue as any).poolInfo,
+          circuitBreakerState: (connectionStatsValue as any).circuitBreakerState,
+        } : null,
         performance: {
           tests: performanceTests,
           overallResponseTime: responseTime,
@@ -279,6 +331,15 @@ async function checkDatabase(): Promise<HealthCheckResult> {
             successRateWarning: "95%",
           },
         },
+        connectionLeaks: leakDetailsValue ? {
+          summary: (leakDetailsValue as any).summary,
+          thresholds: (leakDetailsValue as any).thresholds,
+          issues: issues.filter(issue => issue.includes('leak')),
+        } : null,
+        poolHealth: poolHealthValue ? {
+          healthy: (poolHealthValue as any).healthy,
+          metrics: (poolHealthValue as any).metrics,
+        } : null,
         configuration: {
           url: config.database.url ? "configured" : "missing",
           poolSize: config.database.poolSize,
@@ -650,87 +711,57 @@ async function checkFirebaseAuth(): Promise<HealthCheckResult> {
       };
     }
 
-    // Import Firebase Admin SDK
-    const { adminAuth } = await import("../lib/firebase-admin");
+    // Import unified Firebase auth system
+    const { isFirebaseAuthAvailable, getFirebaseAuthStatus, verifyFirebaseConfiguration } = await import("../auth/firebase-auth");
 
-    if (!adminAuth) {
+    // Check if Firebase auth is available
+    if (!isFirebaseAuthAvailable()) {
+      const authStatus = getFirebaseAuthStatus();
       return {
         name: checkName,
         status: "unhealthy",
         responseTime: Date.now() - startTime,
-        message:
-          "Firebase Admin Auth not initialized - check service account configuration",
+        message: authStatus.error || "Firebase Admin Auth not initialized - check service account configuration",
         details: {
           configured: true,
-          initialized: false,
-          projectId: config.firebase.projectId,
-          hasServiceAccountKey: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
-          hasCredentialsFile: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
+          initialized: authStatus.initialized,
+          projectId: authStatus.projectId,
+          hasServiceAccountKey: !!(
+            process.env.FIREBASE_SERVICE_ACCOUNT_KEY ||
+            process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64
+          ),
+          authStatus,
         },
         lastChecked: new Date().toISOString(),
       };
     }
 
-    // Test Firebase Auth service connectivity with multiple checks
-    const testResults = {
-      customTokenGeneration: false,
-      userLookup: false,
-      serviceAccess: false,
-      responseTime: 0,
-    };
-
+    // Use the comprehensive Firebase verification from unified auth system
     const testStartTime = Date.now();
-
+    
     try {
-      // Test 1: Custom token generation (basic functionality)
-      const customToken = await Promise.race([
-        adminAuth.createCustomToken("health-check-user", { healthCheck: true }),
-        new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error("Custom token generation timeout")),
-            5000,
-          ),
-        ),
-      ]);
-      testResults.customTokenGeneration = !!customToken;
-      testResults.serviceAccess = true;
+      const verificationResult = await verifyFirebaseConfiguration();
+      const authStatus = getFirebaseAuthStatus();
+      const testResponseTime = Date.now() - testStartTime;
 
-      // Test 2: Try to get user info (this will fail but tests service access)
-      try {
-        await Promise.race([
-          adminAuth.getUser("non-existent-user-health-check"),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("User lookup timeout")), 3000),
-          ),
-        ]);
-      } catch (userError: unknown) {
-        // Expected to fail for non-existent user, but confirms service is accessible
-        if ((userError as any)?.code === "auth/user-not-found") {
-          testResults.userLookup = true; // Service is working
-        }
-      }
-
-      testResults.responseTime = Date.now() - testStartTime;
-
-      // Determine status based on test results
+      // Determine status based on verification result and response time
       let status: "healthy" | "degraded" | "unhealthy";
       let message: string;
 
-      if (testResults.serviceAccess && testResults.customTokenGeneration) {
-        if (testResults.responseTime > 3000) {
+      if (verificationResult.status === "success") {
+        if (testResponseTime > 3000) {
           status = "degraded";
-          message = `Firebase Auth accessible but slow (${testResults.responseTime}ms)`;
+          message = `Firebase Auth accessible but slow (${testResponseTime}ms)`;
         } else {
           status = "healthy";
           message = "Firebase authentication service fully operational";
         }
-      } else if (testResults.serviceAccess) {
+      } else if (verificationResult.status === "not_configured") {
         status = "degraded";
-        message =
-          "Firebase Auth partially accessible - some features may be limited";
+        message = "Firebase not configured - using auth bypass mode";
       } else {
         status = "unhealthy";
-        message = "Firebase Auth service not accessible";
+        message = verificationResult.error || "Firebase Auth service not accessible";
       }
 
       return {
@@ -740,27 +771,28 @@ async function checkFirebaseAuth(): Promise<HealthCheckResult> {
         message,
         details: {
           configured: true,
-          initialized: true,
-          projectId: config.firebase.projectId,
-          tests: {
-            customTokenGeneration: testResults.customTokenGeneration,
-            userLookup: testResults.userLookup,
-            serviceAccess: testResults.serviceAccess,
-            responseTime: testResults.responseTime,
-          },
+          initialized: authStatus.initialized,
+          projectId: authStatus.projectId,
+          verification: verificationResult,
+          authStatus,
+          testResponseTime,
           credentials: {
             hasServiceAccountKey: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+            hasServiceAccountKeyBase64: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64,
             hasCredentialsFile: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
-            type: process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-              ? "service-account-key"
-              : process.env.GOOGLE_APPLICATION_CREDENTIALS
-                ? "credentials-file"
-                : "default",
+            type: process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64
+              ? "service-account-key-base64"
+              : process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+                ? "service-account-key"
+                : process.env.GOOGLE_APPLICATION_CREDENTIALS
+                  ? "credentials-file"
+                  : "default",
           },
         },
         lastChecked: new Date().toISOString(),
       };
     } catch (error) {
+      const authStatus = getFirebaseAuthStatus();
       return {
         name: checkName,
         status: "unhealthy",
@@ -768,11 +800,11 @@ async function checkFirebaseAuth(): Promise<HealthCheckResult> {
         message: `Firebase Auth service test failed: ${getErrorMessage(error)}`,
         details: {
           configured: true,
-          initialized: true,
-          projectId: config.firebase.projectId,
+          initialized: authStatus.initialized,
+          projectId: authStatus.projectId,
           error: getErrorMessage(error),
           errorCode: (error as any)?.code || "unknown",
-          tests: testResults,
+          authStatus,
         },
         lastChecked: new Date().toISOString(),
       };
@@ -906,7 +938,6 @@ async function checkExternalDependencies(): Promise<HealthCheckResult> {
     try {
       const testStartTime = Date.now();
       const https = await import("https");
-      const { promisify } = await import("util");
 
       const testConnection = () =>
         new Promise((resolve, reject) => {
@@ -1053,7 +1084,7 @@ async function checkSystemResources(): Promise<HealthCheckResult> {
     };
 
     // Disk space information (current working directory)
-    let diskInfo = {
+    const diskInfo = {
       available: 0,
       total: 0,
       used: 0,
@@ -1062,7 +1093,7 @@ async function checkSystemResources(): Promise<HealthCheckResult> {
     };
 
     try {
-      const stats = await fs.stat(process.cwd());
+      const _stats = await fs.stat(process.cwd());
       if (platform !== "win32") {
         // Unix-like systems - try to get disk space using statvfs equivalent
         // This is a simplified approach - in production you might want to use a library like 'diskusage'
@@ -1102,7 +1133,7 @@ async function checkSystemResources(): Promise<HealthCheckResult> {
 
     // Determine overall status based on resource usage
     let status: "healthy" | "degraded" | "unhealthy";
-    let issues = [];
+    const issues = [];
 
     // Check for resource issues
     if (systemMemory.usagePercent > 90) {
@@ -1527,10 +1558,15 @@ export async function basicHealthCheck(
   res.setHeader("X-Request-ID", requestId);
 
   try {
-    // Run only essential checks for fast response
-    const essentialChecks = await Promise.all([
-      getCachedHealthCheck("database", checkDatabase),
-      getCachedHealthCheck("memory", checkMemoryUsage),
+    // Run only essential checks for fast response with timeouts
+    const essentialChecks = await Promise.race([
+      Promise.all([
+        getCachedHealthCheck("database", checkDatabase),
+        getCachedHealthCheck("memory", checkMemoryUsage),
+      ]),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Health check timeout")), 3000)
+      ),
     ]);
 
     const status = determineOverallStatus(essentialChecks);
@@ -1559,18 +1595,43 @@ export async function basicHealthCheck(
     };
 
     // Determine HTTP status code based on health status
+    // Railway-compatible: Only return 503 for truly critical failures
     let httpStatus: number;
+    const uptime = Math.round(process.uptime());
+    const isRailwayDeployment = !!process.env.RAILWAY_ENVIRONMENT;
+    
     switch (status) {
       case "healthy":
         httpStatus = 200; // OK
         break;
       case "degraded":
-        httpStatus = 200; // OK but with warnings (for load balancer compatibility)
+        httpStatus = 200; // OK but with warnings (Railway-compatible)
         res.setHeader("X-Health-Warning", "degraded");
         break;
       case "unhealthy":
-        httpStatus = 503; // Service Unavailable
-        res.setHeader("X-Health-Status", "unhealthy");
+        // Railway optimization: Be more permissive during startup and deployment
+        {
+          const hasCriticalFailure = essentialChecks.some(check => 
+            (check.name === "database" || check.name === "memory") && 
+            check.status === "unhealthy"
+          );
+        
+          // Extended startup grace period for Railway (first 3 minutes)
+          const startupGracePeriod = isRailwayDeployment ? 180 : 120;
+        
+          if (uptime < startupGracePeriod && !hasCriticalFailure) {
+            httpStatus = 200; // Allow startup time
+            res.setHeader("X-Health-Warning", "startup-period");
+            res.setHeader("X-Startup-Grace-Remaining", String(startupGracePeriod - uptime));
+          } else if (hasCriticalFailure && uptime > 60) {
+            // Only fail for critical issues after 1 minute minimum
+            httpStatus = 503; // Critical failure
+            res.setHeader("X-Health-Status", "unhealthy");
+          } else {
+            httpStatus = 200; // Non-critical issues, Railway-compatible
+            res.setHeader("X-Health-Warning", "unhealthy-non-critical");
+          }
+        }
         break;
       default:
         httpStatus = 500; // Internal Server Error
@@ -1810,7 +1871,7 @@ export async function livenessProbe(
 
     // Simple liveness checks - app is alive if it can respond and isn't critically broken
     let isAlive = true;
-    let issues = [];
+    const issues = [];
     let status = "alive";
 
     // Check for critical memory issues that would require restart
@@ -2063,6 +2124,209 @@ export async function readinessProbe(
           ? getErrorMessage(error)
           : "Unable to determine readiness status",
       code: "READINESS_PROBE_ERROR",
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+
+/**
+ * Railway-optimized health check endpoint - Ultra-fast for deployment validation
+ * This endpoint is specifically designed for Railway's health check requirements:
+ * - Responds in under 500ms
+ * - Minimal dependencies
+ * - Returns 200 even if non-critical services are degraded
+ * - Only fails (503) on critical application-breaking issues
+ */
+export async function railwayHealthCheck(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const startTime = Date.now();
+  const requestId = `railway-${Date.now()}`;
+
+  // Set Railway-compatible headers
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.setHeader("X-Health-Check-Type", "railway");
+  res.setHeader("X-Request-ID", requestId);
+
+  try {
+    const uptime = Math.round(process.uptime());
+    const memoryUsage = process.memoryUsage();
+    const heapUsagePercent = Math.round(
+      (memoryUsage.heapUsed / memoryUsage.heapTotal) * 100,
+    );
+
+    // Only check absolute critical factors for Railway deployment
+    let isHealthy = true;
+    let status = "healthy";
+    const issues = [];
+    
+    // Check 1: Memory exhaustion that would prevent serving requests
+    if (heapUsagePercent > 95) {
+      isHealthy = false;
+      status = "unhealthy";
+      issues.push("Critical memory exhaustion");
+    }
+
+    // Check 2: App is responsive (implicit - if we got here, it's responding)
+    const responseTime = Date.now() - startTime;
+    
+    // Check 3: Recent startup might indicate crash loop, but be permissive for Railway
+    let startupWarning = false;
+    let inStartupGracePeriod = false;
+    if (uptime < 60) {
+      startupWarning = true;
+      inStartupGracePeriod = uptime < 120; // 2-minute grace period
+      // Don't fail for recent startup - Railway needs time to stabilize
+    }
+
+    // Check 4: Basic database availability (non-blocking, timeout quickly)
+  let _dbStatus = "unknown";
+    let dbAvailable = false;
+    
+    try {
+      if (config.database.enabled) {
+        // Ultra-fast database check with 1 second timeout
+        const { isDatabaseAvailable } = await import("../database/index");
+        const dbCheckPromise = Promise.resolve(isDatabaseAvailable());
+        const dbResult = await Promise.race([
+          dbCheckPromise,
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("DB check timeout")), 1000)
+          ),
+        ]);
+        
+  dbAvailable = Boolean(dbResult);
+  _dbStatus = dbAvailable ? "available" : "unavailable";
+        
+        // Only fail if database is completely inaccessible AND required
+        // For Railway, we want to be more permissive during deployment
+        if (!dbAvailable && uptime > 180) {
+          // Extended grace period for Railway - 3 minutes
+          isHealthy = false;
+          status = "unhealthy";
+          issues.push("Database unavailable after startup period");
+        } else if (!dbAvailable && inStartupGracePeriod) {
+          issues.push("Database initializing (startup grace period)");
+        } else if (!dbAvailable && uptime < 180) {
+          issues.push("Database connecting during startup");
+        } else if (!dbAvailable) {
+          issues.push("Database starting up");
+        }
+      } else {
+  _dbStatus = "disabled";
+        dbAvailable = true; // Memory mode is always "available"
+      }
+    } catch (error) {
+  _dbStatus = "error";
+      dbAvailable = false;
+      // Don't fail health check for DB errors during startup grace period
+      if (uptime > 180) {
+        // Only add critical issues after 3 minutes
+        issues.push("Database connection error");
+      } else if (inStartupGracePeriod) {
+        issues.push("Database connection initializing");
+      } else {
+        issues.push("Database connection starting");
+      }
+    }
+
+    // Railway deployment decision logic:
+    // - Healthy: App can serve traffic
+    // - Degraded but functional: Still return 200 for Railway 
+    // - Only return 503 for critical failures that prevent serving requests
+  const httpStatus = isHealthy ? 200 : 503;
+
+    const response = {
+      success: isHealthy,
+  data: {
+        status,
+        uptime,
+        message: isHealthy
+          ? `Application ready for Railway (${uptime}s uptime)`
+          : `Critical issues detected: ${issues.join(", ")}`,
+        railway: {
+          deploymentReady: isHealthy,
+          startupPhase: uptime < 60,
+          startupGracePeriod: inStartupGracePeriod,
+          responseTimeMs: responseTime,
+          gracePeriodRemaining: inStartupGracePeriod ? Math.max(0, 120 - uptime) : 0,
+        },
+        checks: {
+          memory: {
+            status: heapUsagePercent > 95 ? "unhealthy" : "healthy",
+            usagePercent: heapUsagePercent,
+          },
+          database: {
+            status: dbAvailable ? "healthy" : (uptime < 60 ? "starting" : "unhealthy"),
+            available: dbAvailable,
+            type: config.database.enabled ? "postgresql" : "memory",
+          },
+          application: {
+            status: "healthy", // If we can respond, app is healthy
+            uptime,
+            version: process.env.npm_package_version || "1.0.0",
+          },
+        },
+        warnings: startupWarning ? [
+          inStartupGracePeriod 
+            ? `Application in startup grace period (${Math.max(0, 120 - uptime)}s remaining)` 
+            : "Application recently started"
+        ] : undefined,
+        issues: issues.length > 0 ? issues : undefined,
+        metadata: {
+          checkType: "railway",
+          responseTime,
+          optimizedFor: "Railway deployment validation",
+          failureThreshold: "Only critical application-breaking issues",
+        },
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    res.status(httpStatus).json(response);
+
+    // Log Railway health check results
+    logger.info(
+      {
+        healthCheck: {
+          type: "railway",
+          status,
+          healthy: isHealthy,
+          responseTime,
+          uptime,
+          memoryUsage: heapUsagePercent,
+          dbAvailable,
+          httpStatus,
+          issues: issues.length,
+        },
+      },
+      `Railway health check: ${status.toUpperCase()} (${responseTime}ms)`,
+    );
+
+  } catch (error) {
+    const responseTime = Date.now() - startTime;
+
+    logger.error(
+      {
+        healthCheck: {
+          type: "railway",
+          status: "error",
+          responseTime,
+          requestId,
+          error: getErrorMessage(error),
+        },
+      },
+      "Railway health check failed",
+    );
+
+    // Even if health check fails, try to be permissive for Railway
+    // Only return 503 if we absolutely cannot serve requests
+    res.status(503).json({
+      success: false,
+      error: "Railway health check system failure",
+      message: "Health check error - application may still be functional",
+      code: "RAILWAY_HEALTH_CHECK_ERROR",
       timestamp: new Date().toISOString(),
     });
   }

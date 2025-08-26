@@ -22,12 +22,16 @@ export default {
     '^firebase-admin$': '<rootDir>/tests/__mocks__/firebase-admin.ts',
     '^jose$': '<rootDir>/tests/__mocks__/jose.ts',
     '^jwks-rsa$': '<rootDir>/tests/__mocks__/jwks-rsa.ts',
+    '^@xenova/transformers$': '<rootDir>/tests/__mocks__/transformers.ts',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(jose|jwks-rsa|@firebase)/)'
+    'node_modules/(?!(jose|jwks-rsa|@firebase|@xenova)/)'
   ],
   roots: ['<rootDir>/tests'],
-  testMatch: ['**/*.test.ts'],
+  testMatch: [
+    '**/*.test.ts',
+    '!**/unit/**/*.test.ts' // Exclude unit tests from integration test runs
+  ],
   collectCoverageFrom: [
     'server/**/*.{ts,js}',
     'shared/**/*.{ts,js}',

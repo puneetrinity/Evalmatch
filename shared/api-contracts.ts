@@ -55,6 +55,8 @@ export const API_ROUTES = {
   HEALTH: {
     BASIC: `${API_BASE}/health`,
     DETAILED: `${API_BASE}/health/detailed`,
+    RAILWAY: `${API_BASE}/health/railway`,
+    PING: `${API_BASE}/ping`,
     MIGRATION_STATUS: `${API_BASE}/migration-status`,
     DB_STATUS: `${API_BASE}/db-status`,
   },

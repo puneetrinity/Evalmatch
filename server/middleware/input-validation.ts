@@ -7,97 +7,116 @@
 
 import { Request, Response, NextFunction } from "express";
 import { z, ZodSchema, ZodError } from "zod";
-// @ts-ignore - isomorphic-dompurify may not have types
-import DOMPurify from "isomorphic-dompurify";
+import { SecurityValidator, SecureSchemas } from "@shared/security-validation";
 import { logger } from "../config/logger";
 
-// Common validation schemas
+// Enhanced security validation schemas
 export const commonSchemas = {
-  // User ID validation (Firebase UID format)
-  userId: z
-    .string()
-    .min(1)
-    .max(128)
-    .regex(/^[a-zA-Z0-9_-]+$/, "Invalid user ID format"),
+  // User ID validation (Firebase UID format) with enhanced security
+  userId: SecureSchemas.userId,
 
-  // Email validation
-  email: z.string().email("Invalid email format").max(254),
+  // Enhanced email validation with sanitization
+  email: SecureSchemas.secureEmail(),
 
-  // File validation
-  filename: z
-    .string()
-    .min(1)
-    .max(255)
-    .regex(/^[a-zA-Z0-9._-]+$/, "Invalid filename"),
-  fileContent: z.string().max(10 * 1024 * 1024), // 10MB max
+  // Enhanced file validation with security checks
+  filename: SecureSchemas.secureFilename(255),
+  fileContent: z.string().max(50 * 1024 * 1024), // 50MB max
+  fileSize: SecureSchemas.fileSize,
+  mimeType: SecureSchemas.mimeType,
 
-  // Text fields with XSS protection
-  title: z
-    .string()
-    .min(1)
-    .max(200)
-    .transform((val) => DOMPurify.sanitize(val, { ALLOWED_TAGS: [] })),
-  description: z
-    .string()
-    .min(1)
-    .max(10000)
-    .transform((val) => DOMPurify.sanitize(val, { ALLOWED_TAGS: [] })),
+  // Enhanced text validation with comprehensive sanitization
+  title: SecureSchemas.secureString(200, {
+    allowSpecialChars: true,
+    allowNewlines: false,
+    preserveSpaces: true
+  }),
+  description: SecureSchemas.secureString(20000, {
+    allowSpecialChars: true,
+    allowNewlines: true,
+    preserveSpaces: true
+  }),
 
-  // Numeric IDs
-  id: z.coerce.number().int().positive(),
+  // Enhanced numeric validation with bounds checking
+  id: SecureSchemas.secureNumber({ min: 1, max: Number.MAX_SAFE_INTEGER, integer: true }),
 
-  // Pagination
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  // Enhanced pagination with security limits
+  page: SecureSchemas.secureNumber({ min: 1, max: 10000, integer: true }),
+  limit: SecureSchemas.secureNumber({ min: 1, max: 100, integer: true }),
 
-  // Search/filter strings
-  searchQuery: z
-    .string()
-    .max(100)
-    .transform((val) => DOMPurify.sanitize(val, { ALLOWED_TAGS: [] }))
-    .optional(),
+  // Enhanced search query with comprehensive sanitization
+  searchQuery: SecureSchemas.secureString(200, {
+    allowSpecialChars: false,
+    allowNewlines: false,
+    preserveSpaces: true
+  }).optional(),
 
-  // Job description specific
-  jobTitle: z
-    .string()
-    .min(1)
-    .max(100)
-    .transform((val) => DOMPurify.sanitize(val, { ALLOWED_TAGS: [] })),
-  jobDescription: z
-    .string()
-    .min(50)
-    .max(20000)
-    .transform((val) => DOMPurify.sanitize(val, { ALLOWED_TAGS: [] })),
+  // Enhanced job-related validation
+  jobTitle: SecureSchemas.secureString(200, {
+    allowSpecialChars: true,
+    allowNewlines: false,
+    preserveSpaces: true
+  }),
+  jobDescription: SecureSchemas.secureString(50000, {
+    allowSpecialChars: true,
+    allowNewlines: true,
+    preserveSpaces: true
+  }),
+  requirements: SecureSchemas.secureStringArray({
+    maxItems: 50,
+    maxItemLength: 500,
+    allowEmpty: false
+  }),
+  location: SecureSchemas.secureString(200, {
+    allowSpecialChars: true,
+    allowNewlines: false,
+    preserveSpaces: true
+  }).optional(),
 
-  // Resume specific
-  resumeContent: z.string().min(100).max(50000),
-  skills: z.array(z.string().max(50)).max(50),
+  // Enhanced resume content validation
+  resumeContent: SecureSchemas.secureString(100000, {
+    allowSpecialChars: true,
+    allowNewlines: true,
+    preserveSpaces: true
+  }),
+  skills: SecureSchemas.secureStringArray({
+    maxItems: 100,
+    maxItemLength: 100,
+    allowEmpty: false
+  }),
 
-  // Analysis parameters
-  matchPercentage: z.number().min(0).max(100),
-  confidenceScore: z.number().min(0).max(1),
+  // Analysis parameters with bounds checking
+  matchPercentage: SecureSchemas.secureNumber({ min: 0, max: 100 }),
+  confidenceScore: SecureSchemas.secureNumber({ min: 0, max: 1 }),
+
+  // Enhanced URL validation
+  url: SecureSchemas.secureUrl(['http', 'https']),
+
+  // Session and batch IDs with enhanced validation
+  sessionId: SecureSchemas.sessionId,
+  batchId: z.string().min(1).max(128).regex(/^[a-zA-Z0-9_-]+$/, "Invalid batch ID format"),
+
+  // Enhanced password validation (when needed)
+  password: z.string().refine((val) => {
+    const result = SecurityValidator.validatePasswordStrength(val);
+    return result.isValid;
+  }, "Password does not meet security requirements"),
 };
 
 // Request validation schemas
 export const validationSchemas = {
   // Resume endpoints
+  // Accept multipart form uploads validated by secureUpload/validateUploadedFile earlier in the chain
+  // Don’t require filename/content in the body; multer provides req.file and we read from disk safely.
   uploadResume: z.object({
     body: z.object({
-      filename: commonSchemas.filename,
+      sessionId: commonSchemas.sessionId.optional(),
+      batchId: commonSchemas.batchId.optional(),
+      autoAnalyze: z.union([z.boolean(), z.enum(['true', 'false'])]).optional(),
+      // Allow optional fields if clients send them; they’re sanitized by SecureSchemas
+      filename: commonSchemas.filename.optional(),
       content: commonSchemas.resumeContent.optional(),
-    }),
-    files: z
-      .object({
-        resume: z.object({
-          mimetype: z.enum([
-            "application/pdf",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          ]),
-          size: z.number().max(10 * 1024 * 1024), // 10MB
-        }),
-      })
-      .optional(),
+    }).passthrough(),
+    // Note: multer.single('file') sets req.file, not req.files; prior middleware validates file already
   }),
 
   getResume: z.object({
@@ -106,20 +125,36 @@ export const validationSchemas = {
     }),
   }),
 
-  // Job description endpoints
+  getResumes: z.object({
+    query: z.object({
+      sessionId: commonSchemas.sessionId.optional(),
+      batchId: commonSchemas.batchId.optional(),
+      page: commonSchemas.page.optional(),
+      limit: commonSchemas.limit.optional(),
+      fileType: z.string().max(50).optional(),
+      hasAnalysis: z.enum(['true', 'false']).optional(),
+    }),
+  }),
+
+  // Job description endpoints with enhanced security
   createJob: z.object({
     body: z.object({
       title: commonSchemas.jobTitle,
       description: commonSchemas.jobDescription,
-      requirements: z.array(z.string().max(200)).max(20).optional(),
-      location: z.string().max(100).optional(),
+      requirements: commonSchemas.requirements.optional(),
+      location: commonSchemas.location,
       salary: z
         .object({
-          min: z.number().min(0).optional(),
-          max: z.number().min(0).optional(),
-          currency: z.string().length(3).optional(),
+          min: SecureSchemas.secureNumber({ min: 0, max: 10000000 }).optional(),
+          max: SecureSchemas.secureNumber({ min: 0, max: 10000000 }).optional(),
+          currency: z.string().length(3).regex(/^[A-Z]{3}$/).optional(),
         })
         .optional(),
+      department: SecureSchemas.secureString(100, {
+        allowSpecialChars: false,
+        allowNewlines: false
+      }).optional(),
+      experienceLevel: z.enum(['entry', 'junior', 'mid', 'senior', 'lead', 'executive']).optional(),
     }),
   }),
 
@@ -130,8 +165,13 @@ export const validationSchemas = {
     body: z.object({
       title: commonSchemas.jobTitle.optional(),
       description: commonSchemas.jobDescription.optional(),
-      requirements: z.array(z.string().max(200)).max(20).optional(),
-      location: z.string().max(100).optional(),
+      requirements: commonSchemas.requirements.optional(),
+      location: commonSchemas.location,
+      department: SecureSchemas.secureString(100, {
+        allowSpecialChars: false,
+        allowNewlines: false
+      }).optional(),
+      experienceLevel: z.enum(['entry', 'junior', 'mid', 'senior', 'lead', 'executive']).optional(),
     }),
   }),
 
@@ -141,11 +181,15 @@ export const validationSchemas = {
       jobId: commonSchemas.id,
     }),
     body: z.object({
-      resumeIds: z.array(commonSchemas.id).min(1).max(10),
+      // Make resumeIds optional so API can analyze all resumes when not provided
+      resumeIds: z.array(commonSchemas.id).min(1).max(10).optional(),
+      sessionId: z.string().min(1).optional(),
+      batchId: z.string().min(1).optional(),
       analysisType: z
         .enum(["basic", "detailed", "comprehensive"])
-        .default("basic"),
-      includeRecommendations: z.boolean().default(true),
+        .default("basic")
+        .optional(),
+      includeRecommendations: z.boolean().default(true).optional(),
     }),
   }),
 
@@ -154,13 +198,8 @@ export const validationSchemas = {
       jobId: commonSchemas.id,
     }),
     query: z.object({
-      page: commonSchemas.page,
-      limit: commonSchemas.limit,
-      sortBy: z
-        .enum(["created_at", "match_percentage", "title"])
-        .default("created_at"),
-      sortOrder: z.enum(["asc", "desc"]).default("desc"),
-      search: commonSchemas.searchQuery,
+      sessionId: z.string().min(1, "Session ID is required").optional(),
+      batchId: z.string().min(1, "Batch ID is required").optional(),
     }),
   }),
 
@@ -173,44 +212,144 @@ export const validationSchemas = {
     body: z.object({
       questionTypes: z
         .array(z.enum(["technical", "behavioral", "situational"]))
-        .min(1),
+        .min(1)
+        .default(["technical", "behavioral", "situational"]),
       difficulty: z.enum(["junior", "mid", "senior"]).default("mid"),
       count: z.number().int().min(1).max(20).default(10),
-    }),
+      sessionId: z.string().optional(),
+      batchId: z.string().optional(),
+    }).default({}),
   }),
 
-  // User profile endpoints
+  // Enhanced user profile validation with comprehensive security
   updateProfile: z.object({
     body: z.object({
-      displayName: z
-        .string()
-        .min(1)
-        .max(100)
-        .transform((val) => DOMPurify.sanitize(val, { ALLOWED_TAGS: [] }))
-        .optional(),
-      bio: z
-        .string()
-        .max(500)
-        .transform((val) => DOMPurify.sanitize(val, { ALLOWED_TAGS: [] }))
-        .optional(),
+      displayName: SecureSchemas.secureString(100, {
+        allowSpecialChars: false,
+        allowNewlines: false,
+        allowNumbers: true
+      }).optional(),
+      bio: SecureSchemas.secureString(1000, {
+        allowSpecialChars: true,
+        allowNewlines: true,
+        preserveSpaces: true
+      }).optional(),
+      avatar: commonSchemas.url.optional(),
       preferences: z
         .object({
           emailNotifications: z.boolean().optional(),
           theme: z.enum(["light", "dark", "system"]).optional(),
-          language: z.string().length(2).optional(),
+          language: z.string().length(2).regex(/^[a-z]{2}$/).optional(),
+          timezone: z.string().max(50).optional(),
         })
         .optional(),
+    }),
+  }),
+
+  // Enhanced batch operations validation
+  batchUpload: z.object({
+    body: z.object({
+      sessionId: commonSchemas.sessionId.optional(),
+      batchId: commonSchemas.batchId.optional(),
+      autoAnalyze: z.boolean().default(true),
+    }),
+    files: z.array(z.object({
+      originalname: commonSchemas.filename,
+      mimetype: commonSchemas.mimeType,
+      size: commonSchemas.fileSize,
+    })).min(1).max(10),
+  }),
+
+  // Enhanced search and filtering
+  searchResumes: z.object({
+    query: z.object({
+      search: commonSchemas.searchQuery,
+      skills: SecureSchemas.secureStringArray({
+        maxItems: 20,
+        maxItemLength: 50,
+        allowEmpty: false
+      }).optional(),
+      experience: z.enum(['entry', 'junior', 'mid', 'senior', 'lead']).optional(),
+      location: commonSchemas.location,
+      dateFrom: z.string().datetime().optional(),
+      dateTo: z.string().datetime().optional(),
+      page: commonSchemas.page,
+      limit: commonSchemas.limit,
+      sortBy: z.enum(['created_at', 'match_percentage', 'filename']).default('created_at'),
+      sortOrder: z.enum(['asc', 'desc']).default('desc'),
     }),
   }),
 };
 
 /**
- * Create validation middleware for a specific schema
+ * Enhanced validation middleware with comprehensive security features
  */
 export function validateRequest(schema: ZodSchema) {
   return async (req: Request, res: Response, next: NextFunction) => {
+    const startTime = Date.now();
+    
     try {
-      // Validate and sanitize the request
+      // Step 1: Rate limiting check
+      const clientId = req.user?.uid || req.ip || 'anonymous';
+      const rateLimitKey = `${clientId}:${req.path}:${req.method}`;
+      
+      if (!SecurityValidator.checkRateLimit(rateLimitKey, 100, 60000)) { // 100 requests per minute
+        logger.warn("Rate limit exceeded during validation", {
+          clientId,
+          path: req.path,
+          method: req.method,
+          ip: req.ip,
+          userAgent: req.headers["user-agent"],
+        });
+
+        return res.status(429).json({
+          error: "Rate Limit Exceeded",
+          message: "Too many requests. Please slow down.",
+          code: "RATE_LIMIT_EXCEEDED",
+          retryAfter: 60,
+        });
+      }
+
+      // Step 2: Request size validation
+      const contentLength = parseInt(req.headers["content-length"] || "0");
+      if (contentLength > 50 * 1024 * 1024) { // 50MB limit
+        logger.warn("Request size exceeded during validation", {
+          size: contentLength,
+          path: req.path,
+          method: req.method,
+          ip: req.ip,
+        });
+
+        return res.status(413).json({
+          error: "Payload Too Large",
+          message: "Request size exceeds maximum allowed limit",
+          code: "PAYLOAD_TOO_LARGE",
+        });
+      }
+
+      // Step 3: Content Security Policy validation for text fields
+      const requestData = { ...req.body, ...req.query };
+      for (const [key, value] of Object.entries(requestData)) {
+        if (typeof value === 'string' && value.length > 0) {
+          if (!SecurityValidator.validateCSP(value)) {
+            logger.warn("CSP validation failed", {
+              field: key,
+              path: req.path,
+              method: req.method,
+              ip: req.ip,
+              suspiciousContent: value.substring(0, 100) + '...',
+            });
+
+            return res.status(400).json({
+              error: "Security Violation",
+              message: `Field '${key}' contains potentially dangerous content`,
+              code: "CSP_VIOLATION",
+            });
+          }
+        }
+      }
+
+      // Step 4: Validate and sanitize the request
       const validatedData = await schema.parseAsync({
         body: req.body,
         params: req.params,
@@ -218,27 +357,68 @@ export function validateRequest(schema: ZodSchema) {
         files: req.files,
       });
 
-      // Replace request data with validated/sanitized data
+      // Step 5: Additional security checks on validated data
+      if (validatedData.body) {
+        for (const [key, value] of Object.entries(validatedData.body)) {
+          if (typeof value === 'string') {
+            // Check for remaining dangerous patterns after sanitization
+            if (value.includes('<script') || value.includes('javascript:') || value.includes('data:text/html')) {
+              logger.error("Dangerous content found after sanitization", {
+                field: key,
+                path: req.path,
+                method: req.method,
+                ip: req.ip,
+                content: value.substring(0, 100),
+              });
+
+              return res.status(400).json({
+                error: "Security Error",
+                message: "Content contains dangerous patterns",
+                code: "DANGEROUS_CONTENT",
+              });
+            }
+          }
+        }
+      }
+
+      // Step 6: Replace request data with validated/sanitized data
       req.body = validatedData.body || {};
       req.params = validatedData.params || {};
       req.query = validatedData.query || {};
 
-      // Log successful validation in development
+      // Step 7: Log successful validation
+      const processingTime = Date.now() - startTime;
+      
       if (process.env.NODE_ENV === "development") {
         logger.debug("Request validation successful", {
           path: req.path,
           method: req.method,
           validatedFields: Object.keys(validatedData),
+          processingTimeMs: processingTime,
+          clientId,
+        });
+      }
+
+      // Track validation metrics
+      if (processingTime > 1000) {
+        logger.warn("Slow validation detected", {
+          path: req.path,
+          method: req.method,
+          processingTimeMs: processingTime,
+          clientId,
         });
       }
 
       next();
     } catch (error) {
+      const processingTime = Date.now() - startTime;
+      
       if (error instanceof ZodError) {
         const validationErrors = error.errors.map((err) => ({
           field: err.path.join("."),
           message: err.message,
           code: err.code,
+          receivedValue: (err as { input?: unknown }).input ? String((err as { input?: unknown }).input).substring(0, 100) : undefined,
         }));
 
         logger.warn("Request validation failed", {
@@ -247,26 +427,38 @@ export function validateRequest(schema: ZodSchema) {
           errors: validationErrors,
           ip: req.ip,
           userAgent: req.headers["user-agent"],
+          processingTimeMs: processingTime,
+          clientId: req.user?.uid || req.ip || 'anonymous',
         });
 
         return res.status(400).json({
           error: "Validation Error",
-          message: "Request contains invalid or malicious data",
-          details: validationErrors,
+          message: "Request contains invalid or potentially malicious data",
+          details: validationErrors.map(err => ({
+            field: err.field,
+            message: err.message,
+            code: err.code
+          })), // Don't include received values in response
           code: "VALIDATION_FAILED",
+          timestamp: new Date().toISOString(),
         });
       }
 
       logger.error("Validation middleware error", {
         error: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
         path: req.path,
         method: req.method,
+        ip: req.ip,
+        processingTimeMs: processingTime,
+        clientId: req.user?.uid || req.ip || 'anonymous',
       });
 
       return res.status(500).json({
         error: "Internal Server Error",
         message: "Validation processing failed",
         code: "VALIDATION_ERROR",
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -374,10 +566,12 @@ export function validateRequestSize(maxSize: number) {
   };
 }
 
-// Export commonly used validation combinations
+// Export enhanced validation combinations with comprehensive security
 export const validators = {
+  // Core CRUD operations with enhanced security
   uploadResume: validateRequest(validationSchemas.uploadResume),
   getResume: validateRequest(validationSchemas.getResume),
+  getResumes: validateRequest(validationSchemas.getResumes),
   createJob: validateRequest(validationSchemas.createJob),
   updateJob: validateRequest(validationSchemas.updateJob),
   analyzeResume: validateRequest(validationSchemas.analyzeResume),
@@ -385,21 +579,51 @@ export const validators = {
   generateQuestions: validateRequest(validationSchemas.generateQuestions),
   updateProfile: validateRequest(validationSchemas.updateProfile),
 
-  // Rate limits
-  rateLimitStrict: createRateLimit(60 * 1000, 10), // 10 requests per minute
-  rateLimitModerate: createRateLimit(60 * 1000, 30), // 30 requests per minute
-  rateLimitGenerous: createRateLimit(60 * 1000, 100), // 100 requests per minute
+  // Enhanced batch and search operations
+  batchUpload: validateRequest(validationSchemas.batchUpload),
+  searchResumes: validateRequest(validationSchemas.searchResumes),
 
-  // Content type validators
+  // Security-focused rate limits with different tiers
+  rateLimitCritical: createRateLimit(60 * 1000, 5), // 5 requests per minute for critical operations
+  rateLimitStrict: createRateLimit(60 * 1000, 10), // 10 requests per minute for sensitive operations
+  rateLimitModerate: createRateLimit(60 * 1000, 30), // 30 requests per minute for normal operations
+  rateLimitGenerous: createRateLimit(60 * 1000, 60), // 60 requests per minute for read operations
+  rateLimitBulk: createRateLimit(60 * 1000, 100), // 100 requests per minute for bulk operations
+
+  // Enhanced content type validators with security headers
+  jsonOnlySecure: [
+    validateContentType(["application/json"]),
+    (req: Request, res: Response, next: NextFunction) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      next();
+    }
+  ],
+  multipartOnlySecure: [
+    validateContentType(["multipart/form-data"]),
+    (req: Request, res: Response, next: NextFunction) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      next();
+    }
+  ],
+  jsonOrMultipartSecure: [
+    validateContentType(["application/json", "multipart/form-data"]),
+    (req: Request, res: Response, next: NextFunction) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      next();
+    }
+  ],
+
+  // Enhanced size validators with security logging
+  tinyRequest: validateRequestSize(64 * 1024), // 64KB for small API requests
+  smallRequest: validateRequestSize(1024 * 1024), // 1MB for forms
+  mediumRequest: validateRequestSize(10 * 1024 * 1024), // 10MB for single files
+  largeRequest: validateRequestSize(50 * 1024 * 1024), // 50MB for bulk operations
+  
+  // Legacy compatibility (deprecated - use enhanced versions above)
   jsonOnly: validateContentType(["application/json"]),
   multipartOnly: validateContentType(["multipart/form-data"]),
-  jsonOrMultipart: validateContentType([
-    "application/json",
-    "multipart/form-data",
-  ]),
-
-  // Size validators
-  smallRequest: validateRequestSize(1024 * 1024), // 1MB
-  mediumRequest: validateRequestSize(10 * 1024 * 1024), // 10MB
-  largeRequest: validateRequestSize(50 * 1024 * 1024), // 50MB
+  jsonOrMultipart: validateContentType(["application/json", "multipart/form-data"]),
 };

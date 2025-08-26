@@ -1,13 +1,19 @@
-import { db } from "../db";
+import { getDatabase } from "../database";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 
-// ES modules equivalent of __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ES modules equivalent of __dirname - handle both CommonJS and ES modules
+let currentDirPath: string;
+
+// In test environment or when __dirname is not available, use process.cwd()
+// This avoids syntax errors with import.meta.url in CommonJS environments
+if (process.env.NODE_ENV === 'test' || typeof __dirname === 'undefined') {
+  currentDirPath = path.join(process.cwd(), 'server', 'lib');
+} else {
+  currentDirPath = __dirname;
+}
 
 /**
  * Consolidated Database Migration System
@@ -20,7 +26,7 @@ interface Migration {
   filename: string;
 }
 
-// Available migrations in order
+// Available migrations in order (0000_baseline_schema excluded to prevent conflicts)
 const MIGRATIONS: Migration[] = [
   {
     version: "001_consolidated_schema",
@@ -43,6 +49,21 @@ const MIGRATIONS: Migration[] = [
     description: "Fix missing questions column in interview_questions table",
     filename: "002_fix_interview_questions_column.sql",
   },
+  {
+    version: "005_skill_memory_system",
+    description: "Create skill memory system tables for automated skill learning",
+    filename: "005_skill_memory_system.sql",
+  },
+  {
+    version: "006_remove_password_field",
+    description: "Remove legacy password field from users table (Firebase auth only)",
+    filename: "006_remove_password_field.sql",
+  },
+  {
+    version: "007_add_foreign_key_constraints",
+    description: "Add foreign key constraints and indexes for referential integrity",
+    filename: "007_add_foreign_key_constraints.sql",
+  },
 ];
 
 /**
@@ -50,10 +71,12 @@ const MIGRATIONS: Migration[] = [
  */
 async function isMigrationApplied(version: string): Promise<boolean> {
   try {
-    const result = await db.execute(sql`
+    const db = getDatabase();
+  const result = await db.execute(sql`
       SELECT 1 FROM schema_migrations WHERE version = ${version} LIMIT 1
     `);
-    return result.length > 0;
+  const queryResult = result as unknown as { rows?: unknown[] };
+  return !!(queryResult.rows && queryResult.rows.length > 0);
   } catch (error) {
     // If schema_migrations table doesn't exist, no migrations have been applied
     return false;
@@ -76,7 +99,7 @@ async function executeMigration(migration: Migration): Promise<void> {
     path.join(process.cwd(), "server", "migrations", migration.filename),
     // Alternative locations
     path.join(process.cwd(), "migrations", migration.filename),
-    path.join(__dirname, "..", "migrations", migration.filename),
+    path.join(currentDirPath, "..", "migrations", migration.filename),
   ];
 
   let migrationPath: string | null = null;
@@ -91,7 +114,7 @@ async function executeMigration(migration: Migration): Promise<void> {
     // Debug: List what files actually exist
     const debugInfo = {
       cwd: process.cwd(),
-      __dirname,
+      currentDirPath,
       possiblePaths,
       distContents: fs.existsSync(path.join(process.cwd(), "dist"))
         ? fs.readdirSync(path.join(process.cwd(), "dist"))
@@ -114,6 +137,7 @@ async function executeMigration(migration: Migration): Promise<void> {
 
   // Execute the entire migration as a single transaction
   try {
+    const db = getDatabase();
     await db.execute(sql.raw(migrationSQL));
     logger.info(`Migration ${migration.version} completed successfully`);
   } catch (error: unknown) {
@@ -130,6 +154,7 @@ export async function runMigrations(): Promise<void> {
     logger.info("Starting consolidated database migration system...");
 
     // Test database connection
+    const db = getDatabase();
     await db.execute(sql`SELECT 1`);
     logger.info("Database connection verified");
 
@@ -216,23 +241,26 @@ export async function getMigrationStatus(): Promise<{
   lastMigration?: { version: string; appliedAt: string };
 }> {
   try {
+    const db = getDatabase();
     const appliedResult = await db.execute(sql`
       SELECT version, applied_at 
       FROM schema_migrations 
       ORDER BY applied_at DESC
     `);
 
-    const appliedMigrations = appliedResult.map(
-      (row: Record<string, unknown>) => row.version as string,
+  const appliedQueryResult = appliedResult as unknown as { rows?: Array<{ version: string; applied_at: string }> };
+    const appliedMigrations = (appliedQueryResult.rows || []).map(
+      (row) => row.version,
     );
     const pendingMigrations = MIGRATIONS.filter(
       (m) => !appliedMigrations.includes(m.version),
     ).map((m) => m.version);
 
-    const lastMigration = appliedResult[0]
+    const rows = appliedQueryResult.rows || [];
+    const lastMigration = rows[0]
       ? {
-          version: appliedResult[0].version,
-          appliedAt: appliedResult[0].applied_at,
+          version: rows[0].version,
+          appliedAt: rows[0].applied_at,
         }
       : undefined;
 

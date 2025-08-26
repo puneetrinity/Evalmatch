@@ -7,63 +7,248 @@ import { Router, Request, Response } from "express";
 import { authenticateUser } from "../middleware/auth";
 import { secureUpload, validateUploadedFile } from "../middleware/upload";
 import { uploadRateLimiter } from "../middleware/rate-limiter";
+import { validators } from "../middleware/input-validation";
 import { logger } from "../lib/logger";
-import { storage } from "../storage";
+import { createResumeService } from "../services/resume-service";
+import { getStorage } from "../storage";
+import { isFailure } from "@shared/result-types";
+import { getErrorStatusCode, getErrorCode, getErrorMessage, getErrorTimestamp } from "@shared/type-utilities";
 
 const router = Router();
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     ResumeListResponse:
+ *       allOf:
+ *         - $ref: '#/components/schemas/ApiResponse'
+ *         - type: object
+ *           properties:
+ *             data:
+ *               type: object
+ *               properties:
+ *                 resumes:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Resume'
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page: { type: integer, example: 1 }
+ *                     limit: { type: integer, example: 20 }
+ *                     total: { type: integer, example: 45 }
+ *                     totalPages: { type: integer, example: 3 }
+ */
+
+/**
+ * @swagger
+ * /resumes:
+ *   get:
+ *     tags: [Resumes]
+ *     summary: Get all resumes for authenticated user
+ *     description: |
+ *       Retrieve all resumes uploaded by the authenticated user with optional filtering and pagination.
+ *       Supports filtering by file type, analysis status, session, and batch.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         description: Page number for pagination
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *           example: 1
+ *       - name: limit
+ *         in: query
+ *         description: Number of resumes per page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *           example: 20
+ *       - name: fileType
+ *         in: query
+ *         description: Filter by file type
+ *         schema:
+ *           type: string
+ *           enum: [pdf, docx, txt]
+ *           example: pdf
+ *       - name: hasAnalysis
+ *         in: query
+ *         description: Filter by analysis status
+ *         schema:
+ *           type: boolean
+ *           example: true
+ *       - name: sessionId
+ *         in: query
+ *         description: Filter by session ID
+ *         schema:
+ *           type: string
+ *           example: "session_123"
+ *       - name: batchId
+ *         in: query
+ *         description: Filter by batch ID
+ *         schema:
+ *           type: string
+ *           example: "batch_456"
+ *     responses:
+ *       200:
+ *         description: Resumes retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ResumeListResponse'
+ *             example:
+ *               success: true
+ *               data:
+ *                 resumes:
+ *                   - id: 123
+ *                     filename: "john_doe_resume.pdf"
+ *                     originalName: "John Doe Resume.pdf"
+ *                     fileSize: 245760
+ *                     mimeType: "application/pdf"
+ *                     status: "analyzed"
+ *                     uploadedAt: "2025-01-14T10:30:00.000Z"
+ *                     userId: "firebase_user_123"
+ *                 pagination:
+ *                   page: 1
+ *                   limit: 20
+ *                   total: 45
+ *                   totalPages: 3
+ *               timestamp: "2025-01-14T10:30:00.000Z"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       429:
+ *         $ref: '#/components/responses/RateLimitError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 // Get all resumes for the authenticated user
-router.get("/", authenticateUser, async (req: Request, res: Response) => {
+router.get("/", authenticateUser, validators.getResumes, async (req: Request, res: Response) => {
   try {
     const sessionId = req.query.sessionId as string;
     const batchId = req.query.batchId as string;
     const userId = req.user!.uid;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const fileType = req.query.fileType as string;
+    const hasAnalysis = req.query.hasAnalysis === 'true' ? true : req.query.hasAnalysis === 'false' ? false : undefined;
 
-    logger.info(
-      `Getting resumes for user ${userId}${sessionId ? ` (session: ${sessionId})` : ""}${batchId ? ` (batch: ${batchId})` : ""}`,
-    );
-
-    const resumes = await storage.getResumesByUserId(
+    // Create ResumeService instance with current storage
+    const storage = getStorage();
+    const resumeServiceInstance = createResumeService(storage);
+    
+    // Use ResumeService to get user's resumes
+    const result = await resumeServiceInstance.getUserResumes({
       userId,
       sessionId,
       batchId,
-    );
+      page,
+      limit,
+      fileType,
+      hasAnalysis
+    });
 
-    // Transform resume data to match API contract
-    const transformedResumes = (resumes || []).map(resume => ({
-      id: resume.id,
-      filename: resume.filename,
-      fileSize: resume.fileSize,
-      fileType: resume.fileType,
-      uploadedAt: resume.createdAt?.toISOString() || new Date().toISOString(),
-      analyzedData: resume.analyzedData ? {
-        skills: resume.analyzedData.skills || [],
-        experience: resume.analyzedData.experience || "0 years",
-        education: resume.analyzedData.education || [],
-      } : undefined,
-    }));
+    if (isFailure(result)) {
+      const statusCode = getErrorStatusCode(result.error, 500);
+      return res.status(statusCode).json({
+        success: false,
+        error: getErrorCode(result.error),
+        message: getErrorMessage(result.error),
+        timestamp: getErrorTimestamp(result.error)
+      });
+    }
+
+    const resumeData = result.data;
 
     res.json({
       success: true,
       data: {
-        resumes: transformedResumes,
-        totalCount: transformedResumes.length,
+        resumes: resumeData.resumes,
+        pagination: resumeData.pagination,
+        totalCount: resumeData.pagination.total,
+        metadata: resumeData.metadata
       },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    logger.error("Failed to get resumes:", error);
+    logger.error("Resume retrieval route failed:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to retrieve resumes",
-      message: error instanceof Error ? error.message : "Unknown error",
+      error: "ROUTE_ERROR",
+      message: "Failed to retrieve resumes",
       timestamp: new Date().toISOString(),
     });
   }
 });
 
+/**
+ * @swagger
+ * /resumes/{id}:
+ *   get:
+ *     tags: [Resumes]
+ *     summary: Get specific resume by ID
+ *     description: |
+ *       Retrieve a specific resume by its ID. Only the owner of the resume can access it.
+ *       Returns full resume details including extracted content.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/ResumeId'
+ *     responses:
+ *       200:
+ *         description: Resume retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         resume:
+ *                           $ref: '#/components/schemas/Resume'
+ *             example:
+ *               success: true
+ *               data:
+ *                 resume:
+ *                   id: 123
+ *                   filename: "john_doe_resume.pdf"
+ *                   originalName: "John Doe Resume.pdf"
+ *                   content: "John Doe\nSoftware Engineer\n5 years of experience..."
+ *                   fileSize: 245760
+ *                   mimeType: "application/pdf"
+ *                   status: "analyzed"
+ *                   uploadedAt: "2025-01-14T10:30:00.000Z"
+ *                   userId: "firebase_user_123"
+ *               timestamp: "2025-01-14T10:30:00.000Z"
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       404:
+ *         description: Resume not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *             example:
+ *               success: false
+ *               error:
+ *                 code: "RESUME_NOT_FOUND"
+ *                 message: "Resume not found or access denied"
+ *               timestamp: "2025-01-14T10:30:00.000Z"
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 // Get specific resume by ID
-router.get("/:id", authenticateUser, async (req: Request, res: Response) => {
+router.get("/:id", authenticateUser, validators.getResume, async (req: Request, res: Response) => {
   try {
     const resumeId = parseInt(req.params.id);
     const userId = req.user!.uid;
@@ -71,227 +256,307 @@ router.get("/:id", authenticateUser, async (req: Request, res: Response) => {
     if (isNaN(resumeId)) {
       return res.status(400).json({
         success: false,
-        error: "Invalid resume ID",
+        error: "VALIDATION_ERROR",
         message: "Resume ID must be a number",
         timestamp: new Date().toISOString(),
       });
     }
 
-    logger.info(`Getting resume ${resumeId} for user ${userId}`);
+    // Create ResumeService instance with current storage
+    const storage = getStorage();
+    const resumeServiceInstance = createResumeService(storage);
+    
+    // Use ResumeService to get resume by ID
+    const result = await resumeServiceInstance.getResumeById(userId, resumeId);
 
-    const resume = await storage.getResumeById(resumeId, userId);
-
-    if (!resume) {
-      return res.status(404).json({
+    if (isFailure(result)) {
+      const statusCode = getErrorStatusCode(result.error, 500);
+      return res.status(statusCode).json({
         success: false,
-        error: "Resume not found",
-        message: "Resume not found or you don't have permission to access it",
-        timestamp: new Date().toISOString(),
+        error: getErrorCode(result.error),
+        message: getErrorMessage(result.error),
+        timestamp: getErrorTimestamp(result.error)
       });
     }
 
     res.json({
       success: true,
-      data: resume,
+      data: result.data,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    logger.error("Failed to get resume:", error);
+    logger.error("Resume by ID retrieval route failed:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to retrieve resume",
-      message: error instanceof Error ? error.message : "Unknown error",
+      error: "ROUTE_ERROR",
+      message: "Failed to retrieve resume",
       timestamp: new Date().toISOString(),
     });
   }
 });
 
 // Upload and analyze new resume
+/**
+ * @swagger
+ * /resumes:
+ *   post:
+ *     tags: [Resumes]
+ *     summary: Upload a resume
+ *     description: |
+ *       Upload a resume file for processing and analysis. Supports PDF, DOCX, and TXT formats.
+ *       Files are automatically processed and analyzed unless explicitly disabled.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Resume file (PDF, DOCX, or TXT)
+ *               sessionId:
+ *                 type: string
+ *                 description: Optional session identifier for grouping uploads
+ *                 example: "session_123"
+ *               batchId:
+ *                 type: string
+ *                 description: Optional batch identifier for bulk operations
+ *                 example: "batch_456"
+ *               autoAnalyze:
+ *                 type: boolean
+ *                 description: Whether to automatically analyze the resume after upload
+ *                 default: true
+ *                 example: true
+ *             required:
+ *               - file
+ *           encoding:
+ *             file:
+ *               contentType: application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain
+ *     responses:
+ *       200:
+ *         description: Resume uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         resume:
+ *                           $ref: '#/components/schemas/Resume'
+ *                         processing:
+ *                           type: object
+ *                           properties:
+ *                             contentExtracted: { type: boolean, example: true }
+ *                             analysisStarted: { type: boolean, example: true }
+ *                             estimatedTime: { type: string, example: "30 seconds" }
+ *             example:
+ *               success: true
+ *               data:
+ *                 resume:
+ *                   id: 124
+ *                   filename: "new_resume.pdf"
+ *                   originalName: "New Resume.pdf"
+ *                   fileSize: 245760
+ *                   mimeType: "application/pdf"
+ *                   status: "processing"
+ *                   uploadedAt: "2025-01-14T10:35:00.000Z"
+ *                   userId: "firebase_user_123"
+ *                 processing:
+ *                   contentExtracted: true
+ *                   analysisStarted: true
+ *                   estimatedTime: "30 seconds"
+ *               timestamp: "2025-01-14T10:35:00.000Z"
+ *       400:
+ *         description: Invalid file or validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *             examples:
+ *               noFile:
+ *                 summary: No file provided
+ *                 value:
+ *                   success: false
+ *                   error:
+ *                     code: "VALIDATION_ERROR"
+ *                     message: "Please select a resume file to upload"
+ *                   timestamp: "2025-01-14T10:35:00.000Z"
+ *               invalidFormat:
+ *                 summary: Unsupported file format
+ *                 value:
+ *                   success: false
+ *                   error:
+ *                     code: "FILE_FORMAT_ERROR"
+ *                     message: "Only PDF, DOCX, and TXT files are supported"
+ *                   timestamp: "2025-01-14T10:35:00.000Z"
+ *               fileTooLarge:
+ *                 summary: File size exceeds limit
+ *                 value:
+ *                   success: false
+ *                   error:
+ *                     code: "FILE_TOO_LARGE"
+ *                     message: "File size cannot exceed 10MB"
+ *                   timestamp: "2025-01-14T10:35:00.000Z"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       413:
+ *         description: File too large
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       429:
+ *         $ref: '#/components/responses/RateLimitError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 router.post(
   "/",
   authenticateUser,
   uploadRateLimiter,
   secureUpload.single("file"),
   validateUploadedFile,
+  validators.uploadResume,
   async (req: Request, res: Response) => {
     const file = req.file;
     const userId = req.user!.uid;
-    const sessionId =
-      req.body.sessionId || (req.headers["x-session-id"] as string);
-
-    // Generate batch ID if not provided by client
-    let batchId = req.body.batchId || (req.headers["x-batch-id"] as string);
-    const batchIdProvided = !!batchId;
-
-    if (!batchId) {
-      batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      logger.info(`Generated batch ID for single resume upload`, {
-        userId,
-        batchId,
-        filename: file?.originalname,
-      });
-    } else {
-      logger.info(`Using client-provided batch ID for single resume upload`, {
-        userId,
-        batchId,
-        filename: file?.originalname,
-      });
-    }
+    const sessionId = req.body.sessionId || (req.headers["x-session-id"] as string);
+    const batchId = req.body.batchId || (req.headers["x-batch-id"] as string);
+    const autoAnalyze = req.body.autoAnalyze !== 'false'; // Default to true
 
     if (!file) {
       return res.status(400).json({
         success: false,
-        error: "No file uploaded",
+        error: "VALIDATION_ERROR",
         message: "Please select a resume file to upload",
         timestamp: new Date().toISOString(),
       });
     }
 
     try {
-      logger.info(`Processing resume upload for user ${userId}`, {
-        filename: file.originalname,
-        size: file.size,
-        mimetype: file.mimetype,
-        sessionId,
-        batchId,
-        batchIdGenerated: !batchIdProvided,
-      });
-
-      // Parse document content
-      const { parseDocument } = await import("../lib/document-parser");
-
-      // Read file into buffer (since we're using disk storage)
-      const fileBuffer =
-        file.buffer ||
-        (await import("fs").then((fs) => fs.promises.readFile(file.path!)));
-      const content = await parseDocument(fileBuffer, file.mimetype);
-
-      if (!content || content.trim().length === 0) {
+      // ROBUST FILE READING: Handle diskStorage multer files with comprehensive error handling
+      let fileBuffer: Buffer;
+      
+      if (file.buffer) {
+        // Memory storage (unlikely but handle gracefully)
+        fileBuffer = file.buffer;
+        logger.info("Using file buffer from memory storage", { filename: file.originalname });
+      } else if (file.path) {
+        // Disk storage - read from filesystem with robust error handling
+        try {
+          const fs = await import("fs");
+          
+          // Verify file exists and is accessible before reading
+          await fs.promises.access(file.path, fs.constants.R_OK);
+          
+          // Get file stats to ensure it's a valid file
+          const stats = await fs.promises.stat(file.path);
+          if (!stats.isFile() || stats.size === 0) {
+            throw new Error(`Invalid file: size=${stats.size}, isFile=${stats.isFile()}`);
+          }
+          
+          // Read file with proper error handling
+          fileBuffer = await fs.promises.readFile(file.path);
+          
+          logger.info("Successfully read file from disk storage", { 
+            filename: file.originalname,
+            path: file.path,
+            size: stats.size,
+            actualSize: fileBuffer.length
+          });
+          
+        } catch (fileError) {
+          logger.error("Failed to read uploaded file from disk", {
+            filename: file.originalname,
+            filePath: file.path,
+            error: fileError instanceof Error ? fileError.message : 'Unknown error',
+            userId
+          });
+          
+          return res.status(400).json({
+            success: false,
+            error: "FILE_READ_ERROR",
+            message: "Unable to process uploaded file. Please try uploading again.",
+            details: `File reading failed: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      } else {
+        logger.error("No file buffer or path available", { 
+          filename: file.originalname,
+          hasBuffer: !!file.buffer,
+          hasPath: !!file.path,
+          userId
+        });
+        
         return res.status(400).json({
           success: false,
-          error: "Unable to parse resume",
-          message:
-            "The uploaded file appears to be empty or in an unsupported format",
+          error: "INVALID_FILE_STATE",
+          message: "File upload failed - no accessible file data",
           timestamp: new Date().toISOString(),
         });
       }
 
-      // Get user tier for AI analysis
-      const { getUserTierInfo } = await import("../lib/user-tiers");
-      const userTierInfo = getUserTierInfo(userId);
+      // Create ResumeService instance with current storage
+      const storage = getStorage();
+      const resumeServiceInstance = createResumeService(storage);
+      
+      // Use ResumeService to upload and process resume
+      const result = await resumeServiceInstance.uploadResume({
+        userId,
+        file: {
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+          buffer: fileBuffer
+        },
+        sessionId,
+        batchId,
+        autoAnalyze
+      });
 
-      // Analyze resume with AI
-      const { analyzeResumeParallel } = await import(
-        "../lib/tiered-ai-provider"
-      );
-      const analysis = await analyzeResumeParallel(content, userTierInfo);
-
-      // Generate embeddings for the resume content and skills
-      let contentEmbedding: number[] | null = null;
-      let skillsEmbedding: number[] | null = null;
-
-      try {
-        const { generateEmbedding } = await import("../lib/embeddings");
-        
-        // Generate embedding for full resume content
-        contentEmbedding = await generateEmbedding(content);
-        logger.info(`Generated content embedding (${contentEmbedding.length} dimensions)`, {
-          userId,
-          filename: file.originalname,
-        });
-
-        // Generate embedding for skills if available
-        if (analysis.analyzedData?.skills && analysis.analyzedData.skills.length > 0) {
-          const skillsText = analysis.analyzedData.skills.join(", ");
-          skillsEmbedding = await generateEmbedding(skillsText);
-          logger.info(`Generated skills embedding (${skillsEmbedding.length} dimensions)`, {
-            userId,
-            filename: file.originalname,
-            skillsCount: analysis.analyzedData.skills.length,
-          });
-        }
-      } catch (embeddingError) {
-        logger.warn("Failed to generate embeddings, resume will be stored without embeddings:", {
-          userId,
-          filename: file.originalname,
-          error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
+      if (isFailure(result)) {
+        const statusCode = getErrorStatusCode(result.error, 500);
+        return res.status(statusCode).json({
+          success: false,
+          error: getErrorCode(result.error),
+          message: getErrorMessage(result.error),
+          timestamp: getErrorTimestamp(result.error)
         });
       }
 
-      // Create resume record
-      const resumeData = {
-        userId,
-        sessionId,
-        batchId,
-        filename: file.originalname,
-        fileSize: file.size,
-        fileType: file.mimetype,
-        content,
-        skills: analysis.analyzedData?.skills || [],
-        experience: analysis.analyzedData?.experience || "0 years", // JSON string
-        education: analysis.analyzedData?.education || [], // JSON array
-        analyzedData: analysis.analyzedData,
-        embedding: contentEmbedding,
-        skillsEmbedding: skillsEmbedding,
-      };
-
-      const resume = await storage.createResume(resumeData);
-
-      logger.info(`Resume uploaded and analyzed successfully`, {
-        resumeId: resume.id,
-        userId,
-        skillsCount: analysis.skills?.length || 0,
-      });
+      const resumeData = result.data;
 
       res.json({
         success: true,
         data: {
-          id: resume.id,
-          filename: resume.filename,
-          fileSize: resume.fileSize,
-          fileType: resume.fileType,
-          message: "Resume uploaded and analyzed successfully",
-          processingTime:
-            Date.now() -
-            (resume.createdAt
-              ? new Date(resume.createdAt).getTime()
-              : Date.now()),
+          id: resumeData.id,
+          filename: resumeData.filename,
+          fileSize: resumeData.fileSize,
+          fileType: resumeData.fileType,
+          uploadedAt: resumeData.uploadedAt,
+          extractedText: resumeData.extractedText,
+          analyzedData: resumeData.analyzedData,
+          warnings: resumeData.warnings,
+          processingTime: resumeData.processingTime,
+          message: "Resume uploaded and processed successfully"
         },
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      logger.error("Resume upload/analysis failed:", error);
-
-      // Provide specific error messages
-      if (error instanceof Error) {
-        if (error.message.includes("document parsing")) {
-          return res.status(400).json({
-            success: false,
-            error: "Document parsing failed",
-            message:
-              "Unable to extract text from the uploaded file. Please ensure it's a valid PDF, Word document, or image.",
-            timestamp: new Date().toISOString(),
-          });
-        }
-
-        if (error.message.includes("AI analysis")) {
-          return res.status(503).json({
-            success: false,
-            error: "Analysis service unavailable",
-            message:
-              "The resume analysis service is temporarily unavailable. Please try again later.",
-            timestamp: new Date().toISOString(),
-          });
-        }
-      }
-
+      logger.error("Resume upload route failed:", error);
       res.status(500).json({
         success: false,
-        error: "Resume processing failed",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unknown error occurred during resume processing",
+        error: "ROUTE_ERROR",
+        message: "Failed to process resume upload",
         timestamp: new Date().toISOString(),
       });
     }
@@ -304,325 +569,135 @@ router.post(
   authenticateUser,
   uploadRateLimiter,
   secureUpload.array("files", 10), // Max 10 files
+  validators.rateLimitModerate,
   async (req: Request, res: Response) => {
     const files = req.files as Express.Multer.File[];
     const userId = req.user!.uid;
-    const sessionId =
-      req.body.sessionId || (req.headers["x-session-id"] as string);
+    const sessionId = req.body.sessionId || (req.headers["x-session-id"] as string);
+    const batchId = req.body.batchId || (req.headers["x-batch-id"] as string);
+    const autoAnalyze = req.body.autoAnalyze !== 'false'; // Default to true
 
     if (!files || files.length === 0) {
       return res.status(400).json({
         success: false,
-        error: "No files uploaded",
+        error: "VALIDATION_ERROR",
         message: "Please select resume files to upload",
         timestamp: new Date().toISOString(),
       });
     }
 
-    const batchStartTime = Date.now();
-    // Generate unique batch ID for this upload
-    let batchId = req.body.batchId || (req.headers["x-batch-id"] as string);
     try {
-      logger.info("Starting batch resume upload processing", {
-        userId,
-        fileCount: files.length,
-        sessionId: sessionId || null,
-        fileDetails: files.map((f) => ({
-          originalname: f.originalname,
-          mimetype: f.mimetype,
-          size: f.size,
-        })),
-        startTime: new Date(batchStartTime).toISOString(),
-      });
-      const batchIdProvided = !!batchId;
-
-      if (!batchId) {
-        batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        logger.info("Generated batch ID for batch resume upload", {
-          userId,
-          batchId,
-          fileCount: files.length,
-          sessionId: sessionId || null,
-        });
-      } else {
-        logger.info("Using client-provided batch ID for batch resume upload", {
-          userId,
-          batchId,
-          fileCount: files.length,
-          sessionId: sessionId || null,
-        });
-      }
-
-      // Get user tier info
-      const { getUserTierInfo } = await import("../lib/user-tiers");
-      const userTierInfo = getUserTierInfo(userId);
-
-      // Parse document content from each file
-      const { parseDocument } = await import("../lib/document-parser");
-      const resumeInputs: Array<{
-        filename: string;
-        fileSize: number;
-        fileType: string;
-        content: string;
+      // Convert multer files to ResumeService expected format
+      const processedFiles: Array<{
+        originalname: string;
+        mimetype: string;
+        size: number;
+        buffer: Buffer;
       }> = [];
 
-      // Process each file to extract content
       for (const file of files) {
         try {
-          // Read file into buffer (since we're using disk storage)
-          const fileBuffer =
-            file.buffer ||
-            (await import("fs").then((fs) => fs.promises.readFile(file.path!)));
-          const content = await parseDocument(fileBuffer, file.mimetype);
-
-          if (!content || content.trim().length === 0) {
-            logger.warn(`Skipping empty file: ${file.originalname}`);
-            continue;
+          // ROBUST FILE READING for batch uploads
+          let fileBuffer: Buffer;
+          
+          if (file.buffer) {
+            fileBuffer = file.buffer;
+          } else if (file.path) {
+            const fs = await import("fs");
+            
+            // Verify file exists and is accessible
+            await fs.promises.access(file.path, fs.constants.R_OK);
+            const stats = await fs.promises.stat(file.path);
+            
+            if (!stats.isFile() || stats.size === 0) {
+              throw new Error(`Invalid file: ${file.originalname}`);
+            }
+            
+            fileBuffer = await fs.promises.readFile(file.path);
+          } else {
+            throw new Error(`No file data available for: ${file.originalname}`);
           }
-
-          resumeInputs.push({
-            filename: file.originalname,
-            fileSize: file.size,
-            fileType: file.mimetype,
-            content,
+          
+          processedFiles.push({
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+            buffer: fileBuffer
           });
-        } catch (error) {
-          logger.error(`Error parsing file ${file.originalname}:`, error);
-          // Continue processing other files
+          
+        } catch (fileError) {
+          logger.error("Failed to read file in batch upload", {
+            filename: file.originalname,
+            error: fileError instanceof Error ? fileError.message : 'Unknown error',
+            userId
+          });
+          
+          // For batch uploads, we can skip failed files and continue
+          // The batch service will handle individual file failures
+          continue;
         }
       }
 
-      if (resumeInputs.length === 0) {
-        return res.status(400).json({
+      // Create ResumeService instance with current storage
+      const storage = getStorage();
+      const resumeServiceInstance = createResumeService(storage);
+      
+      // Use ResumeService to upload batch of resumes
+      const result = await resumeServiceInstance.uploadResumesBatch({
+        userId,
+        files: processedFiles,
+        sessionId,
+        batchId,
+        autoAnalyze
+      });
+
+      if (isFailure(result)) {
+        const statusCode = getErrorStatusCode(result.error, 500);
+        return res.status(statusCode).json({
           success: false,
-          error: "No valid files to process",
-          message:
-            "All uploaded files appear to be empty or in unsupported formats",
-          timestamp: new Date().toISOString(),
+          error: getErrorCode(result.error),
+          message: getErrorMessage(result.error),
+          timestamp: getErrorTimestamp(result.error)
         });
       }
 
-      // Create resume records in database first
-      const createdResumes = await Promise.all(
-        resumeInputs.map(async (input) => {
-          try {
-            const resumeData = {
-              userId,
-              sessionId,
-              batchId,
-              filename: input.filename,
-              fileSize: input.fileSize,
-              fileType: input.fileType,
-              content: input.content,
-              skills: [], // Will be populated by analysis
-              experience: "0 years", // Will be populated by analysis
-              education: [], // Will be populated by analysis
-              analyzedData: null, // Will be populated by analysis
-            };
-
-            const resume = await storage.createResume(resumeData);
-            return {
-              id: resume.id,
-              content: input.content,
-              filename: input.filename,
-              success: true,
-            };
-          } catch (error) {
-            logger.error(
-              `Error creating resume record for ${input.filename}:`,
-              error,
-            );
-            return {
-              id: -1,
-              content: input.content,
-              filename: input.filename,
-              success: false,
-              error: error instanceof Error ? error.message : "Unknown error",
-            };
-          }
-        }),
-      );
-
-      // Filter out failed resume creations
-      const successfulResumes = createdResumes.filter((r) => r.success);
-      const failedResumes = createdResumes.filter((r) => !r.success);
-
-      if (successfulResumes.length === 0) {
-        return res.status(500).json({
-          success: false,
-          error: "Failed to create resume records",
-          message: "Could not save any resumes to the database",
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      // Build BatchResumeInput array for the batch processor
-      const batchResumeInputs = successfulResumes.map((resume) => ({
-        id: resume.id,
-        content: resume.content,
-        filename: resume.filename,
-      }));
-
-      logger.info("Starting batch AI analysis processing", {
-        userId,
-        batchId,
-        resumesToProcess: batchResumeInputs.length,
-        userTier: {
-          name: userTierInfo.name,
-          model: userTierInfo.model,
-          maxConcurrency: userTierInfo.maxConcurrency,
-        },
-        resumeDetails: batchResumeInputs.map((r) => ({
-          id: r.id,
-          filename: r.filename,
-          contentLength: r.content?.length || 0,
-        })),
-      });
-
-      // Process resumes with AI analysis using the correct function signature
-      const { processBatchResumes } = await import("../lib/batch-processor");
-      const batchProcessStartTime = Date.now();
-      const batchResult = await processBatchResumes(
-        batchResumeInputs,
-        userTierInfo,
-      );
-      const batchProcessTime = Date.now() - batchProcessStartTime;
-
-      logger.info("Batch AI analysis completed", {
-        userId,
-        batchId,
-        processedCount: batchResult.processed,
-        errorCount: batchResult.errors.length,
-        batchProcessTime,
-        totalBatchTime: batchResult.timeTaken,
-        successRate: Math.round(
-          (batchResult.processed / batchResumeInputs.length) * 100,
-        ),
-      });
-
-      // Prepare results compatible with the existing response format
-      const results = [
-        ...successfulResumes.map((resume) => ({
-          success: true as const,
-          filename: resume.filename,
-          resumeId: resume.id,
-          analysis: null, // Analysis results are stored in database by batch processor
-        })),
-        ...failedResumes.map((resume) => ({
-          success: false as const,
-          filename: resume.filename,
-          resumeId: undefined,
-          analysis: null,
-          error: resume.error || "Failed to create resume record",
-        })),
-      ];
-
-      const successful = results.filter((r) => r.success);
-      const failed = results.filter((r) => !r.success);
-
-      const totalBatchTime = Date.now() - batchStartTime;
-
-      logger.info("Batch upload completed successfully", {
-        userId,
-        batchId,
-        sessionId: sessionId || null,
-        batchIdGenerated: !batchIdProvided,
-        fileProcessing: {
-          total: files.length,
-          successful: successful.length,
-          failed: failed.length,
-          successRate: Math.round((successful.length / files.length) * 100),
-        },
-        aiAnalysisResult: {
-          processed: batchResult.processed,
-          analysisErrors: batchResult.errors.length,
-          analysisTime: batchResult.timeTaken,
-          analysisSuccessRate: Math.round(
-            (batchResult.processed / batchResumeInputs.length) * 100,
-          ),
-        },
-        timing: {
-          totalBatchTime,
-          avgTimePerFile: Math.round(totalBatchTime / files.length),
-          filesPerSecond: Math.round((files.length / totalBatchTime) * 1000),
-        },
-        userTier: userTierInfo.name,
-        endTime: new Date().toISOString(),
-      });
-
-      if (failed.length > 0) {
-        logger.warn("Some files failed processing", {
-          userId,
-          batchId,
-          failedCount: failed.length,
-          failures: failed.map((f) => ({
-            filename: f.filename,
-            error: (f as any).error,
-          })),
-        });
-      }
-
-      if (batchResult.errors.length > 0) {
-        logger.warn("Some AI analyses failed", {
-          userId,
-          batchId,
-          analysisErrorCount: batchResult.errors.length,
-          analysisErrors: batchResult.errors.map((e) => ({
-            resumeId: e.id,
-            error: e.error,
-          })),
-        });
-      }
+      const batchData = result.data;
 
       res.json({
         success: true,
         data: {
-          batchId,
-          message: `Processed ${files.length} files: ${successful.length} successful, ${failed.length} failed`,
+          batchId: batchData.batchId,
+          message: `Processed ${batchData.statistics.total} files: ${batchData.statistics.successful} successful, ${batchData.statistics.failed} failed`,
           results: {
-            successful: successful.map((r) => ({
+            successful: batchData.successful.map((r) => ({
               filename: r.filename,
-              resumeId: r.resumeId,
-              skillsCount: 0, // Skills will be populated by the batch processor
+              resumeId: r.id,
+              fileSize: r.fileSize,
+              processingTime: r.processingTime,
+              hasAnalysis: !!r.analyzedData
             })),
-            failed: failed.map((r) => ({
-              filename: r.filename,
-              error: (r as any).error,
-            })),
+            failed: batchData.failed.map((f) => ({
+              filename: f.filename,
+              error: f.error,
+              reason: f.reason
+            }))
           },
           summary: {
-            totalFiles: files.length,
-            successfulUploads: successful.length,
-            failedUploads: failed.length,
-            batchAnalysisResult: {
-              processed: batchResult.processed,
-              timeTaken: batchResult.timeTaken,
-              analysisErrors: batchResult.errors.length,
-            },
-          },
+            totalFiles: batchData.statistics.total,
+            successfulUploads: batchData.statistics.successful,
+            failedUploads: batchData.statistics.failed,
+            totalSize: batchData.statistics.totalSize,
+            processingTime: batchData.statistics.processingTime
+          }
         },
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      const totalBatchTime = Date.now() - batchStartTime;
-
-      logger.error("Batch resume upload failed catastrophically", {
-        userId,
-        batchId: batchId || "not_generated",
-        sessionId: sessionId || null,
-        fileCount: files?.length || 0,
-        totalBatchTime,
-        error: error instanceof Error ? error.message : "Unknown error",
-        errorStack: error instanceof Error ? error.stack : undefined,
-      });
-
+      logger.error("Batch resume upload route failed:", error);
       res.status(500).json({
         success: false,
-        error: "Batch upload failed",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unknown error occurred during batch processing",
+        error: "ROUTE_ERROR",
+        message: "Failed to process batch resume upload",
         timestamp: new Date().toISOString(),
       });
     }

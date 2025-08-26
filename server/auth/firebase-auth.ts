@@ -8,7 +8,6 @@
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getAuth, Auth } from "firebase-admin/auth";
 import { config } from "../config/unified-config";
-import { logger } from "../config/logger";
 import { serverAuthLogger } from "../lib/auth-logger";
 
 // Firebase Admin instances
@@ -82,19 +81,39 @@ export async function initializeFirebaseAuth(): Promise<void> {
       }
     }
 
-    // Parse service account credentials
-    let credentials;
-    try {
-      credentials = JSON.parse(config.firebase.serviceAccountKey!);
-    } catch (e) {
-      const error = "Invalid FIREBASE_SERVICE_ACCOUNT_KEY - not valid JSON";
-      authStatus.error = error;
-      throw new Error(error);
+    // Use service account credentials (already parsed by unified config)
+    const credentials = config.firebase.serviceAccountKey;
+
+    // SECURITY FIX: Safe debug logging - no sensitive data exposure
+    serverAuthLogger.info("Firebase credentials debug", {
+      operation: "firebase_init_debug",
+      hasCredentials: !!credentials,
+      credentialsType: typeof credentials,
+      // Only log safe metadata, never actual credentials
+      configuredCorrectly: !!(credentials && config.firebase.projectId),
+    });
+    
+    // REMOVED: No debug console.log that could expose sensitive Firebase config
+    // Previously logged private keys, client emails, and other sensitive data
+
+    if (!credentials) {
+      throw new Error("Firebase service account credentials are null");
     }
 
     // Initialize Firebase Admin
+    // Coerce config credentials to the firebase-admin ServiceAccount shape
+    let sa: unknown = credentials;
+    if (typeof credentials === "string") {
+      try {
+        sa = JSON.parse(credentials);
+      } catch {
+        // leave as string; cert can also take a path string
+        sa = credentials;
+      }
+    }
     adminApp = initializeApp({
-      credential: cert(credentials),
+      // cert() accepts a ServiceAccount object or a path string; we safely coerce here
+      credential: cert(sa as string | object),
       projectId: config.firebase.projectId!,
     });
 
@@ -202,21 +221,26 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
       displayName: decodedToken.name,
       photoURL: decodedToken.picture,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     authStatus.failedVerifications++;
 
+    // Type guard for Firebase errors
+    const isFirebaseError = (err: unknown): err is { code: string } => {
+      return typeof err === 'object' && err !== null && 'code' in err;
+    };
+
     // Log different error types with appropriate levels
-    if (error.code === "auth/id-token-expired") {
+    if (isFirebaseError(error) && error.code === "auth/id-token-expired") {
       serverAuthLogger.debug("Token expired (normal occurrence)", {
         operation: "verify_token",
         errorCode: error.code,
       });
-    } else if (error.code === "auth/id-token-revoked") {
+    } else if (isFirebaseError(error) && error.code === "auth/id-token-revoked") {
       serverAuthLogger.warn("Token revoked", {
         operation: "verify_token",
         errorCode: error.code,
       });
-    } else if (error.code === "auth/invalid-id-token") {
+    } else if (isFirebaseError(error) && error.code === "auth/invalid-id-token") {
       serverAuthLogger.warn("Invalid token format", {
         operation: "verify_token",
         errorCode: error.code,
@@ -224,7 +248,7 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
     } else {
       serverAuthLogger.error("Token verification failed", error, {
         operation: "verify_token",
-        errorCode: error.code,
+        errorCode: isFirebaseError(error) ? error.code : 'unknown',
       });
     }
 
@@ -261,11 +285,16 @@ export async function getFirebaseUser(uid: string) {
         lastSignInTime: userRecord.metadata.lastSignInTime,
       },
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    // Type guard for Firebase errors
+    const isFirebaseError = (err: unknown): err is { code: string } => {
+      return typeof err === 'object' && err !== null && 'code' in err;
+    };
+
     serverAuthLogger.error("Failed to get Firebase user", error, {
       operation: "get_user",
       uid: uid,
-      errorCode: error.code,
+      errorCode: isFirebaseError(error) ? error.code : 'unknown',
     });
     return null;
   }

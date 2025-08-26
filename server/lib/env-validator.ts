@@ -43,7 +43,7 @@ interface EnvVarSpec {
     | "ai"
     | "security"
     | "performance";
-  validator?: (value: string) => boolean;
+  validator?: (_value: string) => boolean;
   description: string;
   example?: string;
   securityLevel: "public" | "private" | "secret";
@@ -101,7 +101,7 @@ const ENV_SPECS: EnvVarSpec[] = [
   },
   {
     name: "FIREBASE_SERVICE_ACCOUNT_KEY",
-    required: true,
+    required: false, // Made optional since we now support base64 alternative
     category: "firebase",
     validator: (val) => {
       try {
@@ -120,7 +120,31 @@ const ENV_SPECS: EnvVarSpec[] = [
     example:
       '{"type":"service_account","project_id":"...","private_key":"..."}',
     securityLevel: "secret",
-    productionRequired: true,
+    productionRequired: false, // Now optional due to base64 alternative
+    testMode: true,
+  },
+  {
+    name: "FIREBASE_SERVICE_ACCOUNT_KEY_BASE64",
+    required: false, // Made optional - either this OR the JSON version is needed
+    category: "firebase",
+    validator: (val) => {
+      try {
+        const decoded = Buffer.from(val, 'base64').toString('utf8');
+        const parsed = JSON.parse(decoded);
+        return !!(
+          parsed.type &&
+          parsed.project_id &&
+          parsed.private_key &&
+          parsed.client_email
+        );
+      } catch {
+        return false;
+      }
+    },
+    description: "Firebase Admin SDK service account JSON (base64 encoded)",
+    example: "base64-encoded-service-account-json",
+    securityLevel: "secret",
+    productionRequired: false, // Custom validation below
     testMode: true,
   },
 
@@ -334,6 +358,14 @@ export function validateEnvironment(): EnvValidationResult {
     const value = process.env[spec.name];
     const isEmpty = !value || value.trim() === "";
 
+    // Special case: Skip FIREBASE_SERVICE_ACCOUNT_KEY validation if BASE64 version exists
+    // This needs to happen BEFORE any validation logic
+    if (spec.name === "FIREBASE_SERVICE_ACCOUNT_KEY" && 
+        process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64) {
+      // Skip this entire validation - we're using the base64 version
+      continue;
+    }
+
     // Check if required in current environment
     const isRequired =
       spec.required || (isProduction && spec.productionRequired);
@@ -393,6 +425,19 @@ export function validateEnvironment(): EnvValidationResult {
     });
   }
 
+  // Special validation: At least one Firebase service account key format required
+  const hasFirebaseKey = !!(process.env.FIREBASE_SERVICE_ACCOUNT_KEY && process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim());
+  const hasFirebaseKeyBase64 = !!(process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64 && process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64.trim());
+  
+  if (!hasFirebaseKey && !hasFirebaseKeyBase64 && !authBypassMode && isProduction) {
+    errors.push({
+      variable: "FIREBASE_SERVICE_ACCOUNT_KEY",
+      message: "Firebase service account key required in production (either FIREBASE_SERVICE_ACCOUNT_KEY or FIREBASE_SERVICE_ACCOUNT_KEY_BASE64)",
+      category: "critical",
+      suggestion: "Set FIREBASE_SERVICE_ACCOUNT_KEY_BASE64 with base64 encoded JSON credentials",
+    });
+  }
+
   // Special validation: Firebase project ID consistency
   const firebaseProjectId = process.env.FIREBASE_PROJECT_ID;
   const viteFirebaseProjectId = process.env.VITE_FIREBASE_PROJECT_ID;
@@ -445,7 +490,7 @@ export function validateEnvironment(): EnvValidationResult {
  * Display comprehensive validation results with actionable guidance
  */
 export function displayValidationResults(result: EnvValidationResult): void {
-  const { isValid, errors, warnings, missingCritical, missingOptional } =
+  const { isValid, errors, warnings, missingCritical, missingOptional: _missingOptional } =
     result;
 
   if (isValid && warnings.length === 0) {
@@ -565,7 +610,7 @@ export function validateEnvironmentOrExit(): EnvValidationResult {
   displayValidationResults(result);
 
   const authBypassMode = process.env.AUTH_BYPASS_MODE === "true";
-  const isTest = process.env.NODE_ENV === "test";
+  const _isTest = process.env.NODE_ENV === "test";
 
   if (!result.isValid && !authBypassMode) {
     logger.error(
@@ -654,7 +699,7 @@ export function getEnvBoolean(name: string, defaultValue?: boolean): boolean {
 /**
  * Validate JSON environment variable
  */
-export function getEnvJSON<T = any>(name: string, defaultValue?: T): T {
+export function getEnvJSON<T = object>(name: string, defaultValue?: T): T {
   const value = process.env[name];
 
   if (!value) {

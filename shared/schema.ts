@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, json, integer, boolean, varchar, real } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, json, integer, boolean, varchar, real, date } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 import type { UserId, SessionId, ResumeId, JobId, AnalysisId } from './api-contracts';
@@ -119,11 +119,27 @@ export interface FairnessMetrics {
   recommendations?: string[];
 }
 
+// TYPESCRIPT: Complete match analysis result interface
+export interface MatchAnalysisResult {
+  matchPercentage: number;
+  matchedSkills: SkillMatch[];
+  missingSkills: string[];
+  candidateStrengths: string[];
+  candidateWeaknesses: string[];
+  confidenceLevel: 'low' | 'medium' | 'high';
+  scoringDimensions: ScoringDimensions;
+  fairnessMetrics?: FairnessMetrics;
+  matchInsights?: {
+    topMatches: string[];
+    concerningGaps: string[];
+    recommendations: string[];
+  };
+}
+
 // Users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: varchar("username", { length: 100 }).notNull().unique(),
-  password: text("password"),
   email: varchar("email", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -280,6 +296,130 @@ export type InsertSkillCategory = typeof skillCategories.$inferInsert;
 export type Skill = typeof skillsTable.$inferSelect;
 export type InsertSkill = typeof skillsTable.$inferInsert;
 
+// Skill Memory System tables for automated learning
+export const skillMemory = pgTable("skill_memory", {
+  id: serial("id").primaryKey(),
+  skillText: varchar("skill_text", { length: 255 }).notNull().unique(),
+  normalizedSkillText: varchar("normalized_skill_text", { length: 255 }).notNull(),
+  frequency: integer("frequency").default(1),
+  
+  // Validation layers
+  escoValidated: boolean("esco_validated").default(false),
+  escoId: varchar("esco_id", { length: 100 }),
+  escoCategory: varchar("esco_category", { length: 100 }),
+  
+  groqConfidence: real("groq_confidence").default(0),
+  groqCategory: varchar("groq_category", { length: 100 }),
+  
+  mlSimilarityScore: real("ml_similarity_score").default(0),
+  mlSimilarTo: varchar("ml_similar_to", { length: 255 }),
+  mlCategory: varchar("ml_category", { length: 100 }),
+  
+  // Auto-approval tracking
+  autoApproved: boolean("auto_approved").default(false),
+  autoApprovalReason: varchar("auto_approval_reason", { length: 50 }),
+  autoApprovalConfidence: real("auto_approval_confidence").default(0),
+  
+  // Metadata
+  categorySuggestion: varchar("category_suggestion", { length: 100 }),
+  sourceContexts: json("source_contexts").$type<Array<{
+    type: 'resume' | 'job_description';
+    id: string;
+    context: string;
+    timestamp: string;
+  }>>().default([]),
+  firstSeen: timestamp("first_seen").defaultNow(),
+  lastSeen: timestamp("last_seen").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const skillMemoryStats = pgTable("skill_memory_stats", {
+  id: serial("id").primaryKey(),
+  date: date("date").defaultNow(),
+  totalSkillsDiscovered: integer("total_skills_discovered").default(0),
+  escoValidatedCount: integer("esco_validated_count").default(0),
+  autoApprovedCount: integer("auto_approved_count").default(0),
+  highFrequencyCount: integer("high_frequency_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const skillPromotionLog = pgTable("skill_promotion_log", {
+  id: serial("id").primaryKey(),
+  skillId: integer("skill_id").references(() => skillMemory.id),
+  mainSkillId: integer("main_skill_id"),
+  promotionReason: varchar("promotion_reason", { length: 50 }).notNull(),
+  promotionConfidence: real("promotion_confidence").notNull(),
+  promotionData: json("promotion_data").$type<{
+    originalFrequency?: number;
+    escoMatch?: boolean;
+    mlSimilarity?: number;
+    groqValidation?: number;
+    domainPattern?: boolean;
+  }>().default({}),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type SkillMemory = typeof skillMemory.$inferSelect;
+export type InsertSkillMemory = typeof skillMemory.$inferInsert;
+
+export type SkillMemoryStats = typeof skillMemoryStats.$inferSelect;
+export type InsertSkillMemoryStats = typeof skillMemoryStats.$inferInsert;
+
+export type SkillPromotionLog = typeof skillPromotionLog.$inferSelect;
+export type InsertSkillPromotionLog = typeof skillPromotionLog.$inferInsert;
+
+// Token Usage System tables
+export const userApiLimits = pgTable("user_api_limits", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().unique(), // Firebase UID
+  tier: varchar("tier", { length: 50 }).notNull().default('testing'),
+  maxCalls: integer("max_calls").notNull().default(200),
+  usedCalls: integer("used_calls").notNull().default(0),
+  resetPeriod: varchar("reset_period", { length: 20 }).notNull().default('monthly'),
+  lastReset: timestamp("last_reset").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const apiCallLogs = pgTable("api_call_logs", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(), // Firebase UID
+  endpoint: text("endpoint").notNull(),
+  method: varchar("method", { length: 10 }).notNull(),
+  statusCode: integer("status_code"),
+  processingTime: integer("processing_time"), // milliseconds
+  requestSize: integer("request_size"), // bytes
+  responseSize: integer("response_size"), // bytes
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const userTokens = pgTable("user_tokens", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(), // Firebase UID
+  tokenId: text("token_id").notNull().unique(), // Generated token identifier
+  tokenName: text("token_name"), // User-provided token name
+  expiresAt: timestamp("expires_at"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastUsedAt: timestamp("last_used_at"),
+  totalRequests: integer("total_requests").default(0),
+});
+
+export const usageStatistics = pgTable("usage_statistics", {
+  id: serial("id").primaryKey(),
+  date: date("date").notNull(),
+  totalUsers: integer("total_users").default(0),
+  totalApiCalls: integer("total_api_calls").default(0),
+  uniqueActiveUsers: integer("unique_active_users").default(0),
+  averageCallsPerUser: real("average_calls_per_user").default(0),
+  tierDistribution: json("tier_distribution").$type<Record<string, number>>().default({}),
+  topEndpoints: json("top_endpoints").$type<Array<{endpoint: string; count: number}>>().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Enhanced Zod schemas for runtime validation - MUST be defined before insert schemas
 export const resumeFileSchema = z.object({
   originalname: z.string().min(1, 'Filename is required'),
@@ -396,7 +536,6 @@ export const interviewQuestionDataSchema = z.object({
 export const insertUserSchema = createInsertSchema(users, {
   username: z.string().min(3).max(50),
   email: z.string().email().optional(),
-  password: z.string().min(8).optional(),
 });
 export const selectUserSchema = createSelectSchema(users);
 
@@ -463,9 +602,25 @@ export interface AnalyzeResumeResponse {
   // Convenience properties for backward compatibility
   name?: string;
   skills?: string[];
-  experience?: any[];
-  education?: any[];
-  contact?: any;
+  experience?: Array<{
+    company: string;
+    position: string;
+    duration: string;
+    description: string;
+    technologies?: string[];
+  }>;
+  education?: Array<{
+    degree: string;
+    institution: string;
+    year?: number;
+    field?: string;
+  }>;
+  contact?: {
+    email?: string;
+    phone?: string;
+    location?: string;
+    linkedin?: string;
+  };
   experienceYears?: number;
 }
 
@@ -668,4 +823,64 @@ export interface ValidationError {
   value: unknown;
   message: string;
   code: string;
+}
+
+// Token Usage System types
+export type UserApiLimits = typeof userApiLimits.$inferSelect;
+export type InsertUserApiLimits = typeof userApiLimits.$inferInsert;
+
+export type ApiCallLog = typeof apiCallLogs.$inferSelect;
+export type InsertApiCallLog = typeof apiCallLogs.$inferInsert;
+
+export type UserToken = typeof userTokens.$inferSelect;
+export type InsertUserToken = typeof userTokens.$inferInsert;
+
+export type UsageStatistics = typeof usageStatistics.$inferSelect;
+export type InsertUsageStatistics = typeof usageStatistics.$inferInsert;
+
+// Token usage interfaces
+export interface TokenGenerationRequest {
+  tokenName?: string;
+  expiresIn?: '1h' | '24h' | '7d' | '30d' | 'never';
+}
+
+export interface TokenGenerationResponse {
+  tokenId: string;
+  token: string;
+  expiresAt?: Date;
+  usage: {
+    remaining: number;
+    total: number;
+    resetDate?: Date;
+  };
+}
+
+export interface UsageOverview {
+  currentUsage: number;
+  limit: number;
+  tier: string;
+  remainingCalls: number;
+  resetDate?: Date;
+  tokens: Array<{
+    id: string;
+    name?: string;
+    createdAt: Date;
+    lastUsedAt?: Date;
+    totalRequests: number;
+    isActive: boolean;
+  }>;
+}
+
+export interface ApiUsageMetrics {
+  totalCalls: number;
+  callsToday: number;
+  callsThisWeek: number;
+  callsThisMonth: number;
+  topEndpoints: Array<{
+    endpoint: string;
+    count: number;
+    avgResponseTime: number;
+  }>;
+  errorRate: number;
+  avgResponseTime: number;
 }

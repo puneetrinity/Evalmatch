@@ -4,7 +4,14 @@
  */
 
 import { logger } from './logger';
-import { ESCOSkill } from './esco-skill-extractor';
+
+// Define ESCOSkill type locally until skill-matcher is implemented
+interface ESCOSkill {
+  skill: string;
+  category: string;
+  normalized: string;
+  domain?: string;
+}
 
 export interface MatchInsights {
   matchStrength: 'EXCELLENT' | 'STRONG' | 'MODERATE' | 'WEAK';
@@ -50,8 +57,8 @@ export interface MatchAnalysisInput {
  */
 export function generateMatchInsights(
   input: MatchAnalysisInput,
-  resumeText?: string,
-  jobText?: string
+  _resumeText?: string,
+  _jobText?: string
 ): MatchInsights {
   try {
     logger.info('Generating match insights', {

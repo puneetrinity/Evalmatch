@@ -3,6 +3,8 @@
  * Provides mock implementations to bypass ES Module import issues
  */
 
+import { jest } from '@jest/globals';
+
 // Mock JWT verification functions
 export const jwtVerify = jest.fn().mockResolvedValue({
   payload: {

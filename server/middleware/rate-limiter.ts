@@ -5,7 +5,7 @@ import { logger } from "../lib/logger";
 const createTestSafeRateLimiter = (options: any) => {
   // Skip rate limiting entirely in test environment
   if (process.env.NODE_ENV === "test") {
-    return (req: any, res: any, next: any) => next();
+  return (_req: any, _res: any, next: any) => next();
   }
   return rateLimit(options);
 };
@@ -17,8 +17,7 @@ export const authRateLimiter = createTestSafeRateLimiter({
   message: "Too many authentication attempts, please try again later",
   standardHeaders: true,
   legacyHeaders: false,
-  // Trust proxy setting for Railway deployment - prevents proxy warnings
-  trustProxy: true,
+  // Removed trustProxy: true since Express app sets it globally
   handler: (req: any, res: any) => {
     logger.warn(`Rate limit exceeded for IP: ${req.ip}, Path: ${req.path}`);
     res.status(429).json({
@@ -27,7 +26,7 @@ export const authRateLimiter = createTestSafeRateLimiter({
       retryAfter: 15 * 60, // seconds
     });
   },
-  skip: (req: any) => {
+  skip: (_req: any) => {
     // Skip rate limiting in development
     return process.env.NODE_ENV === "development";
   },
@@ -40,8 +39,7 @@ export const apiRateLimiter = createTestSafeRateLimiter({
   message: "Too many requests, please slow down",
   standardHeaders: true,
   legacyHeaders: false,
-  // Trust proxy setting for Railway deployment - prevents proxy warnings
-  trustProxy: true,
+  // Removed trustProxy: true since Express app sets it globally
   handler: (req: any, res: any) => {
     logger.warn(`API rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
@@ -59,8 +57,7 @@ export const uploadRateLimiter = createTestSafeRateLimiter({
   message: "Too many file uploads, please try again later",
   standardHeaders: true,
   legacyHeaders: false,
-  // Trust proxy setting for Railway deployment - prevents proxy warnings
-  trustProxy: true,
+  // Removed trustProxy: true since Express app sets it globally
   handler: (req: any, res: any) => {
     logger.warn(`Upload rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
@@ -69,7 +66,7 @@ export const uploadRateLimiter = createTestSafeRateLimiter({
       retryAfter: 60 * 60, // seconds
     });
   },
-  skip: (req: any) => {
+  skip: (_req: any) => {
     // Skip rate limiting in development and test
     return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
   },

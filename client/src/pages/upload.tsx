@@ -67,6 +67,20 @@ export default function UploadPage() {
   // Track the current batch ID for this upload operation
   const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
   
+  // Cleanup effect to remove queries when component unmounts
+  useEffect(() => {
+    return () => {
+      // Cancel any active queries and remove them from cache
+      queryClient.cancelQueries({ queryKey: ["/api/resumes"] });
+      queryClient.removeQueries({ queryKey: ["/api/resumes"] });
+      // Also invalidate to ensure no background refetches
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/resumes"],
+        refetchType: 'none' // Don't refetch, just mark as invalid
+      });
+    };
+  }, []);
+  
   // Generate a new random session ID
   const createNewSession = useCallback((): SessionId => {
     const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 10)}` as SessionId;
@@ -161,10 +175,25 @@ export default function UploadPage() {
     });
   }, [createNewSession, checkBatchHasResumes]);
   
+  // Track if component is mounted
+  const [isMounted, setIsMounted] = useState(true);
+  
+  useEffect(() => {
+    setIsMounted(true);
+    return () => {
+      setIsMounted(false);
+    };
+  }, []);
+  
   // Fetch existing resumes for current session and batch
   const { data: existingResumes, isLoading, error: resumeLoadError } = useQuery<ResumeListResponse>({
     queryKey: ["/api/resumes", sessionId, currentBatchId],
-    queryFn: async ({ queryKey }): Promise<ResumeListResponse> => {
+    queryFn: async ({ queryKey, signal }): Promise<ResumeListResponse> => {
+      // Abort if component is unmounted
+      if (!isMounted) {
+        throw new Error('Component unmounted');
+      }
+      
       const endpoint = queryKey[0] as string;
       const currentSessionId = queryKey[1] as SessionId;
       const currentBatch = queryKey[2] as string;
@@ -175,7 +204,7 @@ export default function UploadPage() {
       if (currentBatch) params.append('batchId', currentBatch);
       
       const url = `${endpoint}?${params.toString()}`;
-      const response = await apiRequest("GET", url);
+      const response = await apiRequest("GET", url, undefined, { signal });
       const data = await response.json() as ApiResult<ResumeListResponse>;
       
       if (isApiSuccess(data)) {
@@ -186,9 +215,14 @@ export default function UploadPage() {
       }
       throw new Error(data.message || 'Failed to fetch resumes');
     },
-    enabled: !!sessionId && !!currentBatchId, // Only enable when both sessionId and batchId are available
+    enabled: !!sessionId && !!currentBatchId && isMounted, // Only enable when component is mounted and has IDs
     refetchOnWindowFocus: false,
-    retry: 2,
+    refetchOnMount: false,
+    refetchInterval: false,
+    retry: false, // Disable retries completely
+    retryOnMount: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
   });
 
   useEffect(() => {
@@ -466,7 +500,7 @@ export default function UploadPage() {
           {currentBatchId && (
             <div className="mb-6 p-3 border border-green-200 bg-green-50 rounded-md text-sm text-green-800">
               <p className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <polyline points="20,6 9,17 4,12"></polyline>
                 </svg>
                 <span><strong>Upload Session Active</strong> - {files.filter(f => f.status === "success").length} files ready for analysis. All uploads will be processed together.</span>
@@ -508,7 +542,7 @@ export default function UploadPage() {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            <div className="text-primary mb-4">
+            <div className="text-primary mb-4" aria-hidden="true">
               <i className="fas fa-file-upload text-5xl"></i>
             </div>
             <p className="text-lg font-medium text-gray-700 mb-2">Drag and drop your resumes here</p>
@@ -522,13 +556,14 @@ export default function UploadPage() {
               accept=".pdf,.doc,.docx" 
               ref={fileInputRef}
               onChange={handleFileInputChange}
+              aria-label="Choose resume files to upload"
             />
           </div>
           
           {/* Uploaded files */}
           <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Uploaded Resumes</h3>
+              <h2 className="text-lg font-semibold text-gray-900">Uploaded Resumes</h2>
               <Button 
                 onClick={() => {
                   createNewSession();
@@ -552,7 +587,7 @@ export default function UploadPage() {
             {/* Empty state */}
             {isLoading ? (
               <div className="py-8 text-center">
-                <div className="animate-spin mb-4 mx-auto">
+                <div className="animate-spin mb-4 mx-auto" aria-hidden="true">
                   <i className="fas fa-spinner text-3xl text-primary"></i>
                 </div>
                 <p className="text-gray-500">Loading resumes...</p>
@@ -566,7 +601,7 @@ export default function UploadPage() {
                 {files.map((file, index) => (
                   <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
                     <div className="flex items-center">
-                      <i className={`fas ${getFileIcon(file.type)} mr-3`}></i>
+                      <i className={`fas ${getFileIcon(file.type)} mr-3`} aria-hidden="true"></i>
                       <div>
                         <p className="font-medium text-gray-900">{file.name}</p>
                         <p className="text-sm text-gray-500">{formatFileSize(file.size)}</p>
@@ -582,8 +617,9 @@ export default function UploadPage() {
                       <button 
                         className="text-gray-400 hover:text-gray-600" 
                         onClick={() => handleRemoveFile(file.name)}
+                        aria-label={`Remove ${file.name}`}
                       >
-                        <i className="fas fa-times"></i>
+                        <i className="fas fa-times" aria-hidden="true"></i>
                       </button>
                     </div>
                   </div>

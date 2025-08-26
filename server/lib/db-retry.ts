@@ -7,6 +7,7 @@
  * Includes integration with rate limiter to prevent overwhelming the database.
  */
 import { dbRateLimiter } from "./rate-limiter";
+import { logger } from './logger';
 
 // Configuration for retries
 const RETRY_OPTIONS = {
@@ -69,9 +70,12 @@ export async function withRetry<T>(
 
           // For timeout errors, we might need more specialized handling with longer delays
           if (timeoutRetryCount <= RETRY_OPTIONS.timeoutErrorRetryCount) {
-            console.warn(
-              `Database connection timeout in ${context}, special retry (${timeoutRetryCount}/${RETRY_OPTIONS.timeoutErrorRetryCount}) after ${delay * 2}ms`,
-            );
+            logger.warn('Database connection timeout - special retry', {
+              context,
+              timeoutRetryAttempt: timeoutRetryCount,
+              maxTimeoutRetries: RETRY_OPTIONS.timeoutErrorRetryCount,
+              delayMs: delay * 2
+            });
 
             // Use longer delay for timeout errors
             await new Promise((resolve) => setTimeout(resolve, delay * 2));
@@ -83,22 +87,28 @@ export async function withRetry<T>(
           }
         } else if (isRateLimitError) {
           // For rate limit errors, use a longer delay
-          console.warn(
-            `Rate limit exceeded in ${context}, retrying (${attempt}/${RETRY_OPTIONS.maxRetries}) after ${delay * 1.5}ms`,
-          );
+          logger.warn('Database rate limit exceeded - retrying', {
+            context,
+            attempt,
+            maxRetries: RETRY_OPTIONS.maxRetries,
+            delayMs: delay * 1.5
+          });
           await new Promise((resolve) => setTimeout(resolve, delay * 1.5));
         } else if (isNeonControlPlaneError) {
           // Standard retry for control plane errors
           if (attempt < RETRY_OPTIONS.maxRetries) {
-            console.warn(
-              `Neon control plane error in ${context}, retrying (${attempt}/${RETRY_OPTIONS.maxRetries}) after ${delay}ms:`,
-              errorMessage,
-            );
+            logger.warn('Neon control plane error - retrying', {
+              context,
+              attempt,
+              maxRetries: RETRY_OPTIONS.maxRetries,
+              delayMs: delay,
+              error: errorMessage
+            });
             await new Promise((resolve) => setTimeout(resolve, delay));
           }
         } else {
           // Don't retry other types of errors
-          console.error(`Database error (not retriable) in ${context}:`, error);
+          logger.error('Database error (not retriable)', { context, error });
           throw error;
         }
 
@@ -109,10 +119,11 @@ export async function withRetry<T>(
             RETRY_OPTIONS.maxDelayMs,
           );
         } else {
-          console.error(
-            `Database operation in ${context} failed after ${attempt} attempts:`,
-            errorMessage,
-          );
+          logger.error('Database operation failed after all retry attempts', {
+            context,
+            attempts: attempt,
+            error: errorMessage
+          });
         }
       }
     }

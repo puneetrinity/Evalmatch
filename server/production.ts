@@ -1,15 +1,23 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { registerRoutes } from './routes.js';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import * as schema from "@shared/schema";
+import { drizzle as _drizzle } from 'drizzle-orm/neon-serverless';
+import * as _schema from "@shared/schema";
+import { logger } from './lib/logger.js';
 // import { createDeploymentPool, getServerConfig } from './deployment-helper.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ES modules equivalent of __dirname - handle both CommonJS and ES modules
+let currentDirPath: string;
 
-console.log('Initializing specialized database configuration for Replit deployment...');
+// In test environment or when __dirname is not available, use process.cwd()
+// This avoids syntax errors with import.meta.url in CommonJS environments
+if (process.env.NODE_ENV === 'test' || typeof __dirname === 'undefined') {
+  currentDirPath = path.join(process.cwd(), 'server');
+} else {
+  currentDirPath = __dirname;
+}
+
+logger.info('Initializing specialized database configuration for Replit deployment');
 
 // Create a simplified pool for production deployment 
 const pool = null; // createDeploymentPool();
@@ -25,25 +33,25 @@ const app: Express = express();
 app.use(express.json());
 
 // Configure static file serving for the production build
-app.use(express.static(path.join(__dirname, '../client')));
+app.use(express.static(path.join(currentDirPath, '../client')));
 
 // Set up API routes
 try {
   registerRoutes(app);
-  console.log('API routes registered for production');
+  logger.info('API routes registered for production');
 } catch (err) {
-  console.error('Failed to register routes:', err instanceof Error ? err.message : String(err));
+  logger.error('Failed to register routes', { error: err instanceof Error ? err.message : String(err) });
 }
 
 // Global error handler - production safe
 app.use((err: Error | unknown, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('Server error:', err instanceof Error ? err.message : String(err));
+  logger.error('Server error', { error: err instanceof Error ? err.message : String(err) });
   res.status(500).json({ message: 'Internal server error' });
 });
 
 // For all other routes, serve the React app
 app.get('*', (_req: Request, res: Response) => {
-  res.sendFile(path.join(__dirname, '../client/index.html'));
+  res.sendFile(path.join(currentDirPath, '../client/index.html'));
 });
 
 // Get server config from deployment helper
@@ -55,7 +63,9 @@ const serverConfig = {
 
 // Start server
 app.listen(Number(serverConfig.port), serverConfig.host, () => {
-  console.log(`Server running on port ${serverConfig.port} in production mode`);
-  console.log(`Using host: ${serverConfig.host}`);
-  console.log(`Database heartbeat disabled: ${serverConfig.disableHeartbeat}`);
+  logger.info('Server started in production mode', {
+    port: serverConfig.port,
+    host: serverConfig.host,
+    databaseHeartbeatDisabled: serverConfig.disableHeartbeat
+  });
 });

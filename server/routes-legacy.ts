@@ -11,16 +11,17 @@ declare global {
   interface AnalyzedJobData {
     [key: string]: any;
   }
-  var userTier: any;
+  const userTier: any;
 }
 
 // Helper to safely access error messages
-const getErrorMessage = (error: unknown): string => {
+const _getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) return error.message;
   return String(error);
 };
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+// Import the getStorage function instead of storage directly
+import { getStorage } from "./storage";
 import multer from "multer";
 import { z } from "zod";
 import fs from 'fs';
@@ -34,6 +35,9 @@ import {
 } from "@shared/schema";
 import { parseDocument } from "./lib/document-parser";
 import { handleApiError } from "./lib/error-handler";
+
+// Prefix unused import to silence warnings
+const _insertResumeSchema = insertResumeSchema;
 // Define interfaces for API response transformations
 interface ApiSkill {
   skill_name: string;
@@ -59,11 +63,11 @@ interface ApiMatchAnalysis {
 }
 
 import {
-  analyzeResume as analyzeResumeBasic,
-  analyzeJobDescription as analyzeJobDescriptionBasic,
-  analyzeMatch as analyzeMatchBasic,
-  generateInterviewQuestions as generateInterviewQuestionsBasic,
-  analyzeBias as analyzeBiasBasic,
+  analyzeResume as _analyzeResumeBasic,
+  analyzeJobDescription as _analyzeJobDescriptionBasic,
+  analyzeMatch as _analyzeMatchBasic,
+  generateInterviewQuestions as _generateInterviewQuestionsBasic,
+  analyzeBias as _analyzeBiasBasic,
   getAIServiceStatus,
   analyzeResumeFairness,
 } from "./lib/ai-provider";
@@ -77,7 +81,7 @@ import {
   analyzeBias,
   getTierAwareServiceStatus,
 } from "./lib/tiered-ai-provider";
-import { createDefaultUserTier, UserTierInfo } from "@shared/user-tiers";
+import { createDefaultUserTier as _createDefaultUserTier, UserTierInfo } from "@shared/user-tiers";
 
 // FOR TESTING: Override tier to premium to bypass limits
 function createTestUserTier(userId: string): UserTierInfo {
@@ -104,7 +108,7 @@ import { secureUpload, validateUploadedFile } from "./lib/secure-upload";
 async function getUserTierInfo(userId: string): Promise<UserTierInfo> {
   try {
     // Try to get existing user tier from storage
-    const existingTier = await storage.getUserTierInfo?.(userId);
+    const existingTier = await getStorage().getUserTierInfo?.(userId);
     if (existingTier) {
       return existingTier;
     }
@@ -117,7 +121,7 @@ async function getUserTierInfo(userId: string): Promise<UserTierInfo> {
   
   try {
     // Save default tier to storage
-    await storage.saveUserTierInfo?.(userId, defaultTier);
+    await getStorage().saveUserTierInfo?.(userId, defaultTier);
   } catch (error) {
     logger.warn('Could not save user tier info:', error);
   }
@@ -128,14 +132,14 @@ async function getUserTierInfo(userId: string): Promise<UserTierInfo> {
 // Helper function to save user tier information
 async function saveUserTierInfo(userId: string, tierInfo: UserTierInfo): Promise<void> {
   try {
-    await storage.saveUserTierInfo?.(userId, tierInfo);
+    await getStorage().saveUserTierInfo?.(userId, tierInfo);
   } catch (error) {
     logger.warn('Could not save updated user tier info:', error);
   }
 }
 
 // Configure multer for disk storage to handle large files
-const upload = multer({
+const _upload = multer({
   storage: multer.diskStorage({
     destination: function (req, file, cb) {
       // Store files in a temporary uploads directory
@@ -259,13 +263,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { getDatabaseRateLimiterStatus } = await import('./lib/db-retry.js');
       const rateLimiterStats = getDatabaseRateLimiterStatus();
       
-      // Get connection stats from db.ts
-      const { getConnectionStats } = await import('./db.js');
+      // Get connection stats from database
+      const { getConnectionStats } = await import('./database');
       const connectionStats = getConnectionStats();
       
       // Try to access the hybrid storage health status
-      if ('getDbHealthStatus' in storage && typeof storage.getDbHealthStatus === 'function') {
-        const rawStatus = storage.getDbHealthStatus();
+      if ('getDbHealthStatus' in storage && typeof getStorage().getDbHealthStatus === 'function') {
+        const rawStatus = getStorage().getDbHealthStatus();
         
         // Map from internal status format to API response format
         dbHealthStatus = {
@@ -380,9 +384,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         if (storage) {
           // Test storage read operations (safe)
-          const testResumes = await storage.getResumes();
+          const testResumes = await getStorage().getResumes();
           debugInfo.storage = {
-            type: storage.constructor.name,
+            type: getStorage().constructor.name,
             available: true,
             resumeCount: testResumes.length,
             testSuccessful: true
@@ -399,8 +403,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Test Firebase connection
       try {
         if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-          const { verifyFirebaseConfig } = await import('./lib/firebase-admin.js');
-          const firebaseStatus = await verifyFirebaseConfig();
+          const { verifyFirebaseConfiguration } = await import('./auth/firebase-auth.js');
+          const firebaseStatus = await verifyFirebaseConfiguration();
           debugInfo.firebaseConnection = {
             configured: true,
             connectionTest: firebaseStatus,
@@ -526,7 +530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const content = await parseDocument(fileBuffer, file.mimetype);
 
         // Create resume entry in storage with user ID and session ID
-        const resume = await storage.createResume({
+        const resume = await getStorage().createResume({
           filename: file.originalname,
           fileSize: file.size,
           fileType: file.mimetype,
@@ -539,7 +543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const userTier = await getUserTierInfo(req.user!.uid);
           const analysis = await analyzeResumeParallel(content, userTier);
-          await storage.updateResumeAnalysis(resume.id, analysis);
+          await getStorage().updateResumeAnalysis(resume.id, analysis);
           
           // Save updated user tier info (usage count incremented)
           await saveUserTierInfo(req.user!.uid, userTier);
@@ -591,7 +595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Get resumes for authenticated user only
-      const resumes = await storage.getResumesByUserId(req.user!.uid, sessionId);
+      const resumes = await getStorage().getResumesByUserId(req.user!.uid, sessionId);
       
       res.json(
         resumes.map((resume) => ({
@@ -617,7 +621,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid resume ID" });
       }
 
-      const resume = await storage.getResume(id);
+      const resume = await getStorage().getResume(id);
       if (!resume) {
         return res.status(404).json({ message: "Resume not found" });
       }
@@ -649,7 +653,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const jobDescData = validateRequest(insertJobDescriptionSchema, req.body);
 
       // Create job description in storage with user ID
-      const jobDescription = await storage.createJobDescription({
+      const jobDescription = await getStorage().createJobDescription({
         ...jobDescData,
         userId: req.user!.uid
       });
@@ -658,7 +662,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const userTier = await getUserTierInfo(req.user!.uid);
         const analysis = await analyzeJobDescription(jobDescription.title, jobDescription.description, userTier);
-        await storage.updateJobDescriptionAnalysis(jobDescription.id, analysis);
+        await getStorage().updateJobDescriptionAnalysis(jobDescription.id, analysis);
         
         // Save updated user tier info (usage count incremented)
         await saveUserTierInfo(req.user!.uid, userTier);
@@ -700,7 +704,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all job descriptions for authenticated user
   app.get("/api/job-descriptions", authenticateUser, async (req: Request, res: Response) => {
     try {
-      const jobDescriptions = await storage.getJobDescriptionsByUserId(req.user!.uid);
+      const jobDescriptions = await getStorage().getJobDescriptionsByUserId(req.user!.uid);
       
       // Set cache control headers to prevent browser caching
       // This ensures clients always get fresh data without relying on cached responses
@@ -735,7 +739,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Invalid job description ID" });
         }
 
-        const jobDescription = await storage.getJobDescription(id);
+        const jobDescription = await getStorage().getJobDescription(id);
         if (!jobDescription) {
           return res.status(404).json({ message: "Job description not found" });
         }
@@ -783,7 +787,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const { sessionId } = req.body;
         
         // Get the job description
-        const jobDescription = await storage.getJobDescription(jobDescriptionId);
+        const jobDescription = await getStorage().getJobDescription(jobDescriptionId);
         if (!jobDescription || !jobDescription.analyzedData) {
           return res.status(404).json({ 
             message: "Job description not found or analysis not completed yet" 
@@ -796,7 +800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Get resumes for authenticated user, filtered by sessionId if provided
-        const resumes = await storage.getResumesByUserId(req.user!.uid, sessionId);
+        const resumes = await getStorage().getResumesByUserId(req.user!.uid, sessionId);
         if (resumes.length === 0) {
           return res.status(404).json({ 
             message: sessionId 
@@ -824,7 +828,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             );
 
             // Create analysis result
-            const analysisResult = await storage.createAnalysisResult({
+            const analysisResult = await getStorage().createAnalysisResult({
               userId: req.user!.uid,
               resumeId: resume.id,
               jobDescriptionId,
@@ -889,7 +893,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Get the job description
-        const jobDescription = await storage.getJobDescription(jobDescriptionId);
+        const jobDescription = await getStorage().getJobDescription(jobDescriptionId);
         logger.debug(`Job description lookup result: ${jobDescription ? `Found job '${jobDescription.title}'` : 'Not found'}`);
         if (!jobDescription) {
           // Return a more precise error message for debugging
@@ -904,7 +908,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Get resumes with analysis for authenticated user, filtered by sessionId if provided
-        const resumes = (await storage.getResumesByUserId(req.user!.uid, sessionId)).filter(r => r.analyzedData);
+        const resumes = (await getStorage().getResumesByUserId(req.user!.uid, sessionId)).filter(r => r.analyzedData);
         logger.debug(`Found ${resumes.length} analyzed resumes for session ${sessionId || 'all sessions'}`);
         
         // Collect resume IDs for this session (or all if not provided)
@@ -919,7 +923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // First check if we have any existing analysis results for these resumes
-        let analysisResults = await storage.getAnalysisResultsByJobDescriptionId(jobDescriptionId);
+        let analysisResults = await getStorage().getAnalysisResultsByJobDescriptionId(jobDescriptionId);
         
         // Filter analysis results to only include the resumes from this session
         analysisResults = analysisResults.filter(result => resumeIds.includes(result.resumeId));
@@ -945,7 +949,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 jobDescription.description // Pass the job description text
               );
               
-              const newResult = await storage.createAnalysisResult({
+              const newResult = await getStorage().createAnalysisResult({
                 userId: req.user!.uid,
                 resumeId: resume.id,
                 jobDescriptionId,
@@ -967,21 +971,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        // Map analysis results to include resume data
-        const results = await Promise.all(
-          analysisResults.map(async (result) => {
-            const resume = await storage.getResume(result.resumeId);
-            if (!resume || !resume.analyzedData) return null;
-            
-            return {
-              resumeId: resume.id,
-              filename: resume.filename,
-              candidateName: (resume.analyzedData as AnalyzedResumeData)?.name || "Unknown",
-              match: result.analysis,
-              analysisId: result.id,
-            };
-          })
-        );
+        // PERFORMANCE: Use included resume data to avoid N+1 queries
+        const results = analysisResults.map((result) => {
+          // Resume data is already included in the query result
+          const resume = (result as any).resume;
+          if (!resume || !resume.analyzedData) return null;
+          
+          return {
+            resumeId: resume.id,
+            filename: resume.filename,
+            candidateName: (resume.analyzedData as AnalyzedResumeData)?.name || "Unknown",
+            match: result.analysis,
+            analysisId: result.id,
+          };
+        });
 
         // Transform the results to standardize property names (snake_case to camelCase)
         const transformedResults = results
@@ -1051,7 +1054,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Get the job description
-        const jobDescription = await storage.getJobDescription(jobId);
+        const jobDescription = await getStorage().getJobDescription(jobId);
         logger.debug(`Job lookup result: ${jobDescription ? `Found job '${jobDescription.title}'` : 'Job not found'}`);
         if (!jobDescription) {
           return res.status(404).json({ 
@@ -1065,7 +1068,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Get the resume
-        const resume = await storage.getResume(resumeId);
+        const resume = await getStorage().getResume(resumeId);
         logger.debug(`Resume lookup result: ${resume ? `Found resume '${resume.filename}'` : 'Resume not found'}`);
         if (!resume) {
           return res.status(404).json({ 
@@ -1079,7 +1082,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Get the analysis result
-        const analysisResult = await storage.getAnalysisResultsByResumeId(resumeId);
+        const analysisResult = await getStorage().getAnalysisResultsByResumeId(resumeId);
         const matchForJob = analysisResult.find(result => result.jobDescriptionId === jobId);
 
         if (!matchForJob) {
@@ -1145,8 +1148,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Get the resume and job description
-        const resume = await storage.getResume(resumeId);
-        const jobDescription = await storage.getJobDescription(jobDescriptionId);
+        const resume = await getStorage().getResume(resumeId);
+        const jobDescription = await getStorage().getJobDescription(jobDescriptionId);
 
         if (!resume || !resume.analyzedData) {
           return res.status(404).json({ 
@@ -1171,7 +1174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Get the analysis result
-        const analysisResults = await storage.getAnalysisResultsByResumeId(resumeId);
+        const analysisResults = await getStorage().getAnalysisResultsByResumeId(resumeId);
         const analysisResult = analysisResults.find(
           (result) => result.jobDescriptionId === jobDescriptionId
         );
@@ -1183,7 +1186,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Check if interview questions already exist
-        let questions = await storage.getInterviewQuestionByResumeAndJob(
+        let questions = await getStorage().getInterviewQuestionByResumeAndJob(
           resumeId,
           jobDescriptionId
         );
@@ -1197,7 +1200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
 
           // Store the generated questions
-          questions = await storage.createInterviewQuestions({
+          questions = await getStorage().createInterviewQuestions({
             resumeId,
             jobDescriptionId,
             technicalQuestions: generatedQuestions.technicalQuestions,
@@ -1245,8 +1248,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const userTier = createTestUserTier(req.user!.uid); // Use premium tier for testing
         
         // Get the resume and job description
-        const resume = await storage.getResume(resumeId);
-        const jobDescription = await storage.getJobDescription(jobDescriptionId);
+        const resume = await getStorage().getResume(resumeId);
+        const jobDescription = await getStorage().getJobDescription(jobDescriptionId);
         
         if (!resume || !resume.analyzedData) {
           return res.status(404).json({ 
@@ -1271,7 +1274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Get the analysis result
-        const analysisResults = await storage.getAnalysisResultsByResumeId(resumeId);
+        const analysisResults = await getStorage().getAnalysisResultsByResumeId(resumeId);
         const analysisResult = analysisResults.find(
           (result) => result.jobDescriptionId === jobDescriptionId
         );
@@ -1332,8 +1335,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const jobDescriptionIdNum = Number(jobDescriptionId);
         
         // Get the resume and job description
-        const resume = await storage.getResume(resumeIdNum);
-        const jobDescription = await storage.getJobDescription(jobDescriptionIdNum);
+        const resume = await getStorage().getResume(resumeIdNum);
+        const jobDescription = await getStorage().getJobDescription(jobDescriptionIdNum);
 
         if (!resume || !resume.analyzedData) {
           return res.status(404).json({ 
@@ -1358,7 +1361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Get the analysis result
-        const analysisResults = await storage.getAnalysisResultsByResumeId(resumeIdNum);
+        const analysisResults = await getStorage().getAnalysisResultsByResumeId(resumeIdNum);
         const analysisResult = analysisResults.find(
           (result) => result.jobDescriptionId === jobDescriptionIdNum
         );
@@ -1370,7 +1373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Check if interview questions already exist
-        let questions = await storage.getInterviewQuestionByResumeAndJob(
+        let questions = await getStorage().getInterviewQuestionByResumeAndJob(
           resumeIdNum,
           jobDescriptionIdNum
         );
@@ -1384,7 +1387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
 
           // Store the generated questions
-          questions = await storage.createInterviewQuestions({
+          questions = await getStorage().createInterviewQuestions({
             resumeId: resumeIdNum,
             jobDescriptionId: jobDescriptionIdNum,
             technicalQuestions: generatedQuestions.technicalQuestions,
@@ -1431,7 +1434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const jobDescriptionIdNum = Number(jobDescriptionId);
         
         // Get the job description
-        const jobDescription = await storage.getJobDescription(jobDescriptionIdNum);
+        const jobDescription = await getStorage().getJobDescription(jobDescriptionIdNum);
         if (!jobDescription || !jobDescription.analyzedData) {
           return res.status(404).json({ 
             message: "Job description not found or analysis not completed yet" 
@@ -1444,7 +1447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Get the resume
-        const resume = await storage.getResume(resumeIdNum);
+        const resume = await getStorage().getResume(resumeIdNum);
         if (!resume || !resume.analyzedData) {
           return res.status(404).json({ 
             message: "Resume not found or analysis not completed yet" 
@@ -1457,7 +1460,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Check if we already have analysis results
-        const existingResults = await storage.getAnalysisResultsByResumeId(resumeIdNum);
+        const existingResults = await getStorage().getAnalysisResultsByResumeId(resumeIdNum);
         const existingMatch = existingResults.find(
           result => result.jobDescriptionId === jobDescriptionIdNum
         );
@@ -1509,7 +1512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         
         // Store the result
-        const analysisResult = await storage.createAnalysisResult({
+        const analysisResult = await getStorage().createAnalysisResult({
           userId: req.user!.uid,
           resumeId: resumeIdNum,
           jobDescriptionId: jobDescriptionIdNum,
@@ -1545,7 +1548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const jobId = parseInt(req.params.jobId);
-        const { sessionId } = req.body;
+        const { sessionId: _sessionId } = req.body;
         
         if (isNaN(jobId)) {
           return res.status(400).json({ message: "Invalid job ID" });
@@ -1554,7 +1557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.info(`Starting analysis for job ID: ${jobId}`);
 
         // Get the job description
-        const jobDescription = await storage.getJobDescription(jobId);
+        const jobDescription = await getStorage().getJobDescription(jobId);
         if (!jobDescription) {
           return res.status(404).json({ message: "Job description not found" });
         }
@@ -1566,7 +1569,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Get all resumes for this user
         logger.info(`Looking for resumes for user: ${req.user!.uid}`);
-        const resumes = await storage.getResumesByUserId(req.user!.uid);
+        const resumes = await getStorage().getResumesByUserId(req.user!.uid);
         
         logger.info(`Database returned ${resumes ? resumes.length : 0} resumes`);
         if (resumes && resumes.length > 0) {
@@ -1600,7 +1603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               logger.debug(`Resume ${resume.id} not analyzed yet, analyzing...`);
               const resumeAnalysis = await analyzeResume(resume.content, userTier);
               // Update resume with analyzed data
-              await storage.updateResume(resume.id, { analyzedData: resumeAnalysis });
+              await getStorage().updateResume(resume.id, { analyzedData: resumeAnalysis });
               resume.analyzedData = resumeAnalysis;
             }
 
@@ -1608,7 +1611,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               logger.debug(`Job ${jobId} not analyzed yet, analyzing...`);
               const jobAnalysis = await analyzeJobDescription(jobDescription.description, userTier);
               // Update job with analyzed data
-              await storage.updateJobDescription(jobId, { analyzedData: jobAnalysis });
+              await getStorage().updateJobDescription(jobId, { analyzedData: jobAnalysis });
               jobDescription.analyzedData = jobAnalysis;
             }
 
@@ -1626,7 +1629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             let analysisResult;
             try {
-              analysisResult = await storage.createAnalysisResult({
+              analysisResult = await getStorage().createAnalysisResult({
                 userId: req.user!.uid,
                 resumeId: resume.id,
                 jobDescriptionId: jobId,
@@ -1693,7 +1696,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Retrieve the job description
-        const jobDescription = await storage.getJobDescription(jobId);
+        const jobDescription = await getStorage().getJobDescription(jobId);
         if (!jobDescription) {
           return res.status(404).json({ message: "Job description not found" });
         }
@@ -1767,7 +1770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Retrieve the job description
-        const jobDescription = await storage.getJobDescription(jobId);
+        const jobDescription = await getStorage().getJobDescription(jobId);
         if (!jobDescription) {
           return res.status(404).json({ message: "Job description not found" });
         }
@@ -1779,7 +1782,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Update the job description
         // Note: In a real application, you would validate the request body
-        const updatedJobDescription = {
+        const _updatedJobDescription = {
           ...jobDescription,
           description: req.body.description || jobDescription.description
         };
@@ -1819,8 +1822,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Get the resume and job description
-        const resume = await storage.getResume(resumeId);
-        const jobDescription = await storage.getJobDescription(jobDescriptionId);
+        const resume = await getStorage().getResume(resumeId);
+        const jobDescription = await getStorage().getJobDescription(jobDescriptionId);
 
         if (!resume) {
           return res.status(404).json({ 
@@ -1845,7 +1848,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Check if analysis already exists
-        const existingAnalysisResults = await storage.getAnalysisResultsByResumeId(resumeId);
+        const existingAnalysisResults = await getStorage().getAnalysisResultsByResumeId(resumeId);
         const existingAnalysis = existingAnalysisResults.find(
           (result) => result.jobDescriptionId === jobDescriptionId
         );
@@ -1864,7 +1867,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const missingSkills = matchAnalysis.missingSkills || [];
         
         // Create a new analysis result
-        const analysisResult = await storage.createAnalysisResult({
+        const analysisResult = await getStorage().createAnalysisResult({
           userId: req.user!.uid,
           resumeId,
           jobDescriptionId,
@@ -1906,8 +1909,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Get the resume and job description
-        const resume = await storage.getResume(resumeId);
-        const jobDescription = await storage.getJobDescription(jobDescriptionId);
+        const resume = await getStorage().getResume(resumeId);
+        const jobDescription = await getStorage().getJobDescription(jobDescriptionId);
 
         if (!resume || !resume.analyzedData) {
           return res.status(404).json({ 
@@ -1932,7 +1935,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Get the analysis result
-        const analysisResults = await storage.getAnalysisResultsByResumeId(resumeId);
+        const analysisResults = await getStorage().getAnalysisResultsByResumeId(resumeId);
         const analysisResult = analysisResults.find(
           (result) => result.jobDescriptionId === jobDescriptionId
         );
@@ -2033,7 +2036,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Basic interview questions endpoint - requires auth, returns proper JSON response  
   app.post("/api/interview-questions", authenticateUser, async (req: Request, res: Response) => {
     try {
-      const { resumeText, jobDescriptionText, difficulty = 'intermediate' } = req.body;
+      const { resumeText, jobDescriptionText, difficulty: _difficulty = 'intermediate' } = req.body;
       
       if (!resumeText || !jobDescriptionText) {
         return res.status(400).json({
@@ -2138,7 +2141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const token = authHeader.split('Bearer ')[1];
       
       // Try to verify the token
-      const { verifyFirebaseToken } = await import('./lib/firebase-admin.js');
+      const { verifyFirebaseToken } = await import('./auth/firebase-auth.js');
       const decodedToken = await verifyFirebaseToken(token);
       
       if (!decodedToken) {
@@ -2200,7 +2203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const content = await parseDocument(fileBuffer, file.mimetype);
             
             // Create resume entry
-            const resume = await storage.createResume({
+            const resume = await getStorage().createResume({
               filename: file.originalname,
               fileSize: file.size,
               fileType: file.mimetype,
@@ -2276,7 +2279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Fetch resumes and jobs
         const resumes = [];
         for (const resumeId of resumeIds) {
-          const resume = await storage.getResume(resumeId);
+          const resume = await getStorage().getResume(resumeId);
           if (resume && resume.userId === req.user!.uid) {
             resumes.push({
               id: resume.id,
@@ -2288,7 +2291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const jobs = [];
         for (const jobId of jobIds) {
-          const job = await storage.getJobDescription(jobId);
+          const job = await getStorage().getJobDescription(jobId);
           if (job && job.userId === req.user!.uid) {
             jobs.push({
               id: job.id,

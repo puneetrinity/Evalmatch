@@ -5,6 +5,8 @@
 
 import { logger } from "../lib/logger";
 import { storage } from "../storage";
+import type { AnalyzeResumeResponse as _AnalyzeResumeResponse } from "../../shared/schema";
+import type { ResumeId } from "../../shared/api-contracts";
 
 interface SkillCleanupStats {
   resumesProcessed: number;
@@ -114,6 +116,11 @@ async function cleanupResumeSkills(resumeId: number): Promise<{
   patterns: string[];
 }> {
   try {
+    // Ensure storage is available
+    if (!storage) {
+      throw new Error('Storage not initialized');
+    }
+    
     // Get resume data
     const resume = await storage.getResumeById(resumeId, 'system');
     if (!resume) {
@@ -121,7 +128,7 @@ async function cleanupResumeSkills(resumeId: number): Promise<{
     }
 
     // Extract skills from various sources
-    let allSkills: string[] = [];
+    const allSkills: string[] = [];
     
     // Skills from direct field
     if (Array.isArray(resume.skills)) {
@@ -158,14 +165,23 @@ async function cleanupResumeSkills(resumeId: number): Promise<{
 
       // Update in database - need proper AnalyzeResumeResponse format
       await storage.updateResumeAnalysis(resumeId, {
-        id: resumeId as any, // ResumeId type handling
+        id: resumeId as ResumeId,
         filename: resume.filename,
         skills: cleanedSkills,
-        experience: Array.isArray(resume.analyzedData?.experience) 
-          ? resume.analyzedData.experience 
-          : [resume.analyzedData?.experience || ''],
+        // Transform experience data to match expected object array format
+        experience: resume.analyzedData?.workExperience || [],
+        // Transform education data to match expected object array format  
         education: Array.isArray(resume.analyzedData?.education) 
-          ? resume.analyzedData.education 
+          ? resume.analyzedData.education.map(edu => 
+              typeof edu === 'string' 
+                ? { degree: edu, institution: 'Unknown' }
+                : { 
+                    degree: (edu as any).degree || String(edu), 
+                    institution: (edu as any).institution || 'Unknown',
+                    year: (edu as any).year,
+                    field: (edu as any).field
+                  }
+            )
           : [],
         analyzedData: updatedAnalyzedData || {
           name: '',
@@ -212,6 +228,11 @@ export async function cleanupHallucinatedSkills(
     maxResumes,
     specificResumeId,
   });
+
+  // Ensure storage is available
+  if (!storage) {
+    throw new Error('Storage not initialized');
+  }
 
   const stats: SkillCleanupStats = {
     resumesProcessed: 0,
@@ -304,12 +325,17 @@ async function analyzeResumeSkills(resumeId: number): Promise<{
   hadHallucinations: boolean;
   patterns: string[];
 }> {
+  // Ensure storage is available
+  if (!storage) {
+    throw new Error('Storage not initialized');
+  }
+  
   const resume = await storage.getResumeById(resumeId, 'system');
   if (!resume) {
     throw new Error(`Resume ${resumeId} not found`);
   }
 
-  let allSkills: string[] = [];
+  const allSkills: string[] = [];
   
   if (Array.isArray(resume.skills)) {
     allSkills.push(...resume.skills);

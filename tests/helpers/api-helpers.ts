@@ -86,7 +86,8 @@ export class MockAuth {
   }
 
   static generateAuthHeaders(user: TestUser): Record<string, string> {
-    const token = jwt.sign(
+    // If user has a custom firebaseToken, use it (for testing expired/invalid tokens)
+    const token = user.firebaseToken || jwt.sign(
       {
         uid: user.uid,
         email: user.email,
@@ -400,19 +401,20 @@ SKILLS:
     const buffer = fileBuffer || this.createTestPDFBuffer();
     const authHeaders = MockAuth.generateAuthHeaders(user);
 
-    // This is a mock implementation - in real tests this would use supertest
-    return {
-      status: 200,
-      body: {
-        success: true,
-        data: {
-          id: Date.now(),
-          filename,
-          fileSize: buffer.length,
-          fileType: 'application/pdf'
-        }
-      }
-    };
+    // For testing, make actual HTTP call to the mock server
+    const request = await import('supertest');
+    return await request.default(app)
+      .post(endpoint)
+      .set(authHeaders)
+      .send({
+        filename,
+        content: buffer.toString('base64'),
+        fileSize: buffer.length,
+        fileType: filename.endsWith('.pdf') ? 'application/pdf' : 
+                  filename.endsWith('.docx') ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' :
+                  filename.endsWith('.txt') ? 'text/plain' : 'application/pdf',
+        ...additionalFields
+      });
   }
 
   static async uploadMultipleTestFiles(
@@ -424,21 +426,22 @@ SKILLS:
   ): Promise<any> {
     const authHeaders = MockAuth.generateAuthHeaders(user);
 
-    // This is a mock implementation
-    return {
-      status: 200,
-      body: {
-        success: true,
-        data: {
-          files: files.map((file, index) => ({
-            id: Date.now() + index,
-            filename: file.filename,
-            fileSize: file.buffer.length,
-            fileType: 'application/pdf'
-          }))
-        }
-      }
-    };
+    // For testing, make actual HTTP call to the mock server
+    const request = await import('supertest');
+    return await request.default(app)
+      .post(endpoint)
+      .set(authHeaders)
+      .send({
+        files: files.map(file => ({
+          filename: file.filename,
+          content: file.buffer.toString('base64'),
+          fileSize: file.buffer.length,
+          fileType: file.filename.endsWith('.pdf') ? 'application/pdf' : 
+                    file.filename.endsWith('.docx') ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' :
+                    file.filename.endsWith('.txt') ? 'text/plain' : 'application/pdf'
+        })),
+        ...additionalFields
+      });
   }
 }
 

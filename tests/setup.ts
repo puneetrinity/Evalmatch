@@ -5,6 +5,7 @@
 
 import '@testing-library/jest-dom';
 import dotenv from 'dotenv';
+import { jest, beforeAll, afterAll, beforeEach, afterEach } from '@jest/globals';
 
 // Load environment variables for testing
 dotenv.config({ path: '.env.test' });
@@ -90,6 +91,19 @@ beforeAll(async () => {
   // Ensure database is available
   if (!process.env.DATABASE_URL && !process.env.TEST_DATABASE_URL) {
     console.warn('⚠️  No test database URL provided. Some tests may fail.');
+  }
+
+  // Ensure upload directories exist for tests
+  const fs = await import('fs');
+  const path = await import('path');
+  
+  const uploadDirs = ['uploads', 'uploads/quarantine', 'uploads/pending', 'uploads/processed'];
+  for (const dir of uploadDirs) {
+    try {
+      await fs.promises.mkdir(dir, { recursive: true });
+    } catch (error) {
+      // Directory might already exist, ignore error
+    }
   }
 
   console.log('🧪 Test environment initialized');

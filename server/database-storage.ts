@@ -8,7 +8,7 @@ import {
   type AnalyzeResumeResponse, type AnalyzeJobDescriptionResponse,
   type SimpleBiasAnalysis
 } from "@shared/schema";
-import { db } from "./db";
+import { getDatabase } from "./database";
 import { eq, and, desc } from "drizzle-orm";
 import { IStorage } from "./storage";
 import { withRetry } from "./lib/db-retry";
@@ -18,33 +18,36 @@ import { logger } from "./lib/logger";
  * PostgreSQL implementation of the storage interface
  */
 export class DatabaseStorage implements IStorage {
+  private get db() {
+    return getDatabase();
+  }
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
+    const [user] = await this.db.select().from(users).where(eq(users.id, id));
     return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    const [user] = await this.db.select().from(users).where(eq(users.username, username));
     return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+    const [user] = await this.db.insert(users).values(insertUser).returning();
     return user;
   }
   
   // Resume methods
   async getResume(id: number): Promise<Resume | undefined> {
     return withRetry(async () => {
-      const [resume] = await db.select().from(resumes).where(eq(resumes.id, id));
+      const [resume] = await this.db.select().from(resumes).where(eq(resumes.id, id));
       return resume;
     }, `getResume(${id})`);
   }
 
   async getResumeById(id: number, userId: string): Promise<Resume | undefined> {
     return withRetry(async () => {
-      const [resume] = await db.select()
+      const [resume] = await this.db.select()
         .from(resumes)
         .where(and(eq(resumes.id, id), eq(resumes.userId, userId)));
       return resume;
@@ -55,15 +58,15 @@ export class DatabaseStorage implements IStorage {
     return withRetry(async () => {
       // If sessionId is provided, filter resumes by session
       if (sessionId) {
-        console.log(`DatabaseStorage: Filtering resumes by sessionId: ${sessionId}`);
-        return db.select()
+        logger.debug('Filtering resumes by sessionId', { sessionId });
+        return this.db.select()
           .from(resumes)
           .where(eq(resumes.sessionId, sessionId))
           .orderBy(desc(resumes.createdAt));
       }
       
       // Otherwise return all resumes
-      return db.select().from(resumes).orderBy(desc(resumes.createdAt));
+      return this.db.select().from(resumes).orderBy(desc(resumes.createdAt));
     }, `getResumes(${sessionId || 'all'})`);
   }
   
@@ -73,11 +76,13 @@ export class DatabaseStorage implements IStorage {
       
       if (batchId) {
         conditions.push(eq(resumes.batchId, batchId));
-      } else if (sessionId) {
+      }
+      
+      if (sessionId) {
         conditions.push(eq(resumes.sessionId, sessionId));
       }
       
-      return db.select()
+      return this.db.select()
         .from(resumes)
         .where(and(...conditions))
         .orderBy(desc(resumes.createdAt));
@@ -95,7 +100,7 @@ export class DatabaseStorage implements IStorage {
         contentLength: insertResume.content?.length || 0
       });
       
-      const [resume] = await db.insert(resumes)
+      const [resume] = await this.db.insert(resumes)
         .values({
           ...insertResume,
         })
@@ -114,9 +119,9 @@ export class DatabaseStorage implements IStorage {
   
   async updateResumeAnalysis(id: number, analysis: AnalyzeResumeResponse): Promise<Resume> {
     return withRetry(async () => {
-      const [updatedResume] = await db.update(resumes)
+      const [updatedResume] = await this.db.update(resumes)
         .set({
-          analyzedData: analysis
+          analyzedData: analysis.analyzedData
         })
         .where(eq(resumes.id, id))
         .returning();
@@ -127,34 +132,43 @@ export class DatabaseStorage implements IStorage {
   
   // Job description methods
   async getJobDescription(id: number): Promise<JobDescription | undefined> {
-    console.log(`DatabaseStorage: Looking up job description with ID ${id}`);
+    logger.debug('Looking up job description', { jobId: id });
     return withRetry(async () => {
       try {
-        const [jobDescription] = await db.select()
+        const [jobDescription] = await this.db.select()
           .from(jobDescriptions)
           .where(eq(jobDescriptions.id, id));
         
-        console.log(`DatabaseStorage: Job lookup result: ${jobDescription ? `Found job '${jobDescription.title}' with ID ${jobDescription.id}` : 'No job found'}`);
+        logger.debug('Job lookup result', { 
+          found: !!jobDescription,
+          jobId: jobDescription?.id,
+          title: jobDescription?.title
+        });
         return jobDescription;
       } catch (error) {
-        console.error(`DatabaseStorage: Error fetching job description ${id}:`, error);
+        logger.error(`Error fetching job description (jobId: ${id})`, error);
         throw error;
       }
     }, `getJobDescription(${id})`);
   }
 
   async getJobDescriptionById(id: number, userId: string): Promise<JobDescription | undefined> {
-    console.log(`DatabaseStorage: Looking up job description with ID ${id} for user ${userId}`);
+    logger.debug('Looking up user-scoped job description', { jobId: id, userId });
     return withRetry(async () => {
       try {
-        const [jobDescription] = await db.select()
+        const [jobDescription] = await this.db.select()
           .from(jobDescriptions)
           .where(and(eq(jobDescriptions.id, id), eq(jobDescriptions.userId, userId)));
         
-        console.log(`DatabaseStorage: User-scoped job lookup result: ${jobDescription ? `Found job '${jobDescription.title}' with ID ${jobDescription.id}` : 'No job found for user'}`);
+        logger.debug('User-scoped job lookup result', {
+          found: !!jobDescription,
+          jobId: jobDescription?.id, 
+          title: jobDescription?.title,
+          userId
+        });
         return jobDescription;
       } catch (error) {
-        console.error(`DatabaseStorage: Error fetching job description ${id} for user ${userId}:`, error);
+        logger.error(`Error fetching user-scoped job description (jobId: ${id}, userId: ${userId})`, error);
         throw error;
       }
     }, `getJobDescriptionById(${id}, ${userId})`);
@@ -162,7 +176,7 @@ export class DatabaseStorage implements IStorage {
   
   async getJobDescriptions(): Promise<JobDescription[]> {
     return withRetry(async () => {
-      return db.select()
+      return this.db.select()
         .from(jobDescriptions)
         .orderBy(desc(jobDescriptions.createdAt));
     }, 'getJobDescriptions()');
@@ -170,7 +184,7 @@ export class DatabaseStorage implements IStorage {
   
   async getJobDescriptionsByUserId(userId: string): Promise<JobDescription[]> {
     return withRetry(async () => {
-      return db.select()
+      return this.db.select()
         .from(jobDescriptions)
         .where(eq(jobDescriptions.userId, userId))
         .orderBy(desc(jobDescriptions.createdAt));
@@ -185,7 +199,7 @@ export class DatabaseStorage implements IStorage {
         hasDescription: !!insertJobDescription.description
       });
       
-      const [jobDescription] = await db.insert(jobDescriptions)
+      const [jobDescription] = await this.db.insert(jobDescriptions)
         .values({
           ...insertJobDescription,
         })
@@ -203,7 +217,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateJobDescription(id: number, updates: Partial<JobDescription>): Promise<JobDescription> {
     return withRetry(async () => {
-      const [updatedJobDescription] = await db.update(jobDescriptions)
+      const [updatedJobDescription] = await this.db.update(jobDescriptions)
         .set(updates)
         .where(eq(jobDescriptions.id, id))
         .returning();
@@ -214,15 +228,15 @@ export class DatabaseStorage implements IStorage {
 
   async deleteJobDescription(id: number): Promise<void> {
     return withRetry(async () => {
-      await db.delete(jobDescriptions).where(eq(jobDescriptions.id, id));
+      await this.db.delete(jobDescriptions).where(eq(jobDescriptions.id, id));
     }, `deleteJobDescription(${id})`);
   }
   
   async updateJobDescriptionAnalysis(id: number, analysis: AnalyzeJobDescriptionResponse): Promise<JobDescription> {
     return withRetry(async () => {
-      const [updatedJobDescription] = await db.update(jobDescriptions)
+      const [updatedJobDescription] = await this.db.update(jobDescriptions)
         .set({
-          analyzedData: analysis
+          analyzedData: analysis.analyzedData
         })
         .where(eq(jobDescriptions.id, id))
         .returning();
@@ -234,7 +248,7 @@ export class DatabaseStorage implements IStorage {
   async updateJobDescriptionBiasAnalysis(id: number, biasAnalysis: SimpleBiasAnalysis): Promise<JobDescription> {
     return withRetry(async () => {
       // First get the existing job description
-      const [existingJob] = await db.select()
+      const [existingJob] = await this.db.select()
         .from(jobDescriptions)
         .where(eq(jobDescriptions.id, id));
       
@@ -244,7 +258,13 @@ export class DatabaseStorage implements IStorage {
       
       // Safely merge bias analysis into existing analyzedData
       // Handle case where analyzedData is null
-      const currentAnalyzedData = existingJob.analyzedData || {};
+      const currentAnalyzedData = existingJob.analyzedData || {
+        requiredSkills: [],
+        preferredSkills: [],
+        experienceLevel: '',
+        responsibilities: [],
+        summary: ''
+      };
       const updatedAnalyzedData = {
         ...currentAnalyzedData,
         biasAnalysis: biasAnalysis
@@ -255,7 +275,7 @@ export class DatabaseStorage implements IStorage {
         biasAnalysisKeys: Object.keys(biasAnalysis)
       });
       
-      const [updatedJobDescription] = await db.update(jobDescriptions)
+      const [updatedJobDescription] = await this.db.update(jobDescriptions)
         .set({
           analyzedData: updatedAnalyzedData
         })
@@ -270,7 +290,7 @@ export class DatabaseStorage implements IStorage {
   // Analysis result methods
   async getAnalysisResult(id: number): Promise<AnalysisResult | undefined> {
     return withRetry(async () => {
-      const [analysisResult] = await db.select()
+      const [analysisResult] = await this.db.select()
         .from(analysisResults)
         .where(eq(analysisResults.id, id));
       return analysisResult;
@@ -279,7 +299,7 @@ export class DatabaseStorage implements IStorage {
 
   async getAnalysisResultByJobAndResume(jobId: number, resumeId: number, userId: string): Promise<AnalysisResult | undefined> {
     return withRetry(async () => {
-      const [analysisResult] = await db.select()
+      const [analysisResult] = await this.db.select()
         .from(analysisResults)
         .where(and(
           eq(analysisResults.jobDescriptionId, jobId), 
@@ -301,39 +321,18 @@ export class DatabaseStorage implements IStorage {
       const resumeConditions = [];
       if (batchId) {
         resumeConditions.push(eq(resumes.batchId, batchId));
-      } else if (sessionId) {
+      }
+      
+      if (sessionId) {
         resumeConditions.push(eq(resumes.sessionId, sessionId));
       }
       
-      // First, get the most recent analysis result for each resume
-      // We use a subquery to find the latest createdAt for each resumeId
-      const latestAnalysisSubquery = db
-        .select({
-          resumeId: analysisResults.resumeId,
-          maxCreatedAt: db.selectDistinct({ max: analysisResults.createdAt }).from(analysisResults)
-        })
-        .from(analysisResults)
-        .where(and(
-          eq(analysisResults.jobDescriptionId, jobId),
-          eq(analysisResults.userId, userId)
-        ))
-        .groupBy(analysisResults.resumeId);
-      
-      // Build the main query with deduplication
-      let query = db.select({
-        ...analysisResults,
-        resume: resumes
-      })
-        .from(analysisResults)
-        .leftJoin(resumes, eq(analysisResults.resumeId, resumes.id))
-        .where(and(
-          ...conditions,
-          ...(resumeConditions.length > 0 ? resumeConditions : [])
-        ));
+      // Get analysis results ordered by creation time (most recent first)
+      // This is a simpler approach than the complex subquery
       
       // Since we can't directly use the subquery in this context with Drizzle,
       // we'll use a window function approach instead
-      const results = await db.select({
+      const results = await this.db.select({
         id: analysisResults.id,
         userId: analysisResults.userId,
         resumeId: analysisResults.resumeId,
@@ -370,11 +369,12 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(analysisResults.createdAt));
       
       // Deduplicate by keeping only the most recent analysis per resume
-      const deduplicatedResults = new Map<number, any>();
+      type QueryResult = typeof results[0];
+      const deduplicatedResults = new Map<number, QueryResult>();
       
       for (const result of results) {
         if (result.resumeId && (!deduplicatedResults.has(result.resumeId) || 
-            new Date(result.createdAt!) > new Date(deduplicatedResults.get(result.resumeId).createdAt!))) {
+            new Date(result.createdAt!) > new Date(deduplicatedResults.get(result.resumeId)!.createdAt!))) {
           deduplicatedResults.set(result.resumeId, result);
         }
       }
@@ -393,7 +393,7 @@ export class DatabaseStorage implements IStorage {
   
   async getAnalysisResultsByResumeId(resumeId: number): Promise<AnalysisResult[]> {
     return withRetry(async () => {
-      return db.select()
+      return this.db.select()
         .from(analysisResults)
         .where(eq(analysisResults.resumeId, resumeId))
         .orderBy(desc(analysisResults.createdAt));
@@ -402,7 +402,7 @@ export class DatabaseStorage implements IStorage {
   
   async getAnalysisResultsByJobDescriptionId(jobDescriptionId: number): Promise<AnalysisResult[]> {
     return withRetry(async () => {
-      return db.select()
+      return this.db.select()
         .from(analysisResults)
         .where(eq(analysisResults.jobDescriptionId, jobDescriptionId))
         .orderBy(desc(analysisResults.createdAt));
@@ -411,7 +411,7 @@ export class DatabaseStorage implements IStorage {
   
   async createAnalysisResult(insertAnalysisResult: InsertAnalysisResult): Promise<AnalysisResult> {
     return withRetry(async () => {
-      const [analysisResult] = await db.insert(analysisResults)
+      const [analysisResult] = await this.db.insert(analysisResults)
         .values({
           ...insertAnalysisResult,
         })
@@ -423,7 +423,7 @@ export class DatabaseStorage implements IStorage {
   // Interview questions methods
   async getInterviewQuestions(id: number): Promise<InterviewQuestions | undefined> {
     return withRetry(async () => {
-      const [interviewQuestion] = await db.select()
+      const [interviewQuestion] = await this.db.select()
         .from(interviewQuestions)
         .where(eq(interviewQuestions.id, id));
       return interviewQuestion;
@@ -432,7 +432,7 @@ export class DatabaseStorage implements IStorage {
   
   async getInterviewQuestionsByResumeId(resumeId: number): Promise<InterviewQuestions[]> {
     return withRetry(async () => {
-      return db.select()
+      return this.db.select()
         .from(interviewQuestions)
         .where(eq(interviewQuestions.resumeId, resumeId))
         .orderBy(desc(interviewQuestions.createdAt));
@@ -441,7 +441,7 @@ export class DatabaseStorage implements IStorage {
   
   async getInterviewQuestionsByJobDescriptionId(jobDescriptionId: number): Promise<InterviewQuestions[]> {
     return withRetry(async () => {
-      return db.select()
+      return this.db.select()
         .from(interviewQuestions)
         .where(eq(interviewQuestions.jobDescriptionId, jobDescriptionId))
         .orderBy(desc(interviewQuestions.createdAt));
@@ -450,7 +450,7 @@ export class DatabaseStorage implements IStorage {
   
   async getInterviewQuestionByResumeAndJob(resumeId: number, jobDescriptionId: number): Promise<InterviewQuestions | undefined> {
     return withRetry(async () => {
-      const [interviewQuestion] = await db.select()
+      const [interviewQuestion] = await this.db.select()
         .from(interviewQuestions)
         .where(
           and(
@@ -465,7 +465,7 @@ export class DatabaseStorage implements IStorage {
   
   async createInterviewQuestions(insertInterviewQuestions: InsertInterviewQuestions): Promise<InterviewQuestions> {
     return withRetry(async () => {
-      const [interviewQuestion] = await db.insert(interviewQuestions)
+      const [interviewQuestion] = await this.db.insert(interviewQuestions)
         .values({
           ...insertInterviewQuestions,
         })
@@ -485,7 +485,7 @@ export class DatabaseStorage implements IStorage {
       throw new Error(`Resume with ID ${resumeId} not found`);
     }
     
-    const [analysis] = await db.select()
+    const [analysis] = await this.db.select()
       .from(analysisResults)
       .where(
         and(
@@ -496,7 +496,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(analysisResults.createdAt))
       .limit(1);
     
-    const [questions] = await db.select()
+    const [questions] = await this.db.select()
       .from(interviewQuestions)
       .where(
         and(
@@ -517,7 +517,7 @@ export class DatabaseStorage implements IStorage {
   // Missing embedding methods required by IStorage interface
   async updateResumeEmbeddings(id: number, embedding: number[] | null, skillsEmbedding: number[] | null): Promise<Resume> {
     return withRetry(async () => {
-      const [updatedResume] = await db.update(resumes)
+      const [updatedResume] = await this.db.update(resumes)
         .set({
           embedding,
           skillsEmbedding
@@ -535,7 +535,7 @@ export class DatabaseStorage implements IStorage {
   
   async updateJobDescriptionEmbeddings(id: number, embedding: number[] | null, requirementsEmbedding: number[] | null): Promise<JobDescription> {
     return withRetry(async () => {
-      const [updatedJobDescription] = await db.update(jobDescriptions)
+      const [updatedJobDescription] = await this.db.update(jobDescriptions)
         .set({
           embedding,
           requirementsEmbedding

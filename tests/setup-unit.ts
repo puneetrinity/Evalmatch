@@ -4,6 +4,25 @@
  */
 
 import { jest } from '@jest/globals';
+import '@testing-library/jest-dom';
+
+// Setup React Testing Library if in browser environment
+if (typeof window !== 'undefined') {
+  // Mock window.matchMedia for React components
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: jest.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(), // deprecated
+      removeListener: jest.fn(), // deprecated
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+}
 
 // Mock environment variables
 process.env.NODE_ENV = 'test';

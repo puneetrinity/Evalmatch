@@ -1,8 +1,9 @@
-// Load environment variables first before any other imports
-import dotenv from 'dotenv';
-dotenv.config();
+// Only load dotenv in development, not in production (Railway provides env vars)
+if (process.env.NODE_ENV !== 'production' && !process.env.RAILWAY_ENVIRONMENT) {
+  import('dotenv').then(dotenv => dotenv.config());
+}
 
-import express, { type Request, Response, NextFunction } from "express";
+import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 
@@ -20,14 +21,16 @@ declare global {
 }
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { storage } from "./storage";
 import { config } from "./config/unified-config";
 import { initializeDatabase } from "./database";
 import { initializeFirebaseAuth } from "./auth/firebase-auth";
 import { initializeMonitoring, logger } from "./monitoring";
 import { globalErrorHandler, initializeGlobalErrorHandling } from "./middleware/global-error-handler";
 import { initializeHealthChecks } from "./middleware/health-checks";
+import { apiVersioningMiddleware } from './middleware/api-versioning';
 import { validateEnvironmentOrExit } from "./lib/env-validator";
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger-config.js';
 
 const app = express();
 
@@ -35,7 +38,7 @@ const app = express();
 export default app;
 
 // Trust proxy for Railway deployment (needed for rate limiting and real IP detection)
-app.set('trust proxy', true);
+app.set('trust proxy', 1); // Use 1 for single proxy (Railway)
 
 // Generate CSP nonce for each request
 app.use((req, res, next) => {
@@ -43,7 +46,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Security middleware with improved CSP
+// Security middleware with improved CSP (nonce-based)
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -105,6 +108,9 @@ const corsOptions = {
 
 // Apply CORS to all API routes (handles OPTIONS automatically)
 app.use('/api', cors(corsOptions));
+
+// Add API versioning middleware
+app.use('/api', apiVersioningMiddleware);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -213,61 +219,122 @@ if (process.env.NODE_ENV === "development") {
       logger.info('🧠 Using in-memory storage (fallback mode)');
     }
 
-  // Register all routes
-  registerRoutes(app);
-
-  // Global error handling middleware (replaces basic error handler)
-  app.use(globalErrorHandler);
-
-  // Use configured port from unified config
-  const port = config.port;
-  
-  // Start the server
-  const server = app.listen(port, "0.0.0.0", () => {
-    logger.info(`Server started successfully, listening on port ${port}`);
-    log(`serving on port ${port}`); // Keep the original log for vite
-  });
-
-  // Railway-specific graceful shutdown handling
-  const gracefulShutdown = async (signal: string) => {
-    logger.info(`${signal} received, initiating graceful database shutdown...`);
-    
-    try {
-      // Stop accepting new connections
-      server.close(() => {
-        logger.info('HTTP server closed');
-      });
-
-      // Close database connections gracefully
-      if (config.database.enabled) {
-        logger.info('Closing database connections gracefully...');
-        const { closeDatabase } = await import('./database');
-        await closeDatabase();
-        logger.info('Database connections closed successfully');
+    // Initialize skill learning scheduler if database is enabled
+    if (config.database.enabled) {
+      try {
+        logger.info('🧠 Initializing consolidated skill learning system...');
+        const { SkillLearningSystem } = await import('./lib/skill-learning');
+        SkillLearningSystem.getInstance(); // Initialize the learning system
+        logger.info('✅ Skill learning system initialized successfully');
+      } catch (error) {
+        logger.warn('Failed to start skill learning scheduler:', error);
+        // Don't fail startup if scheduler fails to start
       }
-
-      logger.info('Graceful shutdown completed');
-      process.exit(0);
-    } catch (error) {
-      logger.error('Error during graceful shutdown:', error);
-      process.exit(1);
+    } else {
+      logger.info('🧠 Skill learning scheduler disabled (no database)');
     }
-  };
 
-  // Handle Railway SIGTERM signals
-  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-  
-  // Handle uncaught exceptions for Railway stability
-  process.on('uncaughtException', (error) => {
-    logger.error('Uncaught Exception:', error);
-    gracefulShutdown('UNCAUGHT_EXCEPTION');
-  });
+    // Setup Swagger UI before registering routes
+    logger.info('📚 Setting up API documentation...');
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+      explorer: true,
+      customCss: '.swagger-ui .topbar { display: none }',
+      customSiteTitle: 'EvalMatch API Documentation',
+      customfavIcon: '/favicon.ico',
+      swaggerOptions: {
+        persistAuthorization: true,
+        displayRequestDuration: true,
+        filter: true,
+        tryItOutEnabled: true,
+        requestSnippetsEnabled: true,
+        requestSnippets: {
+          generators: {
+            curl_bash: { title: 'cURL (bash)', syntax: 'bash' },
+            curl_powershell: { title: 'cURL (PowerShell)', syntax: 'powershell' },
+            javascript_fetch: { title: 'JavaScript (fetch)', syntax: 'javascript' }
+          },
+          defaultExpanded: true,
+          languages: ['curl_bash', 'javascript_fetch']
+        }
+      }
+    }));
 
-  process.on('unhandledRejection', (reason, promise) => {
-    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    gracefulShutdown('UNHANDLED_REJECTION');
-  });
+    // Serve raw OpenAPI spec
+    app.get('/api-docs.json', (req, res) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.send(swaggerSpec);
+    });
+
+    logger.info('✅ API documentation available at /api-docs');
+
+    // Register all routes AFTER storage is initialized
+    logger.info('🚗 Registering application routes...');
+    registerRoutes(app);
+    logger.info('✅ Routes registered successfully');
+
+    // Global error handling middleware (replaces basic error handler)
+    app.use(globalErrorHandler);
+
+    // Use configured port from unified config
+    const port = config.port;
+    
+    // Start the server AFTER all initialization is complete
+    const server = app.listen(port, "0.0.0.0", () => {
+      logger.info(`Server started successfully, listening on port ${port}`);
+      log(`serving on port ${port}`); // Keep the original log for vite
+    });
+
+    // Railway-specific graceful shutdown handling
+    const gracefulShutdown = async (signal: string) => {
+      logger.info(`${signal} received, initiating graceful database shutdown...`);
+      
+      try {
+        // Stop accepting new connections
+        server.close(() => {
+          logger.info('HTTP server closed');
+        });
+
+        // Stop skill learning system
+        if (config.database.enabled) {
+          try {
+            logger.info('Stopping consolidated skill learning system...');
+            // The consolidated system handles its own cleanup automatically
+            logger.info('Skill learning system stopped');
+          } catch (error) {
+            logger.warn('Error stopping skill learning scheduler:', error);
+          }
+        }
+
+        // Close database connections gracefully
+        if (config.database.enabled) {
+          logger.info('Closing database connections gracefully...');
+          const { closeDatabase } = await import('./database');
+          await closeDatabase();
+          logger.info('Database connections closed successfully');
+        }
+
+        logger.info('Graceful shutdown completed');
+        process.exit(0);
+      } catch (error) {
+        logger.error('Error during graceful shutdown:', error);
+        process.exit(1);
+      }
+    };
+
+    // Handle Railway SIGTERM signals
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    
+    // Handle uncaught exceptions for Railway stability
+    process.on('uncaughtException', (error) => {
+      logger.error('Uncaught Exception:', error);
+      gracefulShutdown('UNCAUGHT_EXCEPTION');
+    });
+
+    process.on('unhandledRejection', (reason, promise) => {
+      logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+      gracefulShutdown('UNHANDLED_REJECTION');
+    });
 
     // Setup Vite in development or serve static files in production
     if (config.env === 'development') {

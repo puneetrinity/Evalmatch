@@ -1,12 +1,18 @@
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
-import { fileURLToPath } from 'url';
 import { registerRoutes } from "./routes";
 import { logger } from "./config/logger";
 
-// For ES modules in Node.js
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// For ES modules in Node.js - handle both CommonJS and ES modules
+let currentDirPath: string;
+
+// In test environment or when __dirname is not available, use process.cwd()
+// This avoids syntax errors with import.meta.url in CommonJS environments
+if (process.env.NODE_ENV === 'test' || typeof __dirname === 'undefined') {
+  currentDirPath = path.join(process.cwd(), 'server');
+} else {
+  currentDirPath = __dirname;
+}
 
 // Check for OpenAI API Key
 if (!process.env.OPENAI_API_KEY) {
@@ -58,7 +64,7 @@ app.use((req, res, next) => {
 
   // Global error handler
   app.use((err: Error | unknown, _req: Request, res: Response, _next: NextFunction) => {
-    const status = (err as any)?.status || (err as any)?.statusCode || 500;
+    const status = (err as { status?: number; statusCode?: number })?.status || (err as { status?: number; statusCode?: number })?.statusCode || 500;
     const message = err instanceof Error ? err.message : "Internal Server Error";
 
     res.status(status).json({ message });
@@ -66,7 +72,7 @@ app.use((req, res, next) => {
   });
 
   // Serve static files from the React app
-  const clientPath = path.join(__dirname, '../client');
+  const clientPath = path.join(currentDirPath, '../client');
   app.use(express.static(clientPath));
 
   // For all other routes, serve the React app

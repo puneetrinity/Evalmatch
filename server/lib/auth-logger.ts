@@ -7,9 +7,11 @@
  * - Provides structured logging for debugging
  */
 
+import { logger } from '../lib/logger';
+
 const isDevelopment =
   process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev";
-const isProduction = process.env.NODE_ENV === "production";
+const _isProduction = process.env.NODE_ENV === "production";
 
 interface LogContext {
   operation?: string;
@@ -19,6 +21,9 @@ interface LogContext {
   success?: boolean;
   errorCode?: string;
   errorType?: string;
+  hasCredentials?: boolean;
+  credentialsType?: string;
+  configuredCorrectly?: boolean;
 }
 
 class ServerAuthLogger {
@@ -31,7 +36,7 @@ class ServerAuthLogger {
     if (!isDevelopment) return;
 
     const sanitizedContext = this.sanitizeContext(context);
-    console.log(`${this.prefix} ${message}`, sanitizedContext || "");
+    logger.info(`${this.prefix} ${message}`, sanitizedContext);
   }
 
   /**
@@ -39,13 +44,13 @@ class ServerAuthLogger {
    */
   info(message: string, context?: LogContext): void {
     const sanitizedContext = this.sanitizeContext(context);
-    console.log(`${this.prefix} ${message}`, sanitizedContext || "");
+    logger.info(`${this.prefix} ${message}`, sanitizedContext);
   }
 
   /**
    * Log authentication errors (always logged but sanitized)
    */
-  error(message: string, error?: any, context?: LogContext): void {
+  error(message: string, error?: Error | unknown, context?: LogContext): void {
     const sanitizedContext = this.sanitizeContext(context);
     const sanitizedError = this.sanitizeError(error);
 
@@ -95,15 +100,27 @@ class ServerAuthLogger {
    * Remove sensitive data from errors
    */
   private sanitizeError(
-    error: any,
+    error: Error | unknown,
   ): { code?: string; type?: string; message?: string } | undefined {
     if (!error) return undefined;
-
-    return {
-      code: error.code,
-      type: error.name || typeof error,
-      message: isDevelopment ? error.message : undefined,
-    };
+    if (error instanceof Error) {
+      // Some Firebase errors may have a 'code' property in addition to standard Error
+      const maybeCode = (error as unknown as { code?: string }).code;
+      return {
+        code: maybeCode,
+        type: error.name || typeof error,
+        message: isDevelopment ? error.message : undefined,
+      };
+    }
+    if (typeof error === 'object' && error !== null) {
+      const anyErr = error as Record<string, unknown>;
+      return {
+        code: typeof anyErr.code === 'string' ? anyErr.code : undefined,
+        type: typeof anyErr.name === 'string' ? anyErr.name : typeof error,
+        message: isDevelopment && typeof anyErr.message === 'string' ? anyErr.message : undefined,
+      };
+    }
+    return { type: typeof error };
   }
 
   /**

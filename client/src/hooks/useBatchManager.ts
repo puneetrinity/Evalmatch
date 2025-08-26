@@ -158,6 +158,27 @@ const BATCH_VERSION = '1.0.0';
 const SESSION_STORAGE_KEY = 'currentUploadSession';
 const BATCH_STORAGE_KEY = 'currentBatchId';
 
+// ===== UTILITY FUNCTIONS =====
+
+// Development-only logging utility
+const devLog = (...args: unknown[]): void => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(...args);
+  }
+};
+
+const devWarn = (...args: unknown[]): void => {
+  if (process.env.NODE_ENV === 'development') {
+    console.warn(...args);
+  }
+};
+
+const devError = (...args: unknown[]): void => {
+  if (process.env.NODE_ENV === 'development') {
+    console.error(...args);
+  }
+};
+
 // ===== BATCH MANAGER HOOK =====
 
 export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
@@ -263,9 +284,9 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
       localStorage.setItem(BATCH_STORAGE_KEY, batchId);
       
-      console.log(`[BATCH PERSISTENCE] Saved batch state: ${batchId} with ${resumeCount} resumes`);
+      devLog(`[BATCH PERSISTENCE] Saved batch state: ${batchId} with ${resumeCount} resumes`);
     } catch (error) {
-      console.warn('[BATCH PERSISTENCE] Failed to save batch state:', error);
+      devWarn('[BATCH PERSISTENCE] Failed to save batch state:', error);
     }
   };
 
@@ -281,20 +302,20 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       const staleThreshold = fullConfig.staleThreshold * 60 * 1000; // Convert to milliseconds
       
       if (age > staleThreshold) {
-        console.log(`[BATCH PERSISTENCE] Batch data is stale (${Math.round(age / 60000)}min old), ignoring`);
+        devLog(`[BATCH PERSISTENCE] Batch data is stale (${Math.round(age / 60000)}min old), ignoring`);
         return null;
       }
 
       // Check version compatibility
       if (data.version !== BATCH_VERSION) {
-        console.log(`[BATCH PERSISTENCE] Version mismatch, ignoring stored data`);
+        devLog(`[BATCH PERSISTENCE] Version mismatch, ignoring stored data`);
         return null;
       }
 
-      console.log(`[BATCH PERSISTENCE] Loaded batch state: ${data.batchId}`);
+      devLog(`[BATCH PERSISTENCE] Loaded batch state: ${data.batchId}`);
       return data;
     } catch (error) {
-      console.warn('[BATCH PERSISTENCE] Failed to load batch state:', error);
+      devWarn('[BATCH PERSISTENCE] Failed to load batch state:', error);
       return null;
     }
   };
@@ -304,9 +325,9 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       localStorage.removeItem(fullConfig.persistenceKey);
       localStorage.removeItem(SESSION_STORAGE_KEY);
       localStorage.removeItem(BATCH_STORAGE_KEY);
-      console.log('[BATCH PERSISTENCE] Cleared batch state');
+      devLog('[BATCH PERSISTENCE] Cleared batch state');
     } catch (error) {
-      console.warn('[BATCH PERSISTENCE] Failed to clear batch state:', error);
+      devWarn('[BATCH PERSISTENCE] Failed to clear batch state:', error);
     }
   };
 
@@ -318,7 +339,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
     sessionId: SessionId
   ): Promise<LocalBatchValidationResult> => {
     try {
-      console.log(`[BATCH VALIDATION] Server validation for batch: ${batchId}`);
+      devLog(`[BATCH VALIDATION] Server validation for batch: ${batchId}`);
       
       const response = await apiRequest(
         "GET",
@@ -355,14 +376,14 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
           isOrphaned: result.data.ownership?.isOrphaned || false,
         });
         
-        console.log(`[BATCH VALIDATION] ✅ Server validation successful for batch ${batchId}`);
+        devLog(`[BATCH VALIDATION] ✅ Server validation successful for batch ${batchId}`);
         return serverValidation;
       } else {
         throw new Error(result.message || 'Server validation failed');
       }
       
     } catch (error) {
-      console.error(`[BATCH VALIDATION] ❌ Server validation failed for batch ${batchId}:`, error);
+      devError(`[BATCH VALIDATION] ❌ Server validation failed for batch ${batchId}:`, error);
       
       updateState({
         serverValidated: false,
@@ -383,7 +404,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
     sessionId: SessionId
   ): Promise<LocalBatchStatus | null> => {
     try {
-      console.log(`[BATCH STATUS] Getting server status for batch: ${batchId}`);
+      devLog(`[BATCH STATUS] Getting server status for batch: ${batchId}`);
       
       const response = await apiRequest(
         "GET",
@@ -399,7 +420,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       const result = await response.json() as BatchStatusResponse;
       
       if (result.success && result.data) {
-        console.log(`[BATCH STATUS] ✅ Server status retrieved for batch ${batchId}`);
+        devLog(`[BATCH STATUS] ✅ Server status retrieved for batch ${batchId}`);
         // Convert server batch status to local status
         const serverStatus = result.data.status;
         const localStatus: LocalBatchStatus = serverStatus === 'active' ? 'ready' : 
@@ -412,7 +433,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       }
       
     } catch (error) {
-      console.error(`[BATCH STATUS] ❌ Failed to get server status for batch ${batchId}:`, error);
+      devError(`[BATCH STATUS] ❌ Failed to get server status for batch ${batchId}:`, error);
       return null;
     }
   }, []);
@@ -425,7 +446,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
     force: boolean = false
   ): Promise<{ success: boolean; message: string; resumeCount?: number }> => {
     try {
-      console.log(`[BATCH CLAIM] Attempting to claim batch: ${batchId}`);
+      devLog(`[BATCH CLAIM] Attempting to claim batch: ${batchId}`);
       
       const response = await apiRequest(
         "POST",
@@ -440,7 +461,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       const result = await response.json() as ClaimBatchResponse;
       
       if (result.success && result.data) {
-        console.log(`[BATCH CLAIM] ✅ Successfully claimed batch ${batchId}`);
+        devLog(`[BATCH CLAIM] ✅ Successfully claimed batch ${batchId}`);
         
         // Update local state with new ownership
         updateState({
@@ -466,7 +487,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       }
       
     } catch (error) {
-      console.error(`[BATCH CLAIM] ❌ Failed to claim batch ${batchId}:`, error);
+      devError(`[BATCH CLAIM] ❌ Failed to claim batch ${batchId}:`, error);
       return {
         success: false,
         message: error instanceof Error ? error.message : 'Claim failed',
@@ -480,7 +501,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
     sessionId: SessionId
   ): Promise<{ success: boolean; message: string; deletedItems?: any }> => {
     try {
-      console.log(`[BATCH DELETE] Attempting to delete batch: ${batchId}`);
+      devLog(`[BATCH DELETE] Attempting to delete batch: ${batchId}`);
       
       const response = await apiRequest(
         "DELETE",
@@ -496,7 +517,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       const result = await response.json() as DeleteBatchResponse;
       
       if (result.success && result.data) {
-        console.log(`[BATCH DELETE] ✅ Successfully deleted batch ${batchId}`);
+        devLog(`[BATCH DELETE] ✅ Successfully deleted batch ${batchId}`);
         
         // Clear local state if this was the current batch
         if (batchState.currentBatchId === batchId) {
@@ -513,7 +534,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       }
       
     } catch (error) {
-      console.error(`[BATCH DELETE] ❌ Failed to delete batch ${batchId}:`, error);
+      devError(`[BATCH DELETE] ❌ Failed to delete batch ${batchId}:`, error);
       return {
         success: false,
         message: error instanceof Error ? error.message : 'Delete failed',
@@ -528,7 +549,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
   ): Promise<LocalBatchValidationResult> => {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        console.log(`[BATCH VALIDATION] Attempt ${attempt}/${retries} - Validating batch ${batchId}`);
+        devLog(`[BATCH VALIDATION] Attempt ${attempt}/${retries} - Validating batch ${batchId}`);
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), fullConfig.validationTimeout);
@@ -544,7 +565,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
           
           if (isApiSuccess(data) && isResumeListResponse(data.data)) {
             const resumeCount = data.data.resumes?.length || 0;
-            console.log(`[BATCH VALIDATION] ✅ Batch ${batchId} validated - ${resumeCount} resumes found`);
+            devLog(`[BATCH VALIDATION] ✅ Batch ${batchId} validated - ${resumeCount} resumes found`);
             
             return {
               isValid: true,
@@ -560,7 +581,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
           
           if (attempt === retries) {
             const error = `Invalid response format: ${!data.success ? data.message : 'Unknown error'}`;
-            console.log(`[BATCH VALIDATION] ❌ Final attempt failed for batch ${batchId}: ${error}`);
+            devLog(`[BATCH VALIDATION] ❌ Final attempt failed for batch ${batchId}: ${error}`);
             return {
               isValid: false,
               resumeCount: 0,
@@ -574,7 +595,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
             };
           }
           
-          console.log(`[BATCH VALIDATION] ⚠️ Attempt ${attempt} failed, retrying...`);
+          devLog(`[BATCH VALIDATION] ⚠️ Attempt ${attempt} failed, retrying...`);
           await new Promise(resolve => setTimeout(resolve, fullConfig.retryDelay));
           
         } finally {
@@ -584,7 +605,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
           const timeoutError = 'Validation timeout - server took too long to respond';
-          console.log(`[BATCH VALIDATION] ⏰ Timeout on attempt ${attempt}`);
+          devLog(`[BATCH VALIDATION] ⏰ Timeout on attempt ${attempt}`);
           
           if (attempt === retries) {
             return {
@@ -602,7 +623,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
         } else {
           if (attempt === retries) {
             const errorMsg = error instanceof Error ? error.message : 'Network error';
-            console.log(`[BATCH VALIDATION] ❌ Final attempt failed for batch ${batchId}: ${errorMsg}`);
+            devLog(`[BATCH VALIDATION] ❌ Final attempt failed for batch ${batchId}: ${errorMsg}`);
             return {
               isValid: false,
               resumeCount: 0,
@@ -616,7 +637,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
             };
           }
           
-          console.log(`[BATCH VALIDATION] ⚠️ Attempt ${attempt} failed with error, retrying...`, error);
+          devLog(`[BATCH VALIDATION] ⚠️ Attempt ${attempt} failed with error, retrying...`, error);
         }
         
         await new Promise(resolve => setTimeout(resolve, fullConfig.retryDelay));
@@ -645,7 +666,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       const currentSessionId = queryKey[1] as SessionId;
       const currentBatch = queryKey[2] as string;
       
-      console.log(`[RESUMES QUERY] Fetching resumes for session: ${currentSessionId}, batch: ${currentBatch}`);
+      devLog(`[RESUMES QUERY] Fetching resumes for session: ${currentSessionId}, batch: ${currentBatch}`);
       
       const params = new URLSearchParams();
       if (currentSessionId) params.append('sessionId', currentSessionId);
@@ -657,7 +678,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       
       if (isApiSuccess(data)) {
         if (isResumeListResponse(data.data)) {
-          console.log(`[RESUMES QUERY] ✅ Found ${data.data.resumes?.length || 0} resumes for batch ${currentBatch}`);
+          devLog(`[RESUMES QUERY] ✅ Found ${data.data.resumes?.length || 0} resumes for batch ${currentBatch}`);
           return data.data;
         }
         throw new Error('Invalid resume list response format');
@@ -692,7 +713,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
           saveBatchToPersistence(batchId, batchState.sessionId, result.resumeCount);
         }
         
-        console.log(`[BATCH VALIDATION] ✅ Batch ${batchId} validation successful`);
+        devLog(`[BATCH VALIDATION] ✅ Batch ${batchId} validation successful`);
       } else {
         const error = createBatchError(
           'validation_failed',
@@ -709,7 +730,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
           retryCount: batchState.retryCount + 1,
         });
         
-        console.log(`[BATCH VALIDATION] ❌ Batch ${batchId} validation failed: ${result.error}`);
+        devLog(`[BATCH VALIDATION] ❌ Batch ${batchId} validation failed: ${result.error}`);
       }
     },
     onError: (error, { batchId }) => {
@@ -727,14 +748,14 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
         retryCount: batchState.retryCount + 1,
       });
       
-      console.log(`[BATCH VALIDATION] ❌ Validation error for batch ${batchId}:`, error);
+      devLog(`[BATCH VALIDATION] ❌ Validation error for batch ${batchId}:`, error);
     },
   });
 
   // ===== CORE FUNCTIONS =====
 
   const createNewBatch = useCallback((): string => {
-    console.log('[BATCH MANAGER] Creating new batch...');
+    devLog('[BATCH MANAGER] Creating new batch...');
     
     const newBatchId = generateBatchId();
     let currentSessionId = batchState.sessionId;
@@ -742,7 +763,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
     // Create new session if we don't have one
     if (!currentSessionId) {
       currentSessionId = generateSessionId();
-      console.log(`[BATCH MANAGER] Created new session: ${currentSessionId}`);
+      devLog(`[BATCH MANAGER] Created new session: ${currentSessionId}`);
     }
     
     updateState({
@@ -759,7 +780,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
     // Save to localStorage
     saveBatchToPersistence(newBatchId, currentSessionId, 0);
     
-    console.log(`[BATCH MANAGER] ✅ Created new batch: ${newBatchId}`);
+    devLog(`[BATCH MANAGER] ✅ Created new batch: ${newBatchId}`);
     
     toast({
       title: "New batch created",
@@ -775,7 +796,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
     
     if (!targetBatchId || !targetSessionId) {
       const error = 'Cannot validate batch: missing batch ID or session ID';
-      console.log(`[BATCH MANAGER] ❌ ${error}`);
+      devLog(`[BATCH MANAGER] ❌ ${error}`);
       return {
         isValid: false,
         resumeCount: 0,
@@ -783,30 +804,30 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       };
     }
     
-    console.log(`[BATCH MANAGER] Starting validation for batch: ${targetBatchId}`);
+    devLog(`[BATCH MANAGER] Starting validation for batch: ${targetBatchId}`);
     
     // Use enhanced server-side validation first
     try {
       const serverValidation = await validateBatchWithServer(targetBatchId, targetSessionId);
       
       if (serverValidation.isValid) {
-        console.log(`[BATCH MANAGER] ✅ Server validation successful for batch: ${targetBatchId}`);
+        devLog(`[BATCH MANAGER] ✅ Server validation successful for batch: ${targetBatchId}`);
         return serverValidation;
       }
       
       // If server validation fails, check if batch is claimable
       if (batchState.canClaim || batchState.isOrphaned) {
-        console.log(`[BATCH MANAGER] ⚠️ Batch may be claimable: ${targetBatchId}`);
+        devLog(`[BATCH MANAGER] ⚠️ Batch may be claimable: ${targetBatchId}`);
         updateState({ status: 'orphaned' });
       } else {
-        console.log(`[BATCH MANAGER] ❌ Server validation failed for batch: ${targetBatchId}`);
+        devLog(`[BATCH MANAGER] ❌ Server validation failed for batch: ${targetBatchId}`);
         updateState({ status: 'error' });
       }
       
       return serverValidation;
       
     } catch (error) {
-      console.log(`[BATCH MANAGER] ⚠️ Server validation unavailable, falling back to legacy validation`);
+      devLog(`[BATCH MANAGER] ⚠️ Server validation unavailable, falling back to legacy validation`);
       
       // Fallback to legacy validation if server is unavailable
       return new Promise((resolve) => {
@@ -827,16 +848,16 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
 
   const preserveExistingBatch = useCallback(async (): Promise<boolean> => {
     if (!batchState.currentBatchId || !batchState.sessionId) {
-      console.log('[BATCH MANAGER] No existing batch to preserve');
+      devLog('[BATCH MANAGER] No existing batch to preserve');
       return false;
     }
     
-    console.log(`[BATCH MANAGER] Attempting to preserve batch: ${batchState.currentBatchId}`);
+    devLog(`[BATCH MANAGER] Attempting to preserve batch: ${batchState.currentBatchId}`);
     
     const validation = await validateBatch();
     
     if (validation.isValid && validation.resumeCount > 0) {
-      console.log(`[BATCH MANAGER] ✅ Preserved existing batch with ${validation.resumeCount} resumes`);
+      devLog(`[BATCH MANAGER] ✅ Preserved existing batch with ${validation.resumeCount} resumes`);
       
       toast({
         title: "Batch preserved",
@@ -846,12 +867,12 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       return true;
     }
     
-    console.log('[BATCH MANAGER] ❌ Cannot preserve batch - no valid resumes found');
+    devLog('[BATCH MANAGER] ❌ Cannot preserve batch - no valid resumes found');
     return false;
   }, [batchState.currentBatchId, batchState.sessionId, validateBatch, toast]);
 
   const resetBatch = useCallback(() => {
-    console.log('[BATCH MANAGER] Resetting batch and session...');
+    devLog('[BATCH MANAGER] Resetting batch and session...');
     
     // Clear validation timeout
     if (validationTimeoutRef.current) {
@@ -877,7 +898,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
     // Invalidate queries
     queryClient.invalidateQueries({ queryKey: ["/api/resumes"] });
     
-    console.log('[BATCH MANAGER] ✅ Batch reset complete');
+    devLog('[BATCH MANAGER] ✅ Batch reset complete');
     
     toast({
       title: "Session reset",
@@ -899,7 +920,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
   }, [batchState, fullConfig.staleThreshold]);
 
   const recoverBatch = useCallback(async (): Promise<boolean> => {
-    console.log('[BATCH MANAGER] Attempting batch recovery...');
+    devLog('[BATCH MANAGER] Attempting batch recovery...');
     
     updateState({ status: 'loading', isLoading: true });
     
@@ -907,7 +928,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
     const persistedData = loadBatchFromPersistence();
     
     if (persistedData) {
-      console.log(`[BATCH MANAGER] Found persisted batch: ${persistedData.batchId}`);
+      devLog(`[BATCH MANAGER] Found persisted batch: ${persistedData.batchId}`);
       
       updateState({
         currentBatchId: persistedData.batchId,
@@ -920,7 +941,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       const validation = await validateBatch(persistedData.batchId);
       
       if (validation.isValid) {
-        console.log(`[BATCH MANAGER] ✅ Successfully recovered batch with ${validation.resumeCount} resumes`);
+        devLog(`[BATCH MANAGER] ✅ Successfully recovered batch with ${validation.resumeCount} resumes`);
         
         toast({
           title: "Batch recovered",
@@ -929,7 +950,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
         
         return true;
       } else {
-        console.log('[BATCH MANAGER] ❌ Recovered batch failed validation, creating new batch');
+        devLog('[BATCH MANAGER] ❌ Recovered batch failed validation, creating new batch');
       }
     }
     
@@ -945,7 +966,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
     initializationRef.current = true;
     
     const initializeBatch = async () => {
-      console.log('[BATCH MANAGER] Initializing batch manager...');
+      devLog('[BATCH MANAGER] Initializing batch manager...');
       
       updateState({ status: 'loading', isLoading: true });
       
@@ -960,7 +981,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
     };
     
     initializeBatch().catch(error => {
-      console.error('[BATCH MANAGER] Initialization error:', error);
+      devError('[BATCH MANAGER] Initialization error:', error);
       
       const batchError = createBatchError(
         'server_error',
@@ -989,7 +1010,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       (Date.now() - batchState.lastValidated.getTime()) > (fullConfig.staleThreshold * 60 * 1000);
     
     if (needsValidation) {
-      console.log('[BATCH MANAGER] Auto-validating batch due to staleness');
+      devLog('[BATCH MANAGER] Auto-validating batch due to staleness');
       
       validationTimeoutRef.current = setTimeout(() => {
         validateBatch();
@@ -1011,7 +1032,7 @@ export function useBatchManager(config: Partial<BatchManagerConfig> = {}) {
       const serverResumeCount = resumesData.resumes.length;
       
       if (serverResumeCount !== batchState.resumeCount) {
-        console.log(`[BATCH MANAGER] Syncing resume count: ${batchState.resumeCount} → ${serverResumeCount}`);
+        devLog(`[BATCH MANAGER] Syncing resume count: ${batchState.resumeCount} → ${serverResumeCount}`);
         
         updateState({ resumeCount: serverResumeCount });
         

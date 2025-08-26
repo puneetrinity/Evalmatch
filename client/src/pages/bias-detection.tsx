@@ -56,6 +56,9 @@ export default function BiasDetectionPage() {
   const [match, routeParams] = useRoute("/bias-detection/:jobId");
   const jobId = match ? routeParams.jobId : null;
   
+  // Early validation of jobId
+  const isValidJobId = jobId && jobId !== 'undefined' && !isNaN(Number(jobId));
+  
   const [isBiasAnalyzing, setIsBiasAnalyzing] = useState(false);
   const [biasAnalysis, setBiasAnalysis] = useState<BiasAnalysisUI | null>(null);
   const [hasAttemptedBiasAnalysis, setHasAttemptedBiasAnalysis] = useState(false);
@@ -63,26 +66,32 @@ export default function BiasDetectionPage() {
   // Get job description with proper caching strategy
   const { data: jobData, isLoading } = useQuery<JobData>({
     queryKey: [`/api/job-descriptions/${jobId}`],
-    enabled: !!jobId,
+    enabled: Boolean(isValidJobId),
     // Reasonable refetch settings to prevent infinite loops
     refetchInterval: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     queryFn: async () => {
+      // Double-check jobId validity before making request
+      if (!jobId || jobId === 'undefined' || isNaN(Number(jobId))) {
+        console.error('Invalid jobId in query function:', jobId);
+        throw new Error('Invalid job ID');
+      }
+
       try {
         const response = await apiRequest("GET", `/api/job-descriptions/${jobId}`);
         const data = await response.json();
         // Extract jobDescription from the response
-        if (data.jobDescription) {
+        if (data.data && data.data.jobDescription) {
           // Add isAnalyzed flag from the parent response
           // Also ensure we map analyzedData.biasAnalysis to analysis.biasAnalysis for backward compatibility
-          const jobData = { ...data.jobDescription, isAnalyzed: data.isAnalyzed };
+          const jobData = { ...data.data.jobDescription, isAnalyzed: data.data.isAnalyzed };
           
           // Create analysis field for backward compatibility
-          if (jobData.analyzedData && !jobData.analysis) {
-            jobData.analysis = {
-              biasAnalysis: jobData.analyzedData.biasAnalysis
+          if ((jobData as JobData).analyzedData && !(jobData as JobData).analysis) {
+            (jobData as JobData).analysis = {
+              biasAnalysis: (jobData as JobData).analyzedData?.biasAnalysis
             };
           }
           
@@ -97,6 +106,11 @@ export default function BiasDetectionPage() {
             description: "This job description doesn't exist. Let's create a new one.",
             variant: "destructive",
           });
+          
+          // Clear stale localStorage data
+          localStorage.removeItem('currentUploadSession');
+          localStorage.removeItem('currentBatchId');
+          
           setTimeout(() => setLocation("/job-description"), 2000);
           return null;
         }
@@ -114,11 +128,12 @@ export default function BiasDetectionPage() {
       try {
         const data = await response.json();
         
-        if (!data || !data.biasAnalysis) {
+        if (!data || typeof data.biasAnalysis === 'undefined') {
           throw new Error("Invalid response format from server");
         }
         
-        setBiasAnalysis(data.biasAnalysis);
+        // Handle case where bias analysis is null (not yet implemented)
+        setBiasAnalysis(data.biasAnalysis || null);
         
         // Invalidate job description query to refresh data with bias analysis
         queryClient.invalidateQueries({ queryKey: [`/api/job-descriptions/${jobId}`] });
@@ -150,26 +165,41 @@ export default function BiasDetectionPage() {
 
   // If no job ID, redirect to job description page
   useEffect(() => {
-    if (!jobId) {
+    if (!isValidJobId) {
+      console.warn('Invalid or missing jobId detected:', jobId);
+      
+      // Clear any stale localStorage data that might cause issues
+      localStorage.removeItem('currentUploadSession');
+      localStorage.removeItem('currentBatchId');
+      
+      if (jobId && jobId !== 'undefined') {
+        toast({
+          title: "Invalid job reference",
+          description: "No valid job description found. Redirecting to job description page.",
+          variant: "destructive",
+        });
+      }
+      
       setLocation("/job-description");
+      return;
     } else {
       // Reset bias analysis attempt flag when jobId changes
       setHasAttemptedBiasAnalysis(false);
       setBiasAnalysis(null);
     }
-  }, [jobId, setLocation]);
+  }, [isValidJobId, jobId, setLocation, toast]);
 
   // Process job data when it changes - SIMPLIFIED to prevent infinite loop
   useEffect(() => {
     if (jobData) {
       if (import.meta.env.DEV) {
-        console.log(`Job data fetched. Job ID: ${jobId}, ID: ${jobData.id}, Title: ${jobData.title}, Analyzed: ${jobData.isAnalyzed}`);
+        console.log(`Job data fetched. Job ID: ${jobId}, ID: ${(jobData as JobData).id}, Title: ${(jobData as JobData).title}, Analyzed: ${(jobData as JobData).isAnalyzed}`);
       }
       
       // Check for existing bias analysis in both possible locations
-      const existingBiasAnalysis = jobData.analysis?.biasAnalysis || jobData.analyzedData?.biasAnalysis;
+      const existingBiasAnalysis = (jobData as JobData).analysis?.biasAnalysis || (jobData as JobData).analyzedData?.biasAnalysis;
       if (import.meta.env.DEV) {
-        console.log(`Analysis exists: ${!!jobData.analysis?.biasAnalysis}, AnalyzedData Bias Analysis exists: ${!!jobData.analyzedData?.biasAnalysis}`);
+        console.log(`Analysis exists: ${!!(jobData as JobData).analysis?.biasAnalysis}, AnalyzedData Bias Analysis exists: ${!!(jobData as JobData).analyzedData?.biasAnalysis}`);
       }
       
       // If we found existing bias analysis, set it immediately and stop the loop
@@ -182,7 +212,7 @@ export default function BiasDetectionPage() {
           biasTypes: existingBiasAnalysis.biasTypes || [],
           biasedPhrases: existingBiasAnalysis.biasedPhrases || [],
           suggestions: existingBiasAnalysis.suggestions || [],
-          improvedDescription: existingBiasAnalysis.improvedDescription || jobData.description,
+          improvedDescription: existingBiasAnalysis.improvedDescription || (jobData as JobData).description,
           biasConfidenceScore: (existingBiasAnalysis as any).biasConfidenceScore || 95,
           fairnessAssessment: (existingBiasAnalysis as any).fairnessAssessment || 'Analysis completed'
         });
@@ -195,7 +225,7 @@ export default function BiasDetectionPage() {
       // 2. No existing bias analysis found
       // 3. Haven't attempted bias analysis yet
       // 4. Not currently analyzing
-      if (jobData.isAnalyzed && !existingBiasAnalysis && !hasAttemptedBiasAnalysis && !isBiasAnalyzing) {
+      if ((jobData as JobData).isAnalyzed && !existingBiasAnalysis && !hasAttemptedBiasAnalysis && !isBiasAnalyzing) {
         if (import.meta.env.DEV) {
           console.log("Job analysis complete, automatically starting new bias analysis via API");
         }
@@ -215,7 +245,18 @@ export default function BiasDetectionPage() {
 
   // Handle continue to fit analysis
   const handleContinue = () => {
-    setLocation(`/analysis/${jobId}`);
+    // Preserve session/batch context during navigation to prevent session/batch ID mismatch
+    const currentSessionId = localStorage.getItem('currentUploadSession');
+    const currentBatchId = localStorage.getItem('currentBatchId');
+    
+    if (currentSessionId && currentBatchId) {
+      // Pass session and batch IDs via URL parameters to ensure they survive navigation
+      const url = `/analysis/${jobId}?sessionId=${encodeURIComponent(currentSessionId)}&batchId=${encodeURIComponent(currentBatchId)}`;
+      setLocation(url);
+    } else {
+      // Fallback to original navigation if no session context available
+      setLocation(`/analysis/${jobId}`);
+    }
   };
 
   // Update job description mutation
@@ -252,6 +293,22 @@ export default function BiasDetectionPage() {
   const isJobAnalyzed = !!jobData?.isAnalyzed;
   const isJobAnalysisComplete = isJobAnalyzed || hasBiasAnalysis;
 
+  // Early return for invalid jobId to prevent component rendering issues
+  if (!isValidJobId) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-grow container mx-auto px-4 py-8">
+          <div className="text-center p-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4 mx-auto"></div>
+            <p>Redirecting to job description page...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
@@ -268,11 +325,11 @@ export default function BiasDetectionPage() {
           <div className="grid gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>{jobData.title || 'Job Description'}</CardTitle>
+                <CardTitle>{(jobData as JobData).title || 'Job Description'}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="whitespace-pre-wrap">
-                  {jobData.description || ''}
+                  {(jobData as JobData).description || ''}
                 </div>
               </CardContent>
             </Card>

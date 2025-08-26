@@ -98,13 +98,13 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" role="alert">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         {resetEmailSent && (
-          <Alert>
+          <Alert role="status">
             <AlertDescription>
               Password reset email sent! Check your inbox.
             </AlertDescription>

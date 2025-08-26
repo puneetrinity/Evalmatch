@@ -169,8 +169,11 @@ export function UnifiedErrorDisplay({
   
   const displaySuggestions = customSuggestions || errorInfo.suggestions;
   
+  // Map our variant types to Alert component's supported variants
+  const alertVariant = variant === 'destructive' ? 'destructive' : 'default';
+  
   return (
-    <Alert variant={variant} className="my-4">
+    <Alert variant={alertVariant} className="my-4">
       <AlertTitle className="text-lg font-semibold flex items-center gap-2">
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
@@ -227,7 +230,9 @@ export function useErrorHandler() {
   const [error, setError] = React.useState<Error | null>(null);
   
   const handleError = React.useCallback((error: Error | unknown) => {
-    console.error('Error caught by handler:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error caught by handler:', error);
+    }
     
     if (error instanceof Error) {
       setError(error);
@@ -268,7 +273,9 @@ class ErrorBoundary extends React.Component<
   }
   
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Error boundary caught:', error, errorInfo);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error boundary caught:', error, errorInfo);
+    }
   }
   
   render() {

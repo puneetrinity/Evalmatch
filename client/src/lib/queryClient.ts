@@ -46,7 +46,7 @@ export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
+  async ({ queryKey, signal }) => {
     // Get auth token using simplified auth manager
     const token = await authManager.getAuthToken();
     
@@ -58,6 +58,7 @@ export const getQueryFn: <T>(options: {
     const res = await fetch(queryKey[0] as string, {
       headers,
       credentials: "include",
+      signal, // Pass abort signal to fetch
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
@@ -73,12 +74,17 @@ export const queryClient = new QueryClient({
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
+      refetchOnWindowFocus: true, // Refetch on window focus for fresh data
+      refetchOnMount: true, // Refetch when component mounts if stale
+      refetchOnReconnect: true, // Refetch on network reconnect
+      staleTime: 5 * 60 * 1000, // 5 minutes - data is considered fresh for 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes garbage collection time
+      retry: 1, // Retry failed requests once
+      networkMode: 'online', // Only fetch when online
     },
     mutations: {
-      retry: false,
+      retry: 1, // Retry failed mutations once
+      networkMode: 'online',
     },
   },
 });

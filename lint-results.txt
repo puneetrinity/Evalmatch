@@ -1,0 +1,856 @@
+
+/home/ews/Evalmatch/server/hybrid-storage.ts
+  306:7   warning  Unexpected console statement  no-console
+  314:13  warning  Unexpected console statement  no-console
+  332:11  warning  Unexpected console statement  no-console
+  351:9   warning  Unexpected console statement  no-console
+
+/home/ews/Evalmatch/server/legacy-type-fixes.ts
+  16:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  23:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  23:56  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  26:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  26:62  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/anthropic.ts
+    62:3   warning  Unexpected console statement                                                               no-console
+   138:23  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   251:47  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   260:46  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   278:21  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   290:27  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   371:33  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   372:28  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   375:35  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   527:52  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   552:35  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   553:30  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   556:37  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   620:35  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   621:30  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   624:37  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   715:33  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   716:28  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   719:35  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   789:23  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   894:13  error    'qualifications' is assigned a value but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   894:13  warning  'qualifications' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   909:27  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  1286:31  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  1287:28  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  1441:33  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  1442:30  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  1490:33  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  1491:30  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  1558:31  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  1559:28  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/auth-logger.ts
+   12:7   error    'isProduction' is assigned a value but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   12:7   warning  'isProduction' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   37:5   warning  Unexpected console statement                                                             no-console
+   45:5   warning  Unexpected console statement                                                             no-console
+   51:34  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  101:12  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/batch-processor.ts
+   36:21  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+  663:15  error    'item' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+
+/home/ews/Evalmatch/server/lib/bias-detection.ts
+  253:3  error    'scoringBreakdown' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+  253:3  warning  'scoringBreakdown' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/home/ews/Evalmatch/server/lib/cache.ts
+  148:7  warning  Unexpected console statement  no-console
+
+/home/ews/Evalmatch/server/lib/cached-ai-operations.ts
+    7:3   error    'AnalyzedResumeData' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+    7:3   warning  'AnalyzedResumeData' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    8:3   error    'AnalyzedJobData' is defined but never used. Allowed unused vars must match /^_/u     no-unused-vars
+    8:3   warning  'AnalyzedJobData' is defined but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+   12:3   error    'Result' is defined but never used. Allowed unused vars must match /^_/u              no-unused-vars
+   12:3   warning  'Result' is defined but never used. Allowed unused vars must match /^_/u              @typescript-eslint/no-unused-vars
+   15:3   error    'fromPromise' is defined but never used. Allowed unused vars must match /^_/u         no-unused-vars
+   15:3   warning  'fromPromise' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+   22:3   error    'toAppError' is defined but never used. Allowed unused vars must match /^_/u          no-unused-vars
+   22:3   warning  'toAppError' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  174:32  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  200:41  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/consistency-tester.ts
+   12:3  error    'AnalyzeResumeResponse' is defined but never used. Allowed unused vars must match /^_/u          no-unused-vars
+   12:3  warning  'AnalyzeResumeResponse' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+   13:3  error    'AnalyzeJobDescriptionResponse' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   13:3  warning  'AnalyzeJobDescriptionResponse' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   14:3  error    'MatchAnalysisResponse' is defined but never used. Allowed unused vars must match /^_/u          no-unused-vars
+   14:3  warning  'MatchAnalysisResponse' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  256:3  warning  Unexpected console statement                                                                     no-console
+  257:3  warning  Unexpected console statement                                                                     no-console
+  258:3  warning  Unexpected console statement                                                                     no-console
+  259:3  warning  Unexpected console statement                                                                     no-console
+  260:3  warning  Unexpected console statement                                                                     no-console
+  261:3  warning  Unexpected console statement                                                                     no-console
+
+/home/ews/Evalmatch/server/lib/consistent-scoring.ts
+   54:10  error    'calculateSkillSimilarity' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   54:10  warning  'calculateSkillSimilarity' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  320:22  error    'entry' is assigned a value but never used. Allowed unused vars must match /^_/u            no-unused-vars
+  320:22  warning  'entry' is assigned a value but never used. Allowed unused vars must match /^_/u            @typescript-eslint/no-unused-vars
+  345:23  error    'resumeText' is defined but never used. Allowed unused args must match /^_/u                no-unused-vars
+  345:43  error    'jobDescription' is defined but never used. Allowed unused args must match /^_/u            no-unused-vars
+  345:67  error    'analysisType' is defined but never used. Allowed unused args must match /^_/u              no-unused-vars
+
+/home/ews/Evalmatch/server/lib/database-security.ts
+  32:9  error  Unexpected lexical declaration in case block  no-case-declarations
+
+/home/ews/Evalmatch/server/lib/db-migrations.ts
+   72:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   72:47  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  244:50  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  251:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/document-parser.ts
+   612:9   warning  Unexpected console statement                                                               no-console
+   628:9   warning  Unexpected console statement                                                               no-console
+   659:11  warning  Unexpected console statement                                                               no-console
+   676:15  warning  Unexpected console statement                                                               no-console
+   684:13  warning  Unexpected console statement                                                               no-console
+   687:21  error    'stdout' is assigned a value but never used. Allowed unused vars must match /^_/u          no-unused-vars
+   687:21  warning  'stdout' is assigned a value but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+   701:13  warning  Unexpected console statement                                                               no-console
+   732:9   warning  Unexpected console statement                                                               no-console
+   740:11  warning  Unexpected console statement                                                               no-console
+   759:11  warning  Unexpected console statement                                                               no-console
+   768:15  warning  Unexpected console statement                                                               no-console
+   774:13  warning  Unexpected console statement                                                               no-console
+   792:7   warning  Unexpected console statement                                                               no-console
+   804:9   warning  Unexpected console statement                                                               no-console
+   818:11  warning  Unexpected console statement                                                               no-console
+   876:11  warning  Unexpected console statement                                                               no-console
+   963:5   warning  Unexpected console statement                                                               no-console
+   967:19  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   969:11  warning  Unexpected console statement                                                               no-console
+   972:10  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   980:5   warning  Unexpected console statement                                                               no-console
+   991:5   warning  Unexpected console statement                                                               no-console
+  1036:5   warning  Unexpected console statement                                                               no-console
+  1059:9   warning  Unexpected console statement                                                               no-console
+  1061:9   warning  Unexpected console statement                                                               no-console
+  1070:7   warning  Unexpected console statement                                                               no-console
+  1076:5   warning  Unexpected console statement                                                               no-console
+  1140:13  error    'antiwordResult' is assigned a value but never used. Allowed unused vars must match /^_/u  no-unused-vars
+  1140:13  warning  'antiwordResult' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  1149:15  error    'textractResult' is assigned a value but never used. Allowed unused vars must match /^_/u  no-unused-vars
+  1149:15  warning  'textractResult' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  1158:17  error    'docx2txtResult' is assigned a value but never used. Allowed unused vars must match /^_/u  no-unused-vars
+  1158:17  warning  'docx2txtResult' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  1244:3   warning  Unexpected console statement                                                               no-console
+  1284:5   warning  Unexpected console statement                                                               no-console
+
+/home/ews/Evalmatch/server/lib/embedding-manager.ts
+  32:48  error  'text' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+
+/home/ews/Evalmatch/server/lib/embeddings.ts
+   22:39  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  222:17  error    'pipeline' is assigned a value but never used. Allowed unused vars must match /^_/u  no-unused-vars
+  222:17  warning  'pipeline' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/home/ews/Evalmatch/server/lib/enhanced-experience-matching.ts
+  420:3   error    'scores' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+  420:3   warning  'scores' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  454:13  warning  Unexpected any. Specify a different type                                  @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/enhanced-scoring.ts
+    5:3   error    'generateEmbedding' is defined but never used. Allowed unused vars must match /^_/u    no-unused-vars
+    5:3   warning  'generateEmbedding' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+   12:3   error    'getEnhancedSkills' is defined but never used. Allowed unused vars must match /^_/u    no-unused-vars
+   12:3   warning  'getEnhancedSkills' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+   18:3   error    'SEMANTIC_THRESHOLDS' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   18:3   warning  'SEMANTIC_THRESHOLDS' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   31:11  error    'MatchResult' is defined but never used. Allowed unused vars must match /^_/u          no-unused-vars
+   31:11  warning  'MatchResult' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  264:16  error    'jobSkill' is assigned a value but never used. Allowed unused vars must match /^_/u    no-unused-vars
+  264:16  warning  'jobSkill' is assigned a value but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  392:3   error    'jobEducation' is defined but never used. Allowed unused args must match /^_/u         no-unused-vars
+  392:3   warning  'jobEducation' is defined but never used. Allowed unused args must match /^_/u         @typescript-eslint/no-unused-vars
+
+/home/ews/Evalmatch/server/lib/env-validator.ts
+   46:16  error    'value' is defined but never used. Allowed unused args must match /^_/u                     no-unused-vars
+  493:55  error    'missingOptional' is assigned a value but never used. Allowed unused vars must match /^_/u  no-unused-vars
+  493:55  warning  'missingOptional' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  613:9   error    'isTest' is assigned a value but never used. Allowed unused vars must match /^_/u           no-unused-vars
+  613:9   warning  'isTest' is assigned a value but never used. Allowed unused vars must match /^_/u           @typescript-eslint/no-unused-vars
+  702:32  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/fairness-analyzer.ts
+   44:7  warning  Unexpected console statement  no-console
+   56:5  warning  Unexpected console statement  no-console
+   62:7  warning  Unexpected console statement  no-console
+   74:5  warning  Unexpected console statement  no-console
+   80:7  warning  Unexpected console statement  no-console
+   96:5  warning  Unexpected console statement  no-console
+  100:3  warning  Unexpected console statement  no-console
+  188:5  warning  Unexpected console statement  no-console
+  275:5  warning  Unexpected console statement  no-console
+
+/home/ews/Evalmatch/server/lib/firebase-admin.ts
+    9:10  error    'logger' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+    9:10  warning  'logger' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  100:23  warning  Unexpected any. Specify a different type                                  @typescript-eslint/no-explicit-any
+  136:23  warning  Unexpected any. Specify a different type                                  @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/groq.ts
+    9:3   error    'validateScoreConsistency' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+    9:3   warning  'validateScoreConsistency' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  354:12  error    'contact' is assigned a value but never used. Allowed unused vars must match /^_/u          no-unused-vars
+  354:12  warning  'contact' is assigned a value but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  897:55  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  900:55  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/hybrid-match-analyzer.ts
+     5:3    error    'MatchAnalysisResponse' is defined but never used. Allowed unused vars must match /^_/u     no-unused-vars
+     5:3    warning  'MatchAnalysisResponse' is defined but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+    16:3    error    'MATCH_QUALITY_THRESHOLDS' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+    16:3    warning  'MATCH_QUALITY_THRESHOLDS' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    44:3    error    'Result' is defined but never used. Allowed unused vars must match /^_/u                    no-unused-vars
+    44:3    warning  'Result' is defined but never used. Allowed unused vars must match /^_/u                    @typescript-eslint/no-unused-vars
+    47:3    error    'fromPromise' is defined but never used. Allowed unused vars must match /^_/u               no-unused-vars
+    47:3    warning  'fromPromise' is defined but never used. Allowed unused vars must match /^_/u               @typescript-eslint/no-unused-vars
+    53:3    error    'toAppError' is defined but never used. Allowed unused vars must match /^_/u                no-unused-vars
+    53:3    warning  'toAppError' is defined but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+   404:5    error    'userTier' is defined but never used. Allowed unused args must match /^_/u                  no-unused-vars
+   404:5    warning  'userTier' is defined but never used. Allowed unused args must match /^_/u                  @typescript-eslint/no-unused-vars
+   756:34   warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   794:65   warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   794:92   warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   799:66   warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   799:108  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   875:46   warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   876:37   warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1102:25   warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/industry-domain-matching.ts
+    2:10  error    'generateEmbedding' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+    2:10  warning  'generateEmbedding' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    2:29  error    'cosineSimilarity' is defined but never used. Allowed unused vars must match /^_/u   no-unused-vars
+    2:29  warning  'cosineSimilarity' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+    3:8   error    'stringSimilarity' is defined but never used. Allowed unused vars must match /^_/u   no-unused-vars
+    3:8   warning  'stringSimilarity' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  453:15  error    'category' is assigned a value but never used. Allowed unused vars must match /^_/u  no-unused-vars
+  453:15  warning  'category' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  725:15  error    'category' is assigned a value but never used. Allowed unused vars must match /^_/u  no-unused-vars
+  725:15  warning  'category' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  775:15  error    'category' is assigned a value but never used. Allowed unused vars must match /^_/u  no-unused-vars
+  775:15  warning  'category' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  894:3   error    'scores' is defined but never used. Allowed unused args must match /^_/u             no-unused-vars
+  894:3   warning  'scores' is defined but never used. Allowed unused args must match /^_/u             @typescript-eslint/no-unused-vars
+  930:13  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/logger.ts
+   7:3  error    'DEBUG' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   8:3  error    'INFO' is defined but never used. Allowed unused vars must match /^_/u   no-unused-vars
+   9:3  error    'WARN' is defined but never used. Allowed unused vars must match /^_/u   no-unused-vars
+  10:3  error    'ERROR' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+  11:3  error    'NONE' is defined but never used. Allowed unused vars must match /^_/u   no-unused-vars
+  62:7  warning  Unexpected console statement                                             no-console
+  68:7  warning  Unexpected console statement                                             no-console
+
+/home/ews/Evalmatch/server/lib/match-insights-generator.ts
+  53:3  error    'resumeText' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+  53:3  warning  'resumeText' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  54:3  error    'jobText' is defined but never used. Allowed unused args must match /^_/u     no-unused-vars
+  54:3  warning  'jobText' is defined but never used. Allowed unused args must match /^_/u     @typescript-eslint/no-unused-vars
+
+/home/ews/Evalmatch/server/lib/openai.ts
+    32:1   warning  Unexpected console statement                                                                no-console
+    84:3   warning  Unexpected console statement                                                                no-console
+    87:3   warning  Unexpected console statement                                                                no-console
+    88:3   warning  Unexpected console statement                                                                no-console
+   100:5   warning  Unexpected console statement                                                                no-console
+   217:16  error    'safeOpenAICall' is defined but never used. Allowed unused vars must match /^_/u            no-unused-vars
+   217:16  warning  'safeOpenAICall' is defined but never used. Allowed unused vars must match /^_/u            @typescript-eslint/no-unused-vars
+   354:22  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   354:36  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   373:7   warning  Unexpected console statement                                                                no-console
+   413:24  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   413:38  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   423:30  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   431:43  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   473:7   warning  Unexpected console statement                                                                no-console
+   496:19  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   496:33  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   604:21  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   604:35  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   651:7   warning  Unexpected console statement                                                                no-console
+   730:22  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   731:22  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   731:36  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   734:32  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   734:46  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   843:27  error    'skills' is defined but never used. Allowed unused args must match /^_/u                    no-unused-vars
+   849:9   error    'normalizeSkills' is assigned a value but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   849:9   warning  'normalizeSkills' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   849:68  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   868:37  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   943:37  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1040:35  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1076:24  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1077:24  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1077:38  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1080:34  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1080:48  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1149:7   warning  Unexpected console statement                                                                no-console
+  1175:5   warning  Unexpected console statement                                                                no-console
+  1413:5   warning  Unexpected console statement                                                                no-console
+  1462:7   warning  Unexpected console statement                                                                no-console
+  1585:28  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1585:42  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1586:22  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1586:36  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1682:30  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1682:44  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1683:24  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1683:38  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1700:25  error    'index' is defined but never used. Allowed unused args must match /^_/u                     no-unused-vars
+  1700:25  warning  'index' is defined but never used. Allowed unused args must match /^_/u                     @typescript-eslint/no-unused-vars
+
+/home/ews/Evalmatch/server/lib/performance-monitor.ts
+    9:10  error    'cacheManager' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+    9:10  warning  'cacheManager' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  288:35  warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  288:45  warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  288:56  warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/performance-optimized-routes.ts
+   11:3   error    'generateBiasAnalysisKey' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   11:3   warning  'generateBiasAnalysisKey' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   17:3   error    'JobDescription' is defined but never used. Allowed unused vars must match /^_/u           no-unused-vars
+   17:3   warning  'JobDescription' is defined but never used. Allowed unused vars must match /^_/u           @typescript-eslint/no-unused-vars
+   47:5   warning  Unexpected console statement                                                               no-console
+   59:5   warning  Unexpected console statement                                                               no-console
+   65:5   warning  Unexpected console statement                                                               no-console
+  131:49  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  166:53  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  168:11  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  168:19  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  198:5   warning  Unexpected console statement                                                               no-console
+  213:7   warning  Unexpected console statement                                                               no-console
+  223:5   warning  Unexpected console statement                                                               no-console
+  226:5   warning  Unexpected console statement                                                               no-console
+  285:45  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  285:75  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/query-builder.ts
+   28:15  error    'eq' is defined but never used. Allowed unused vars must match /^_/u    no-unused-vars
+   28:15  warning  'eq' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+   28:19  error    'gte' is defined but never used. Allowed unused vars must match /^_/u   no-unused-vars
+   28:19  warning  'gte' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+   28:24  error    'lte' is defined but never used. Allowed unused vars must match /^_/u   no-unused-vars
+   28:24  warning  'lte' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+   28:29  error    'desc' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   28:29  warning  'desc' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   28:35  error    'asc' is defined but never used. Allowed unused vars must match /^_/u   no-unused-vars
+   28:35  warning  'asc' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+   28:40  error    'or' is defined but never used. Allowed unused vars must match /^_/u    no-unused-vars
+   28:40  warning  'or' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+   64:34  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+   79:52  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+   79:59  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+   96:43  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+   96:50  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+  107:46  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+  107:53  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+  122:19  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+  363:24  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/rate-limiter.ts
+   47:15  error    'value' is defined but never used. Allowed unused args must match /^_/u   no-unused-vars
+   48:14  error    'reason' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+   67:5   warning  Unexpected console statement                                              no-console
+   68:5   warning  Unexpected console statement                                              no-console
+   71:5   warning  Unexpected console statement                                              no-console
+  148:30  error    'value' is defined but never used. Allowed unused args must match /^_/u   no-unused-vars
+  184:11  warning  Unexpected console statement                                              no-console
+  206:9   warning  Unexpected console statement                                              no-console
+  253:5   warning  Unexpected console statement                                              no-console
+
+/home/ews/Evalmatch/server/lib/redis-cache.ts
+  207:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/secure-upload.ts
+   71:10  error    Unnecessary escape character: \'                                                        no-useless-escape
+   71:19  error    Unnecessary escape character: \"                                                        no-useless-escape
+   74:15  error    Unnecessary escape character: \/                                                        no-useless-escape
+   75:12  error    Unnecessary escape character: \/                                                        no-useless-escape
+  119:11  error    'randomBytes' is assigned a value but never used. Allowed unused vars must match /^_/u  no-unused-vars
+  119:11  warning  'randomBytes' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  625:18  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/skill-hierarchy.ts
+     1:14  error    'like' is defined but never used. Allowed unused vars must match /^_/u          no-unused-vars
+     1:14  warning  'like' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+     1:20  error    'or' is defined but never used. Allowed unused vars must match /^_/u            no-unused-vars
+     1:20  warning  'or' is defined but never used. Allowed unused vars must match /^_/u            @typescript-eslint/no-unused-vars
+  1157:17  error    'key' is assigned a value but never used. Allowed unused vars must match /^_/u  no-unused-vars
+  1157:17  warning  'key' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  1169:17  error    'key' is assigned a value but never used. Allowed unused vars must match /^_/u  no-unused-vars
+  1169:17  warning  'key' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  1294:42  warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  1299:13  warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/skill-learning-scheduler.ts
+   13:24  error    'or' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   13:24  warning  'or' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  424:16  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/skill-memory-system.ts
+   12:28  error    'gte' is defined but never used. Allowed unused vars must match /^_/u                no-unused-vars
+   12:28  warning  'gte' is defined but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+   12:37  error    'desc' is defined but never used. Allowed unused vars must match /^_/u               no-unused-vars
+   12:37  warning  'desc' is defined but never used. Allowed unused vars must match /^_/u               @typescript-eslint/no-unused-vars
+   23:30  error    'ESCOSkill' is defined but never used. Allowed unused vars must match /^_/u          no-unused-vars
+   23:30  warning  'ESCOSkill' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+   24:10  error    'generateEmbedding' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   24:10  warning  'generateEmbedding' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   24:29  error    'cosineSimilarity' is defined but never used. Allowed unused vars must match /^_/u   no-unused-vars
+   24:29  warning  'cosineSimilarity' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+   47:20  error    Unnecessary escape character: \+                                                     no-useless-escape
+   47:22  error    Unnecessary escape character: \#                                                     no-useless-escape
+   47:24  error    Unnecessary escape character: \.                                                     no-useless-escape
+  254:11  error    'db' is assigned a value but never used. Allowed unused vars must match /^_/u        no-unused-vars
+  254:11  warning  'db' is assigned a value but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  452:26  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  656:16  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/skill-normalizer.ts
+  220:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  224:41  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  225:46  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/skill-weighter.ts
+  143:3  warning  Unexpected console statement  no-console
+
+/home/ews/Evalmatch/server/lib/tiered-ai-provider.ts
+    8:3   error    'UNIFIED_SCORING_WEIGHTS' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+    8:3   warning  'UNIFIED_SCORING_WEIGHTS' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  309:48  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  319:45  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  546:18  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  854:35  error    'userTier' is defined but never used. Allowed unused args must match /^_/u                 no-unused-vars
+  854:35  warning  'userTier' is defined but never used. Allowed unused args must match /^_/u                 @typescript-eslint/no-unused-vars
+  890:3   error    'userTier' is defined but never used. Allowed unused args must match /^_/u                 no-unused-vars
+  890:3   warning  'userTier' is defined but never used. Allowed unused args must match /^_/u                 @typescript-eslint/no-unused-vars
+  893:18  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/lib/user-tiers.ts
+  10:33  error    'userId' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+  10:33  warning  'userId' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/home/ews/Evalmatch/server/lib/validation-error-handler.ts
+   11:10  error    'SecurityValidator' is defined but never used. Allowed unused vars must match /^_/u        no-unused-vars
+   11:10  warning  'SecurityValidator' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+   17:3   error    'INVALID_INPUT' is defined but never used. Allowed unused vars must match /^_/u            no-unused-vars
+   18:3   error    'MALICIOUS_CONTENT' is defined but never used. Allowed unused vars must match /^_/u        no-unused-vars
+   19:3   error    'RATE_LIMIT_EXCEEDED' is defined but never used. Allowed unused vars must match /^_/u      no-unused-vars
+   20:3   error    'FORBIDDEN_PATTERN' is defined but never used. Allowed unused vars must match /^_/u        no-unused-vars
+   21:3   error    'FILE_SECURITY_VIOLATION' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   22:3   error    'SQL_INJECTION_ATTEMPT' is defined but never used. Allowed unused vars must match /^_/u    no-unused-vars
+   23:3   error    'XSS_ATTEMPT' is defined but never used. Allowed unused vars must match /^_/u              no-unused-vars
+   24:3   error    'CSRF_VIOLATION' is defined but never used. Allowed unused vars must match /^_/u           no-unused-vars
+   25:3   error    'SIZE_LIMIT_EXCEEDED' is defined but never used. Allowed unused vars must match /^_/u      no-unused-vars
+   26:3   error    'AUTHENTICATION_REQUIRED' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   27:3   error    'AUTHORIZATION_FAILED' is defined but never used. Allowed unused vars must match /^_/u     no-unused-vars
+  185:5   error    'req' is defined but never used. Allowed unused args must match /^_/u                      no-unused-vars
+  185:5   warning  'req' is defined but never used. Allowed unused args must match /^_/u                      @typescript-eslint/no-unused-vars
+
+/home/ews/Evalmatch/server/middleware/auth.ts
+  296:27  error  'req' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+
+/home/ews/Evalmatch/server/middleware/batch-validation.ts
+  182:43  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  206:50  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  210:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  211:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  212:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  216:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  217:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  218:43  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  234:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  403:43  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  438:33  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  439:34  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  546:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  701:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  710:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  722:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/middleware/error-handler.ts
+  34:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  59:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/middleware/global-error-handler.ts
+  297:17  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+  306:28  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+  359:13  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+  368:11  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+  369:3   error    'promise' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+  369:3   warning  'promise' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  369:20  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/middleware/health-checks.ts
+    22:7   error    'getErrorDetails' is assigned a value but never used. Allowed unused vars must match /^_/u  no-unused-vars
+    22:7   warning  'getErrorDetails' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    34:13  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+    69:29  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+    71:23  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+    72:20  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   192:40  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   210:63  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   225:33  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   231:32  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   241:33  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   243:40  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   250:34  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   253:34  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   254:35  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   255:37  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   259:30  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   260:30  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   264:69  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   267:50  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   270:35  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   271:74  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   276:91  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   298:43  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   299:45  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   300:51  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   303:43  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   304:44  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   305:44  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   306:49  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   307:44  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   308:57  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   309:46  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   310:57  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   322:41  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   323:44  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   327:40  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   328:40  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   793:32  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   928:15  error    'promisify' is assigned a value but never used. Allowed unused vars must match /^_/u        no-unused-vars
+   928:15  warning  'promisify' is assigned a value but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  1084:13  error    'stats' is assigned a value but never used. Allowed unused vars must match /^_/u            no-unused-vars
+  1084:13  warning  'stats' is assigned a value but never used. Allowed unused vars must match /^_/u            @typescript-eslint/no-unused-vars
+
+/home/ews/Evalmatch/server/middleware/input-validation.ts
+  413:34  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  413:62  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/middleware/rate-limiter.ts
+   5:45  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   8:18  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   8:28  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   8:39  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  22:18  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  22:28  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  30:10  error    'req' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+  30:10  warning  'req' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  30:15  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  45:18  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  45:28  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  64:18  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  64:28  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  72:10  error    'req' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+  72:10  warning  'req' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  72:15  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/migrate.cjs
+   10:3   error  'console' is not defined  no-undef
+   12:8   error  'process' is not defined  no-undef
+   13:5   error  'console' is not defined  no-undef
+   18:23  error  'process' is not defined  no-undef
+   19:10  error  'process' is not defined  no-undef
+   31:7   error  'console' is not defined  no-undef
+   43:7   error  'console' is not defined  no-undef
+   62:9   error  'console' is not defined  no-undef
+   86:9   error  'console' is not defined  no-undef
+   91:5   error  'console' is not defined  no-undef
+   94:5   error  'console' is not defined  no-undef
+   96:5   error  'console' is not defined  no-undef
+  105:5   error  'console' is not defined  no-undef
+  106:5   error  'process' is not defined  no-undef
+  108:5   error  'console' is not defined  no-undef
+  109:5   error  'process' is not defined  no-undef
+
+/home/ews/Evalmatch/server/migrate.ts
+   6:3  warning  Unexpected console statement  no-console
+  11:5  warning  Unexpected console statement  no-console
+
+/home/ews/Evalmatch/server/monitoring/middleware.ts
+  101:3   error    'next' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+  101:3   warning  'next' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  106:19  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+  107:25  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+  107:53  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/production-index.ts
+  61:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  61:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/production.ts
+   5:10  error    'drizzle' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   5:10  warning  'drizzle' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   6:13  error    'schema' is defined but never used. Allowed unused vars must match /^_/u   no-unused-vars
+   6:13  warning  'schema' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  12:1   warning  Unexpected console statement                                               no-console
+  33:3   warning  Unexpected console statement                                               no-console
+  58:3   warning  Unexpected console statement                                               no-console
+  59:3   warning  Unexpected console statement                                               no-console
+  60:3   warning  Unexpected console statement                                               no-console
+
+/home/ews/Evalmatch/server/routes-legacy.ts
+    14:3   error    Unexpected var, use let or const instead                                                           no-var
+    18:7   error    'getErrorMessage' is assigned a value but never used. Allowed unused vars must match /^_/u         no-unused-vars
+    18:7   warning  'getErrorMessage' is assigned a value but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+    31:3   error    'insertResumeSchema' is defined but never used. Allowed unused vars must match /^_/u               no-unused-vars
+    31:3   warning  'insertResumeSchema' is defined but never used. Allowed unused vars must match /^_/u               @typescript-eslint/no-unused-vars
+    63:20  error    'analyzeResumeBasic' is defined but never used. Allowed unused vars must match /^_/u               no-unused-vars
+    63:20  warning  'analyzeResumeBasic' is defined but never used. Allowed unused vars must match /^_/u               @typescript-eslint/no-unused-vars
+    64:28  error    'analyzeJobDescriptionBasic' is defined but never used. Allowed unused vars must match /^_/u       no-unused-vars
+    64:28  warning  'analyzeJobDescriptionBasic' is defined but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+    65:19  error    'analyzeMatchBasic' is defined but never used. Allowed unused vars must match /^_/u                no-unused-vars
+    65:19  warning  'analyzeMatchBasic' is defined but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+    66:33  error    'generateInterviewQuestionsBasic' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+    66:33  warning  'generateInterviewQuestionsBasic' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    67:18  error    'analyzeBiasBasic' is defined but never used. Allowed unused vars must match /^_/u                 no-unused-vars
+    67:18  warning  'analyzeBiasBasic' is defined but never used. Allowed unused vars must match /^_/u                 @typescript-eslint/no-unused-vars
+    81:10  error    'createDefaultUserTier' is defined but never used. Allowed unused vars must match /^_/u            no-unused-vars
+    81:10  warning  'createDefaultUserTier' is defined but never used. Allowed unused vars must match /^_/u            @typescript-eslint/no-unused-vars
+   139:7   error    'upload' is assigned a value but never used. Allowed unused vars must match /^_/u                  no-unused-vars
+   139:7   warning  'upload' is assigned a value but never used. Allowed unused vars must match /^_/u                  @typescript-eslint/no-unused-vars
+  1548:17  error    'sessionId' is assigned a value but never used. Allowed unused vars must match /^_/u               no-unused-vars
+  1548:17  warning  'sessionId' is assigned a value but never used. Allowed unused vars must match /^_/u               @typescript-eslint/no-unused-vars
+  1782:15  error    'updatedJobDescription' is assigned a value but never used. Allowed unused vars must match /^_/u   no-unused-vars
+  1782:15  warning  'updatedJobDescription' is assigned a value but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  2036:47  error    'difficulty' is assigned a value but never used. Allowed unused vars must match /^_/u              no-unused-vars
+  2036:47  warning  'difficulty' is assigned a value but never used. Allowed unused vars must match /^_/u              @typescript-eslint/no-unused-vars
+
+/home/ews/Evalmatch/server/routes/admin.ts
+  641:37  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  643:34  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/routes/batches.ts
+  11:10  error    'getDatabase' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+  11:10  warning  'getDatabase' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  29:19  warning  Unexpected any. Specify a different type                                       @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/routes/debug.ts
+  488:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  489:33  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  490:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/routes/health.ts
+  100:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  101:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  106:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  111:61  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  114:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  116:56  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  271:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/routes/user.ts
+  85:47  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  86:42  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  87:42  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  91:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  92:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/scripts/cleanup-hallucinated-skills.ts
+    8:15  error    'AnalyzeResumeResponse' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+    8:15  warning  'AnalyzeResumeResponse' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  179:37  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  180:42  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  181:35  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  182:36  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  245:27  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/scripts/run-performance-migration.js
+  21:3  warning  Unexpected console statement  no-console
+  35:7  warning  Unexpected console statement  no-console
+  39:7  warning  Unexpected console statement  no-console
+  54:7  warning  Unexpected console statement  no-console
+  55:7  warning  Unexpected console statement  no-console
+
+/home/ews/Evalmatch/server/scripts/setup-redis.js
+  11:3  warning  Unexpected console statement  no-console
+  25:5  warning  Unexpected console statement  no-console
+  26:5  warning  Unexpected console statement  no-console
+  36:7  warning  Unexpected console statement  no-console
+  45:7  warning  Unexpected console statement  no-console
+  49:5  warning  Unexpected console statement  no-console
+  54:5  warning  Unexpected console statement  no-console
+  55:5  warning  Unexpected console statement  no-console
+  56:5  warning  Unexpected console statement  no-console
+  57:5  warning  Unexpected console statement  no-console
+  58:5  warning  Unexpected console statement  no-console
+  59:5  warning  Unexpected console statement  no-console
+  60:5  warning  Unexpected console statement  no-console
+
+/home/ews/Evalmatch/server/services/analysis-service.ts
+   32:3   error    'matchAnalysisWithCache' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   32:3   warning  'matchAnalysisWithCache' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   37:3   error    'Result' is defined but never used. Allowed unused vars must match /^_/u                  no-unused-vars
+   37:3   warning  'Result' is defined but never used. Allowed unused vars must match /^_/u                  @typescript-eslint/no-unused-vars
+   42:3   error    'chainResult' is defined but never used. Allowed unused vars must match /^_/u             no-unused-vars
+   42:3   warning  'chainResult' is defined but never used. Allowed unused vars must match /^_/u             @typescript-eslint/no-unused-vars
+   43:3   error    'chainResultAsync' is defined but never used. Allowed unused vars must match /^_/u        no-unused-vars
+   43:3   warning  'chainResultAsync' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+   48:3   error    'AppValidationError' is defined but never used. Allowed unused vars must match /^_/u      no-unused-vars
+   48:3   warning  'AppValidationError' is defined but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+   51:3   error    'toAppError' is defined but never used. Allowed unused vars must match /^_/u              no-unused-vars
+   51:3   warning  'toAppError' is defined but never used. Allowed unused vars must match /^_/u              @typescript-eslint/no-unused-vars
+   54:3   error    'AnalyzedResumeData' is defined but never used. Allowed unused vars must match /^_/u      no-unused-vars
+   54:3   warning  'AnalyzedResumeData' is defined but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+   55:3   error    'AnalyzedJobData' is defined but never used. Allowed unused vars must match /^_/u         no-unused-vars
+   55:3   warning  'AnalyzedJobData' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+   60:3   error    'ScoringDimensions' is defined but never used. Allowed unused vars must match /^_/u       no-unused-vars
+   60:3   warning  'ScoringDimensions' is defined but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+  172:23  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  189:13  error    'storageProvider' is defined but never used. Allowed unused args must match /^_/u         no-unused-vars
+  254:39  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  258:87  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  284:49  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  288:90  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  297:29  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  298:26  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  481:11  error    'userTierInfo' is assigned a value but never used. Allowed unused vars must match /^_/u   no-unused-vars
+  481:11  warning  'userTierInfo' is assigned a value but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  528:35  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  529:40  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  575:34  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  729:34  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  742:13  error    'userTierInfo' is assigned a value but never used. Allowed unused vars must match /^_/u   no-unused-vars
+  742:13  warning  'userTierInfo' is assigned a value but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  790:21  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  791:19  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  792:34  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  826:13  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  827:19  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  828:34  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  860:16  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  861:34  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/services/job-service.ts
+   37:3   error    'Result' is defined but never used. Allowed unused vars must match /^_/u                 no-unused-vars
+   37:3   warning  'Result' is defined but never used. Allowed unused vars must match /^_/u                 @typescript-eslint/no-unused-vars
+   42:3   error    'DatabaseResult' is defined but never used. Allowed unused vars must match /^_/u         no-unused-vars
+   42:3   warning  'DatabaseResult' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+   48:3   error    'AppBusinessLogicError' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   48:3   warning  'AppBusinessLogicError' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  105:18  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  126:23  error    'storageProvider' is defined but never used. Allowed unused args must match /^_/u        no-unused-vars
+
+/home/ews/Evalmatch/server/services/resume-service.ts
+   32:24  error    'ResumeQueryBuilder' is defined but never used. Allowed unused vars must match /^_/u            no-unused-vars
+   32:24  warning  'ResumeQueryBuilder' is defined but never used. Allowed unused vars must match /^_/u            @typescript-eslint/no-unused-vars
+   37:3   error    'Result' is defined but never used. Allowed unused vars must match /^_/u                        no-unused-vars
+   37:3   warning  'Result' is defined but never used. Allowed unused vars must match /^_/u                        @typescript-eslint/no-unused-vars
+   45:3   error    'transformDatabaseResult' is defined but never used. Allowed unused vars must match /^_/u       no-unused-vars
+   45:3   warning  'transformDatabaseResult' is defined but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+   46:3   error    'transformResumeServiceResult' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   46:3   warning  'transformResumeServiceResult' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   47:3   error    'transformAppError' is defined but never used. Allowed unused vars must match /^_/u             no-unused-vars
+   47:3   warning  'transformAppError' is defined but never used. Allowed unused vars must match /^_/u             @typescript-eslint/no-unused-vars
+   48:3   error    'transformNotFoundError' is defined but never used. Allowed unused vars must match /^_/u        no-unused-vars
+   48:3   warning  'transformNotFoundError' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+   55:3   error    'AppBusinessLogicError' is defined but never used. Allowed unused vars must match /^_/u         no-unused-vars
+   55:3   warning  'AppBusinessLogicError' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+   57:3   error    'toAppError' is defined but never used. Allowed unused vars must match /^_/u                    no-unused-vars
+   57:3   warning  'toAppError' is defined but never used. Allowed unused vars must match /^_/u                    @typescript-eslint/no-unused-vars
+  208:29  warning  Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+  245:13  error    'storageProvider' is defined but never used. Allowed unused args must match /^_/u               no-unused-vars
+  700:7   error    Unreachable code                                                                                no-unreachable
+
+/home/ews/Evalmatch/server/storage-switcher.ts
+   16:10  error    'config' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   16:10  warning  'config' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  238:30  warning  Unexpected any. Specify a different type                                  @typescript-eslint/no-explicit-any
+
+/home/ews/Evalmatch/server/storage.ts
+   7:8   error    'InterviewQuestionsResponse' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+   7:8   warning  'InterviewQuestionsResponse' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  16:11  error    'id' is defined but never used. Allowed unused args must match /^_/u                          no-unused-vars
+  17:21  error    'username' is defined but never used. Allowed unused args must match /^_/u                    no-unused-vars
+  18:14  error    'user' is defined but never used. Allowed unused args must match /^_/u                        no-unused-vars
+  21:13  error    'id' is defined but never used. Allowed unused args must match /^_/u                          no-unused-vars
+  22:17  error    'id' is defined but never used. Allowed unused args must match /^_/u                          no-unused-vars
+  22:29  error    'userId' is defined but never used. Allowed unused args must match /^_/u                      no-unused-vars
+  23:14  error    'sessionId' is defined but never used. Allowed unused args must match /^_/u                   no-unused-vars
+  24:22  error    'userId' is defined but never used. Allowed unused args must match /^_/u                      no-unused-vars
+  24:38  error    'sessionId' is defined but never used. Allowed unused args must match /^_/u                   no-unused-vars
+  24:58  error    'batchId' is defined but never used. Allowed unused args must match /^_/u                     no-unused-vars
+  25:16  error    'resume' is defined but never used. Allowed unused args must match /^_/u                      no-unused-vars
+  26:24  error    'id' is defined but never used. Allowed unused args must match /^_/u                          no-unused-vars
+  26:36  error    'analysis' is defined but never used. Allowed unused args must match /^_/u                    no-unused-vars
+  27:26  error    'id' is defined but never used. Allowed unused args must match /^_/u                          no-unused-vars
+  27:38  error    'embedding' is defined but never used. Allowed unused args must match /^_/u                   no-unused-vars
+  27:66  error    'skillsEmbedding' is defined but never used. Allowed unused args must match /^_/u             no-unused-vars
+  30:21  error    'id' is defined but never used. Allowed unused args must match /^_/u                          no-unused-vars
+  31:25  error    'id' is defined but never used. Allowed unused args must match /^_/u                          no-unused-vars
+  31:37  error    'userId' is defined but never used. Allowed unused args must match /^_/u                      no-unused-vars
+  33:30  error    'userId' is defined but never used. Allowed unused args must match /^_/u                      no-unused-vars
+  34:24  error    'jobDescription' is defined but never used. Allowed unused args must match /^_/u              no-unused-vars
+  35:24  error    'id' is defined but never used. Allowed unused args must match /^_/u                          no-unused-vars
+  35:36  error    'updates' is defined but never used. Allowed unused args must match /^_/u                     no-unused-vars
+  36:32  error    'id' is defined but never used. Allowed unused args must match /^_/u                          no-unused-vars
+  36:44  error    'analysis' is defined but never used. Allowed unused args must match /^_/u                    no-unused-vars
+  37:36  error    'id' is defined but never used. Allowed unused args must match /^_/u                          no-unused-vars
+  37:48  error    'biasAnalysis' is defined but never used. Allowed unused args must match /^_/u                no-unused-vars
+  38:34  error    'id' is defined but never used. Allowed unused args must match /^_/u                          no-unused-vars
+  38:46  error    'embedding' is defined but never used. Allowed unused args must match /^_/u                   no-unused-vars
+  38:74  error    'requirementsEmbedding' is defined but never used. Allowed unused args must match /^_/u       no-unused-vars
+  39:24  error    'id' is defined but never used. Allowed unused args must match /^_/u                          no-unused-vars
+  42:21  error    'id' is defined but never used. Allowed unused args must match /^_/u                          no-unused-vars
+  43:35  error    'jobId' is defined but never used. Allowed unused args must match /^_/u                       no-unused-vars
+  43:50  error    'resumeId' is defined but never used. Allowed unused args must match /^_/u                    no-unused-vars
+  43:68  error    'userId' is defined but never used. Allowed unused args must match /^_/u                      no-unused-vars
+  44:27  error    'jobId' is defined but never used. Allowed unused args must match /^_/u                       no-unused-vars
+  44:42  error    'userId' is defined but never used. Allowed unused args must match /^_/u                      no-unused-vars
+  44:58  error    'sessionId' is defined but never used. Allowed unused args must match /^_/u                   no-unused-vars
+  44:78  error    'batchId' is defined but never used. Allowed unused args must match /^_/u                     no-unused-vars
+  45:32  error    'resumeId' is defined but never used. Allowed unused args must match /^_/u                    no-unused-vars
+  46:40  error    'jobDescriptionId' is defined but never used. Allowed unused args must match /^_/u            no-unused-vars
+  47:24  error    'analysisResult' is defined but never used. Allowed unused args must match /^_/u              no-unused-vars
+  50:25  error    'id' is defined but never used. Allowed unused args must match /^_/u                          no-unused-vars
+  51:35  error    'resumeId' is defined but never used. Allowed unused args must match /^_/u                    no-unused-vars
+  52:43  error    'jobDescriptionId' is defined but never used. Allowed unused args must match /^_/u            no-unused-vars
+  53:38  error    'resumeId' is defined but never used. Allowed unused args must match /^_/u                    no-unused-vars
+  53:56  error    'jobDescriptionId' is defined but never used. Allowed unused args must match /^_/u            no-unused-vars
+  54:28  error    'interviewQuestions' is defined but never used. Allowed unused args must match /^_/u          no-unused-vars
+  57:43  error    'resumeId' is defined but never used. Allowed unused args must match /^_/u                    no-unused-vars
+  57:61  error    'jobDescriptionId' is defined but never used. Allowed unused args must match /^_/u            no-unused-vars
+  64:20  error    'userId' is defined but never used. Allowed unused args must match /^_/u                      no-unused-vars
+  65:21  error    'userId' is defined but never used. Allowed unused args must match /^_/u                      no-unused-vars
+  65:37  error    'tierInfo' is defined but never used. Allowed unused args must match /^_/u                    no-unused-vars
+
+/home/ews/Evalmatch/server/types/environment.ts
+  7:3  error  'Development' is defined but never used. Allowed unused vars must match /^_/u  no-unused-vars
+  8:3  error  'Production' is defined but never used. Allowed unused vars must match /^_/u   no-unused-vars
+  9:3  error  'Test' is defined but never used. Allowed unused vars must match /^_/u         no-unused-vars
+
+/home/ews/Evalmatch/server/types/legacy.d.ts
+   3:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  13:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  14:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  35:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  36:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  37:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  43:16  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  53:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  54:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  55:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 717 problems (234 errors, 483 warnings)
+

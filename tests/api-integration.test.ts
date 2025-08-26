@@ -26,7 +26,7 @@ describe('API Integration Tests', () => {
   afterAll(async () => {
     // Clear test app and data
     const { clearFixedTestApp } = await import('./helpers/test-server-fixed');
-    clearFixedTestApp();
+    await clearFixedTestApp();
     
     if (global.gc) {
       global.gc();
@@ -76,11 +76,12 @@ describe('API Integration Tests', () => {
         .expect(200);
 
       expect(response.body).toHaveProperty('status', 'success');
-      expect(response.body).toHaveProperty('jobDescription');
-      expect(response.body.jobDescription).toHaveProperty('id');
-      expect(response.body.jobDescription.title).toBe(jobData.title);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('jobDescription');
+      expect(response.body.data.jobDescription).toHaveProperty('id');
+      expect(response.body.data.jobDescription.title).toBe(jobData.title);
 
-      testJobId = response.body.jobDescription.id;
+      testJobId = response.body.data.jobDescription.id;
     });
 
     test('GET /api/job-descriptions/:id - should retrieve job description', async () => {
@@ -140,11 +141,12 @@ Senior Software Engineer | TechCorp | 2020-Present
         .expect(200);
 
       expect(response.body).toHaveProperty('status', 'success');
-      expect(response.body).toHaveProperty('resume');
-      expect(response.body.resume).toHaveProperty('id');
-      expect(response.body.resume).toHaveProperty('filename');
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('resume');
+      expect(response.body.data.resume).toHaveProperty('id');
+      expect(response.body.data.resume).toHaveProperty('filename');
 
-      testResumeId = response.body.resume.id;
+      testResumeId = response.body.data.resume.id;
     });
 
     test('GET /api/resumes - should list resumes', async () => {

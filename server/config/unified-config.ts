@@ -10,19 +10,24 @@
  */
 
 import { logger } from "./logger";
-import {
-  getEnvVar,
-  getEnvNumber,
-  getEnvBoolean,
-  getEnvJSON,
-} from "../lib/env-validator";
+import { Environment } from "../types/environment";
 
-// Environment types
-export enum Environment {
-  Development = "development",
-  Production = "production",
-  Test = "test",
+// Firebase service account types
+interface FirebaseServiceAccount {
+  type: string;
+  project_id: string;
+  private_key_id: string;
+  private_key: string;
+  client_email: string;
+  client_id: string;
+  auth_uri: string;
+  token_uri: string;
+  auth_provider_x509_cert_url: string;
+  client_x509_cert_url: string;
 }
+
+// Re-export for backward compatibility
+export { Environment };
 
 // Comprehensive application configuration interface
 export interface AppConfig {
@@ -47,10 +52,24 @@ export interface AppConfig {
     };
   };
 
+  // Storage
+  storage: {
+    type: 'database' | 'hybrid' | 'memory';
+    initialization: {
+      maxRetries: number;
+      timeoutMs: number;
+      retryDelayMs: number;
+    };
+    fallback: {
+      enabled: boolean;
+      type: 'memory' | 'readonly';
+    };
+  };
+
   // Firebase Authentication
   firebase: {
     projectId: string | null;
-    serviceAccountKey: string | null;
+    serviceAccountKey: string | FirebaseServiceAccount | null; // Allow both file path string or service account object
     clientConfig: {
       apiKey: string | null;
       authDomain: string | null;
@@ -102,11 +121,11 @@ export interface AppConfig {
  */
 export function loadUnifiedConfig(): AppConfig {
   // Note: Environment variables are validated by validateEnvironmentOrExit() before this runs
-  const authBypassMode = process.env.AUTH_BYPASS_MODE === "true";
+  // AUTH_BYPASS_MODE environment variable is available but not currently used
 
   // Environment configuration (safe to read directly after validation)
   const env = (process.env.NODE_ENV || "development") as Environment;
-  const port = parseInt(process.env.PORT || "5000", 10);
+  const port = parseInt(process.env.PORT || "3000", 10);
 
   // Database configuration
   const databaseUrl = process.env.DATABASE_URL || null;
@@ -114,8 +133,73 @@ export function loadUnifiedConfig(): AppConfig {
 
   // Firebase configuration
   const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || null;
-  const firebaseServiceAccountKey =
-    process.env.FIREBASE_SERVICE_ACCOUNT_KEY || null;
+  
+  // Get Firebase service account key - prefer base64 version for Railway compatibility
+  let firebaseServiceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || null;
+  if (!firebaseServiceAccountKey && process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64) {
+    try {
+      firebaseServiceAccountKey = Buffer.from(
+        process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64,
+        'base64'
+      ).toString('utf8');
+    } catch (error) {
+      logger.warn('Failed to decode FIREBASE_SERVICE_ACCOUNT_KEY_BASE64', { error });
+      firebaseServiceAccountKey = null;
+    }
+  }
+
+  // Parse the service account key into an object for firebase-auth.ts
+  let firebaseServiceAccountObject: FirebaseServiceAccount | null = null;
+  if (firebaseServiceAccountKey) {
+    try {
+      // SECURITY FIX: Safe logging without exposing sensitive key content
+      logger.debug('Attempting to parse Firebase service account key', {
+        keyLength: firebaseServiceAccountKey.length,
+        isString: typeof firebaseServiceAccountKey === 'string',
+        looksLikeJson: firebaseServiceAccountKey.startsWith('{') && firebaseServiceAccountKey.endsWith('}')
+      });
+      const parsedKey = JSON.parse(firebaseServiceAccountKey);
+      
+      // Validate the parsed object has required fields
+      const requiredFields = ['type', 'project_id', 'private_key', 'client_email'];
+      const missingFields = requiredFields.filter(field => !parsedKey?.[field]);
+      
+      if (missingFields.length > 0) {
+        logger.error('Firebase service account missing required fields', { 
+          missingFields,
+          hasPrivateKey: !!parsedKey?.private_key,
+          privateKeyLength: parsedKey?.private_key?.length || 0
+        });
+        firebaseServiceAccountObject = null;
+      } else if (parsedKey) {
+        // Fix common private key formatting issues
+        if (parsedKey.private_key.includes('\\n')) {
+          parsedKey.private_key = parsedKey.private_key.replace(/\\n/g, '\n');
+          logger.debug('Fixed escaped newlines in Firebase private key');
+        }
+        
+        // Basic validation of private key format
+        const privateKey = parsedKey.private_key;
+        if (!privateKey.includes('-----BEGIN PRIVATE KEY-----') || !privateKey.includes('-----END PRIVATE KEY-----')) {
+          logger.error('Firebase private key appears to be malformed - missing BEGIN/END markers');
+          firebaseServiceAccountObject = null;
+        } else {
+          // Use the parsed object directly - Firebase cert() handles both formats
+          firebaseServiceAccountObject = parsedKey;
+        }
+      }
+    } catch (error) {
+      // SECURITY FIX: Safe error logging without exposing key content
+      logger.error('Failed to parse Firebase service account key JSON', { 
+        error: error instanceof Error ? error.message : String(error),
+        keyLength: firebaseServiceAccountKey?.length,
+        keyType: typeof firebaseServiceAccountKey,
+        // REMOVED: keyPreview that could expose sensitive data
+      });
+      firebaseServiceAccountKey = null;
+      firebaseServiceAccountObject = null;
+    }
+  }
 
   // Firebase client configuration (for build-time injection)
   const firebaseClientConfig = {
@@ -127,7 +211,7 @@ export function loadUnifiedConfig(): AppConfig {
     appId: process.env.VITE_FIREBASE_APP_ID || null,
   };
 
-  const firebaseConfigured = !!(firebaseProjectId && firebaseServiceAccountKey);
+  const firebaseConfigured = !!(firebaseProjectId && firebaseServiceAccountObject);
 
   // AI Provider configuration
   const groqApiKey = process.env.GROQ_API_KEY || null;
@@ -160,6 +244,10 @@ export function loadUnifiedConfig(): AppConfig {
     monitoring: env === Environment.Production,
     uploads: true, // Always enabled for now
   };
+
+  // Storage configuration
+  const storageType = process.env.STORAGE_TYPE as 'database' | 'hybrid' | 'memory' || 
+    (databaseEnabled ? 'hybrid' : 'memory'); // Default to hybrid if database available, memory otherwise
 
   // Build configuration object (validation status is managed by env-validator)
   const config: AppConfig = {
@@ -196,9 +284,21 @@ export function loadUnifiedConfig(): AppConfig {
         retryInterval: 60000,
       },
     },
+    storage: {
+      type: storageType,
+      initialization: {
+        maxRetries: parseInt(process.env.STORAGE_MAX_RETRIES || '3', 10),
+        timeoutMs: parseInt(process.env.STORAGE_TIMEOUT_MS || '30000', 10),
+        retryDelayMs: parseInt(process.env.STORAGE_RETRY_DELAY_MS || '1000', 10),
+      },
+      fallback: {
+        enabled: env !== Environment.Test, // Always enable fallback except in tests
+        type: 'memory' as const,
+      },
+    },
     firebase: {
       projectId: firebaseProjectId,
-      serviceAccountKey: firebaseServiceAccountKey,
+      serviceAccountKey: firebaseServiceAccountObject,
       clientConfig: firebaseClientConfig,
       configured: firebaseConfigured,
     },
@@ -300,6 +400,7 @@ function logConfigurationSummary(config: AppConfig): void {
     environment: config.env,
     port: config.port,
     database: config.database.enabled ? "PostgreSQL" : "Memory Storage",
+    storage: `${config.storage.type} (${config.storage.fallback.enabled ? 'with fallback' : 'no fallback'})`,
     firebase: config.firebase.configured ? "Configured" : "Not Configured",
     aiProviders: Object.entries(config.ai.providers)
       .map(([name, provider]) => `${name}: ${provider.enabled ? "✅" : "❌"}`)
@@ -319,7 +420,7 @@ function logConfigurationSummary(config: AppConfig): void {
  * Kept for backward compatibility but does nothing since validation
  * is performed earlier in the startup process.
  */
-export function validateConfigurationOrExit(config: AppConfig): void {
+export function validateConfigurationOrExit(_config: AppConfig): void {
   // Validation is now handled by validateEnvironmentOrExit() in env-validator
   // This function is kept for backward compatibility but is effectively a no-op
   logger.debug(
