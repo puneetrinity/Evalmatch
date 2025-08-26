@@ -86,6 +86,7 @@ export function RegisterForm({ onToggleMode, onSuccess }: RegisterFormProps) {
     }
   };
 
+  // Removed Google registration method
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -186,7 +187,6 @@ export function RegisterForm({ onToggleMode, onSuccess }: RegisterFormProps) {
             {loading ? 'Creating Account...' : 'Create Account'}
           </Button>
         </form>
-
       </CardContent>
       <CardFooter>
         <div className="text-sm text-center w-full">

@@ -68,6 +68,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
     }
   };
 
+  // Removed Google login method
 
   const handlePasswordReset = async () => {
     if (!email) {
@@ -146,6 +147,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
           </Button>
         </form>
 
+        {/* Removed Google login section */}
       </CardContent>
       <CardFooter className="flex flex-col space-y-2">
         <button
