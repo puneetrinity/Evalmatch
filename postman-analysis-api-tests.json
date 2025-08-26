@@ -1,0 +1,402 @@
+{
+  "info": {
+    "name": "EvalMatch Analysis API Tests",
+    "description": "Test collection for Resume Analysis APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Run Analysis - With Resume IDs",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has correct structure\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('analysisId');",
+              "    pm.expect(jsonData).to.have.property('jobId');",
+              "    pm.expect(jsonData).to.have.property('results');",
+              "    pm.expect(jsonData).to.have.property('timestamp');",
+              "});",
+              "",
+              "pm.test(\"Analysis results structure is correct\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    const results = jsonData.results;",
+              "    pm.expect(results).to.be.an('array');",
+              "    ",
+              "    if (results.length > 0) {",
+              "        const firstResult = results[0];",
+              "        pm.expect(firstResult).to.have.property('resumeId');",
+              "        pm.expect(firstResult).to.have.property('filename');",
+              "        pm.expect(firstResult).to.have.property('candidateName');",
+              "        pm.expect(firstResult).to.have.property('matchPercentage');",
+              "        pm.expect(firstResult).to.have.property('matchedSkills');",
+              "        pm.expect(firstResult).to.have.property('missingSkills');",
+              "        pm.expect(firstResult).to.have.property('candidateStrengths');",
+              "        pm.expect(firstResult).to.have.property('candidateWeaknesses');",
+              "        pm.expect(firstResult).to.have.property('overallScore');",
+              "        pm.expect(firstResult).to.have.property('confidenceScore');",
+              "        pm.expect(firstResult).to.have.property('analyzedAt');",
+              "        ",
+              "        // Store analysis ID for later tests",
+              "        pm.environment.set('analysis_id', jsonData.analysisId);",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}",
+            "description": "Firebase ID Token"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"resumeIds\": [123, 124, 125],\n  \"sessionId\": \"session_123\",\n  \"batchId\": \"batch_456\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/analysis/analyze/{{job_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "analysis", "analyze", "{{job_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Run Analysis - All User Resumes",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Analysis runs without specific resume IDs\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.results).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sessionId\": \"session_123\",\n  \"batchId\": \"batch_456\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/analysis/analyze/{{job_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "analysis", "analyze", "{{job_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Get Analysis Results",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Analysis results retrieved\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('results');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/analysis/analyze/{{job_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "analysis", "analyze", "{{job_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Get Analysis Result by Resume",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Specific resume analysis retrieved\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData).to.have.property('data');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/analysis/analyze/{{job_id}}/{{resume_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "analysis", "analyze", "{{job_id}}", "{{resume_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Run Analysis - Invalid Job ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 or 404\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([400, 404]);",
+              "});",
+              "",
+              "pm.test(\"Error response structure\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', false);",
+              "    pm.expect(jsonData).to.have.property('error');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"resumeIds\": [123],\n  \"sessionId\": \"session_123\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/analysis/analyze/999999",
+          "host": ["{{base_url}}"],
+          "path": ["api", "analysis", "analyze", "999999"]
+        }
+      }
+    },
+    {
+      "name": "Run Analysis - No Auth",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test(\"Unauthorized response structure\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', false);",
+              "    pm.expect(jsonData).to.have.property('error');",
+              "    pm.expect(jsonData.error.code).to.include('AUTH');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"resumeIds\": [123],\n  \"sessionId\": \"session_123\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/analysis/analyze/{{job_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "analysis", "analyze", "{{job_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Run Analysis - Empty Request",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 or 400\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "    pm.test(\"Empty request defaults to all user resumes\", function () {",
+              "        const jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.be.true;",
+              "    });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/analysis/analyze/{{job_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "analysis", "analyze", "{{job_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Run Analysis - With Session Filter",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Session-filtered analysis works\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.results).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sessionId\": \"session_specific_test\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/analysis/analyze/{{job_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "analysis", "analyze", "{{job_id}}"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://evalmatch.app",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string",
+      "description": "Firebase ID Token - update this before running tests"
+    },
+    {
+      "key": "job_id",
+      "value": "456",
+      "type": "string",
+      "description": "Job ID for analysis - use an existing job ID"
+    },
+    {
+      "key": "resume_id",
+      "value": "123",
+      "type": "string",
+      "description": "Resume ID for specific analysis tests"
+    },
+    {
+      "key": "analysis_id",
+      "value": "",
+      "type": "string",
+      "description": "Analysis ID from run analysis response"
+    }
+  ]
+}

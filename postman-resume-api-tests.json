@@ -1,0 +1,327 @@
+{
+  "info": {
+    "name": "EvalMatch Resume API Tests",
+    "description": "Test collection for Resume Management APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get All Resumes",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has correct structure\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('data');",
+              "    pm.expect(jsonData.data).to.have.property('resumes');",
+              "    pm.expect(jsonData.data).to.have.property('pagination');",
+              "});",
+              "",
+              "pm.test(\"Pagination structure is correct\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    const pagination = jsonData.data.pagination;",
+              "    pm.expect(pagination).to.have.property('page');",
+              "    pm.expect(pagination).to.have.property('limit');",
+              "    pm.expect(pagination).to.have.property('total');",
+              "    pm.expect(pagination).to.have.property('totalPages');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}",
+            "description": "Firebase ID Token"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/resumes?page=1&limit=20",
+          "host": ["{{base_url}}"],
+          "path": ["api", "resumes"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Resumes with Filters",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Filtered results returned\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/resumes?page=1&limit=10&fileType=pdf&hasAnalysis=true",
+          "host": ["{{base_url}}"],
+          "path": ["api", "resumes"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            },
+            {
+              "key": "fileType",
+              "value": "pdf"
+            },
+            {
+              "key": "hasAnalysis",
+              "value": "true"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Upload Resume",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Upload response structure\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData.data).to.have.property('resume');",
+              "    pm.expect(jsonData.data).to.have.property('processing');",
+              "    ",
+              "    // Store resume ID for later tests",
+              "    if (jsonData.data.resume.id) {",
+              "        pm.environment.set('resume_id', jsonData.data.resume.id);",
+              "    }",
+              "});",
+              "",
+              "pm.test(\"Resume properties are correct\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    const resume = jsonData.data.resume;",
+              "    pm.expect(resume).to.have.property('id');",
+              "    pm.expect(resume).to.have.property('filename');",
+              "    pm.expect(resume).to.have.property('originalName');",
+              "    pm.expect(resume).to.have.property('fileSize');",
+              "    pm.expect(resume).to.have.property('mimeType');",
+              "    pm.expect(resume).to.have.property('status');",
+              "    pm.expect(resume).to.have.property('uploadedAt');",
+              "    pm.expect(resume).to.have.property('userId');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "sample_resume.pdf",
+              "description": "Resume file to upload"
+            },
+            {
+              "key": "sessionId",
+              "value": "session_123",
+              "type": "text"
+            },
+            {
+              "key": "autoAnalyze",
+              "value": "true",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/resumes",
+          "host": ["{{base_url}}"],
+          "path": ["api", "resumes"]
+        }
+      }
+    },
+    {
+      "name": "Get Specific Resume",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Resume details structure\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData.data).to.have.property('resume');",
+              "});",
+              "",
+              "pm.test(\"Resume has required fields\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    const resume = jsonData.data.resume;",
+              "    pm.expect(resume).to.have.property('id');",
+              "    pm.expect(resume).to.have.property('filename');",
+              "    pm.expect(resume).to.have.property('originalName');",
+              "    pm.expect(resume).to.have.property('content'); // Should include extracted content",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/resumes/{{resume_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "resumes", "{{resume_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Upload Resume with Batch ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Batch upload successful\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "sample_resume_2.pdf"
+            },
+            {
+              "key": "batchId",
+              "value": "batch_456",
+              "type": "text"
+            },
+            {
+              "key": "sessionId",
+              "value": "session_123",
+              "type": "text"
+            },
+            {
+              "key": "autoAnalyze",
+              "value": "false",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/resumes",
+          "host": ["{{base_url}}"],
+          "path": ["api", "resumes"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://evalmatch.app",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string",
+      "description": "Firebase ID Token - update this before running tests"
+    },
+    {
+      "key": "resume_id",
+      "value": "",
+      "type": "string",
+      "description": "Resume ID from upload response"
+    }
+  ]
+}
