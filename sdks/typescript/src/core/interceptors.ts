@@ -5,6 +5,17 @@
 
 import { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios'
 
+// Cache-enhanced request config
+export interface RequestConfig extends AxiosRequestConfig {
+  _cacheKey?: string;
+  _cachedResponse?: ResponseData;
+}
+
+// Cache-enhanced response data
+export interface ResponseData extends AxiosResponse {
+  fromCache?: boolean;
+}
+
 export interface RequestContext {
   requestId: string
   startTime: number
@@ -22,11 +33,21 @@ export interface ResponseContext extends RequestContext {
 
 // Interceptor function types
 export type RequestInterceptor = (
+  config: RequestConfig
+) => RequestConfig | Promise<RequestConfig>
+
+export type ResponseInterceptor = {
+  onFulfilled?: (response: ResponseData) => ResponseData | Promise<ResponseData>;
+  onRejected?: (error: any) => Promise<never>;
+}
+
+// Legacy interceptor types (for compatibility)
+export type LegacyRequestInterceptor = (
   config: AxiosRequestConfig,
   context: RequestContext
 ) => AxiosRequestConfig | Promise<AxiosRequestConfig>
 
-export type ResponseInterceptor = (
+export type LegacyResponseInterceptor = (
   response: AxiosResponse,
   context: ResponseContext
 ) => AxiosResponse | Promise<AxiosResponse>
@@ -41,7 +62,7 @@ export class BuiltInInterceptors {
   /**
    * Request ID interceptor - adds unique request ID to every request
    */
-  static requestId(): RequestInterceptor {
+  static requestId(): LegacyRequestInterceptor {
     return (config, context) => {
       config.headers = config.headers || {}
       config.headers['X-Request-ID'] = context.requestId
@@ -100,7 +121,7 @@ export class BuiltInInterceptors {
   /**
    * Response timing interceptor - logs response times
    */
-  static responseTiming(): ResponseInterceptor {
+  static responseTiming(): LegacyResponseInterceptor {
     return (response, context) => {
       if (context.duration > 1000) {
         console.warn(`Slow API response: ${context.method} ${context.endpoint} took ${context.duration}ms`)
@@ -157,14 +178,14 @@ export class BuiltInInterceptors {
  * Interceptor Manager - manages request/response interceptors
  */
 export class InterceptorManager {
-  private requestInterceptors: RequestInterceptor[] = []
-  private responseInterceptors: ResponseInterceptor[] = []
+  private requestInterceptors: (RequestInterceptor | LegacyRequestInterceptor)[] = []
+  private responseInterceptors: (ResponseInterceptor | LegacyResponseInterceptor)[] = []
   private errorInterceptors: ErrorInterceptor[] = []
 
   /**
    * Add a request interceptor
    */
-  addRequestInterceptor(interceptor: RequestInterceptor): () => void {
+  addRequestInterceptor(interceptor: RequestInterceptor | LegacyRequestInterceptor): () => void {
     this.requestInterceptors.push(interceptor)
     
     // Return unsubscribe function
@@ -179,7 +200,7 @@ export class InterceptorManager {
   /**
    * Add a response interceptor
    */
-  addResponseInterceptor(interceptor: ResponseInterceptor): () => void {
+  addResponseInterceptor(interceptor: ResponseInterceptor | LegacyResponseInterceptor): () => void {
     this.responseInterceptors.push(interceptor)
     
     return () => {
@@ -211,7 +232,13 @@ export class InterceptorManager {
     let processedConfig = config
     
     for (const interceptor of this.requestInterceptors) {
-      processedConfig = await interceptor(processedConfig, context)
+      if (interceptor.length === 2) {
+        // Legacy interceptor with context
+        processedConfig = await (interceptor as LegacyRequestInterceptor)(processedConfig, context)
+      } else {
+        // New interceptor without context
+        processedConfig = await (interceptor as RequestInterceptor)(processedConfig)
+      }
     }
     
     return processedConfig
@@ -224,7 +251,16 @@ export class InterceptorManager {
     let processedResponse = response
     
     for (const interceptor of this.responseInterceptors) {
-      processedResponse = await interceptor(processedResponse, context)
+      if (typeof interceptor === 'function') {
+        // Legacy response interceptor
+        processedResponse = await (interceptor as LegacyResponseInterceptor)(processedResponse, context)
+      } else if (interceptor && typeof interceptor === 'object' && interceptor.onFulfilled) {
+        // New response interceptor
+        const newInterceptor = interceptor as ResponseInterceptor
+        if (newInterceptor.onFulfilled) {
+          processedResponse = await newInterceptor.onFulfilled(processedResponse)
+        }
+      }
     }
     
     return processedResponse
@@ -271,12 +307,11 @@ export function createDefaultInterceptors(
   debug = false
 ): {
   requestInterceptors: RequestInterceptor[]
-  responseInterceptors: ResponseInterceptor[]
+  responseInterceptors: LegacyResponseInterceptor[]
   errorInterceptors: ErrorInterceptor[]
 } {
   return {
     requestInterceptors: [
-      BuiltInInterceptors.requestId(),
       BuiltInInterceptors.userAgent(),
       BuiltInInterceptors.timeout(),
       BuiltInInterceptors.authentication(getToken),

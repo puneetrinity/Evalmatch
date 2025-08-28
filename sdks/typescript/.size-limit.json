@@ -1,0 +1,36 @@
+[
+  {
+    "name": "ESM Bundle (Import)",
+    "path": "dist/index.mjs",
+    "import": "*",
+    "limit": "40 KB",
+    "ignore": ["firebase", "firebase-admin", "axios"]
+  },
+  {
+    "name": "CJS Bundle (Require)",  
+    "path": "dist/index.cjs",
+    "require": "dist/index.cjs",
+    "limit": "45 KB",
+    "ignore": ["firebase", "firebase-admin", "axios"]
+  },
+  {
+    "name": "Browser Bundle (Global)",
+    "path": "dist/index.global.js",
+    "limit": "50 KB",
+    "ignore": ["firebase", "firebase-admin", "axios"]
+  },
+  {
+    "name": "Core Client Only",
+    "path": "dist/index.mjs",
+    "import": "{ EvalMatchClient }",
+    "limit": "25 KB",
+    "ignore": ["firebase", "firebase-admin", "axios"]
+  },
+  {
+    "name": "Auth Provider Only", 
+    "path": "dist/index.mjs",
+    "import": "{ FirebaseAuthProvider }",
+    "limit": "15 KB",
+    "ignore": ["firebase", "firebase-admin", "axios"]
+  }
+]

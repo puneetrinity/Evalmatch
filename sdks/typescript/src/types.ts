@@ -66,6 +66,69 @@ export interface EvalMatchConfig {
      */
     timeout?: number;
   };
+
+  /**
+   * Cache configuration
+   */
+  cache?: {
+    /**
+     * Enable caching
+     * @default true
+     */
+    enabled?: boolean;
+    
+    /**
+     * Memory cache settings
+     */
+    memory?: {
+      /**
+       * Maximum entries in memory cache
+       * @default 100
+       */
+      maxSize?: number;
+      
+      /**
+       * Maximum memory usage in bytes
+       * @default 10MB
+       */
+      maxBytes?: number;
+    };
+    
+    /**
+     * Persistent cache settings (IndexedDB)
+     */
+    persistent?: {
+      /**
+       * Enable persistent caching
+       * @default true
+       */
+      enabled?: boolean;
+      
+      /**
+       * Maximum entries in persistent cache
+       * @default 1000
+       */
+      maxSize?: number;
+      
+      /**
+       * Maximum storage in bytes
+       * @default 50MB
+       */
+      maxBytes?: number;
+    };
+    
+    /**
+     * Default TTL for cached entries (milliseconds)
+     * @default 300000 (5 minutes)
+     */
+    defaultTTL?: number;
+    
+    /**
+     * Enable cache debug logging
+     * @default false
+     */
+    debug?: boolean;
+  };
 }
 
 export interface ClientOptions {

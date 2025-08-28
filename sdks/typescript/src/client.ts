@@ -53,14 +53,17 @@ import type { AuthProvider, EvalMatchConfig, ClientOptions } from './types';
 import { RetryableHTTPClient, RetryConfig, CircuitBreakerConfig } from './core/retry-client';
 import { ErrorFactory, EvalMatchError, CircuitBreakerError } from './core/errors';
 import { createDefaultInterceptors } from './core/interceptors';
+import { CacheInterceptor, CacheInterceptorConfig } from './core/cache-interceptor';
 
 export class EvalMatchClient {
   private authProvider: AuthProvider;
-  private config: Required<Omit<EvalMatchConfig, 'authProvider' | 'circuitBreaker'>> & { 
+  private config: Required<Omit<EvalMatchConfig, 'authProvider' | 'circuitBreaker' | 'cache'>> & { 
     authProvider: AuthProvider;
     circuitBreaker?: EvalMatchConfig['circuitBreaker'];
+    cache?: EvalMatchConfig['cache'];
   };
   private httpClient: RetryableHTTPClient;
+  private cacheInterceptor?: CacheInterceptor;
 
   constructor(config: EvalMatchConfig) {
     this.authProvider = config.authProvider;
@@ -71,7 +74,8 @@ export class EvalMatchClient {
       debug: config.debug || false,
       retries: config.retries || 2,
       authProvider: config.authProvider,
-      circuitBreaker: config.circuitBreaker
+      circuitBreaker: config.circuitBreaker,
+      cache: config.cache
     };
 
     // Initialize HTTP client with retry logic and circuit breaker
@@ -106,6 +110,22 @@ export class EvalMatchClient {
       circuitBreakerConfig
     );
 
+    // Initialize cache interceptor if caching is enabled
+    if (this.config.cache?.enabled !== false) {
+      this.cacheInterceptor = new CacheInterceptor({
+        enabled: true,
+        cacheOptions: this.config.cache?.memory || this.config.cache?.persistent ? {
+          memoryMaxSize: this.config.cache.memory?.maxSize || 100,
+          memoryMaxBytes: this.config.cache.memory?.maxBytes || 10 * 1024 * 1024,
+          persistentMaxSize: this.config.cache.persistent?.maxSize || 1000,
+          persistentMaxBytes: this.config.cache.persistent?.maxBytes || 50 * 1024 * 1024,
+          defaultTTL: this.config.cache.defaultTTL || 300000,
+          enablePersistence: this.config.cache.persistent?.enabled !== false
+        } : undefined,
+        debug: this.config.cache?.debug || this.config.debug
+      });
+    }
+
     // Setup default interceptors
     this.setupDefaultInterceptors();
   }
@@ -119,6 +139,16 @@ export class EvalMatchClient {
         () => this.authProvider.getToken(),
         this.config.debug
       );
+
+    // Add cache interceptors first (if enabled)
+    if (this.cacheInterceptor) {
+      this.httpClient.interceptors.addRequestInterceptor(
+        this.cacheInterceptor.createRequestInterceptor()
+      );
+      this.httpClient.interceptors.addResponseInterceptor(
+        this.cacheInterceptor.createResponseInterceptor()
+      );
+    }
 
     // Add all default interceptors
     requestInterceptors.forEach(interceptor => {
@@ -305,5 +335,70 @@ export class EvalMatchClient {
    */
   public getCircuitBreakerState() {
     return this.httpClient.circuitBreakerState;
+  }
+
+  /**
+   * Cache Management Methods
+   */
+
+  /**
+   * Get cache performance metrics
+   */
+  public getCacheMetrics() {
+    return this.cacheInterceptor?.getMetrics() || null;
+  }
+
+  /**
+   * Clear all cache (both memory and persistent)
+   */
+  public async clearCache(): Promise<void> {
+    if (this.cacheInterceptor) {
+      await this.cacheInterceptor.clearCache();
+    }
+  }
+
+  /**
+   * Invalidate specific cache entry
+   */
+  public async invalidateCache(key: string): Promise<boolean> {
+    if (this.cacheInterceptor) {
+      return this.cacheInterceptor.invalidateCache(key);
+    }
+    return false;
+  }
+
+  /**
+   * Invalidate cache entries by pattern
+   */
+  public async invalidateCacheByPattern(pattern: string | RegExp): Promise<number> {
+    if (this.cacheInterceptor) {
+      return this.cacheInterceptor.invalidateCacheByPattern(pattern);
+    }
+    return 0;
+  }
+
+  /**
+   * Preload data into cache
+   */
+  public async preloadCache(key: string, data: any, ttl?: number): Promise<void> {
+    if (this.cacheInterceptor) {
+      await this.cacheInterceptor.preloadCache(key, data, ttl);
+    }
+  }
+
+  /**
+   * Check if cache is enabled
+   */
+  public isCacheEnabled(): boolean {
+    return this.cacheInterceptor?.isEnabled() || false;
+  }
+
+  /**
+   * Enable/disable cache
+   */
+  public setCacheEnabled(enabled: boolean): void {
+    if (this.cacheInterceptor) {
+      this.cacheInterceptor.setEnabled(enabled);
+    }
   }
 }

@@ -2,26 +2,35 @@
   "name": "@evalmatch/sdk",
   "version": "1.0.0",
   "description": "TypeScript SDK for EvalMatch API - AI-powered recruitment platform",
-  "main": "dist/index.js",
-  "module": "dist/index.esm.js",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "unpkg": "dist/index.global.js",
+  "jsdelivr": "dist/index.global.js",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.esm.js",
-      "require": "./dist/index.js"
+      "browser": "./dist/index.global.js",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.mjs"
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "build": "tsup",
+    "build:watch": "tsup --watch",
+    "build:analyze": "npm run build && npm run size-limit",
+    "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src/**/*.ts --no-warn-ignored",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run test && npm run build"
+    "size-limit": "size-limit",
+    "bundle-analyzer": "npx esbuild-visualizer --metadata dist/metafile-*.json --open",
+    "prepublishOnly": "npm run test && npm run build && npm run size-limit"
   },
   "keywords": [
     "evalmatch",
@@ -48,11 +57,19 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "axios": "^1.7.7",
     "firebase-admin": "^13.4.0"
   },
   "peerDependencies": {
-    "firebase": ">=10.0.0"
+    "firebase": ">=10.0.0",
+    "axios": ">=1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "firebase": {
+      "optional": false
+    },
+    "axios": {
+      "optional": false
+    }
   },
   "devDependencies": {
     "@types/axios": "^0.9.36",
@@ -61,9 +78,12 @@
     "@typescript-eslint/parser": "^7.0.0",
     "@vitest/coverage-v8": "^3.2.4",
     "@vitest/ui": "^3.2.4",
+    "esbuild-visualizer": "^0.6.0",
     "eslint": "^8.0.0",
     "jsdom": "^26.1.0",
     "msw": "^2.10.5",
+    "size-limit": "^11.0.0",
+    "@size-limit/preset-small-lib": "^11.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0",
     "vitest": "^3.2.4"

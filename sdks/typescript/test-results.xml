@@ -1,75 +1,478 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuites name="vitest tests" tests="19" failures="1" errors="0" time="0.284518808">
-    <testsuite name="src/__tests__/client.test.ts" timestamp="2025-08-18T15:48:51.036Z" hostname="EWS" tests="19" failures="1" errors="0" skipped="18" time="0.284518808">
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Configuration &gt; should initialize with default configuration" time="0">
-            <skipped/>
+<testsuites name="vitest tests" tests="89" failures="6" errors="0" time="16.148868607">
+    <testsuite name="src/__tests__/client-basic.test.ts" timestamp="2025-08-28T17:07:22.606Z" hostname="DESKTOP-GPKOSIG" tests="12" failures="0" errors="0" skipped="0" time="0.131782397">
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Configuration &gt; should initialize with default configuration" time="0.005318565">
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Configuration &gt; should use custom configuration" time="0">
-            <skipped/>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Configuration &gt; should use custom configuration" time="0.000651666">
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Configuration &gt; should check authentication status" time="0">
-            <skipped/>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Configuration &gt; should check authentication status" time="0.000861575">
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Resume Management &gt; should list resumes successfully" time="0">
-            <skipped/>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; API Structure &gt; should have resume management methods" time="0.007102083">
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Resume Management &gt; should get specific resume by ID" time="0">
-            <skipped/>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; API Structure &gt; should have job management methods" time="0.000490033">
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; API Structure &gt; should have analysis methods" time="0.000373353">
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; API Structure &gt; should have utility methods" time="0.000308232">
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Mock Service Integration &gt; should successfully list resumes" time="0.051363817">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Mock Service Integration &gt; should successfully get resume by ID" time="0.013088739">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes/123
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Mock Service Integration &gt; should successfully create job description" time="0.013256137">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/job-descriptions
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Mock Service Integration &gt; should successfully analyze resumes" time="0.013377505">
+            <system-out>
+MSW intercepted ANALYZE 123: POST https://api.test.evalmatch.com/analysis/analyze/123
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Mock Service Integration &gt; should successfully analyze job bias" time="0.018951026">
+            <system-out>
+MSW intercepted BIAS 123: POST https://api.test.evalmatch.com/analysis/analyze-bias/123
+
+MSW BIAS 123 body: {}
+
+            </system-out>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/client.test.ts" timestamp="2025-08-28T17:07:22.624Z" hostname="DESKTOP-GPKOSIG" tests="19" failures="1" errors="0" skipped="1" time="15.509594471">
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Configuration &gt; should initialize with default configuration" time="0.005790894">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Configuration &gt; should use custom configuration" time="0.00090119">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Configuration &gt; should check authentication status" time="0.000764925">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Resume Management &gt; should list resumes successfully" time="0.073091273">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Resume Management &gt; should get specific resume by ID" time="0.025437046">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes/123
+
+            </system-out>
         </testcase>
         <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Resume Management &gt; should upload resume file" time="0">
             <skipped/>
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Resume Management &gt; should handle resume not found error" time="0">
-            <skipped/>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Resume Management &gt; should handle resume not found error" time="0.436826896">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes/999
+
+MSW intercepted: GET https://api.test.evalmatch.com/resumes/999
+
+MSW intercepted: GET https://api.test.evalmatch.com/resumes/999
+
+            </system-out>
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Job Description Management &gt; should create job description successfully" time="0">
-            <skipped/>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Job Description Management &gt; should create job description successfully" time="0.012664274">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/job-descriptions
+
+            </system-out>
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Job Description Management &gt; should handle validation errors for job creation" time="0">
-            <skipped/>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Job Description Management &gt; should handle validation errors for job creation" time="0.835166843">
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; AI Analysis &gt; should analyze resumes against job" time="0">
-            <skipped/>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; AI Analysis &gt; should analyze resumes against job" time="0.01696049">
+            <system-out>
+MSW intercepted ANALYZE 123: POST https://api.test.evalmatch.com/analysis/analyze/123
+
+            </system-out>
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; AI Analysis &gt; should analyze job bias" time="0">
-            <skipped/>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; AI Analysis &gt; should analyze job bias" time="0.020977917">
+            <system-out>
+MSW intercepted BIAS 123: POST https://api.test.evalmatch.com/analysis/analyze-bias/123
+
+MSW BIAS 123 body: {}
+
+            </system-out>
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; AI Analysis &gt; should handle analysis timeout" time="0.278209891">
-            <failure message="promise resolved &quot;{ success: true }&quot; instead of rejecting" type="AssertionError">
-AssertionError: promise resolved &quot;{ success: true }&quot; instead of rejecting
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; AI Analysis &gt; should handle analysis timeout" time="1.542412144">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should handle authentication errors" time="0.976511863">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should handle rate limiting with retry after" time="0.729432311">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should handle server errors with retry" time="0.393852425">
+            <system-out>
+Retry test attempt 1
+
+Retry test attempt 2
+
+Retry test attempt 3
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should handle circuit breaker opening" time="10.009652806">
+            <system-err>
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-0
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-1
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-2
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-3
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-4
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-0
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-1
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-2
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-3
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-4
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-0
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-0
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-4
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-4
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-1
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-1
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-3
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-3
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-2
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-2
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+            </system-err>
+            <failure message="Test timed out in 10000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with &quot;testTimeout&quot;." type="Error">
+Error: Test timed out in 10000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with &quot;testTimeout&quot;.
+ ❯ src/__tests__/client.test.ts:279:5
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should enrich errors with request context" time="0.409375058">
+            <system-out>
+MSW intercepted DYNAMIC RESUMES: GET https://api.test.evalmatch.com/resumes-1 index: 1
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Request Interceptors &gt; should add authentication headers automatically" time="0.007171735">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Request Interceptors &gt; should handle requests without authentication" time="0.005767497">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/integration/client-integration.test.ts" timestamp="2025-08-28T17:07:22.657Z" hostname="DESKTOP-GPKOSIG" tests="5" failures="0" errors="0" skipped="0" time="0.010015045">
+        <testcase classname="src/__tests__/integration/client-integration.test.ts" name="EvalMatchClient Integration &gt; should initialize client with proper configuration" time="0.003149473">
+        </testcase>
+        <testcase classname="src/__tests__/integration/client-integration.test.ts" name="EvalMatchClient Integration &gt; should have all expected API methods" time="0.000698702">
+        </testcase>
+        <testcase classname="src/__tests__/integration/client-integration.test.ts" name="EvalMatchClient Integration &gt; should report authenticated status" time="0.000501567">
+        </testcase>
+        <testcase classname="src/__tests__/integration/client-integration.test.ts" name="EvalMatchClient Integration &gt; should create client with default configuration" time="0.00044769">
+        </testcase>
+        <testcase classname="src/__tests__/integration/client-integration.test.ts" name="EvalMatchClient Integration &gt; should handle circuit breaker configuration" time="0.000907983">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/core/errors.test.ts" timestamp="2025-08-28T17:07:22.661Z" hostname="DESKTOP-GPKOSIG" tests="20" failures="0" errors="0" skipped="0" time="0.04097899">
+        <testcase classname="src/__tests__/core/errors.test.ts" name="EvalMatchError &gt; should create error with all properties" time="0.005148566">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="EvalMatchError &gt; should serialize to JSON properly" time="0.015769858">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="EvalMatchError &gt; should have proper toString representation" time="0.000481677">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create NetworkError with retry actions" time="0.002662553">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create AuthenticationError with auth actions" time="0.00051837">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create RateLimitError with wait action" time="0.000604847">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create ValidationError with check parameters action" time="0.000488331">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create ServerError with appropriate retry behavior" time="0.000603115">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create CircuitBreakerError with wait action" time="0.000744267">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create FirebaseAuthError with auth action" time="0.000615557">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create ValidationError for 400 status" time="0.000712321">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create AuthenticationError for 401 status" time="0.000246144">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create RateLimitError for 429 status" time="0.000330337">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create ServerError for 5xx status" time="0.000400341">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create NetworkError for no status" time="0.000374111">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should handle file size errors (413)" time="0.000340248">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should handle unsupported media type (415)" time="0.000297278">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create CircuitBreakerError" time="0.000454839">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create FirebaseAuthError" time="0.000338712">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should enrich context for unknown status codes" time="0.000533857">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/core/interceptors.test.ts" timestamp="2025-08-28T17:07:22.677Z" hostname="DESKTOP-GPKOSIG" tests="22" failures="1" errors="0" skipped="0" time="0.069502221">
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should manage request interceptors" time="0.003634648">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should manage response interceptors" time="0.000753989">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should manage error interceptors" time="0.000786185">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should process request through interceptors" time="0.003373308">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should process response through interceptors" time="0.001050918">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should clear all interceptors" time="0.00164921">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; requestId &gt; should add request ID to headers" time="0.000657358">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; userAgent &gt; should add user agent header" time="0.000454603">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; userAgent &gt; should use default version" time="0.000365725">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; timeout &gt; should set timeout when not provided" time="0.000487038">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; timeout &gt; should not override existing timeout" time="0.000274084">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; authentication &gt; should add auth header when token available" time="0.000652478">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; authentication &gt; should not add auth header when token not available" time="0.000583261">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; contentType &gt; should set JSON content type for object data" time="0.00047176">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; contentType &gt; should not set content type for FormData" time="0.000599887">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; contentType &gt; should not override existing content type" time="0.000477458">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; responseTiming &gt; should log warning for slow responses" time="0.001882843">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; responseTiming &gt; should not log for fast responses" time="0.00054391">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; errorLogging &gt; should log error details when debug enabled" time="0.003502726">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; errorLogging &gt; should not log when debug disabled" time="0.000829525">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="createDefaultInterceptors &gt; should create default interceptor sets" time="0.037230429">
+            <failure message="expected [ [Function], [Function], …(2) ] to have a length of 5 but got 4" type="AssertionError">
+AssertionError: expected [ [Function], [Function], …(2) ] to have a length of 5 but got 4
 
 - Expected
 + Received
 
-- Error {
--   &quot;message&quot;: &quot;rejected promise&quot;,
-+ {
-+   &quot;success&quot;: true,
-  }
+- 5
++ 4
 
- ❯ src/__tests__/client.test.ts:195:60
+ ❯ src/__tests__/core/interceptors.test.ts:352:40
             </failure>
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should handle authentication errors" time="0">
-            <skipped/>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="createDefaultInterceptors &gt; should configure interceptors with proper parameters" time="0.000556363">
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should handle rate limiting with retry after" time="0">
-            <skipped/>
+    </testsuite>
+    <testsuite name="src/__tests__/core/retry-client.test.ts" timestamp="2025-08-28T17:07:22.698Z" hostname="DESKTOP-GPKOSIG" tests="11" failures="4" errors="0" skipped="0" time="0.386995483">
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="CircuitBreaker &gt; should start in CLOSED state" time="0.001846521">
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should handle server errors with retry" time="0">
-            <skipped/>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="CircuitBreaker &gt; should open after threshold failures" time="0.001644548">
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should handle circuit breaker opening" time="0">
-            <skipped/>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="CircuitBreaker &gt; should transition to HALF_OPEN after timeout" time="0.014674189">
+            <failure message="expected &apos;open&apos; to be &apos;half-open&apos; // Object.is equality" type="AssertionError">
+AssertionError: expected &apos;open&apos; to be &apos;half-open&apos; // Object.is equality
+
+Expected: &quot;half-open&quot;
+Received: &quot;open&quot;
+
+ ❯ src/__tests__/core/retry-client.test.ts:65:39
+            </failure>
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should enrich errors with request context" time="0">
-            <skipped/>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="CircuitBreaker &gt; should reset to CLOSED after successful operations in HALF_OPEN" time="0.002150966">
+            <failure message="expected &apos;open&apos; to be &apos;half-open&apos; // Object.is equality" type="AssertionError">
+AssertionError: expected &apos;open&apos; to be &apos;half-open&apos; // Object.is equality
+
+Expected: &quot;half-open&quot;
+Received: &quot;open&quot;
+
+ ❯ src/__tests__/core/retry-client.test.ts:94:39
+            </failure>
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Request Interceptors &gt; should add authentication headers automatically" time="0">
-            <skipped/>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should make successful requests" time="0.055821307">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/health
+
+            </system-out>
         </testcase>
-        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Request Interceptors &gt; should handle requests without authentication" time="0">
-            <skipped/>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should retry on server errors" time="0.072831254">
+            <failure message="HTTP 500 Error: Request failed with status code 500 (after 1 attempts)" type="HTTPError">
+HTTPError: HTTP 500 Error: Request failed with status code 500 (after 1 attempts)
+ ❯ RetryableHTTPClient.enrichError src/core/retry-client.ts:252:29
+ ❯ src/core/retry-client.ts:176:38
+ ❯ Axios.request node_modules/axios/lib/core/Axios.js:45:41
+ ❯ RetryableHTTPClient.retryWithBackoff src/core/retry-client.ts:197:16
+ ❯ CircuitBreaker.execute src/core/retry-client.ts:48:22
+ ❯ src/__tests__/core/retry-client.test.ts:162:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { status: 500, statusText: &apos;Internal Server Error&apos;, data: { error: &apos;Internal server error&apos; }, requestId: &apos;req_1756400774856_u0kc6jbtn&apos;, duration: +0, attempts: 1, originalError: { message: &apos;Request failed with status code 500&apos;, name: &apos;AxiosError&apos;, description: undefined, number: undefined, fileName: undefined, lineNumber: undefined, columnNumber: undefined, stack: &apos;AxiosError: Request failed with status code 500\n    at settle (file:///mnt/c/Users/amj/Desktop/Evalmatch-main/Evalmatch-fork/sdks/typescript/node_modules/axios/lib/core/settle.js:19:12)\n    at XMLHttpRequest.onloadend (file:///mnt/c/Users/amj/Desktop/Evalmatch-main/Evalmatch-fork/sdks/typescript/node_modules/axios/lib/adapters/xhr.js:59:7)\n    at XMLHttpRequest.methodCall (file:///mnt/c/Users/amj/Desktop/Evalmatch-main/Evalmatch-fork/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:207:20)\n    at Proxy.&lt;anonymous&gt; (file:///mnt/c/Users/amj/Desktop/Evalmatch-main/Evalmatch-fork/sdks/typescript/node_modules/@mswjs/interceptors/src/utils/createProxy.ts:93:29)\n    at XMLHttpRequestController.trigger (file:///mnt/c/Users/amj/Desktop/Evalmatch-main/Evalmatch-fork/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:631:16)\n    at finalizeResponse (file:///mnt/c/Users/amj/Desktop/Evalmatch-main/Evalmatch-fork/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:421:12)\n    at readNextResponseBodyChunk (file:///mnt/c/Users/amj/Desktop/Evalmatch-main/Evalmatch-fork/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:437:11)&apos;, config: { transitional: { silentJSONParsing: true, forcedJSONParsing: true, clarifyTimeoutError: false }, adapter: [ &apos;xhr&apos;, &apos;http&apos;, &apos;fetch&apos; ], transformRequest: [ &apos;Function&lt;transformRequest&gt;&apos; ], transformResponse: [ &apos;Function&lt;transformResponse&gt;&apos; ], timeout: +0, xsrfCookieName: &apos;XSRF-TOKEN&apos;, xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;, maxContentLength: -1, maxBodyLength: -1, env: { FormData: &apos;Function&lt;FormData&gt;&apos;, Blob: &apos;Function&lt;Blob&gt;&apos; }, validateStatus: &apos;Function&lt;validateStatus&gt;&apos;, headers: { Accept: &apos;application/json, text/plain, */*&apos; }, baseURL: &apos;https://api.test.evalmatch.com&apos;, method: &apos;get&apos;, url: &apos;/retry-test?attempt=0&apos;, allowAbsoluteUrls: true, metadata: { requestId: &apos;req_1756400774856_u0kc6jbtn&apos;, startTime: 1756400774856, duration: +0 } }, code: &apos;ERR_BAD_RESPONSE&apos;, status: 500 }, circuitBreakerState: &apos;closed&apos; }
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should not retry on 4xx errors" time="0.050453902">
+            <system-out>
+MSW intercepted ERROR 401: GET https://api.test.evalmatch.com/error/401
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should add request metadata" time="0.008918722">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/health
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should respect circuit breaker state" time="0.141155213">
+            <system-out>
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should handle network errors" time="0.024874681">
+            <system-out>
+MSW intercepted NETWORK ERROR: GET https://api.test.evalmatch.com/network-error
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should apply exponential backoff with jitter" time="0.004183715">
+            <failure message="HTTP 500 Error: Request failed with status code 500 (after 1 attempts)" type="HTTPError">
+HTTPError: HTTP 500 Error: Request failed with status code 500 (after 1 attempts)
+ ❯ RetryableHTTPClient.enrichError src/core/retry-client.ts:252:29
+ ❯ src/core/retry-client.ts:176:38
+ ❯ Axios.request node_modules/axios/lib/core/Axios.js:45:41
+ ❯ RetryableHTTPClient.retryWithBackoff src/core/retry-client.ts:197:16
+ ❯ CircuitBreaker.execute src/core/retry-client.ts:48:22
+ ❯ src/__tests__/core/retry-client.test.ts:269:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { status: 500, statusText: &apos;Internal Server Error&apos;, data: { error: &apos;Server error&apos; }, requestId: &apos;req_1756400774856_vt7jewrcb&apos;, duration: +0, attempts: 1, originalError: { message: &apos;Request failed with status code 500&apos;, name: &apos;AxiosError&apos;, description: undefined, number: undefined, fileName: undefined, lineNumber: undefined, columnNumber: undefined, stack: &apos;AxiosError: Request failed with status code 500\n    at settle (file:///mnt/c/Users/amj/Desktop/Evalmatch-main/Evalmatch-fork/sdks/typescript/node_modules/axios/lib/core/settle.js:19:12)\n    at XMLHttpRequest.onloadend (file:///mnt/c/Users/amj/Desktop/Evalmatch-main/Evalmatch-fork/sdks/typescript/node_modules/axios/lib/adapters/xhr.js:59:7)\n    at XMLHttpRequest.methodCall (file:///mnt/c/Users/amj/Desktop/Evalmatch-main/Evalmatch-fork/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:207:20)\n    at Proxy.&lt;anonymous&gt; (file:///mnt/c/Users/amj/Desktop/Evalmatch-main/Evalmatch-fork/sdks/typescript/node_modules/@mswjs/interceptors/src/utils/createProxy.ts:93:29)\n    at XMLHttpRequestController.trigger (file:///mnt/c/Users/amj/Desktop/Evalmatch-main/Evalmatch-fork/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:631:16)\n    at finalizeResponse (file:///mnt/c/Users/amj/Desktop/Evalmatch-main/Evalmatch-fork/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:421:12)\n    at readNextResponseBodyChunk (file:///mnt/c/Users/amj/Desktop/Evalmatch-main/Evalmatch-fork/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:437:11)&apos;, config: { transitional: { silentJSONParsing: true, forcedJSONParsing: true, clarifyTimeoutError: false }, adapter: [ &apos;xhr&apos;, &apos;http&apos;, &apos;fetch&apos; ], transformRequest: [ &apos;Function&lt;transformRequest&gt;&apos; ], transformResponse: [ &apos;Function&lt;transformResponse&gt;&apos; ], timeout: +0, xsrfCookieName: &apos;XSRF-TOKEN&apos;, xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;, maxContentLength: -1, maxBodyLength: -1, env: { FormData: &apos;Function&lt;FormData&gt;&apos;, Blob: &apos;Function&lt;Blob&gt;&apos; }, validateStatus: &apos;Function&lt;validateStatus&gt;&apos;, headers: { Accept: &apos;application/json, text/plain, */*&apos; }, baseURL: &apos;https://api.test.evalmatch.com&apos;, method: &apos;get&apos;, url: &apos;/backoff-test&apos;, allowAbsoluteUrls: true, metadata: { requestId: &apos;req_1756400774856_vt7jewrcb&apos;, startTime: 1756400774856, duration: +0 } }, code: &apos;ERR_BAD_RESPONSE&apos;, status: 500 }, circuitBreakerState: &apos;closed&apos; }
+            </failure>
         </testcase>
     </testsuite>
 </testsuites>
