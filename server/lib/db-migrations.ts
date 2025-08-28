@@ -64,6 +64,11 @@ const MIGRATIONS: Migration[] = [
     description: "Add foreign key constraints and indexes for referential integrity",
     filename: "007_add_foreign_key_constraints.sql",
   },
+  {
+    version: "013_add_covering_indexes_performance_safe",
+    description: "Railway-safe covering indexes for 100-user performance optimization",
+    filename: "013_add_covering_indexes_performance_safe.sql",
+  },
 ];
 
 /**
