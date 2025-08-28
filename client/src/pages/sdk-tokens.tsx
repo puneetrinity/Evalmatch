@@ -10,6 +10,17 @@ import { Copy, Eye, EyeOff, Key, Loader2 } from 'lucide-react';
 import { tokenApi } from '../lib/tokenApi';
 import type { TokenGenerationResponse } from '../../../shared/schema';
 
+// Helper function to safely parse dates
+const parseDate = (dateValue: string | Date | undefined): string => {
+  if (!dateValue) return 'Unknown';
+  try {
+    const date = typeof dateValue === 'string' ? new Date(dateValue) : dateValue;
+    return date.toLocaleString();
+  } catch (error) {
+    return 'Invalid Date';
+  }
+};
+
 export default function SdkTokensPage() {
   const { user, loading: authLoading, signInWithGoogle } = useAuth();
   const [tokenName, setTokenName] = useState('');
@@ -210,9 +221,10 @@ export default function SdkTokensPage() {
               </div>
 
               <div className="text-sm text-muted-foreground space-y-1">
-                <p><strong>Name:</strong> {generatedToken.name}</p>
-                <p><strong>Created:</strong> {new Date(generatedToken.createdAt).toLocaleString()}</p>
-                <p><strong>Expires:</strong> {generatedToken.expiresAt ? new Date(generatedToken.expiresAt).toLocaleString() : 'Never'}</p>
+                <p><strong>Token Name:</strong> {generatedToken.name}</p>
+                <p><strong>Created By:</strong> {user?.displayName || user?.email || 'Unknown User'}</p>
+                <p><strong>Created:</strong> {parseDate(generatedToken.createdAt)}</p>
+                <p><strong>Expires:</strong> {generatedToken.expiresAt ? parseDate(generatedToken.expiresAt) : 'Never'}</p>
               </div>
 
               <Alert>

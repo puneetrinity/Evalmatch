@@ -851,12 +851,12 @@ export interface TokenGenerationResponse {
   tokenId: string;
   token: string;
   name: string;
-  createdAt: Date;
-  expiresAt?: Date;
+  createdAt: string | Date;
+  expiresAt?: string | Date;
   usage: {
     remaining: number;
     total: number;
-    resetDate?: Date;
+    resetDate?: string | Date;
   };
 }
 
