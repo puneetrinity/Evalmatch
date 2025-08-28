@@ -40,22 +40,16 @@ export default app;
 // Trust proxy for Railway deployment (needed for rate limiting and real IP detection)
 app.set('trust proxy', 1); // Use 1 for single proxy (Railway)
 
-// SURGICAL FIX: Apply fast-path middleware BEFORE any expensive middleware
-import { requestTimestampMiddleware, fastPathMiddleware } from './middleware/fast-path';
-import { cachedHealthMiddleware, startHealthSampling } from './middleware/cached-health';
-import { routeTimeoutMiddleware } from './middleware/route-timeouts';
+// PHASE 1: EMERGENCY STABILIZATION - Fixed middleware order
+// 1) Ultra-light fast paths FIRST (no DB, no Redis, no dynamic imports)
+import { fastRoutes } from './routes/fast';
+import { readyzHandler, startHealthSampler } from './observability/health-snapshot';
 
-// Step 1: Request timestamp (lightweight)
-app.use(requestTimestampMiddleware);
+fastRoutes(app); // Adds X-Fast-Path headers, bypasses ALL middleware
 
-// Step 2: Fast path exemptions (intercepts critical endpoints immediately)
-app.use(fastPathMiddleware);
-
-// Step 3: Cached health responses (eliminates expensive health probes)
-app.use(cachedHealthMiddleware);
-
-// Step 4: Route-specific timeouts (prevents long-running requests)
-app.use(routeTimeoutMiddleware);
+// 2) Crash shields (see errors instead of 502 loops)
+process.on('unhandledRejection', r => console.error('[unhandledRejection]', r));
+process.on('uncaughtException', e => console.error('[uncaughtException]', e));
 
 // Generate CSP nonce for each request
 app.use((req, res, next) => {
@@ -132,6 +126,15 @@ app.use('/api', apiVersioningMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// PHASE 1: Fixed rate limiting with single Redis store (after body parsing)
+import { userLimiter, analysisLimiter, adminLimiter } from './middleware/limiters';
+app.use('/api', userLimiter);
+app.use('/api/analysis', analysisLimiter); 
+app.use('/api/admin', adminLimiter);
+
+// PHASE 1: Health snapshot endpoint (cached, no live probes)
+app.get('/api/readyz', readyzHandler); // Adds X-Health-Cache headers
+
 // Initialize global error handling system
 initializeGlobalErrorHandling();
 
@@ -178,16 +181,9 @@ if (process.env.NODE_ENV === "development") {
   try {
     logger.info('🚀 Starting Evalmatch Application...');
 
-    // SURGICAL FIX: Initialize Redis singleton early (before other services)
-    logger.info('🔗 Initializing Redis singleton connection...');
-    const { initializeRedisConnection } = await import('./lib/redis-singleton');
-    await initializeRedisConnection().catch(error => {
-      logger.warn('Redis initialization failed, continuing without Redis:', error.message);
-    });
-
-    // SURGICAL FIX: Start cached health sampling system
-    logger.info('💾 Starting cached health sampling system...');
-    startHealthSampling();
+    // PHASE 1: Start health sampling system (no heavy imports)
+    logger.info('💾 Starting health sampling system...');
+    startHealthSampler(2000); // Sample every 2 seconds
 
     // CRITICAL: Validate environment variables first - fail fast if configuration is invalid
     logger.info('🔍 Validating environment configuration...');
@@ -359,16 +355,8 @@ if (process.env.NODE_ENV === "development") {
           }
         }
 
-        // SURGICAL FIX: Stop health sampling and close Redis connection
-        logger.info('Stopping health sampling system...');
-        const { stopHealthSampling } = await import('./middleware/cached-health');
-        stopHealthSampling();
-
-        logger.info('Closing Redis singleton connection...');
-        const { closeRedisConnection } = await import('./lib/redis-singleton');
-        await closeRedisConnection().catch(error => {
-          logger.warn('Error closing Redis connection:', error);
-        });
+        // PHASE 1: Graceful health sampler shutdown (background process handles cleanup)
+        logger.info('Health sampling will stop with process termination');
 
         // Close database connections gracefully
         if (config.database.enabled) {
