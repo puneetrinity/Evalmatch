@@ -1,13 +1,13 @@
-import Redis from "ioredis";
+import { redis } from "../core/redis";
 import { logger } from "./logger";
 import crypto from "crypto";
 
 /**
  * PERFORMANCE: Redis caching layer for 50% API reduction
- * Implements intelligent caching with TTL strategies
+ * Uses the single Redis singleton - no competing clients
  */
 export class CacheManager {
-  private redis: Redis | null = null;
+  private redis = redis; // Use singleton
   private isConnected: boolean = false;
   private connectionAttempts: number = 0;
   private readonly MAX_RETRIES = 3;
@@ -34,91 +34,26 @@ export class CacheManager {
       logger.info('Redis explicitly disabled via REDIS_ENABLED=false');
       return;
     }
-    this.connect();
+    
+    // Use singleton connection status
+    this.isConnected = this.redis.status === 'ready';
+    
+    // Listen to singleton events
+    this.redis.on('ready', () => {
+      this.isConnected = true;
+      logger.info('✅ Redis cache ready (using singleton)');
+    });
+    
+    this.redis.on('error', () => {
+      this.isConnected = false;
+    });
+    
+    this.redis.on('close', () => {
+      this.isConnected = false;
+    });
     
     // PERFORMANCE FIX: Start periodic cleanup to prevent memory leaks
     this.startPeriodicCleanup();
-  }
-
-  private async connect(): Promise<void> {
-    // Skip connection if Redis is explicitly disabled
-    if (process.env.REDIS_ENABLED === 'false') {
-      return;
-    }
-    
-    if (this.connectionAttempts >= this.MAX_RETRIES) {
-      logger.warn("Redis connection failed after max retries, cache disabled");
-      return;
-    }
-
-    try {
-      let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-      
-      // Railway best practice: Add family=0 for dual-stack IPv4/IPv6 support if not present
-      if (redisUrl.includes('.railway.internal') && !redisUrl.includes('family=')) {
-        redisUrl += redisUrl.includes('?') ? '&family=0' : '?family=0';
-      }
-      
-      logger.info('Attempting Redis connection...', { url: redisUrl.replace(/:[^:@]+@/, ':***@') });
-      
-      this.redis = new Redis(redisUrl, {
-        maxRetriesPerRequest: 3,
-        retryStrategy: (times: number) => {
-          if (times > 3) {
-            logger.error("Redis connection failed, disabling cache");
-            return null;
-          }
-          return Math.min(times * 1000, 3000);
-        },
-        lazyConnect: false,
-        enableOfflineQueue: false,
-        connectTimeout: 10000, // 10 second timeout
-        commandTimeout: 5000,  // 5 second command timeout
-      });
-
-      this.redis.on('connect', () => {
-        this.isConnected = true;
-        logger.info('✅ Redis cache connected successfully');
-      });
-
-      this.redis.on('error', (error: Error) => {
-        logger.error('❌ Redis cache error:', error);
-        this.isConnected = false;
-      });
-
-      this.redis.on('close', () => {
-        this.isConnected = false;
-        logger.warn('⚠️  Redis connection closed');
-      });
-
-      this.redis.on('reconnecting', () => {
-        logger.info('🔄 Redis reconnecting...');
-      });
-
-      // Test connection with timeout
-      await Promise.race([
-        this.redis.ping(),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Redis ping timeout')), 10000)
-        )
-      ]);
-      
-      this.isConnected = true;
-      logger.info('✅ Redis ping successful, cache ready');
-      
-    } catch (error) {
-      this.connectionAttempts++;
-      logger.error(`❌ Redis connection attempt ${this.connectionAttempts} failed:`, error);
-      this.isConnected = false;
-      
-      // Retry connection after delay
-      if (this.connectionAttempts < this.MAX_RETRIES) {
-        logger.info(`🔄 Retrying Redis connection in 5 seconds... (${this.connectionAttempts}/${this.MAX_RETRIES})`);
-        setTimeout(() => this.connect(), 5000);
-      } else {
-        logger.warn('❌ Redis connection failed permanently, cache disabled');
-      }
-    }
   }
 
   /**

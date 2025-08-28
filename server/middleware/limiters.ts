@@ -9,14 +9,25 @@ import rateLimit from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
 import { redis } from '../core/redis';
 
-// Single Redis store for all rate limiters
-const store = new RedisStore({
+// Separate Redis stores for each rate limiter (required by express-rate-limit)
+const userStore = new RedisStore({
   sendCommand: (...args: any[]) => (redis as any).call(...args),
+  prefix: 'user-limit:',
+});
+
+const analysisStore = new RedisStore({
+  sendCommand: (...args: any[]) => (redis as any).call(...args),
+  prefix: 'analysis-limit:',
+});
+
+const adminStore = new RedisStore({
+  sendCommand: (...args: any[]) => (redis as any).call(...args),
+  prefix: 'admin-limit:',
 });
 
 // User-level rate limiting (generous for basic operations)
 export const userLimiter = rateLimit({
-  store,
+  store: userStore,
   windowMs: 60 * 1000, // 1 minute
   max: 30, // 30 requests per minute per IP
   standardHeaders: true,
@@ -29,7 +40,7 @@ export const userLimiter = rateLimit({
 
 // Analysis-specific rate limiting (stricter for AI operations)
 export const analysisLimiter = rateLimit({
-  store,
+  store: analysisStore,
   windowMs: 5 * 60 * 1000, // 5 minutes  
   max: 2, // 2 analysis requests per 5 minutes
   standardHeaders: true,
@@ -42,7 +53,7 @@ export const analysisLimiter = rateLimit({
 
 // Admin operations rate limiting (very strict)
 export const adminLimiter = rateLimit({
-  store,
+  store: adminStore,
   windowMs: 60 * 1000, // 1 minute
   max: 5, // 5 admin requests per minute
   standardHeaders: true,

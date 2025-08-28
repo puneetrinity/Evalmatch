@@ -1,6 +1,7 @@
 import { Queue, Worker } from 'bullmq';
 import type { ConnectionOptions } from 'bullmq';
 import { logger } from './logger';
+import { redis } from '../core/redis';
 import { cacheManager } from './redis-cache';
 
 /**
@@ -29,10 +30,11 @@ export class QueueManager {
     CRITICAL: 2048 // Emergency mode
   } as const;
   
-  private redisConnection: ConnectionOptions | null = null;
+  private redisConnection: any = redis; // Use singleton Redis client
 
   private constructor() {
-    this.setupRedisConnection();
+    // Redis connection is already established via singleton
+    logger.info('Queue Manager will use Redis singleton');
   }
 
   static getInstance(): QueueManager {
@@ -42,58 +44,18 @@ export class QueueManager {
     return QueueManager.instance;
   }
 
-  private setupRedisConnection(): void {
-    try {
-      let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-      
-      // Railway best practice: Add family=0 for dual-stack IPv4/IPv6 support
-      if (redisUrl.includes('.railway.internal') && !redisUrl.includes('family=')) {
-        redisUrl += redisUrl.includes('?') ? '&family=0' : '?family=0';
-      }
-      
-      // Parse Redis URL for Bull connection
-      const url = new URL(redisUrl);
-      
-      // Extract family parameter from URL search params for Railway IPv6 support
-      const familyParam = url.searchParams.get('family');
-      const family = familyParam ? parseInt(familyParam) : 0; // Default to dual-stack (0) for Railway
-      
-      this.redisConnection = {
-        host: url.hostname,
-        port: parseInt(url.port) || 6379,
-        password: url.password || undefined,
-        username: url.username || undefined,
-        db: url.pathname ? parseInt(url.pathname.split('/')[1]) || 0 : 0,
-        family: family, // Use parsed family parameter (0 = dual-stack for Railway IPv6)
-        maxRetriesPerRequest: 3,
-        retryStrategy: (times: number) => Math.min(times * 1000, 3000),
-        connectTimeout: 10000,
-        commandTimeout: 5000,
-      };
-      
-      logger.info('Queue Manager Redis connection configured', {
-        host: this.redisConnection.host,
-        port: this.redisConnection.port,
-        db: this.redisConnection.db
-      });
-      
-    } catch (error) {
-      logger.error('Failed to setup Redis connection for queues:', error);
-      this.redisConnection = null;
-    }
-  }
 
   async initialize(): Promise<void> {
-    if (this.isInitialized || !this.redisConnection) {
+    if (this.isInitialized) {
       return;
     }
 
     try {
-      logger.info('🚀 Initializing Queue Manager with Bull queues...');
+      logger.info('🚀 Initializing Queue Manager with Bull queues using Redis singleton...');
 
-      // Create AI Analysis Queue (High Priority)
+      // Create AI Analysis Queue (High Priority) using Redis singleton
       const aiQueue = new Queue(QueueManager.QUEUE_NAMES.AI_ANALYSIS, {
-        connection: this.redisConnection,
+        connection: this.redisConnection, // IORedis client singleton
         defaultJobOptions: {
           removeOnComplete: 10,
           removeOnFail: 25,
@@ -105,9 +67,9 @@ export class QueueManager {
         },
       });
 
-      // Create Batch Processing Queue
+      // Create Batch Processing Queue using Redis singleton
       const batchQueue = new Queue(QueueManager.QUEUE_NAMES.BATCH_PROCESSING, {
-        connection: this.redisConnection,
+        connection: this.redisConnection, // IORedis client singleton
         defaultJobOptions: {
           removeOnComplete: 5,
           removeOnFail: 10,
