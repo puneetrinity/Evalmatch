@@ -1143,9 +1143,9 @@ async function checkSystemResources(): Promise<HealthCheckResult> {
       issues.push("High system memory usage");
     }
 
-    if (processMemoryMB.heapUsagePercent > 90) {
+    if (processMemoryMB.heapUsagePercent > 98) {
       issues.push("Critical process heap usage");
-    } else if (processMemoryMB.heapUsagePercent > 80) {
+    } else if (processMemoryMB.heapUsagePercent > 96) {
       issues.push("High process heap usage");
     }
 
@@ -2258,7 +2258,7 @@ export async function railwayHealthCheck(
         },
         checks: {
           memory: {
-            status: heapUsagePercent > 95 ? "unhealthy" : "healthy",
+            status: heapUsagePercent > 98 ? "unhealthy" : "healthy",
             usagePercent: heapUsagePercent,
           },
           database: {
