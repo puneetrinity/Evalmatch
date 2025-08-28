@@ -8,83 +8,163 @@
 import rateLimit from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
 import { redis } from '../core/redis';
+import { Request, Response, NextFunction } from 'express';
 
-// Create Redis stores lazily to ensure connection is ready
-let userStore: RedisStore | null = null;
-let analysisStore: RedisStore | null = null;
-let adminStore: RedisStore | null = null;
+// Create rate limiters lazily to ensure Redis connection is ready
+let userLimiter: any = null;
+let analysisLimiter: any = null;  
+let adminLimiter: any = null;
 
-function createRedisStores() {
-  if (!userStore) {
-    userStore = new RedisStore({
+function createRateLimiters() {
+  try {
+    // Create separate Redis stores for each rate limiter
+    const userStore = new RedisStore({
       sendCommand: (...args: any[]) => (redis as any).call(...args),
       prefix: 'user-limit:',
     });
-  }
-  
-  if (!analysisStore) {
-    analysisStore = new RedisStore({
+
+    const analysisStore = new RedisStore({
       sendCommand: (...args: any[]) => (redis as any).call(...args),
       prefix: 'analysis-limit:',
     });
-  }
-  
-  if (!adminStore) {
-    adminStore = new RedisStore({
+
+    const adminStore = new RedisStore({
       sendCommand: (...args: any[]) => (redis as any).call(...args),
       prefix: 'admin-limit:',
     });
+
+    // Create rate limiters with Redis stores
+    userLimiter = rateLimit({
+      store: userStore,
+      windowMs: 60 * 1000, // 1 minute
+      max: 30, // 30 requests per minute per IP
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: {
+        error: 'Too many requests',
+        retryAfter: 60
+      }
+    });
+
+    analysisLimiter = rateLimit({
+      store: analysisStore,
+      windowMs: 5 * 60 * 1000, // 5 minutes  
+      max: 2, // 2 analysis requests per 5 minutes
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: {
+        error: 'Analysis rate limit exceeded',
+        retryAfter: 300
+      }
+    });
+
+    adminLimiter = rateLimit({
+      store: adminStore,
+      windowMs: 60 * 1000, // 1 minute
+      max: 5, // 5 admin requests per minute
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: {
+        error: 'Admin rate limit exceeded', 
+        retryAfter: 60
+      }
+    });
+
+    console.log('[rate-limiters] Redis-backed rate limiters initialized');
+  } catch (error) {
+    console.error('[rate-limiters] Failed to create Redis stores:', error);
+    
+    // Fall back to memory-based rate limiters
+    userLimiter = rateLimit({
+      windowMs: 60 * 1000,
+      max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many requests', retryAfter: 60 }
+    });
+
+    analysisLimiter = rateLimit({
+      windowMs: 5 * 60 * 1000,
+      max: 2,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Analysis rate limit exceeded', retryAfter: 300 }
+    });
+
+    adminLimiter = rateLimit({
+      windowMs: 60 * 1000,
+      max: 5,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Admin rate limit exceeded', retryAfter: 60 }
+    });
+
+    console.log('[rate-limiters] Using memory-based rate limiters as fallback');
   }
 }
 
-// Wait for Redis to be ready and create stores
+// Initialize rate limiters when Redis is ready
 redis.on('ready', () => {
-  createRedisStores();
+  if (!userLimiter) {
+    createRateLimiters();
+  }
 });
 
-// If Redis is already ready, create stores immediately  
+// If Redis is already ready, create limiters immediately
 if (redis.status === 'ready') {
-  createRedisStores();
+  createRateLimiters();
+} else {
+  // Create fallback limiters immediately for startup
+  console.log('[rate-limiters] Creating fallback rate limiters during startup');
+  
+  userLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests', retryAfter: 60 }
+  });
+
+  analysisLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000,
+    max: 2,
+    standardHeaders: true, 
+    legacyHeaders: false,
+    message: { error: 'Analysis rate limit exceeded', retryAfter: 300 }
+  });
+
+  adminLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Admin rate limit exceeded', retryAfter: 60 }
+  });
 }
 
-// User-level rate limiting (generous for basic operations)
-export const userLimiter = rateLimit({
-  store: userStore,
-  windowMs: 60 * 1000, // 1 minute
-  max: 30, // 30 requests per minute per IP
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    error: 'Too many requests',
-    retryAfter: 60
-  },
-  skip: () => !userStore, // Skip rate limiting if Redis store not ready
-});
+// Export wrapper functions that use the lazily-created limiters
+export const userLimiterMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  if (userLimiter) {
+    return userLimiter(req, res, next);
+  }
+  next();
+};
 
-// Analysis-specific rate limiting (stricter for AI operations)
-export const analysisLimiter = rateLimit({
-  store: analysisStore,
-  windowMs: 5 * 60 * 1000, // 5 minutes  
-  max: 2, // 2 analysis requests per 5 minutes
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    error: 'Analysis rate limit exceeded',
-    retryAfter: 300
-  },
-  skip: () => !analysisStore, // Skip rate limiting if Redis store not ready
-});
+export const analysisLimiterMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  if (analysisLimiter) {
+    return analysisLimiter(req, res, next);
+  }
+  next();
+};
 
-// Admin operations rate limiting (very strict)
-export const adminLimiter = rateLimit({
-  store: adminStore,
-  windowMs: 60 * 1000, // 1 minute
-  max: 5, // 5 admin requests per minute
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    error: 'Admin rate limit exceeded', 
-    retryAfter: 60
-  },
-  skip: () => !adminStore, // Skip rate limiting if Redis store not ready
-});
+export const adminLimiterMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  if (adminLimiter) {
+    return adminLimiter(req, res, next);
+  }
+  next();
+};
+
+// For backward compatibility, export the middleware functions with original names
+export { userLimiterMiddleware as userLimiter };
+export { analysisLimiterMiddleware as analysisLimiter };
+export { adminLimiterMiddleware as adminLimiter };
