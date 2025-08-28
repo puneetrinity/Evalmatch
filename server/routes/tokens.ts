@@ -65,19 +65,9 @@ router.post('/generate', authenticateUser, async (req: Request, res: Response) =
       expiresIn: request.expiresIn,
     });
 
-    // Don't log the actual token for security
-    const responseWithoutToken = {
-      tokenId: tokenResponse.tokenId,
-      expiresAt: tokenResponse.expiresAt,
-      usage: tokenResponse.usage,
-    };
-
     res.status(201).json({
       message: 'Token generated successfully',
-      data: {
-        ...responseWithoutToken,
-        token: tokenResponse.token, // Include token in response for user to copy
-      },
+      data: tokenResponse, // Return the full token response with all fields
     });
   } catch (error) {
     logger.error('Token generation failed', {
