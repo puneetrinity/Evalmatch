@@ -132,7 +132,7 @@ export class TokenUsageService {
       const tokenData: InsertUserToken = {
         userId,
         tokenId,
-        tokenName: request.tokenName || 'API Token',
+        tokenName: request.name || request.tokenName || 'API Token',
         expiresAt,
         isActive: true,
         totalRequests: 0,
@@ -147,9 +147,14 @@ export class TokenUsageService {
         expiresAt: expiresAt?.toISOString(),
       });
 
+      const createdAt = new Date();
+      
       return {
+        id: tokenId,
         tokenId,
         token,
+        name: request.name || request.tokenName || 'API Token',
+        createdAt,
         expiresAt,
         usage: {
           remaining: userLimits.maxCalls - userLimits.usedCalls,

@@ -18,8 +18,10 @@ const router = Router();
 
 // Request validation schemas
 const generateTokenSchema = z.object({
+  name: z.string().optional(),
   tokenName: z.string().optional(),
   expiresIn: z.enum(['1h', '24h', '7d', '30d', 'never']).optional(),
+  permissions: z.array(z.string()).optional(),
 });
 
 const metricsQuerySchema = z.object({
