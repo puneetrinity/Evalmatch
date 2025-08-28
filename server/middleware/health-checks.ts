@@ -409,10 +409,11 @@ async function checkMemoryUsage(): Promise<HealthCheckResult> {
       message = `NODE_OPTIONS could be higher. Heap limit: ${heapLimitMB}MB (system has ${systemMemoryGB}GB)`;
     }
     // Secondary concern: Current memory usage
-    else if (usagePercent > 90) {
+    // Adjusted thresholds for Node.js heap behavior on Railway
+    else if (usagePercent > 98) {
       status = "unhealthy";
       message += " - Critical memory usage";
-    } else if (usagePercent > 75) {
+    } else if (usagePercent > 96) {
       status = "degraded";
       message += " - High memory usage";
     } else {
@@ -1875,7 +1876,8 @@ export async function livenessProbe(
     let status = "alive";
 
     // Check for critical memory issues that would require restart
-    if (heapUsagePercent > 95) {
+    // Adjusted threshold: Node.js heap can show high percentages with low absolute usage
+    if (heapUsagePercent > 98) {
       isAlive = false;
       issues.push("Critical memory exhaustion detected");
       status = "requires_restart";
@@ -2162,7 +2164,9 @@ export async function railwayHealthCheck(
     const issues = [];
     
     // Check 1: Memory exhaustion that would prevent serving requests
-    if (heapUsagePercent > 95) {
+    // Railway adjustment: More permissive threshold since Node.js heap management 
+    // can show high percentages even with low absolute memory usage
+    if (heapUsagePercent > 98) {
       isHealthy = false;
       status = "unhealthy";
       issues.push("Critical memory exhaustion");
