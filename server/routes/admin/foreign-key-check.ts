@@ -71,8 +71,8 @@ router.get('/foreign-key-check', async (req: Request, res: Response) => {
     // Step 3: Analyze each table for foreign key relationships
     logger.info('Step 3: Analyzing potential foreign key relationships');
     for (const table of tablesResult) {
-      const tableName = table.table_name;
-      const columns = table.columns;
+      const tableName = (table as any).table_name;
+      const columns = (table as any).columns;
       
       results.tableAnalysis[tableName] = {
         totalColumns: columns.length,
@@ -133,7 +133,7 @@ router.get('/foreign-key-check', async (req: Request, res: Response) => {
             results.tableAnalysis[tableName].foreignKeyColumns.push({
               column: column,
               hasConstraint: true,
-              constraintName: existingConstraints.find((c: any) => c.column_name === column)?.constraint_name
+              constraintName: existingConstraints.find((c: any) => c.column_name === column)?.constraint_name as string || null
             });
           }
         }
@@ -157,7 +157,7 @@ router.get('/foreign-key-check', async (req: Request, res: Response) => {
           `;
           
           const orphanResult = await executeQuery(orphanQuery);
-          const count = parseInt(orphanResult[0]?.count || 0);
+          const count = parseInt((orphanResult[0] as any)?.count || '0');
           
           if (count > 0) {
             const orphanInfo = {
@@ -192,7 +192,7 @@ router.get('/foreign-key-check', async (req: Request, res: Response) => {
     const totalTables = Object.keys(results.tableAnalysis).length;
     const totalConstraints = results.allConstraints.length;
     const totalPotentialConstraints = Object.values(results.tableAnalysis)
-      .reduce((sum: number, analysis: any) => sum + analysis.potentialConstraints.length, 0);
+      .reduce((sum: number, analysis: any) => sum + (analysis.potentialConstraints?.length || 0), 0);
 
     const summary = {
       status: results.isValid ? 'VALID' : 'CRITICAL_ISSUES_FOUND',
@@ -214,7 +214,7 @@ router.get('/foreign-key-check', async (req: Request, res: Response) => {
       recommendations.push('Proceed to Phase 0.1b: Repair missing FK constraints + cleanup orphaned data');
     }
     
-    if (totalPotentialConstraints > 0) {
+    if (totalPotentialConstraints && totalPotentialConstraints > 0) {
       recommendations.push(`Consider adding ${totalPotentialConstraints} foreign key constraints for data integrity`);
     }
     

@@ -593,7 +593,8 @@ export async function initializeDatabase(): Promise<void> {
 }
 
 /**
- * Get optimized pool configuration based on environment and best practices
+ * Get replica-aware pool configuration based on environment and Railway scaling
+ * Phase 0.1c: Updated with replica-aware sizing + session timeouts
  */
 function getOptimizedPoolConfig() {
   const env = config.env;
@@ -601,23 +602,40 @@ function getOptimizedPoolConfig() {
   const isTest = env === "test";
   const _isDevelopment = env === "development";
 
-  // Optimized environment-specific pool sizing based on research and best practices
+  // Railway-specific pool configuration for 100-user scalability
+  const getReplicaAwarePoolSize = (environment: string) => {
+    const railwayMaxConnections = 100;
+    const adminReservedConnections = 15;
+    const expectedReplicas = environment === "production" ? 2 : 1;
+    const safetyFactor = 0.75; // Conservative safety margin
+    
+    const availableConnections = railwayMaxConnections - adminReservedConnections;
+    const perReplicaMax = Math.floor((availableConnections / expectedReplicas) * safetyFactor);
+    const perReplicaMin = Math.max(3, Math.floor(perReplicaMax * 0.25)); // 25% of max as minimum
+    
+    return { min: perReplicaMin, max: perReplicaMax };
+  };
+
+  // Optimized environment-specific pool sizing with replica awareness
   const poolConfigs = {
     production: {
-      min: 8, // Maintain minimum connections for immediate availability
-      max: 25, // Increased from 20 for better scalability (PostgreSQL default is 100)
-      acquireTimeoutMillis: 8000, // Faster acquisition timeout for production
-      createTimeoutMillis: 10000, // Connection creation timeout
+      ...getReplicaAwarePoolSize("production"), // ~32 max per replica with 2 replicas
+      acquireTimeoutMillis: 10000, // 10s acquisition timeout (increased for stability)
+      createTimeoutMillis: 15000, // 15s connection creation timeout
       destroyTimeoutMillis: 5000, // Connection destruction timeout
       reapIntervalMillis: 1000, // Check for idle connections every second
       createRetryIntervalMillis: 200, // Retry connection creation every 200ms
       propagateCreateError: false, // Don't propagate create errors immediately
-      maxUses: 10000, // Higher connection reuse for production
+      maxUses: 7500, // Connection reuse limit (reduced for stability)
       validateOnBorrow: true, // Validate connections when borrowed
+      // Phase 0.1c: Enhanced session timeouts
+      idleTimeoutMillis: 45000, // 45s idle timeout (Railway-optimized)
+      connectionTimeoutMillis: 10000, // 10s connection timeout
+      statementTimeout: 30000, // 30s statement timeout
+      queryTimeout: 25000, // 25s query timeout
     },
     development: {
-      min: 3, // Lower minimum for development
-      max: 15, // Reasonable maximum for development
+      ...getReplicaAwarePoolSize("development"), // Single replica in dev
       acquireTimeoutMillis: 15000,
       createTimeoutMillis: 15000,
       destroyTimeoutMillis: 5000,
@@ -626,6 +644,11 @@ function getOptimizedPoolConfig() {
       propagateCreateError: false,
       maxUses: 7500,
       validateOnBorrow: false, // Skip validation in development for speed
+      // Development session timeouts
+      idleTimeoutMillis: 60000, // 60s idle timeout for development
+      connectionTimeoutMillis: 15000, // 15s connection timeout
+      statementTimeout: 60000, // 60s statement timeout
+      queryTimeout: 45000, // 45s query timeout
     },
     test: {
       min: 1, // Minimal connections for tests
@@ -638,31 +661,59 @@ function getOptimizedPoolConfig() {
       propagateCreateError: true, // Fail fast in tests
       maxUses: 1000, // Low reuse for test isolation
       validateOnBorrow: false,
+      // Test session timeouts (shorter for fast tests)
+      idleTimeoutMillis: 30000, // 30s idle timeout for tests
+      connectionTimeoutMillis: 8000, // 8s connection timeout
+      statementTimeout: 10000, // 10s statement timeout
+      queryTimeout: 8000, // 8s query timeout
     },
   };
 
   const poolConfig = poolConfigs[env] || poolConfigs.development;
 
+  // Log replica-aware configuration for Phase 0.1c
+  if (isProduction) {
+    const replicaConfig = getReplicaAwarePoolSize("production");
+    logger.info("🔧 Phase 0.1c: Railway replica-aware DB pool configuration", {
+      environment: env,
+      expectedReplicas: 2,
+      poolSizing: {
+        min: replicaConfig.min,
+        max: replicaConfig.max,
+        perReplicaAllocation: `${replicaConfig.max} connections per replica`,
+        railwayTotal: "100 total connections",
+        adminReserved: "15 admin connections",
+        safetyFactor: "75%"
+      },
+      sessionTimeouts: {
+        idle: poolConfig.idleTimeoutMillis,
+        connection: poolConfig.connectionTimeoutMillis,
+        statement: poolConfig.statementTimeout,
+        query: poolConfig.queryTimeout
+      }
+    });
+  }
+
   return {
-    // Core pool settings
+    // Core pool settings with replica-aware sizing
     min: poolConfig.min,
     max: poolConfig.max,
 
-    // Enhanced timeout settings based on environment
-    connectionTimeoutMillis: poolConfig.acquireTimeoutMillis,
+    // Enhanced timeout settings based on environment and replica configuration
+    connectionTimeoutMillis: poolConfig.connectionTimeoutMillis,
     acquireTimeoutMillis: poolConfig.acquireTimeoutMillis,
     createTimeoutMillis: poolConfig.createTimeoutMillis,
     destroyTimeoutMillis: poolConfig.destroyTimeoutMillis,
     reapIntervalMillis: poolConfig.reapIntervalMillis,
     createRetryIntervalMillis: poolConfig.createRetryIntervalMillis,
 
-    // Connection lifecycle management
-    idleTimeoutMillis: isProduction ? 45000 : isTest ? 3000 : 60000,
+    // Phase 0.1c: Railway-optimized session timeouts
+    idleTimeoutMillis: poolConfig.idleTimeoutMillis,
     maxUses: poolConfig.maxUses,
 
-    // Query and statement timeouts
-    query_timeout: isProduction ? 30000 : isTest ? 10000 : 60000,
-    statement_timeout: isProduction ? 28000 : isTest ? 9000 : 55000,
+    // Enhanced query and statement timeouts for 100-user load
+    query_timeout: poolConfig.queryTimeout,
+    statement_timeout: poolConfig.statementTimeout,
 
     // Connection validation and health
     validateOnBorrow: poolConfig.validateOnBorrow,
