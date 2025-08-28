@@ -29,21 +29,21 @@ export const options = {
 const BASE_URL = 'https://evalmatch-ai-production-be7c.up.railway.app';
 
 export default function () {
-  // SURGICAL FIX VALIDATION: Test fast-path endpoints heavily
+  // SURGICAL FIX VALIDATION: Test ACTUAL endpoints from codebase
   const endpoints = [
-    // Fast-path endpoints (should bypass all middleware)
-    { url: `${BASE_URL}/api/healthz`, weight: 20, name: 'fast_healthz', expected: '<200ms' },
+    // Fast-path endpoints (ACTUAL ROUTES - should bypass all middleware)  
+    { url: `${BASE_URL}/api/ping`, weight: 20, name: 'fast_ping', expected: '<200ms' },
     { url: `${BASE_URL}/api/version`, weight: 15, name: 'fast_version', expected: '<200ms' },
-    { url: `${BASE_URL}/api/readyz`, weight: 15, name: 'fast_readyz', expected: '<200ms' },
-    { url: `${BASE_URL}/api/ping`, weight: 10, name: 'fast_ping', expected: '<100ms' },
     
-    // Cached health endpoints (should serve static snapshots)
-    { url: `${BASE_URL}/api/health`, weight: 15, name: 'cached_health', expected: '<500ms' },
+    // Cached health endpoints (ACTUAL ROUTES - should serve static snapshots)
+    { url: `${BASE_URL}/api/health`, weight: 20, name: 'cached_health', expected: '<500ms' },
     { url: `${BASE_URL}/api/health/detailed`, weight: 10, name: 'cached_detailed', expected: '<1000ms' },
+    { url: `${BASE_URL}/api/ready`, weight: 10, name: 'cached_ready', expected: '<500ms' },
     
-    // Regular endpoints (should benefit from static rate limits)
-    { url: `${BASE_URL}/api/debug/status`, weight: 8, name: 'debug_status', expected: '<2000ms' },
-    { url: `${BASE_URL}/api/monitoring/metrics`, weight: 7, name: 'metrics', expected: '<2000ms' },
+    // Regular endpoints (should benefit from static rate limits + timeouts)
+    { url: `${BASE_URL}/api/debug/status`, weight: 10, name: 'debug_status', expected: '<2000ms' },
+    { url: `${BASE_URL}/api/monitoring/metrics`, weight: 8, name: 'metrics', expected: '<2000ms' },
+    { url: `${BASE_URL}/api/db-status`, weight: 7, name: 'db_status', expected: '<2000ms' },
   ];
 
   // Randomly select endpoint based on weights (favor fast-path endpoints)
@@ -90,7 +90,8 @@ export default function () {
 
   // Cached health specific validations
   if (selectedEndpoint.name.startsWith('cached_')) {
-    validations[`${selectedEndpoint.name}: CACHED under 1000ms`] = (r) => requestTime < 1000;
+    const timeout = selectedEndpoint.name === 'cached_detailed' ? 1000 : 500;
+    validations[`${selectedEndpoint.name}: CACHED under ${timeout}ms`] = (r) => requestTime < timeout;
     validations[`${selectedEndpoint.name}: has X-Health-Cache header`] = (r) => r.headers['X-Health-Cache'] === 'true';
   }
 

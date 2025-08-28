@@ -174,33 +174,56 @@ export function stopHealthSampling(): void {
 
 /**
  * Cached health middleware - serves static snapshot instead of live probes
+ * TARGETS ACTUAL HEALTH ENDPOINTS: /api/health, /api/health/detailed, /api/ready
  */
 export function cachedHealthMiddleware(req: Request, res: Response, next: NextFunction): void {
   const path = req.path;
   
-  // Only handle specific health endpoints with cached responses
+  // Cache /api/health and /api/v1/health (basic health check)
   if (path === '/api/health' || path === '/api/v1/health') {
-    // Return cached basic health
     res.setHeader('X-Health-Cache', 'true');
     res.setHeader('X-Health-Age', Math.round((Date.now() - healthSnapshot.lastUpdate) / 1000));
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     
     const status = healthSnapshot.basic.status === 'healthy' ? 200 : 503;
     return res.status(status).json({
-      status: 'ok',
-      timestamp: healthSnapshot.basic.timestamp,
-      service: healthSnapshot.basic.service,
-      version: healthSnapshot.basic.version,
-      health: {
+      success: true,
+      data: {
         status: healthSnapshot.basic.status,
         uptime: Math.round(process.uptime()), // Live uptime
-        nextHealthUpdate: Math.round((healthSnapshot.nextUpdate - Date.now()) / 1000)
-      }
+        message: `Application ready for Railway (${Math.round(process.uptime())}s uptime)`,
+        railway: {
+          deploymentReady: true,
+          startupPhase: false,
+          startupGracePeriod: false,
+          responseTimeMs: Math.round((Date.now() - healthSnapshot.lastUpdate) / 1000),
+          gracePeriodRemaining: 0
+        },
+        checks: {
+          memory: healthSnapshot.detailed ? {
+            status: healthSnapshot.detailed.memory.usagePercent < 95 ? 'healthy' : 'warning',
+            usagePercent: healthSnapshot.detailed.memory.usagePercent
+          } : { status: 'unknown' },
+          database: healthSnapshot.detailed ? healthSnapshot.detailed.database : { status: 'unknown' },
+          application: {
+            status: 'healthy',
+            uptime: Math.round(process.uptime()),
+            version: '1.0.0'
+          }
+        }
+      },
+      metadata: {
+        checkType: 'cached',
+        responseTime: Math.round((Date.now() - healthSnapshot.lastUpdate) / 1000),
+        optimizedFor: 'High-load performance',
+        cacheAge: Math.round((Date.now() - healthSnapshot.lastUpdate) / 1000)
+      },
+      timestamp: new Date().toISOString()
     });
   }
   
+  // Cache /api/health/detailed and /api/v1/health/detailed
   if (path === '/api/health/detailed' || path === '/api/v1/health/detailed') {
-    // Return cached detailed health
     res.setHeader('X-Health-Cache', 'true');
     res.setHeader('X-Health-Age', Math.round((Date.now() - healthSnapshot.lastUpdate) / 1000));
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -216,7 +239,6 @@ export function cachedHealthMiddleware(req: Request, res: Response, next: NextFu
     const status = healthSnapshot.detailed.status === 'healthy' ? 200 : 503;
     return res.status(status).json({
       status: 'ok',
-      timestamp: healthSnapshot.detailed.timestamp,
       data: {
         ...healthSnapshot.detailed,
         uptime: Math.round(process.uptime()), // Live uptime
@@ -224,6 +246,24 @@ export function cachedHealthMiddleware(req: Request, res: Response, next: NextFu
           age: Math.round((Date.now() - healthSnapshot.lastUpdate) / 1000),
           nextUpdate: Math.round((healthSnapshot.nextUpdate - Date.now()) / 1000)
         }
+      }
+    });
+  }
+
+  // Cache /api/ready and /api/v1/ready (readiness probe)  
+  if (path === '/api/ready' || path === '/api/v1/ready') {
+    res.setHeader('X-Health-Cache', 'true');
+    res.setHeader('X-Health-Age', Math.round((Date.now() - healthSnapshot.lastUpdate) / 1000));
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    
+    const isReady = healthSnapshot.basic.status === 'healthy';
+    return res.status(isReady ? 200 : 503).json({
+      success: isReady,
+      status: isReady ? 'ready' : 'not ready',
+      timestamp: new Date().toISOString(),
+      uptime: Math.round(process.uptime()),
+      cache: {
+        age: Math.round((Date.now() - healthSnapshot.lastUpdate) / 1000)
       }
     });
   }

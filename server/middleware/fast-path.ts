@@ -11,67 +11,41 @@
 import { Request, Response, NextFunction } from "express";
 import { logger } from "../lib/logger";
 
-// Critical endpoints that need fast-path treatment
+// Critical endpoints that need fast-path treatment (ACTUAL ROUTES FROM CODEBASE)
 const FAST_PATH_ENDPOINTS = new Set([
-  '/api/health',
-  '/api/v1/health', 
-  '/api/healthz',
-  '/api/v1/healthz',
-  '/api/version',
-  '/api/v1/version',
-  '/api/readyz',
-  '/api/v1/readyz',
-  '/api/ready',
-  '/api/v1/ready',
-  '/api/ping',
-  '/api/v1/ping'
+  '/api/ping',        // EXISTS: server/routes/health.ts:33
+  '/api/v1/ping',     // v1 version
+  '/api/version',     // EXISTS: server/routes/version.ts:14  
+  '/api/v1/version',  // v1 version
 ]);
 
-// Static responses for ultra-fast endpoints
+// Static responses for ultra-fast endpoints (ONLY FOR EXISTING ROUTES)
 const STATIC_RESPONSES = {
-  '/api/healthz': {
-    status: 'ok',
-    timestamp: () => new Date().toISOString(),
-    service: 'evalmatch-api',
-    version: '1.0.0',
-    uptime: () => Math.round(process.uptime())
-  },
-  '/api/v1/healthz': {
-    status: 'ok',
-    timestamp: () => new Date().toISOString(),
-    service: 'evalmatch-api',
-    version: '1.0.0',
-    uptime: () => Math.round(process.uptime())
-  },
-  '/api/version': {
-    version: '1.0.0',
-    timestamp: () => new Date().toISOString(),
-    env: process.env.NODE_ENV || 'development'
-  },
-  '/api/v1/version': {
-    version: '1.0.0',
-    timestamp: () => new Date().toISOString(),
-    env: process.env.NODE_ENV || 'development'
-  },
-  '/api/readyz': {
-    status: 'ready',
-    timestamp: () => new Date().toISOString(),
-    uptime: () => Math.round(process.uptime())
-  },
-  '/api/v1/readyz': {
-    status: 'ready',
-    timestamp: () => new Date().toISOString(),
-    uptime: () => Math.round(process.uptime())
-  },
   '/api/ping': {
+    success: true,
     status: 'alive',
     timestamp: () => Date.now(),
     uptime: () => Math.round(process.uptime())
   },
   '/api/v1/ping': {
-    status: 'alive',
+    success: true,
+    status: 'alive', 
     timestamp: () => Date.now(),
     uptime: () => Math.round(process.uptime())
+  },
+  '/api/version': {
+    version: 'v1',
+    supportedVersions: ['v1'],
+    deprecatedVersions: ['legacy'],
+    timestamp: () => new Date().toISOString(),
+    apiVersion: 'v1.0.0'
+  },
+  '/api/v1/version': {
+    version: 'v1',
+    supportedVersions: ['v1'],
+    deprecatedVersions: ['legacy'],
+    timestamp: () => new Date().toISOString(),
+    apiVersion: 'v1.0.0'
   }
 };
 
