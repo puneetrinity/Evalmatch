@@ -11,6 +11,8 @@ import { handleRouteResult } from "../lib/route-error-handler";
 import { queueManager } from "../lib/queue-manager";
 import { getCacheStats } from "../lib/cached-ai-operations";
 import { embeddingManager } from "../lib/embedding-manager";
+import { executeQuery } from "../database/index.js";
+import foreignKeyCheckRouter from "./admin/foreign-key-check";
 
 const router = Router();
 
@@ -1020,5 +1022,8 @@ router.get(
     }
   }
 );
+
+// Mount foreign key check routes
+router.use(foreignKeyCheckRouter);
 
 export default router;

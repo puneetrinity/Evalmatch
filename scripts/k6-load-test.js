@@ -24,7 +24,7 @@ export const options = {
 };
 
 // Railway production URL
-const BASE_URL = 'https://web-production-392cc.up.railway.app';
+const BASE_URL = 'https://evalmatch-ai-production-be7c.up.railway.app';
 
 export default function () {
   // Test different endpoints to simulate real usage
