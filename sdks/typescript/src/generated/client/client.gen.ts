@@ -38,7 +38,7 @@ export const createClient = (config: Config = {}): Client => {
     return getConfig();
   };
 
-  // @ts-expect-error
+  //@ts-expect-error
   const request: Client['request'] = async (options) => {
     const opts = {
       ..._config,

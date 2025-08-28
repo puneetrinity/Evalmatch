@@ -18,8 +18,10 @@ const router = Router();
 
 // Request validation schemas
 const generateTokenSchema = z.object({
+  name: z.string().optional(),
   tokenName: z.string().optional(),
   expiresIn: z.enum(['1h', '24h', '7d', '30d', 'never']).optional(),
+  permissions: z.array(z.string()).optional(),
 });
 
 const metricsQuerySchema = z.object({
@@ -63,19 +65,9 @@ router.post('/generate', authenticateUser, async (req: Request, res: Response) =
       expiresIn: request.expiresIn,
     });
 
-    // Don't log the actual token for security
-    const responseWithoutToken = {
-      tokenId: tokenResponse.tokenId,
-      expiresAt: tokenResponse.expiresAt,
-      usage: tokenResponse.usage,
-    };
-
     res.status(201).json({
       message: 'Token generated successfully',
-      data: {
-        ...responseWithoutToken,
-        token: tokenResponse.token, // Include token in response for user to copy
-      },
+      data: tokenResponse, // Return the full token response with all fields
     });
   } catch (error) {
     logger.error('Token generation failed', {

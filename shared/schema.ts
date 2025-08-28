@@ -840,18 +840,23 @@ export type InsertUsageStatistics = typeof usageStatistics.$inferInsert;
 
 // Token usage interfaces
 export interface TokenGenerationRequest {
+  name?: string;
   tokenName?: string;
   expiresIn?: '1h' | '24h' | '7d' | '30d' | 'never';
+  permissions?: string[];
 }
 
 export interface TokenGenerationResponse {
+  id: string;
   tokenId: string;
   token: string;
-  expiresAt?: Date;
+  name: string;
+  createdAt: string | Date;
+  expiresAt?: string | Date;
   usage: {
     remaining: number;
     total: number;
-    resetDate?: Date;
+    resetDate?: string | Date;
   };
 }
 
