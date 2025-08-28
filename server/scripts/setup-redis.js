@@ -10,7 +10,12 @@ const Redis = require('ioredis');
 async function setupRedis() {
   console.log('🔧 Setting up Redis cache...');
   
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  
+  // Railway best practice: Add family=0 for dual-stack IPv4/IPv6 support
+  if (redisUrl.includes('.railway.internal') && !redisUrl.includes('family=')) {
+    redisUrl += redisUrl.includes('?') ? '&family=0' : '?family=0';
+  }
   
   try {
     const redis = new Redis(redisUrl, {

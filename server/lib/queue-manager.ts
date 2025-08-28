@@ -53,13 +53,18 @@ export class QueueManager {
       
       // Parse Redis URL for Bull connection
       const url = new URL(redisUrl);
+      
+      // Extract family parameter from URL search params for Railway IPv6 support
+      const familyParam = url.searchParams.get('family');
+      const family = familyParam ? parseInt(familyParam) : 0; // Default to dual-stack (0) for Railway
+      
       this.redisConnection = {
         host: url.hostname,
         port: parseInt(url.port) || 6379,
         password: url.password || undefined,
         username: url.username || undefined,
         db: url.pathname ? parseInt(url.pathname.split('/')[1]) || 0 : 0,
-        family: 4, // Force IPv4 for Railway compatibility
+        family: family, // Use parsed family parameter (0 = dual-stack for Railway IPv6)
         maxRetriesPerRequest: 3,
         retryStrategy: (times: number) => Math.min(times * 1000, 3000),
         connectTimeout: 10000,
