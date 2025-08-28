@@ -227,7 +227,7 @@ if (process.env.NODE_ENV === "development") {
         try {
           logger.info('📊 Initializing Service Level Manager and Metrics Collector...');
           const { serviceLevelManager } = await import('./lib/service-level-manager');
-          const { metricsCollector } = await import('./lib/metrics-collector');
+          await import('./lib/metrics-collector'); // Initialize metrics collection
           
           // Start periodic service level adjustment
           serviceLevelManager.startPeriodicAdjustment();
@@ -332,6 +332,17 @@ if (process.env.NODE_ENV === "development") {
     const server = app.listen(port, "0.0.0.0", () => {
       logger.info(`Server started successfully, listening on port ${port}`);
       log(`serving on port ${port}`); // Keep the original log for vite
+    });
+
+    // Railway-safe timeout configuration
+    server.requestTimeout = Number(process.env.SERVER_REQUEST_TIMEOUT_MS ?? 8000);
+    server.headersTimeout = Number(process.env.SERVER_HEADERS_TIMEOUT_MS ?? 9000);
+    server.keepAliveTimeout = 5000;
+    
+    logger.info('Server timeouts configured', {
+      requestTimeout: server.requestTimeout,
+      headersTimeout: server.headersTimeout,
+      keepAliveTimeout: server.keepAliveTimeout
     });
 
     // Railway-specific graceful shutdown handling

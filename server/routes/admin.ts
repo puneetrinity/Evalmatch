@@ -11,7 +11,7 @@ import { handleRouteResult } from "../lib/route-error-handler";
 import { queueManager } from "../lib/queue-manager";
 import { getCacheStats } from "../lib/cached-ai-operations";
 import { embeddingManager } from "../lib/embedding-manager";
-import { executeQuery } from "../database/index.js";
+// executeQuery imported but not used in this file currently
 import foreignKeyCheckRouter from "./admin/foreign-key-check";
 
 const router = Router();
@@ -830,7 +830,9 @@ router.get(
         cacheStats,
         embeddingStats,
         queueHealth,
-        dbStats
+        dbStats,
+        breakerStats,
+        queueDepthStats
       ] = await Promise.allSettled([
         getCacheStats(),
         Promise.resolve(embeddingManager.getStats()),
@@ -847,6 +849,24 @@ router.get(
               connectionStats: connStats.status === 'fulfilled' ? connStats.value : null,
               poolHealth: poolHealth.status === 'fulfilled' ? poolHealth.value : null,
             };
+          } catch {
+            return null;
+          }
+        })(),
+        // Get circuit breaker stats
+        (async () => {
+          try {
+            const { getBreakerStatuses } = await import("../lib/providers/tieredAI");
+            return getBreakerStatuses();
+          } catch {
+            return null;
+          }
+        })(),
+        // Get queue depth stats
+        (async () => {
+          try {
+            const { getAllCounts } = await import("../lib/queue-depth-cache");
+            return await getAllCounts(['openai', 'anthropic', 'groq']);
           } catch {
             return null;
           }
@@ -894,6 +914,19 @@ router.get(
       if (!cacheData?.connected) {
         healthScore -= 10;
         issues.push('Redis cache disconnected');
+      }
+
+      // Circuit breaker health (10 points)
+      const breakerData = breakerStats.status === 'fulfilled' ? breakerStats.value : null;
+      if (breakerData) {
+        const openBreakers = Object.values(breakerData).filter((status: any) => status.state === 'open').length;
+        if (openBreakers >= 2) {
+          healthScore -= 10;
+          issues.push(`${openBreakers} circuit breakers open`);
+        } else if (openBreakers === 1) {
+          healthScore -= 5;
+          issues.push('1 circuit breaker open');
+        }
       }
 
       // Uptime bonus (10 points)
@@ -989,6 +1022,34 @@ router.get(
             errors: dbData.poolHealth.metrics.errors
           } : null
         } : { error: 'Database metrics unavailable' },
+
+        circuitBreakers: breakerData ? Object.fromEntries(
+          Object.entries(breakerData).map(([provider, status]: [string, any]) => [
+            provider,
+            {
+              state: status.state,
+              failures: status.fails,
+              p95ResponseTime: status.p95,
+              windowSize: status.windowSize,
+              lastResponseTime: status.lastRt,
+              openedAt: status.openedAt ? new Date(status.openedAt).toISOString() : null
+            }
+          ])
+        ) : { error: 'Circuit breaker stats unavailable' },
+
+        providerQueues: queueDepthStats.status === 'fulfilled' && queueDepthStats.value ? 
+          Object.fromEntries(
+            Object.entries(queueDepthStats.value).map(([provider, counts]: [string, any]) => [
+              provider,
+              {
+                waiting: counts.waiting,
+                active: counts.active,
+                failed: counts.failed,
+                delayed: counts.delayed || 0,
+                total: counts.waiting + counts.active
+              }
+            ])
+          ) : { error: 'Queue depth stats unavailable' },
 
         recommendations: healthScore < 80 ? [
           ...(heapUsedMB > 500 ? ['Consider restarting application to free memory'] : []),

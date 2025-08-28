@@ -10,7 +10,7 @@ import { cacheManager } from './redis-cache';
  */
 export class QueueManager {
   private static instance: QueueManager | null = null;
-  private queues: Map<string, Queue> = new Map();
+  public queues: Map<string, Queue> = new Map();
   private workers: Map<string, Worker> = new Map();
   private isInitialized = false;
   
@@ -120,7 +120,7 @@ export class QueueManager {
   }
 
   private setupQueueEventHandlers(): void {
-    for (const [queueName, queue] of this.queues) {
+    for (const [queueName, queue] of Array.from(this.queues)) {
       // Use generic event handler to avoid TypeScript issues with BullMQ v5
       (queue as any).on('completed', (job: any) => {
         logger.debug(`Job completed in ${queueName}:`, { 
@@ -186,7 +186,7 @@ export class QueueManager {
   async getQueueStats(): Promise<Record<string, any>> {
     const stats: Record<string, any> = {};
     
-    for (const [queueName, queue] of this.queues) {
+    for (const [queueName, queue] of Array.from(this.queues)) {
       try {
         const [waiting, active, completed, failed, delayed] = await Promise.all([
           queue.getWaiting(),
@@ -253,7 +253,7 @@ export class QueueManager {
 
   async pauseAllQueues(): Promise<void> {
     logger.info('🚫 Pausing all queues...');
-    for (const [queueName, queue] of this.queues) {
+    for (const [queueName, queue] of Array.from(this.queues)) {
       await queue.pause();
       logger.info(`Paused queue: ${queueName}`);
     }
@@ -261,7 +261,7 @@ export class QueueManager {
 
   async resumeAllQueues(): Promise<void> {
     logger.info('▶️ Resuming all queues...');
-    for (const [queueName, queue] of this.queues) {
+    for (const [queueName, queue] of Array.from(this.queues)) {
       await queue.resume();
       logger.info(`Resumed queue: ${queueName}`);
     }
@@ -271,13 +271,13 @@ export class QueueManager {
     logger.info('🔄 Shutting down Queue Manager...');
     
     // Close all workers
-    for (const [workerName, worker] of this.workers) {
+    for (const [workerName, worker] of Array.from(this.workers)) {
       await worker.close();
       logger.info(`Closed worker: ${workerName}`);
     }
     
     // Close all queues
-    for (const [queueName, queue] of this.queues) {
+    for (const [queueName, queue] of Array.from(this.queues)) {
       await queue.close();
       logger.info(`Closed queue: ${queueName}`);
     }
@@ -292,6 +292,13 @@ export class QueueManager {
 
 // Singleton instance
 export const queueManager = QueueManager.getInstance();
+
+// Export AI queues for external access
+export const aiQueues = {
+  get openai() { return queueManager.queues.get('ai-analysis') || null; },
+  get anthropic() { return queueManager.queues.get('ai-analysis') || null; },
+  get groq() { return queueManager.queues.get('ai-analysis') || null; }
+};
 
 // Graceful shutdown
 process.on('SIGTERM', () => queueManager.shutdown());
