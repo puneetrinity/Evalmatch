@@ -1,3 +1,8 @@
+import { appendFile } from 'fs/promises';
+import path from 'path';
+
+const METRICS_LOG_FILE = path.join(process.cwd(), 'metrics.log');
+
 /**
  * Lightweight Metrics Emitter for Analysis Tracking
  * 
@@ -73,7 +78,7 @@ export function emitAnalysisMetrics(opts: AnalysisMetricsOptions): void {
   const successRate = counters.total > 0 ? counters.success / counters.total : 0;
   
   // Structured log - PII-free
-  console.info(JSON.stringify({
+  const metricData = {
     kind: 'analysis_metrics',
     status: opts.status,
     score: opts.score,
@@ -94,7 +99,14 @@ export function emitAnalysisMetrics(opts: AnalysisMetricsOptions): void {
       p95ResponseMs: Math.round(counters.p95ResponseMs),
     },
     ts: new Date().toISOString(),
-  }));
+  };
+
+  console.info(JSON.stringify(metricData));
+
+  // Persist to log file
+  appendFile(METRICS_LOG_FILE, JSON.stringify(metricData) + '\n').catch(err => {
+    console.error('Failed to write metrics to log file:', err);
+  });
 }
 
 /**

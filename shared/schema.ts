@@ -185,7 +185,7 @@ export const jobDescriptions = pgTable("job_descriptions", {
 export const skillCategories = pgTable("skill_categories", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
-  parentId: integer("parent_id"),
+  parentId: integer("parent_id").references(() => skillCategories.id),
   level: integer("level").default(0),
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -196,7 +196,7 @@ export const skillsTable = pgTable("skills", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull().unique(),
   normalizedName: varchar("normalized_name", { length: 255 }).notNull(),
-  categoryId: integer("category_id"),
+  categoryId: integer("category_id").references(() => skillCategories.id),
   aliases: json("aliases").$type<string[]>(),
   embedding: json("embedding").$type<number[]>(),
   description: text("description"),
@@ -207,8 +207,8 @@ export const skillsTable = pgTable("skills", {
 export const analysisResults = pgTable("analysis_results", {
   id: serial("id").primaryKey(),
   userId: text("user_id"),
-  resumeId: integer("resume_id"),
-  jobDescriptionId: integer("job_description_id"),
+  resumeId: integer("resume_id").references(() => resumes.id),
+  jobDescriptionId: integer("job_description_id").references(() => jobDescriptions.id),
   matchPercentage: real("match_percentage"),
   matchedSkills: json("matched_skills").$type<SkillMatch[]>(),
   missingSkills: json("missing_skills").$type<string[]>(),
@@ -249,8 +249,8 @@ export const analysisResults = pgTable("analysis_results", {
 export const interviewQuestions = pgTable("interview_questions", {
   id: serial("id").primaryKey(),
   userId: text("user_id"),
-  resumeId: integer("resume_id"),
-  jobDescriptionId: integer("job_description_id"),
+  resumeId: integer("resume_id").references(() => resumes.id),
+  jobDescriptionId: integer("job_description_id").references(() => jobDescriptions.id),
   questions: json("questions").$type<Array<InterviewQuestionData>>(),
   metadata: json("metadata").$type<{
     estimatedDuration: number;
@@ -347,7 +347,7 @@ export const skillMemoryStats = pgTable("skill_memory_stats", {
 export const skillPromotionLog = pgTable("skill_promotion_log", {
   id: serial("id").primaryKey(),
   skillId: integer("skill_id").references(() => skillMemory.id),
-  mainSkillId: integer("main_skill_id"),
+  mainSkillId: integer("main_skill_id").references(() => skillsTable.id),
   promotionReason: varchar("promotion_reason", { length: 50 }).notNull(),
   promotionConfidence: real("promotion_confidence").notNull(),
   promotionData: json("promotion_data").$type<{
