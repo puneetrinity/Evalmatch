@@ -4,6 +4,8 @@ import * as groq from "./groq";
 import { config } from "../config/unified-config";
 import { logger } from "./logger";
 import { AI_PROVIDER_CONFIG, UNIFIED_SCORING_WEIGHTS as _UNIFIED_SCORING_WEIGHTS } from "./unified-scoring-config";
+import { getBreaker, getBreakerStatuses } from "./circuit-breakers";
+import { getMemoryPressure } from "./memory-monitor";
 import {
   AnalyzeResumeResponse,
   AnalyzeJobDescriptionResponse,
@@ -26,128 +28,49 @@ const isAnthropicConfigured = !!config.ai.providers.anthropic.apiKey;
 const isGroqConfigured = !!process.env.GROQ_API_KEY;
 const isOpenAIConfigured = !!process.env.OPENAI_API_KEY;
 
-// ENHANCED: Simple circuit breaker for provider health tracking
-interface CircuitBreakerState {
-  failureCount: number;
-  lastFailureTime: number;
-  state: 'closed' | 'open' | 'half-open';
+// Memory pressure monitoring for circuit breaker force-open
+function forceOpen(): boolean {
+  const memoryPressure = getMemoryPressure();
+  return memoryPressure.isHighPressure;
 }
 
-// PERFORMANCE FIX: Memory-safe circuit breaker with automatic cleanup
-const circuitBreakers = new Map<string, CircuitBreakerState>();
-const CIRCUIT_BREAKER_THRESHOLD = 5; // failures before opening
-const CIRCUIT_BREAKER_TIMEOUT = 60000; // 1 minute before retry
-const CIRCUIT_BREAKER_MAX_ENTRIES = 1000; // Prevent memory leaks
-const CIRCUIT_BREAKER_CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
-
-// Cleanup stale circuit breaker entries to prevent memory leaks
-let circuitBreakerCleanupTimer: NodeJS.Timeout | null = null;
-
-if (process.env.NODE_ENV !== 'test') {
-  circuitBreakerCleanupTimer = setInterval(() => {
-    const now = Date.now();
-    const staleEntries: string[] = [];
-    
-    for (const [key, breaker] of circuitBreakers.entries()) {
-      // Remove entries older than 1 hour or if we exceed max entries
-      const isStale = breaker.lastFailureTime && (now - breaker.lastFailureTime) > 60 * 60 * 1000;
-      if (isStale || circuitBreakers.size > CIRCUIT_BREAKER_MAX_ENTRIES) {
-        staleEntries.push(key);
-      }
-    }
-    
-    staleEntries.forEach(key => circuitBreakers.delete(key));
-    
-    if (staleEntries.length > 0) {
-      logger.info(`Circuit breaker cleanup: removed ${staleEntries.length} stale entries`, {
-        totalEntries: circuitBreakers.size,
-        maxEntries: CIRCUIT_BREAKER_MAX_ENTRIES
-      });
-    }
-  }, CIRCUIT_BREAKER_CLEANUP_INTERVAL);
-}
-
-// Export cleanup function for tests
-export function cleanupCircuitBreakerTimer(): void {
-  if (circuitBreakerCleanupTimer) {
-    clearInterval(circuitBreakerCleanupTimer);
-    circuitBreakerCleanupTimer = null;
-  }
-}
-
-// PERFORMANCE: Implement LRU eviction when approaching memory limits
-function evictOldestCircuitBreaker(): void {
-  if (circuitBreakers.size <= CIRCUIT_BREAKER_MAX_ENTRIES) return;
-  
-  let oldestKey: string | null = null;
-  let oldestTime = Date.now();
-  
-  for (const [key, breaker] of circuitBreakers.entries()) {
-    const lastTime = breaker.lastFailureTime || 0;
-    if (lastTime < oldestTime) {
-      oldestTime = lastTime;
-      oldestKey = key;
-    }
-  }
-  
-  if (oldestKey) {
-    circuitBreakers.delete(oldestKey);
-    logger.debug(`Circuit breaker: evicted oldest entry ${oldestKey}`);
-  }
-}
-
-function getCircuitBreakerKey(provider: string, userTier: string): string {
-  return `${provider}:${userTier}`;
-}
-
-function isCircuitBreakerOpen(provider: string, userTier: string): boolean {
-  const key = getCircuitBreakerKey(provider, userTier);
-  const breaker = circuitBreakers.get(key);
-  
-  if (!breaker || breaker.state === 'closed') return false;
-  
-  // Check if timeout has passed for half-open state
-  if (breaker.state === 'open' && Date.now() - breaker.lastFailureTime > CIRCUIT_BREAKER_TIMEOUT) {
-    breaker.state = 'half-open';
-    circuitBreakers.set(key, breaker);
-    logger.info("Circuit breaker entering half-open state", { provider, userTier });
-    return false;
-  }
-  
-  return breaker.state === 'open';
-}
-
-function recordProviderFailure(provider: string, userTier: string): void {
-  const key = getCircuitBreakerKey(provider, userTier);
-  const breaker = circuitBreakers.get(key) || { failureCount: 0, lastFailureTime: 0, state: 'closed' as const };
-  
-  breaker.failureCount++;
-  breaker.lastFailureTime = Date.now();
-  
-  if (breaker.failureCount >= CIRCUIT_BREAKER_THRESHOLD) {
-    breaker.state = 'open';
-    logger.warn("Circuit breaker opened due to repeated failures", { 
-      provider, 
-      userTier, 
-      failureCount: breaker.failureCount 
+// Get singleton circuit breakers with memory pressure integration
+const breakers = {
+  get groq() { 
+    return getBreaker('groq', {
+      shouldForceOpen: forceOpen,
+      failureThreshold: 5,
+      windowSize: 50,
+      rtP95Ms: 6000,
+      halfOpenAfterMs: 60_000,
+      succToClose: 2
+    });
+  },
+  get openai() { 
+    return getBreaker('openai', {
+      shouldForceOpen: forceOpen,
+      failureThreshold: 5,
+      windowSize: 50,
+      rtP95Ms: 6000,
+      halfOpenAfterMs: 60_000,
+      succToClose: 2
+    });
+  },
+  get anthropic() { 
+    return getBreaker('anthropic', {
+      shouldForceOpen: forceOpen,
+      failureThreshold: 5,
+      windowSize: 50,
+      rtP95Ms: 6000,
+      halfOpenAfterMs: 60_000,
+      succToClose: 2
     });
   }
-  
-  // PERFORMANCE FIX: Prevent memory leaks by evicting old entries
-  evictOldestCircuitBreaker();
-  circuitBreakers.set(key, breaker);
-}
+};
 
-function recordProviderSuccess(provider: string, userTier: string): void {
-  const key = getCircuitBreakerKey(provider, userTier);
-  const breaker = circuitBreakers.get(key);
-  
-  if (breaker && breaker.state === 'half-open') {
-    breaker.state = 'closed';
-    breaker.failureCount = 0;
-    circuitBreakers.set(key, breaker);
-    logger.info("Circuit breaker closed after successful request", { provider, userTier });
-  }
+// Export cleanup function for tests (now a no-op since singleton handles cleanup)
+export function cleanupCircuitBreakerTimer(): void {
+  // No-op - singleton registry handles its own lifecycle
 }
 
 /**
@@ -411,16 +334,16 @@ export async function analyzeResume(
   // Increment usage count
   incrementUsage(userTier);
 
-  // Call appropriate provider with error handling
+  // Call appropriate provider with circuit breaker protection
   try {
     switch (selection.provider) {
       case "anthropic":
-        return await anthropic.analyzeResume(resumeText);
+        return await breakers.anthropic.exec(() => anthropic.analyzeResume(resumeText));
       case "openai":
-        return await openai.analyzeResume(resumeText);
+        return await breakers.openai.exec(() => openai.analyzeResume(resumeText));
       case "groq":
       default:
-        return await groq.analyzeResume(resumeText);
+        return await breakers.groq.exec(() => groq.analyzeResume(resumeText));
     }
   } catch (error) {
     logger.error("AI provider error in resume analysis", {
@@ -458,19 +381,19 @@ export async function analyzeResumeParallel(
   // Increment usage count
   incrementUsage(userTier);
 
-  // Call appropriate provider with error handling
+  // Call appropriate provider with circuit breaker protection
   try {
     switch (selection.provider) {
       case "anthropic":
         // Fallback to standard analysis for non-Groq providers
-        return await anthropic.analyzeResume(resumeText);
+        return await breakers.anthropic.exec(() => anthropic.analyzeResume(resumeText));
       case "openai":
         // Fallback to standard analysis for non-Groq providers
-        return await openai.analyzeResume(resumeText);
+        return await breakers.openai.exec(() => openai.analyzeResume(resumeText));
       case "groq":
       default:
         // Use optimized parallel extraction for Groq
-        return await groq.analyzeResumeParallel(resumeText);
+        return await breakers.groq.exec(() => groq.analyzeResumeParallel(resumeText));
     }
   } catch (error) {
     logger.error("AI provider error in parallel resume analysis", error);
@@ -499,16 +422,16 @@ export async function analyzeJobDescription(
   // Increment usage count
   incrementUsage(userTier);
 
-  // Call appropriate provider with error handling
+  // Call appropriate provider with circuit breaker protection
   try {
     switch (selection.provider) {
       case "anthropic":
-        return await anthropic.analyzeJobDescription(title, description);
+        return await breakers.anthropic.exec(() => anthropic.analyzeJobDescription(title, description));
       case "openai":
-        return await openai.analyzeJobDescription(title, description);
+        return await breakers.openai.exec(() => openai.analyzeJobDescription(title, description));
       case "groq":
       default:
-        return await groq.analyzeJobDescription(title, description);
+        return await breakers.groq.exec(() => groq.analyzeJobDescription(title, description));
     }
   } catch (error) {
     logger.error("AI provider error in job description analysis", error);
@@ -560,7 +483,8 @@ export async function analyzeMatch(
     const isLastProvider = i === providerChain.length - 1;
     
     // Skip if circuit breaker is open
-    if (isCircuitBreakerOpen(provider, userTier.tier)) {
+    const circuitBreaker = breakers[provider as keyof typeof breakers];
+    if (circuitBreaker && circuitBreaker.status().state === 'open') {
       logger.warn(`Circuit breaker open for ${provider}, skipping to next provider`);
       continue;
     }
@@ -580,8 +504,8 @@ export async function analyzeMatch(
       // Task 5: Apply result normalization for consistency
       matchResult = normalizeProviderResult(result, provider);
       
-      // Success - record provider success and break
-      recordProviderSuccess(provider, userTier.tier);
+      // Success - circuit breaker will record internally during exec()
+      // No explicit success recording needed with singleton breakers
       
       logger.info(`Successfully obtained analysis from ${provider}`, {
         matchPercentage: matchResult.matchPercentage,
@@ -592,7 +516,7 @@ export async function analyzeMatch(
       
     } catch (error) {
       lastError = error;
-      recordProviderFailure(provider, userTier.tier);
+      // Circuit breaker failure recording happens automatically in exec() method
       
       logger.warn(`Provider ${provider} failed`, {
         error: error instanceof Error ? error.message : String(error),
@@ -666,16 +590,16 @@ export async function analyzeBias(
   // Increment usage count
   incrementUsage(userTier);
 
-  // Call appropriate provider with error handling
+  // Call appropriate provider with circuit breaker protection
   try {
     switch (selection.provider) {
       case "anthropic":
-        return await anthropic.analyzeBias(title, description);
+        return await breakers.anthropic.exec(() => anthropic.analyzeBias(title, description));
       case "openai":
-        return await openai.analyzeBias(title, description);
+        return await breakers.openai.exec(() => openai.analyzeBias(title, description));
       case "groq":
       default:
-        return await groq.analyzeBias(title, description);
+        return await breakers.groq.exec(() => groq.analyzeBias(title, description));
     }
   } catch (error) {
     logger.error("AI provider error in bias analysis", error);
@@ -946,11 +870,11 @@ async function callProvider(
   
   switch (provider) {
     case "anthropic":
-      return await anthropic.analyzeMatch(resumeAnalysis, jobAnalysis);
+      return await breakers.anthropic.exec(() => anthropic.analyzeMatch(resumeAnalysis, jobAnalysis));
     case "openai":
-      return await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
+      return await breakers.openai.exec(() => openai.analyzeMatch(resumeAnalysis, jobAnalysis));
     case "groq":
-      return await groq.analyzeMatch(resumeAnalysis, jobAnalysis, resumeText, jobText);
+      return await breakers.groq.exec(() => groq.analyzeMatch(resumeAnalysis, jobAnalysis, resumeText, jobText));
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }

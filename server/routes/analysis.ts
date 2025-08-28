@@ -14,8 +14,55 @@ import {
   isFailure
 } from "@shared/result-types";
 import { getErrorStatusCode, getErrorCode, getErrorMessage, getErrorTimestamp } from "@shared/type-utilities";
+import { getBreakerStatuses } from "../lib/circuit-breakers";
+import { getMemoryPressure } from "../lib/memory-monitor";
+import { getAllCounts } from "../lib/queue-depth-cache";
+import { getRemainingDeadline } from "../middleware/request-deadline";
 
 const router = Router();
+
+/**
+ * Add lightweight headers to AI responses for observability
+ */
+async function addAIResponseHeaders(res: Response, req: Request, provider?: string): Promise<void> {
+  try {
+    const breakerStatuses = getBreakerStatuses();
+    const memoryPressure = getMemoryPressure();
+    
+    // X-CB-Provider: which provider was used (if known)
+    if (provider) {
+      res.setHeader('X-CB-Provider', provider);
+    }
+    
+    // X-CB-State: circuit breaker states (comma-separated)
+    const states = Object.entries(breakerStatuses)
+      .map(([name, status]) => `${name}:${status.state}`)
+      .join(',');
+    if (states) {
+      res.setHeader('X-CB-State', states);
+    }
+    
+    // X-Memory-Pressure: current memory pressure level
+    res.setHeader('X-Memory-Pressure', memoryPressure.level);
+    
+    // X-Queue-Wait: actual queue depth from cache
+    try {
+      const queueCounts = await getAllCounts(['groq', 'openai', 'anthropic']);
+      const totalWaiting = Object.values(queueCounts).reduce((sum, counts) => sum + counts.waiting, 0);
+      res.setHeader('X-Queue-Wait', totalWaiting.toString());
+    } catch (error) {
+      res.setHeader('X-Queue-Wait', '0');
+    }
+    
+    // X-Deadline: remaining deadline in milliseconds
+    const remainingMs = getRemainingDeadline(req);
+    res.setHeader('X-Deadline', remainingMs.toString());
+    
+  } catch (error) {
+    // Silently fail header addition to not break responses
+    logger.debug('Failed to add AI response headers:', error);
+  }
+}
 
 /**
  * @swagger
@@ -185,6 +232,9 @@ router.post(
 
       const analysisData = result.data;
 
+      // Add lightweight headers for observability
+      await addAIResponseHeaders(res, req);
+
       // Convert service result to API response format (frontend expects results directly)
       res.json({
         success: true,
@@ -268,6 +318,9 @@ router.get(
 
       const analysisData = result.data;
 
+      // Add lightweight headers for observability
+      await addAIResponseHeaders(res, req);
+
       // Convert service result to API response format (frontend expects results directly)
       res.json({
         success: true,
@@ -347,6 +400,9 @@ router.get(
         });
       }
 
+      // Add lightweight headers for observability
+      await addAIResponseHeaders(res, req);
+
       res.json({
         success: true,
         status: "ok",
@@ -417,6 +473,9 @@ router.post(
       }
 
       const questionsData = result.data;
+
+      // Add lightweight headers for observability
+      await addAIResponseHeaders(res, req);
 
       // Convert service result to API response format (frontend expects properties directly)
       res.json({
@@ -576,6 +635,9 @@ router.post(
       }
 
       const biasData = result.data;
+
+      // Add lightweight headers for observability
+      await addAIResponseHeaders(res, req);
 
       // Convert service result to API response format (maintaining backward compatibility)
       res.json({

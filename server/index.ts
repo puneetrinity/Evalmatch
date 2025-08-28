@@ -132,6 +132,14 @@ app.use('/api', userLimiter);
 app.use('/api/analysis', analysisLimiter); 
 app.use('/api/admin', adminLimiter);
 
+// CRITICAL FIX: Apply route timeouts to prevent null responses under load
+import { routeTimeoutMiddleware } from './middleware/route-timeouts';
+app.use('/api', routeTimeoutMiddleware);
+
+// PERFORMANCE: Add request deadline enforcement with AbortController
+import { requestDeadlineMiddleware } from './middleware/request-deadline';
+app.use('/api', requestDeadlineMiddleware);
+
 // PHASE 1: Health snapshot endpoint (cached, no live probes)
 app.get('/api/readyz', readyzHandler); // Adds X-Health-Cache headers
 
