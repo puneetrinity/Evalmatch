@@ -158,7 +158,7 @@ export function TokenGenerator() {
             <div className="text-right text-sm">
               <p className="font-medium">{user.displayName || user.email}</p>
               <p className="text-muted-foreground">
-                {state.usageOverview?.tier.charAt(0).toUpperCase() + state.usageOverview?.tier.slice(1)} Plan
+                {state.usageOverview?.tier ? state.usageOverview.tier.charAt(0).toUpperCase() + state.usageOverview.tier.slice(1) : 'Unknown'} Plan
               </p>
             </div>
             <button
@@ -278,7 +278,7 @@ export function TokenGenerator() {
                   <div>
                     <h4 className="font-medium">Current Tier</h4>
                     <p className="text-sm text-muted-foreground">
-                      {state.usageOverview?.tier.charAt(0).toUpperCase() + state.usageOverview?.tier.slice(1)} Plan
+                      {state.usageOverview?.tier ? state.usageOverview.tier.charAt(0).toUpperCase() + state.usageOverview.tier.slice(1) : 'Unknown'} Plan
                     </p>
                   </div>
                   <div className="text-right">

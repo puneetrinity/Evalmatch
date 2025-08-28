@@ -26,7 +26,7 @@ type InterviewQuestions = {
   resumeName: string;
   jobDescriptionId: number;
   jobTitle: string;
-  matchPercentage: number;
+  matchPercentage: number | null;
   technicalQuestions: Question[];
   experienceQuestions: Question[];
   skillGapQuestions: Question[];
@@ -40,7 +40,7 @@ type MatchedSkill = {
 };
 
 type MatchAnalysis = {
-  matchPercentage: number;
+  matchPercentage: number | null;
   matchedSkills: MatchedSkill[];
   missingSkills: string[];
   candidateStrengths?: string[];
@@ -209,7 +209,7 @@ export default function InterviewPage() {
                     {getInitials(questionsData.resumeName)}
                   </div>
                   <h3 className="ml-3 text-lg font-semibold text-gray-900">
-                    {questionsData.resumeName} <span className="text-primary">({questionsData.matchPercentage}% match)</span>
+                    {questionsData.resumeName} <span className="text-primary">({questionsData.matchPercentage !== null ? `${questionsData.matchPercentage}%` : 'N/A'} match)</span>
                   </h3>
                 </div>
                 <div>

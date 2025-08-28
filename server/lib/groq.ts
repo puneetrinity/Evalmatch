@@ -4,7 +4,6 @@ import { logger } from "./logger";
 import {
   generateConsistentScoringPrompt,
   deterministicCache,
-  normalizeScore,
   calculateConfidenceLevel,
   validateScoreConsistency,
 } from "./consistent-scoring";
@@ -841,19 +840,17 @@ Respond with only the JSON object, no additional text.`;
     const cleanedResponse = stripMarkdownFromJSON(response);
     const parsedResponse = JSON.parse(cleanedResponse) as MatchAnalysisResponse;
 
-    // Normalize scores for consistency
+    // ✅ CRITICAL FIX: Preserve precision, only clamp to valid range
     if (parsedResponse.matchPercentage) {
-      parsedResponse.matchPercentage = normalizeScore(
-        parsedResponse.matchPercentage,
-      );
+      parsedResponse.matchPercentage = Math.max(0, Math.min(100, parsedResponse.matchPercentage));
     }
 
-    // Normalize matched skills scores
+    // ✅ CRITICAL FIX: Preserve skill score precision
     if (parsedResponse.matchedSkills) {
       parsedResponse.matchedSkills = parsedResponse.matchedSkills.map(
         (skill) => ({
           ...skill,
-          matchPercentage: normalizeScore(skill.matchPercentage || 0),
+          matchPercentage: Math.max(0, Math.min(100, skill.matchPercentage || 0)),
         }),
       );
     }

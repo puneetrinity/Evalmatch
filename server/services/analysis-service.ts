@@ -139,7 +139,7 @@ export interface BatchAnalysisResult {
     resumeId: number;
     filename: string;
     candidateName: string;
-    matchPercentage: number;
+    matchPercentage: number | null;
     matchedSkills: SkillMatch[];
     missingSkills: string[];
     candidateStrengths: string[];
@@ -172,7 +172,7 @@ export interface SingleAnalysisResult {
   jobId: number;
   /** Match analysis details */
   match: {
-    matchPercentage: number;
+    matchPercentage: number | null;
     matchedSkills: SkillMatch[];
     missingSkills: string[];
     candidateStrengths: string[];
@@ -446,7 +446,7 @@ export class AnalysisService {
     const successful = results.filter(r => !r.error);
     const failed = results.filter(r => r.error);
     const averageMatch = successful.length > 0
-      ? Math.round(successful.reduce((sum, r) => sum + r.matchPercentage, 0) / successful.length)
+      ? Math.round(successful.reduce((sum, r) => sum + (r.matchPercentage ?? 0), 0) / successful.length)
       : 0;
 
     const totalProcessingTime = Date.now() - analysisStartTime;

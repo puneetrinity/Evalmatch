@@ -12,9 +12,6 @@ import { tokenUsageService } from '../services/token-usage';
 import { logger } from '../config/logger';
 import type { 
   TokenGenerationRequest,
-  TokenGenerationResponse,
-  UsageOverview,
-  ApiUsageMetrics,
 } from '../../shared/schema';
 
 const router = Router();

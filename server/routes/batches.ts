@@ -122,27 +122,51 @@ const batchOperationsRateLimit = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: isTestEnv ? 10000 : 30, // Much higher limit for tests
   skip: () => isTestEnv, // Skip rate limiting in test environment
-  message: "Too many batch operation requests. Please slow down.",
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (req, res) => {
+    logger.warn(`Batch operations rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json({
+      error: "Too many batch operations",
+      message: "Please slow down your batch operations",
+      retryAfter: 60, // seconds
+      code: "RATE_LIMIT_EXCEEDED"
+    });
+  },
 });
 
 const batchClaimRateLimit = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
   max: isTestEnv ? 10000 : 3, // Much higher limit for tests
   skip: () => isTestEnv, // Skip rate limiting in test environment
-  message: "Too many batch claim attempts. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (req, res) => {
+    logger.warn(`Batch claim rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json({
+      error: "Too many batch claim attempts",
+      message: "Please wait before claiming another batch",
+      retryAfter: 5 * 60, // seconds
+      code: "RATE_LIMIT_EXCEEDED"
+    });
+  },
 });
 
 const batchDeleteRateLimit = rateLimit({
   windowMs: 2 * 60 * 1000, // 2 minutes
   max: isTestEnv ? 10000 : 5, // Much higher limit for tests
   skip: () => isTestEnv, // Skip rate limiting in test environment
-  message: "Too many batch deletion attempts. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (req, res) => {
+    logger.warn(`Batch delete rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json({
+      error: "Too many batch deletion attempts",
+      message: "Please wait before deleting another batch",
+      retryAfter: 2 * 60, // seconds
+      code: "RATE_LIMIT_EXCEEDED"
+    });
+  },
 });
 
 // Type guards for database results
@@ -474,9 +498,17 @@ router.get(
     windowMs: 60 * 1000, // 1 minute
     max: isTestEnv ? 10000 : 10, // Much higher limit for tests
     skip: () => isTestEnv, // Skip rate limiting in test environment
-    message: "Too many cleanup candidate requests. Please slow down.",
     standardHeaders: true,
     legacyHeaders: false,
+    handler: (req, res) => {
+      logger.warn(`Cleanup candidates rate limit exceeded for IP: ${req.ip}`);
+      res.status(429).json({
+        error: "Too many cleanup candidate requests",
+        message: "Please slow down cleanup requests",
+        retryAfter: 60, // seconds
+        code: "RATE_LIMIT_EXCEEDED"
+      });
+    },
   }),
   async (req: express.Request, res: express.Response) => {
     logger.info("Cleanup candidates request:", {

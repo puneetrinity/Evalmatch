@@ -1,7 +1,7 @@
 import type { MatchedSkill } from "@shared/api-contracts";
 
 interface CandidateMatchSummaryProps {
-  matchPercentage: number;
+  matchPercentage: number | null;
   matchedSkills: MatchedSkill[];
   missingSkills: string[];
   expanded: boolean;
@@ -25,7 +25,10 @@ export default function CandidateMatchSummary({
         </div>
         <h4 className="text-lg font-semibold text-green-800">Match Summary</h4>
         <span className="ml-auto text-green-700 font-medium">
-          {matchPercentage}% - {matchPercentage >= 85 ? 'Exceptional' : matchPercentage >= 70 ? 'Strong' : matchPercentage >= 55 ? 'Viable' : 'Potential'} Candidate
+          {matchPercentage !== null 
+            ? `${matchPercentage}% - ${matchPercentage >= 85 ? 'Exceptional' : matchPercentage >= 70 ? 'Strong' : matchPercentage >= 55 ? 'Viable' : 'Potential'} Candidate`
+            : 'Analysis Unavailable - Requires Manual Review'
+          }
         </span>
       </div>
       

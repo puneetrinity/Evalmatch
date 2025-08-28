@@ -10,9 +10,6 @@
  * Total consolidation: 2,513 lines → ~800 lines (68% reduction)
  */
 
-import { spawn } from 'child_process';
-import path from 'path';
-import fs from 'fs';
 import { logger } from './logger';
 import { generateEmbedding, cosineSimilarity } from './embeddings';
 
@@ -270,7 +267,7 @@ export class SkillProcessor {
   }
 
   /**
-   * ESCO skill extraction (consolidated from esco-skill-extractor.ts)
+   * ESCO skill extraction - TypeScript implementation (Phase 2.5)
    */
   private async extractESCOSkills(text: string, domain: string): Promise<ESCOResult> {
     const cacheKey = `${domain}:${text.slice(0, 100)}`;
@@ -279,90 +276,41 @@ export class SkillProcessor {
       return this.escoCache.get(cacheKey)!;
     }
 
-    return new Promise((resolve) => {
-      const startTime = Date.now();
+    try {
+      // TypeScript ESCO service timing handled internally
       
-      // Use production-safe path resolution
-      const escoServicePath = path.resolve(process.cwd(), 'esco_service.py');
+      // Use new TypeScript ESCO service instead of Python
+      const { getESCOService } = await import('./esco-service');
+      const escoService = getESCOService();
       
-      // Check if ESCO service exists
-      if (!fs.existsSync(escoServicePath)) {
-        logger.error('ESCO service script not found', { escoServicePath });
-        resolve({
-          skills: [],
-          domain: 'general',
-          confidence: 0,
-          processingTime: Date.now() - startTime
-        });
-        return;
-      }
-      
-      // Allow Python path override via environment variable
-      const pythonExec = process.env.PYTHON_PATH || 'python';
-      
-      const pythonProcess = spawn(pythonExec, [escoServicePath], {
-        stdio: ['pipe', 'pipe', 'pipe']
-      });
-
-      let output = '';
-      let errorOutput = '';
-
-      pythonProcess.stdout.on('data', (data) => {
-        output += data.toString();
-      });
-
-      pythonProcess.stderr.on('data', (data) => {
-        errorOutput += data.toString();
-      });
-
-      pythonProcess.on('close', (code) => {
-        const processingTime = Date.now() - startTime;
-        
-        try {
-          if (code === 0 && output.trim()) {
-            const result = JSON.parse(output);
-            const escoResult: ESCOResult = {
-              skills: result.skills || [],
-              domain: result.domain || 'general',
-              confidence: result.confidence || 0.5,
-              processingTime
-            };
-            
-            this.escoCache.set(cacheKey, escoResult);
-            resolve(escoResult);
-          } else {
-            throw new Error(`ESCO process failed: ${errorOutput}`);
-          }
-        } catch (error) {
-          logger.debug('ESCO extraction failed, using fallback:', error);
-          resolve({
-            skills: [],
-            domain: 'general',
-            confidence: 0,
-            processingTime
-          });
-        }
-      });
-
-      // Handle Python process spawn errors
-      pythonProcess.on('error', (error) => {
-        logger.debug('Python process spawn failed:', { error: error.message, pythonExec });
-        resolve({
-          skills: [],
-          domain: 'general',
-          confidence: 0,
-          processingTime: Date.now() - startTime
-        });
-      });
-
-      // Send input to Python process
-      pythonProcess.stdin.write(JSON.stringify({
+      const result = await escoService.extractSkills({
         text,
-        domain,
-        max_skills: 50
-      }));
-      pythonProcess.stdin.end();
-    });
+        domain: domain as any,
+        maxResults: 50,
+        minScore: 0.3
+      });
+      
+      const escoResult: ESCOResult = {
+        skills: result.skills.map(skill => skill.skillTitle),
+        domain: (result.detectedDomain || domain) as 'general' | 'technology' | 'pharmaceutical',
+        confidence: result.success ? 0.8 : 0.0,
+        processingTime: result.processingTimeMs
+      };
+      
+      this.escoCache.set(cacheKey, escoResult);
+      return escoResult;
+      
+    } catch (error) {
+      logger.debug('TypeScript ESCO extraction failed, using fallback:', error);
+      const fallbackResult: ESCOResult = {
+        skills: [],
+        domain: 'general',
+        confidence: 0,
+        processingTime: Date.now() - Date.now()
+      };
+      this.escoCache.set(cacheKey, fallbackResult);
+      return fallbackResult;
+    }
   }
 
   /**

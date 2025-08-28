@@ -82,18 +82,34 @@ const batchValidationRateLimit = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: isTestEnv ? 10000 : 20, // Much higher limit for tests
   skip: () => isTestEnv, // Skip rate limiting in test environment
-  message: "Too many batch validation requests. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (req, res) => {
+    logger.warn(`Batch validation rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json({
+      error: "Too many batch validation requests",
+      message: "Please try again later",
+      retryAfter: 60, // seconds
+      code: "RATE_LIMIT_EXCEEDED"
+    });
+  },
 });
 
 const batchClaimRateLimit = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
   max: isTestEnv ? 10000 : 3, // Much higher limit for tests
   skip: () => isTestEnv, // Skip rate limiting in test environment
-  message: "Too many batch claim attempts. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (req, res) => {
+    logger.warn(`Batch claim rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json({
+      error: "Too many batch claim attempts",
+      message: "Please try again later",
+      retryAfter: 5 * 60, // seconds
+      code: "RATE_LIMIT_EXCEEDED"
+    });
+  },
 });
 
 const ORPHANED_BATCH_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours

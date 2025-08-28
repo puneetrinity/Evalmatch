@@ -188,6 +188,18 @@ if (process.env.NODE_ENV === "development") {
         logger.info('🗄️  Initializing PostgreSQL database...');
         await initializeDatabase();
         logger.info('✅ Database initialization completed successfully');
+        
+        // Initialize Queue Manager after database is ready
+        try {
+          logger.info('🚦 Initializing Bull Queue Manager...');
+          const { queueManager } = await import('./lib/queue-manager');
+          await queueManager.initialize();
+          logger.info('✅ Queue Manager initialization completed successfully');
+        } catch (error) {
+          logger.error('Queue Manager initialization failed:', error);
+          logger.warn('Application will continue without queue functionality');
+        }
+        
       } catch (error) {
         logger.error('Database initialization failed:', error);
         
