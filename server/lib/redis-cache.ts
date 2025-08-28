@@ -1,6 +1,7 @@
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import { logger } from "./logger";
 import crypto from "crypto";
+import { getRedisClient, isRedisAvailable } from "./redis-singleton";
 
 /**
  * PERFORMANCE: Redis caching layer for 50% API reduction
@@ -8,9 +9,6 @@ import crypto from "crypto";
  */
 export class CacheManager {
   private redis: Redis | null = null;
-  private isConnected: boolean = false;
-  private connectionAttempts: number = 0;
-  private readonly MAX_RETRIES = 3;
 
   // TTL strategies for different operations (in seconds)
   static readonly TTL = {
@@ -29,95 +27,27 @@ export class CacheManager {
   private cleanupTimer: NodeJS.Timeout | null = null;
 
   constructor() {
-    // Allow explicit Redis disabling via environment variable
-    if (process.env.REDIS_ENABLED === 'false') {
-      logger.info('Redis explicitly disabled via REDIS_ENABLED=false');
-      return;
-    }
-    this.connect();
-    
+    this.initialize();
     // PERFORMANCE FIX: Start periodic cleanup to prevent memory leaks
     this.startPeriodicCleanup();
   }
 
-  private async connect(): Promise<void> {
-    // Skip connection if Redis is explicitly disabled
+  private async initialize(): Promise<void> {
+    // Allow explicit Redis disabling via environment variable
     if (process.env.REDIS_ENABLED === 'false') {
+      logger.info('Redis cache explicitly disabled via REDIS_ENABLED=false');
       return;
     }
     
-    if (this.connectionAttempts >= this.MAX_RETRIES) {
-      logger.warn("Redis connection failed after max retries, cache disabled");
-      return;
-    }
-
     try {
-      let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-      
-      // Railway best practice: Add family=0 for dual-stack IPv4/IPv6 support if not present
-      if (redisUrl.includes('.railway.internal') && !redisUrl.includes('family=')) {
-        redisUrl += redisUrl.includes('?') ? '&family=0' : '?family=0';
-      }
-      
-      logger.info('Attempting Redis connection...', { url: redisUrl.replace(/:[^:@]+@/, ':***@') });
-      
-      this.redis = new Redis(redisUrl, {
-        maxRetriesPerRequest: 3,
-        retryStrategy: (times: number) => {
-          if (times > 3) {
-            logger.error("Redis connection failed, disabling cache");
-            return null;
-          }
-          return Math.min(times * 1000, 3000);
-        },
-        lazyConnect: false,
-        enableOfflineQueue: false,
-        connectTimeout: 10000, // 10 second timeout
-        commandTimeout: 5000,  // 5 second command timeout
-      });
-
-      this.redis.on('connect', () => {
-        this.isConnected = true;
-        logger.info('✅ Redis cache connected successfully');
-      });
-
-      this.redis.on('error', (error: Error) => {
-        logger.error('❌ Redis cache error:', error);
-        this.isConnected = false;
-      });
-
-      this.redis.on('close', () => {
-        this.isConnected = false;
-        logger.warn('⚠️  Redis connection closed');
-      });
-
-      this.redis.on('reconnecting', () => {
-        logger.info('🔄 Redis reconnecting...');
-      });
-
-      // Test connection with timeout
-      await Promise.race([
-        this.redis.ping(),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Redis ping timeout')), 10000)
-        )
-      ]);
-      
-      this.isConnected = true;
-      logger.info('✅ Redis ping successful, cache ready');
-      
-    } catch (error) {
-      this.connectionAttempts++;
-      logger.error(`❌ Redis connection attempt ${this.connectionAttempts} failed:`, error);
-      this.isConnected = false;
-      
-      // Retry connection after delay
-      if (this.connectionAttempts < this.MAX_RETRIES) {
-        logger.info(`🔄 Retrying Redis connection in 5 seconds... (${this.connectionAttempts}/${this.MAX_RETRIES})`);
-        setTimeout(() => this.connect(), 5000);
+      this.redis = await getRedisClient();
+      if (this.redis) {
+        logger.info('CacheManager initialized with Redis singleton');
       } else {
-        logger.warn('❌ Redis connection failed permanently, cache disabled');
+        logger.warn('Failed to get Redis client for CacheManager, cache will be disabled');
       }
+    } catch (error) {
+      logger.error('Error initializing CacheManager with Redis singleton:', error);
     }
   }
 
@@ -125,7 +55,7 @@ export class CacheManager {
    * Get value from cache
    */
   async get<T>(key: string): Promise<T | null> {
-    if (!this.isConnected || !this.redis) {
+    if (!isRedisAvailable() || !this.redis) {
       return null;
     }
 
@@ -149,7 +79,7 @@ export class CacheManager {
    * Set value in cache with TTL
    */
   async set<T>(key: string, value: T, ttlSeconds: number = 3600): Promise<void> {
-    if (!this.isConnected || !this.redis) {
+    if (!isRedisAvailable() || !this.redis) {
       return;
     }
 
@@ -177,7 +107,7 @@ export class CacheManager {
    * Delete value from cache
    */
   async delete(key: string): Promise<void> {
-    if (!this.isConnected || !this.redis) {
+    if (!isRedisAvailable() || !this.redis) {
       return;
     }
 
@@ -193,7 +123,7 @@ export class CacheManager {
    * Clear all cache entries matching pattern
    */
   async clearPattern(pattern: string): Promise<void> {
-    if (!this.isConnected || !this.redis) {
+    if (!isRedisAvailable() || !this.redis) {
       return;
     }
 
@@ -228,7 +158,7 @@ export class CacheManager {
    * Get cache statistics
    */
   async getStats(): Promise<{ connected: boolean; info?: object }> {
-    if (!this.isConnected || !this.redis) {
+    if (!isRedisAvailable() || !this.redis) {
       return { connected: false };
     }
 
@@ -244,7 +174,7 @@ export class CacheManager {
    * Get keys matching a pattern (for cache analysis)
    */
   async keys(pattern: string): Promise<string[]> {
-    if (!this.isConnected || !this.redis) {
+    if (!isRedisAvailable() || !this.redis) {
       return [];
     }
 
@@ -269,7 +199,7 @@ export class CacheManager {
    * PERFORMANCE FIX: Perform maintenance cleanup
    */
   private async performMaintenanceCleanup(): Promise<void> {
-    if (!this.isConnected || !this.redis) return;
+    if (!isRedisAvailable() || !this.redis) return;
     
     try {
       // Get memory info and cleanup if needed
@@ -308,12 +238,7 @@ export class CacheManager {
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer);
       this.cleanupTimer = null;
-    }
-    
-    if (this.redis) {
-      logger.info("Shutting down Redis cache");
-      await this.redis.quit();
-      this.isConnected = false;
+      logger.info("CacheManager cleanup timer stopped.");
     }
   }
 }

@@ -7,10 +7,10 @@
  */
 
 import { logger } from "./logger";
+import { Redis } from "ioredis";
 
 interface RedisConnection {
-  client: any; // Redis client instance
-  connected: boolean;
+  client: Redis; // Redis client instance
   lastUsed: number;
   connectionCount: number;
 }
@@ -62,6 +62,7 @@ export async function initializeRedisConnection(config?: Partial<RedisConfig>): 
       retryDelayOnFailover: redisConfig.retryDelay,
       connectTimeout: redisConfig.connectTimeout,
       lazyConnect: redisConfig.lazyConnect,
+      commandTimeout: 5000, // Add command timeout
       // Optimize for connection pooling
       enableReadyCheck: false,
       maxLoadingTimeout: 2000,
@@ -75,23 +76,16 @@ export async function initializeRedisConnection(config?: Partial<RedisConfig>): 
     client.on('connect', () => {
       logger.info('✅ Redis singleton connected');
       if (redisConnection) {
-        redisConnection.connected = true;
         redisConnection.connectionCount++;
       }
     });
 
     client.on('error', (error) => {
       logger.warn('Redis connection error:', error.message);
-      if (redisConnection) {
-        redisConnection.connected = false;
-      }
     });
 
     client.on('close', () => {
       logger.info('Redis connection closed');
-      if (redisConnection) {
-        redisConnection.connected = false;
-      }
     });
 
     client.on('reconnecting', () => {
@@ -101,7 +95,6 @@ export async function initializeRedisConnection(config?: Partial<RedisConfig>): 
     // Initialize connection state
     redisConnection = {
       client,
-      connected: false,
       lastUsed: Date.now(),
       connectionCount: 0
     };
@@ -119,7 +112,7 @@ export async function initializeRedisConnection(config?: Partial<RedisConfig>): 
  * Get the singleton Redis client
  * Automatically connects if not connected (lazy connection)
  */
-export async function getRedisClient(): Promise<any | null> {
+export async function getRedisClient(): Promise<Redis | null> {
   if (!redisConnection) {
     logger.debug('Redis not initialized, attempting initialization');
     await initializeRedisConnection();
@@ -133,9 +126,12 @@ export async function getRedisClient(): Promise<any | null> {
   redisConnection.lastUsed = Date.now();
 
   // Lazy connect if needed
-  if (!redisConnection.connected) {
+  if (redisConnection.client.status !== 'ready') {
     try {
-      await redisConnection.client.connect();
+      // The 'connect' method of ioredis doesn't need to be called explicitly
+      // when not in lazyConnect mode, but since we are, this ensures connection.
+      // Await a ping to confirm readiness.
+      await redisConnection.client.ping();
     } catch (error) {
       logger.warn('Redis lazy connect failed:', error);
       return null;
@@ -149,7 +145,7 @@ export async function getRedisClient(): Promise<any | null> {
  * Check if Redis is available and connected
  */
 export function isRedisAvailable(): boolean {
-  return !!(redisConnection && redisConnection.connected);
+  return !!(redisConnection && redisConnection.client.status === 'ready');
 }
 
 /**
@@ -158,26 +154,27 @@ export function isRedisAvailable(): boolean {
 export function getRedisStatus(): {
   initialized: boolean;
   connected: boolean;
+  status: string;
   lastUsed: number | null;
   connectionCount: number;
-  uptime: number | null;
 } {
   if (!redisConnection) {
     return {
       initialized: false,
       connected: false,
+      status: 'uninitialized',
       lastUsed: null,
       connectionCount: 0,
-      uptime: null
     };
   }
 
+  const isConnected = redisConnection.client.status === 'ready';
   return {
     initialized: true,
-    connected: redisConnection.connected,
+    connected: isConnected,
+    status: redisConnection.client.status,
     lastUsed: redisConnection.lastUsed,
     connectionCount: redisConnection.connectionCount,
-    uptime: redisConnection.connected ? Date.now() - redisConnection.lastUsed : null
   };
 }
 
@@ -186,7 +183,7 @@ export function getRedisStatus(): {
  * Returns null if Redis is unavailable instead of throwing
  */
 export async function executeRedisOperation<T>(
-  operation: (client: any) => Promise<T>,
+  operation: (client: Redis) => Promise<T>,
   fallbackValue: T | null = null
 ): Promise<T | null> {
   try {
@@ -214,7 +211,6 @@ export async function closeRedisConnection(): Promise<void> {
   try {
     logger.info('Closing Redis singleton connection...');
     await redisConnection.client.quit();
-    redisConnection.connected = false;
     logger.info('Redis connection closed gracefully');
   } catch (error) {
     logger.warn('Error closing Redis connection:', error);
@@ -227,14 +223,14 @@ export async function closeRedisConnection(): Promise<void> {
  * Helper function to migrate existing Redis usage to singleton pattern
  * Use this to replace individual Redis client creations
  */
-export async function getRedisClientForCache(): Promise<any | null> {
+export async function getRedisClientForCache(): Promise<Redis | null> {
   return getRedisClient();
 }
 
-export async function getRedisClientForQueue(): Promise<any | null> {
+export async function getRedisClientForQueue(): Promise<Redis | null> {
   return getRedisClient();
 }
 
-export async function getRedisClientForSession(): Promise<any | null> {
+export async function getRedisClientForSession(): Promise<Redis | null> {
   return getRedisClient();
 }
