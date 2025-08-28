@@ -49,11 +49,15 @@ export class CircuitBreaker {
 
   async exec<T>(fn: () => Promise<T>): Promise<T> {
     const now = Date.now();
+    const previousState = this.state;
     
     // Check if we should force-open due to external conditions (memory pressure)
     if (this.opts.shouldForceOpen()) {
       this.state = 'open';
       this.openedAt = now;
+      if (previousState !== 'open') {
+        this._notifyStateChange();
+      }
       throw new Error(`ERR_BREAKER_OPEN:${this.name}`);
     }
 
@@ -65,6 +69,7 @@ export class CircuitBreaker {
     if (this.state === 'open') {
       this.state = 'half-open';
       this.succHalfOpen = 0;
+      this._notifyStateChange();
     }
 
     const t0 = now;
@@ -75,10 +80,15 @@ export class CircuitBreaker {
       if (this.state === 'half-open' && ++this.succHalfOpen >= this.opts.succToClose) {
         this.state = 'closed';
         this.fails = 0;
+        this._notifyStateChange();
       }
       
       if (this.p95() < this.opts.rtP95Ms && this.fails < this.opts.failureThreshold) {
-        this.state = 'closed';
+        const newState = 'closed';
+        if (this.state !== newState) {
+          this.state = newState;
+          this._notifyStateChange();
+        }
       }
       
       return res;
@@ -88,10 +98,23 @@ export class CircuitBreaker {
       if (this.fails >= this.opts.failureThreshold || this.p95() > this.opts.rtP95Ms) {
         this.state = 'open';
         this.openedAt = Date.now();
+        this._notifyStateChange();
       }
       
       throw e;
     }
+  }
+
+  private _notifyStateChange(): void {
+    // Lazy import to avoid circular dependencies
+    setImmediate(async () => {
+      try {
+        const { persistBreakerState } = await import('./circuit-breakers');
+        await persistBreakerState(this.name, this.status());
+      } catch (error) {
+        // Silently fail to avoid breaking circuit breaker functionality
+      }
+    });
   }
 
   status() {

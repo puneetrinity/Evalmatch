@@ -853,12 +853,13 @@ router.get(
             return null;
           }
         })(),
-        // Get circuit breaker stats
+        // Get circuit breaker stats from Redis (cross-replica visible)
         (async () => {
           try {
-            const { getBreakerStatuses } = await import("../lib/providers/tieredAI");
-            return getBreakerStatuses();
-          } catch {
+            const { loadBreakerStatesFromRedis } = await import("../lib/circuit-breakers");
+            return await loadBreakerStatesFromRedis();
+          } catch (error) {
+            logger.warn('Failed to load circuit breaker states:', error);
             return null;
           }
         })(),
@@ -1079,6 +1080,31 @@ router.get(
         error: "Failed to generate system metrics",
         message: error instanceof Error ? error.message : "Unknown error",
         timestamp: new Date().toISOString()
+      });
+    }
+  }
+);
+
+// Lightweight circuit breaker endpoint for load testing and monitoring
+router.get(
+  "/circuit-breakers",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { loadBreakerStatesFromRedis } = await import("../lib/circuit-breakers");
+      const breakerStates = await loadBreakerStatesFromRedis();
+      
+      res.json({
+        breakers: breakerStates,
+        ts: Date.now(),
+        replica: process.env.RAILWAY_REPLICA_ID || 'unknown'
+      });
+    } catch (error) {
+      logger.error("Failed to get circuit breaker states:", error);
+      res.status(500).json({
+        error: "Failed to get circuit breaker states",
+        message: error instanceof Error ? error.message : "Unknown error",
+        ts: Date.now()
       });
     }
   }

@@ -5,38 +5,44 @@
  * for resilient AI provider calls with intelligent failover.
  */
 
-import { CircuitBreaker } from '../circuit-breaker';
+import { getBreaker, getBreakerStatuses as getRegistryStatuses } from '../circuit-breakers';
 import { getMemoryPressure } from '../../observability/health-snapshot';
 
 // Memory-aware force-open hook
 const forceOpen = () => getMemoryPressure() === 'critical';
 
-// Initialize circuit breakers for each provider
+// Get circuit breakers from singleton registry
 export const breakers = {
-  groq: new CircuitBreaker('groq', { 
-    shouldForceOpen: forceOpen,
-    failureThreshold: 5,
-    windowSize: 50,
-    rtP95Ms: 6000,
-    halfOpenAfterMs: 60_000,
-    succToClose: 2
-  }),
-  openai: new CircuitBreaker('openai', { 
-    shouldForceOpen: forceOpen,
-    failureThreshold: 5,
-    windowSize: 50,
-    rtP95Ms: 8000,  // Slightly higher for OpenAI
-    halfOpenAfterMs: 60_000,
-    succToClose: 2
-  }),
-  anthropic: new CircuitBreaker('anthropic', { 
-    shouldForceOpen: forceOpen,
-    failureThreshold: 5,
-    windowSize: 50,
-    rtP95Ms: 10000, // Higher for Anthropic (slower but more accurate)
-    halfOpenAfterMs: 60_000,
-    succToClose: 2
-  }),
+  get groq() { 
+    return getBreaker('groq', {
+      shouldForceOpen: forceOpen,
+      failureThreshold: 5,
+      windowSize: 50,
+      rtP95Ms: 6000,
+      halfOpenAfterMs: 60_000,
+      succToClose: 2
+    });
+  },
+  get openai() { 
+    return getBreaker('openai', {
+      shouldForceOpen: forceOpen,
+      failureThreshold: 5,
+      windowSize: 50,
+      rtP95Ms: 8000,  // Slightly higher for OpenAI
+      halfOpenAfterMs: 60_000,
+      succToClose: 2
+    });
+  },
+  get anthropic() { 
+    return getBreaker('anthropic', {
+      shouldForceOpen: forceOpen,
+      failureThreshold: 5,
+      windowSize: 50,
+      rtP95Ms: 10000, // Higher for Anthropic (slower but more accurate)
+      halfOpenAfterMs: 60_000,
+      succToClose: 2
+    });
+  },
 };
 
 import { logger } from "../logger";
@@ -66,9 +72,7 @@ export async function callAnthropic<T>(fn: () => Promise<T>): Promise<T> {
  * Get all circuit breaker statuses for monitoring
  */
 export function getBreakerStatuses() {
-  return Object.fromEntries(
-    Object.entries(breakers).map(([name, breaker]) => [name, breaker.status()])
-  );
+  return getRegistryStatuses();
 }
 
 /**
