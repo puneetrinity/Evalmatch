@@ -1,0 +1,118 @@
+-- ============================================================================
+-- MIGRATION 013: Add covering indexes for 100-user performance optimization
+-- Phase 1.3: Critical performance indexes with CONCURRENTLY (no downtime)
+-- ============================================================================
+
+-- Record this migration
+INSERT INTO schema_migrations (version, description) 
+VALUES ('013_add_covering_indexes_performance', 'Add covering indexes for 100-user concurrent load optimization')
+ON CONFLICT (version) DO NOTHING;
+
+-- ============================================================================
+-- CRITICAL PERFORMANCE INDEXES (Applied CONCURRENTLY for zero downtime)
+-- ============================================================================
+
+-- 1. Covering index for user resume listings (eliminate N+1 queries)
+-- This supports dashboard queries that fetch resumes with metadata
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_resumes_user_metadata_covering
+ON resumes(user_id, created_at DESC)
+INCLUDE (id, filename, analyzed_data, batch_id)
+WHERE analyzed_data IS NOT NULL;
+
+-- 2. Analysis results with complete context (dashboard performance)
+-- Eliminates JOINs for analysis dashboard queries
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_analysis_complete_dashboard
+ON analysis_results(user_id, created_at DESC)
+INCLUDE (resume_id, job_description_id, match_percentage, analysis_data);
+
+-- 3. User-job analysis composite index (hot path optimization)
+-- Optimizes analysis filtering and sorting
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_analysis_results_user_job_perf
+ON analysis_results(user_id, job_description_id, created_at DESC, match_percentage);
+
+-- 4. Job descriptions optimized for user filtering
+-- Supports job listing queries with filtering
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_job_descriptions_user_filtering
+ON job_descriptions(user_id, created_at DESC)
+INCLUDE (id, title, company, description);
+
+-- 5. JSONB skills aliases index (skill matching performance)
+-- Optimizes skill search queries with proper JSONB operator class
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_skills_aliases_gin
+ON skills USING gin(aliases jsonb_path_ops);
+
+-- 6. Skills with category information (category-based queries)
+-- Eliminates JOINs when querying skills by category
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_skills_with_category
+ON skills(category_id, name)
+INCLUDE (aliases, description, promoted_count);
+
+-- 7. Interview questions with context (batch loading optimization)
+-- Optimizes loading interview questions for analysis results
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_interview_questions_context
+ON interview_questions(resume_id, job_description_id)
+INCLUDE (questions, created_at);
+
+-- 8. User API limits index (rate limiting performance)
+-- Optimizes rate limiting checks from Migration 011
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_api_limits_tier_usage
+ON user_api_limits(tier, used_calls, max_calls)
+WHERE reset_period != 'never';
+
+-- 9. Batch processing index (conditional - for high-volume batches)
+-- Only needed if batch processing becomes a performance bottleneck
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_resumes_batch_created
+ON resumes(batch_id, created_at DESC)
+WHERE batch_id IS NOT NULL;
+
+-- ============================================================================
+-- INDEX VALIDATION AND MONITORING SETUP
+-- ============================================================================
+
+-- Log successful index creation
+DO $$
+BEGIN
+    RAISE NOTICE 'Phase 1.3 covering indexes created successfully for 100-user performance';
+    RAISE NOTICE 'Use EXPLAIN (ANALYZE, BUFFERS) to verify index usage on hot queries';
+    RAISE NOTICE 'Monitor pg_stat_statements for query performance after deployment';
+END $$;
+
+-- Create pg_stat_statements extension for query performance monitoring
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+
+-- ============================================================================
+-- PERFORMANCE VALIDATION QUERIES (for testing)
+-- ============================================================================
+
+-- Example queries to test index usage:
+-- 1. User resume dashboard:
+--    EXPLAIN (ANALYZE, BUFFERS) 
+--    SELECT id, filename, analyzed_data, batch_id, created_at 
+--    FROM resumes WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20;
+
+-- 2. Analysis results dashboard:
+--    EXPLAIN (ANALYZE, BUFFERS)
+--    SELECT resume_id, job_description_id, match_percentage, analysis_data 
+--    FROM analysis_results WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10;
+
+-- 3. Skills search:
+--    EXPLAIN (ANALYZE, BUFFERS)
+--    SELECT name, aliases, category_id FROM skills 
+--    WHERE aliases @> '["JavaScript"]' OR name ILIKE '%JavaScript%';
+
+-- ============================================================================
+-- MONITORING QUERIES (run after deployment)
+-- ============================================================================
+
+-- Check index usage statistics:
+-- SELECT schemaname, tablename, indexname, idx_scan, idx_tup_read, idx_tup_fetch
+-- FROM pg_stat_user_indexes 
+-- WHERE schemaname = 'public' AND indexname LIKE 'idx_%'
+-- ORDER BY idx_scan DESC;
+
+-- Check slow queries:
+-- SELECT query, calls, mean_exec_time, rows
+-- FROM pg_stat_statements
+-- WHERE query NOT LIKE '%pg_stat_statements%'
+-- ORDER BY mean_exec_time DESC
+-- LIMIT 20;
