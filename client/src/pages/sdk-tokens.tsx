@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Copy, Eye, EyeOff, Key, Loader2 } from 'lucide-react';
 import { tokenApi } from '../lib/tokenApi';
@@ -12,6 +13,7 @@ import type { TokenGenerationResponse } from '../../../shared/schema';
 export default function SdkTokensPage() {
   const { user, loading: authLoading, signInWithGoogle } = useAuth();
   const [tokenName, setTokenName] = useState('');
+  const [expiresIn, setExpiresIn] = useState<'1h' | '24h' | '7d' | '30d' | 'never'>('30d');
   const [generatedToken, setGeneratedToken] = useState<TokenGenerationResponse | null>(null);
   const [showToken, setShowToken] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -30,6 +32,7 @@ export default function SdkTokensPage() {
     try {
       const response = await tokenApi.generateToken({
         name: tokenName.trim(),
+        expiresIn: expiresIn,
         permissions: ['read', 'write']
       });
       
@@ -123,6 +126,22 @@ export default function SdkTokensPage() {
                 onChange={(e) => setTokenName(e.target.value)}
                 disabled={loading}
               />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="expiresIn">Expiration</Label>
+              <Select value={expiresIn} onValueChange={(value: '1h' | '24h' | '7d' | '30d' | 'never') => setExpiresIn(value)} disabled={loading}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select expiration time" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1h">1 hour</SelectItem>
+                  <SelectItem value="24h">24 hours</SelectItem>
+                  <SelectItem value="7d">7 days</SelectItem>
+                  <SelectItem value="30d">30 days</SelectItem>
+                  <SelectItem value="never">Never expires</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <Button 
               onClick={handleGenerateToken} 
