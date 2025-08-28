@@ -80,25 +80,93 @@ const stats: ConnectionStats = {
   forcedConnectionCleanups: 0,
 };
 
-// Query timing tracking
+// Phase 0.1d: Optimized query timing tracking with LRU limits
 const queryTimes: number[] = [];
-const MAX_QUERY_TIME_SAMPLES = 100;
+const MAX_QUERY_TIME_SAMPLES = 50; // Reduced from 100 to save memory
 
-// Connection leak detection and tracking
+// Phase 0.1d: Optimized connection tracking with LRU limits
 interface TrackedConnection {
   id: string;
   acquiredAt: number;
   lastUsedAt: number;
-  stackTrace: string;
+  stackTrace?: string; // Optional - only for leak investigation
   queryCount: number;
   isHealthCheck: boolean;
   warningIssued: boolean;
 }
 
-const trackedConnections = new Map<string, TrackedConnection>();
+// LRU-limited connection tracking for performance
+class LRUConnectionTracker {
+  private connections = new Map<string, TrackedConnection>();
+  private readonly maxSize: number;
+  private readonly trackStackTrace: boolean;
+
+  constructor(maxSize: number = 50, trackStackTrace: boolean = false) {
+    this.maxSize = maxSize;
+    this.trackStackTrace = trackStackTrace;
+  }
+
+  set(connectionId: string, connection: TrackedConnection): void {
+    // Remove oldest entry if at capacity (LRU eviction)
+    if (this.connections.size >= this.maxSize && !this.connections.has(connectionId)) {
+      const firstKey = this.connections.keys().next().value;
+      if (firstKey) {
+        this.connections.delete(firstKey);
+      }
+    }
+
+    // Add stack trace only if enabled (reduces memory overhead)
+    if (!this.trackStackTrace) {
+      connection.stackTrace = undefined;
+    }
+
+    this.connections.set(connectionId, connection);
+  }
+
+  get(connectionId: string): TrackedConnection | undefined {
+    const connection = this.connections.get(connectionId);
+    if (connection) {
+      // Move to end (most recently used)
+      this.connections.delete(connectionId);
+      this.connections.set(connectionId, connection);
+    }
+    return connection;
+  }
+
+  delete(connectionId: string): boolean {
+    return this.connections.delete(connectionId);
+  }
+
+  entries(): IterableIterator<[string, TrackedConnection]> {
+    return this.connections.entries();
+  }
+
+  get size(): number {
+    return this.connections.size;
+  }
+
+  clear(): void {
+    this.connections.clear();
+  }
+
+  // Phase 0.1d: LRU performance metrics
+  getStats(): { size: number; maxSize: number; utilizationPercent: number } {
+    return {
+      size: this.connections.size,
+      maxSize: this.maxSize,
+      utilizationPercent: Math.round((this.connections.size / this.maxSize) * 100)
+    };
+  }
+}
+
+const trackedConnections = new LRUConnectionTracker(
+  50, // Max 50 tracked connections (LRU limit)
+  process.env.NODE_ENV === 'development' // Stack traces only in development
+);
+
 const CONNECTION_LEAK_THRESHOLD = 60000; // 60 seconds
 const CONNECTION_STALE_THRESHOLD = 300000; // 5 minutes
-const CONNECTION_CLEANUP_INTERVAL = 30000; // 30 seconds
+const CONNECTION_CLEANUP_INTERVAL = 45000; // 45 seconds (reduced frequency)
 
 let connectionCleanupTimer: NodeJS.Timeout | null = null;
 let connectionIdCounter = 0;
@@ -112,9 +180,12 @@ function generateConnectionId(): string {
 
 /**
  * Track a connection acquisition for leak detection
+ * Phase 0.1d: Optimized with conditional stack trace collection
  */
 function trackConnectionAcquisition(connectionId: string, isHealthCheck = false): void {
-  const stackTrace = new Error().stack || 'No stack trace available';
+  const stackTrace = (process.env.NODE_ENV === 'development') 
+    ? new Error().stack || 'No stack trace available'
+    : undefined;
   
   trackedConnections.set(connectionId, {
     id: connectionId,
@@ -126,10 +197,14 @@ function trackConnectionAcquisition(connectionId: string, isHealthCheck = false)
     warningIssued: false,
   });
   
-  logger.debug(`Connection acquired and tracked: ${connectionId}`, {
-    totalTracked: trackedConnections.size,
-    isHealthCheck,
-  });
+  // Reduced logging frequency for performance
+  if (process.env.NODE_ENV === 'development' || trackedConnections.size % 10 === 0) {
+    logger.debug(`Connection acquired and tracked: ${connectionId}`, {
+      totalTracked: trackedConnections.size,
+      maxTracked: 50, // LRU limit
+      isHealthCheck,
+    });
+  }
 }
 
 /**
@@ -170,6 +245,7 @@ function trackConnectionRelease(connectionId: string): void {
 
 /**
  * Detect and handle connection leaks
+ * Phase 0.1d: Optimized cleanup with batching and reduced overhead
  */
 async function detectAndHandleConnectionLeaks(): Promise<void> {
   if (!pool) return;
@@ -177,24 +253,37 @@ async function detectAndHandleConnectionLeaks(): Promise<void> {
   const now = Date.now();
   const leakedConnections: TrackedConnection[] = [];
   const staleConnections: TrackedConnection[] = [];
+  let maxAge = 0;
   
-  for (const [id, tracked] of trackedConnections) {
+  // Single pass through connections for efficiency
+  for (const [id, tracked] of trackedConnections.entries()) {
     const age = now - tracked.acquiredAt;
     const timeSinceLastUse = now - tracked.lastUsedAt;
     
     // Skip health check connections (they're expected to be short-lived)
     if (tracked.isHealthCheck) continue;
     
+    // Update longest connection age metric in same pass
+    if (age > maxAge) {
+      maxAge = age;
+    }
+    
     // Detect potential leaks
     if (age > CONNECTION_LEAK_THRESHOLD) {
       if (!tracked.warningIssued) {
-        logger.warn(`Potential connection leak detected`, {
+        // Optimized logging - only include stack trace if available and in development
+        const logData: any = {
           connectionId: id,
           age,
           timeSinceLastUse,
           queryCount: tracked.queryCount,
-          stackTrace: tracked.stackTrace.split('\n').slice(0, 5).join('\n'), // First 5 lines only
-        });
+        };
+        
+        if (tracked.stackTrace && process.env.NODE_ENV === 'development') {
+          logData.stackTrace = tracked.stackTrace.split('\n').slice(0, 3).join('\n'); // Reduced to 3 lines
+        }
+        
+        logger.warn(`Potential connection leak detected`, logData);
         tracked.warningIssued = true;
       }
       
@@ -206,12 +295,10 @@ async function detectAndHandleConnectionLeaks(): Promise<void> {
         staleConnections.push(tracked);
       }
     }
-    
-    // Update longest connection age metric
-    if (age > stats.longestConnectionAge) {
-      stats.longestConnectionAge = age;
-    }
   }
+  
+  // Update stats after single pass
+  stats.longestConnectionAge = maxAge;
   
   // Handle stale connections
   if (staleConnections.length > 0) {
@@ -1229,6 +1316,8 @@ export function getConnectionStats(): ConnectionStats & {
       forcedCleanups: stats.forcedConnectionCleanups,
       currentlyTracked: trackedConnections.size,
     },
+    // Phase 0.1d: LRU tracking performance metrics
+    lruTracker: trackedConnections.getStats(),
   };
 }
 
