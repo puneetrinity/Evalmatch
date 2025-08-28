@@ -86,11 +86,11 @@ export function UserMenu() {
           <User className="mr-2 h-4 w-4" />
           <span>Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setLocation('/my-resumes')}>
           <FileText className="mr-2 h-4 w-4" />
           <span>My Resumes</span>
         </DropdownMenuItem>
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setLocation('/my-analyses')}>
           <BarChart3 className="mr-2 h-4 w-4" />
           <span>My Analyses</span>
         </DropdownMenuItem>

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useCreateJobDescription } from "@/hooks/use-job-descriptions";
+import { apiRequest } from "@/lib/queryClient";
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
 import StepProgress from "@/components/step-progress";
@@ -9,7 +10,6 @@ import { useSteps } from "@/hooks/use-steps";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { JobCreateRequest } from "@shared/api-contracts";
 
 export default function JobDescriptionPage() {
   const { toast } = useToast();
@@ -20,42 +20,43 @@ export default function JobDescriptionPage() {
   // State for form fields
   const [jobTitle, setJobTitle] = useState("");
   const [jobDescription, setJobDescription] = useState("");
-  const [requirements, setRequirements] = useState<string[]>([]);
-  const [newRequirement, setNewRequirement] = useState("");
   
-  // Use the custom hook for job description creation
-  const createJobMutation = useCreateJobDescription();
-
-  // Handle successful job creation
-  const handleJobCreated = (jobData: any) => {
-    // Navigate to bias detection page with job ID
-    const jobId = jobData.jobDescription?.id;
-    console.log('Job created with ID:', jobId);
-    
-    if (jobId) {
-      setLocation(`/bias-detection/${jobId}`);
-    } else {
-      console.error('Job ID not found in response:', jobData);
+  // Submit job description mutation
+  const submitMutation = useMutation({
+    mutationFn: async (data: { title: string; description: string }) => {
+      return apiRequest("POST", "/api/job-descriptions", data);
+    },
+    onSuccess: async (response) => {
+      const result = await response.json();
+      
       toast({
-        title: "Navigation error",
-        description: "Job created but couldn't navigate to next step. Please try again.",
+        title: "Job description submitted",
+        description: "Your job description has been saved successfully.",
+      });
+      
+      // Navigate to bias detection page with job ID
+      const jobId = result.data?.jobDescription?.id;
+      console.log('Job created with ID:', jobId);
+      
+      if (jobId) {
+        setLocation(`/bias-detection/${jobId}`);
+      } else {
+        console.error('Job ID not found in response:', result);
+        toast({
+          title: "Navigation error",
+          description: "Job created but couldn't navigate to next step. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Submission failed",
+        description: error.message,
         variant: "destructive",
       });
-    }
-  };
-
-  // Add requirement to list
-  const addRequirement = () => {
-    if (newRequirement.trim() && !requirements.includes(newRequirement.trim())) {
-      setRequirements(prev => [...prev, newRequirement.trim()]);
-      setNewRequirement("");
-    }
-  };
-
-  // Remove requirement from list
-  const removeRequirement = (index: number) => {
-    setRequirements(prev => prev.filter((_, i) => i !== index));
-  };
+    },
+  });
   
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
@@ -80,16 +81,10 @@ export default function JobDescriptionPage() {
       return;
     }
     
-    // Prepare job data for API
-    const jobData: JobCreateRequest = {
+    // Submit form
+    submitMutation.mutate({
       title: jobTitle,
       description: jobDescription,
-      ...(requirements.length > 0 && { requirements }),
-    };
-    
-    // Submit form using the custom hook
-    createJobMutation.mutate(jobData, {
-      onSuccess: handleJobCreated,
     });
   };
   
@@ -121,72 +116,23 @@ export default function JobDescriptionPage() {
                 />
               </div>
               
-              <div className="mb-6">
+              <div>
                 <label htmlFor="jobDescription" className="block text-sm font-medium text-gray-700 mb-1">
                   Job Description
                 </label>
                 <Textarea
                   id="jobDescription"
-                  rows={8}
+                  rows={12}
                   placeholder="Paste the full job description here..."
                   value={jobDescription}
                   onChange={(e) => setJobDescription(e.target.value)}
                   className="w-full"
                 />
               </div>
-
-              {/* Requirements Section */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Requirements (Optional)
-                </label>
-                
-                {/* Add new requirement */}
-                <div className="flex gap-2 mb-3">
-                  <Input
-                    placeholder="e.g. 5+ years of React experience"
-                    value={newRequirement}
-                    onChange={(e) => setNewRequirement(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addRequirement();
-                      }
-                    }}
-                    className="flex-1"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={addRequirement}
-                    disabled={!newRequirement.trim()}
-                  >
-                    Add
-                  </Button>
-                </div>
-                
-                {/* List of requirements */}
-                {requirements.length > 0 && (
-                  <div className="space-y-2 mb-4">
-                    {requirements.map((req, index) => (
-                      <div key={index} className="flex items-center justify-between bg-blue-50 px-3 py-2 rounded-md">
-                        <span className="text-sm">{req}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeRequirement(index)}
-                          className="text-red-500 hover:text-red-700 text-sm ml-2"
-                        >
-                          <i className="fas fa-times"></i>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                <div className="flex items-center text-sm text-gray-500 mt-2">
-                  <i className="fas fa-info-circle mr-2"></i>
-                  <span>Our AI will extract additional skills and requirements automatically from the description</span>
-                </div>
+              
+              <div className="flex items-center text-sm text-gray-500 mt-2">
+                <i className="fas fa-info-circle mr-2"></i>
+                <span>Our AI will extract key skills and requirements automatically</span>
               </div>
             </div>
             
@@ -201,9 +147,9 @@ export default function JobDescriptionPage() {
               
               <Button
                 type="submit"
-                disabled={createJobMutation.isPending}
+                disabled={submitMutation.isPending}
               >
-                {createJobMutation.isPending ? (
+                {submitMutation.isPending ? (
                   <>
                     <i className="fas fa-spinner animate-spin mr-2"></i>
                     Analyzing...

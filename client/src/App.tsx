@@ -19,6 +19,8 @@ const BiasDetectionPage = lazy(() => import("./pages/bias-detection"));
 const AnalysisPage = lazy(() => import("./pages/analysis"));
 const InterviewPage = lazy(() => import("./pages/interview"));
 const SdkTokensPage = lazy(() => import("./pages/sdk-tokens"));
+const MyResumesPage = lazy(() => import("./pages/my-resumes"));
+const MyAnalysesPage = lazy(() => import("./pages/my-analyses"));
 const PrivacyPolicy = lazy(() => import("./pages/privacy-policy"));
 const TermsOfService = lazy(() => import("./pages/terms-of-service"));
 const Feedback = lazy(() => import("./pages/feedback"));
@@ -65,6 +67,20 @@ function Router() {
         <RequireAuth>
           <Suspense fallback={<PageLoader />}>
             <SdkTokensPage />
+          </Suspense>
+        </RequireAuth>
+      </Route>
+      <Route path="/my-resumes">
+        <RequireAuth>
+          <Suspense fallback={<PageLoader />}>
+            <MyResumesPage />
+          </Suspense>
+        </RequireAuth>
+      </Route>
+      <Route path="/my-analyses">
+        <RequireAuth>
+          <Suspense fallback={<PageLoader />}>
+            <MyAnalysesPage />
           </Suspense>
         </RequireAuth>
       </Route>
