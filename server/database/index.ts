@@ -1740,7 +1740,7 @@ export function getConnectionLeakDetails(): {
   let healthCheckConnections = 0;
   let oldestAge = 0;
 
-  for (const [id, tracked] of trackedConnections) {
+  for (const [id, tracked] of trackedConnections.entries()) {
     const age = now - tracked.acquiredAt;
     const timeSinceLastUse = now - tracked.lastUsedAt;
     const isPotentialLeak = age > CONNECTION_LEAK_THRESHOLD;
