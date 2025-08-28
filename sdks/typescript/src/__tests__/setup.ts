@@ -3,7 +3,7 @@
  * Configures test environment, mocks, and utilities
  */
 
-import { beforeAll, afterAll, afterEach, vi } from 'vitest'
+import { beforeAll, afterAll, afterEach, vi, expect } from 'vitest'
 import { server } from './mocks/server'
 import { handlers } from './mocks/handlers'
 

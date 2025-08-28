@@ -4,9 +4,10 @@
  */
 
 import { http, HttpResponse } from 'msw'
+import type { HttpHandler } from 'msw'
 
 // Mock API responses
-export const handlers = [
+export const handlers: HttpHandler[] = [
   // Health endpoint
   http.get('https://api.test.evalmatch.com/health', ({ request }) => {
     console.log('MSW intercepted:', request.method, request.url)
