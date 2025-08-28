@@ -13,7 +13,6 @@ import IORedis from 'ioredis';
 // Single Redis instance for entire application
 export const redis = new IORedis(process.env.REDIS_URL!, {
   enableReadyCheck: true,
-  maxRetriesPerRequest: 1,
   connectTimeout: 2000,
   lazyConnect: false,
   autoResubscribe: true,
