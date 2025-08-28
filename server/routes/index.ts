@@ -5,6 +5,7 @@
 
 import { Express } from "express";
 import healthRoutes from "./health";
+import systemHealthRoutes from "./system-health";
 import userRoutes from "./user";
 import resumeRoutes from "./resumes";
 import jobRoutes from "./jobs";
@@ -38,6 +39,7 @@ function registerV1Routes(app: Express): void {
 
   // Health and system monitoring routes
   app.use("/api/v1", healthRoutes);
+  app.use("/api/v1/health", systemHealthRoutes);
   app.use("/api/v1/monitoring", monitoringRouter);
 
   // User and authentication routes
@@ -76,6 +78,7 @@ function registerLegacyRoutes(app: Express): void {
 
   // Health and system monitoring routes
   app.use("/api", healthRoutes);
+  app.use("/api/health", systemHealthRoutes);
   app.use("/api/monitoring", monitoringRouter);
 
   // User and authentication routes

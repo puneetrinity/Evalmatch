@@ -40,6 +40,23 @@ export default app;
 // Trust proxy for Railway deployment (needed for rate limiting and real IP detection)
 app.set('trust proxy', 1); // Use 1 for single proxy (Railway)
 
+// SURGICAL FIX: Apply fast-path middleware BEFORE any expensive middleware
+import { requestTimestampMiddleware, fastPathMiddleware } from './middleware/fast-path';
+import { cachedHealthMiddleware, startHealthSampling } from './middleware/cached-health';
+import { routeTimeoutMiddleware } from './middleware/route-timeouts';
+
+// Step 1: Request timestamp (lightweight)
+app.use(requestTimestampMiddleware);
+
+// Step 2: Fast path exemptions (intercepts critical endpoints immediately)
+app.use(fastPathMiddleware);
+
+// Step 3: Cached health responses (eliminates expensive health probes)
+app.use(cachedHealthMiddleware);
+
+// Step 4: Route-specific timeouts (prevents long-running requests)
+app.use(routeTimeoutMiddleware);
+
 // Generate CSP nonce for each request
 app.use((req, res, next) => {
   res.locals.nonce = Math.random().toString(36).substring(2, 15);
@@ -161,6 +178,17 @@ if (process.env.NODE_ENV === "development") {
   try {
     logger.info('🚀 Starting Evalmatch Application...');
 
+    // SURGICAL FIX: Initialize Redis singleton early (before other services)
+    logger.info('🔗 Initializing Redis singleton connection...');
+    const { initializeRedisConnection } = await import('./lib/redis-singleton');
+    await initializeRedisConnection().catch(error => {
+      logger.warn('Redis initialization failed, continuing without Redis:', error.message);
+    });
+
+    // SURGICAL FIX: Start cached health sampling system
+    logger.info('💾 Starting cached health sampling system...');
+    startHealthSampling();
+
     // CRITICAL: Validate environment variables first - fail fast if configuration is invalid
     logger.info('🔍 Validating environment configuration...');
     const envValidation = validateEnvironmentOrExit();
@@ -197,6 +225,20 @@ if (process.env.NODE_ENV === "development") {
           logger.info('✅ Queue Manager initialization completed successfully');
         } catch (error) {
           logger.error('Queue Manager initialization failed:', error);
+        }
+        
+        // Phase 2.2 & 2.3: Initialize service level manager and metrics collector
+        try {
+          logger.info('📊 Initializing Service Level Manager and Metrics Collector...');
+          const { serviceLevelManager } = await import('./lib/service-level-manager');
+          const { metricsCollector } = await import('./lib/metrics-collector');
+          
+          // Start periodic service level adjustment
+          serviceLevelManager.startPeriodicAdjustment();
+          
+          logger.info('✅ Service Level Manager and Metrics Collector initialized');
+        } catch (error) {
+          logger.error('Service Level Manager initialization failed:', error);
           logger.warn('Application will continue without queue functionality');
         }
         
@@ -316,6 +358,17 @@ if (process.env.NODE_ENV === "development") {
             logger.warn('Error stopping skill learning scheduler:', error);
           }
         }
+
+        // SURGICAL FIX: Stop health sampling and close Redis connection
+        logger.info('Stopping health sampling system...');
+        const { stopHealthSampling } = await import('./middleware/cached-health');
+        stopHealthSampling();
+
+        logger.info('Closing Redis singleton connection...');
+        const { closeRedisConnection } = await import('./lib/redis-singleton');
+        await closeRedisConnection().catch(error => {
+          logger.warn('Error closing Redis connection:', error);
+        });
 
         // Close database connections gracefully
         if (config.database.enabled) {

@@ -29,11 +29,13 @@ const BASE_URL = 'https://evalmatch-ai-production-be7c.up.railway.app';
 export default function () {
   // Test different endpoints to simulate real usage
   const endpoints = [
-    { url: `${BASE_URL}/health`, weight: 10, name: 'health_check' },
-    { url: `${BASE_URL}/api/v1/health`, weight: 15, name: 'api_health' },
-    { url: `${BASE_URL}/ping`, weight: 20, name: 'ping' },
-    { url: `${BASE_URL}/api/v1/monitoring/health`, weight: 10, name: 'monitoring_health' },
-    { url: `${BASE_URL}/api/v1/db-status`, weight: 5, name: 'db_status' },
+    { url: `${BASE_URL}/api/health`, weight: 10, name: 'health_check' },
+    { url: `${BASE_URL}/api/health/detailed`, weight: 8, name: 'detailed_health' },
+    { url: `${BASE_URL}/api/health/service-level`, weight: 5, name: 'service_level' },
+    { url: `${BASE_URL}/api/version`, weight: 10, name: 'version_check' },
+    { url: `${BASE_URL}/api/monitoring/metrics`, weight: 7, name: 'metrics' },
+    { url: `${BASE_URL}/api/debug/status`, weight: 5, name: 'debug_status' },
+    { url: `${BASE_URL}/api/debug/db-status`, weight: 5, name: 'db_status' },
   ];
 
   // Randomly select endpoint based on weights

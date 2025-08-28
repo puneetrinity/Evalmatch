@@ -241,6 +241,22 @@ export class CacheManager {
   }
 
   /**
+   * Get keys matching a pattern (for cache analysis)
+   */
+  async keys(pattern: string): Promise<string[]> {
+    if (!this.isConnected || !this.redis) {
+      return [];
+    }
+
+    try {
+      return await this.redis.keys(pattern);
+    } catch (error) {
+      logger.warn("Cache keys lookup failed", { pattern, error });
+      return [];
+    }
+  }
+
+  /**
    * PERFORMANCE FIX: Start periodic cleanup to prevent unbounded cache growth
    */
   private startPeriodicCleanup(): void {

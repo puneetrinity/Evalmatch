@@ -1,13 +1,20 @@
 import rateLimit from "express-rate-limit";
 import { logger } from "../lib/logger";
+import { shouldBypassMiddleware, conditionalMiddleware } from "./fast-path";
 
-// Create test-safe rate limiter configuration
+// Create test-safe rate limiter configuration with fast-path bypass
 const createTestSafeRateLimiter = (options: any) => {
   // Skip rate limiting entirely in test environment
   if (process.env.NODE_ENV === "test") {
-  return (_req: any, _res: any, next: any) => next();
+    return (_req: any, _res: any, next: any) => next();
   }
-  return rateLimit(options);
+  
+  const limiter = rateLimit(options);
+  
+  // Wrap with conditional middleware to bypass fast-path endpoints
+  return conditionalMiddleware((req, res, next) => {
+    limiter(req, res, next);
+  });
 };
 
 // Auth endpoints rate limiter - stricter limits to prevent brute force
@@ -32,19 +39,21 @@ export const authRateLimiter = createTestSafeRateLimiter({
   },
 });
 
-// General API rate limiter - more permissive
+// SURGICAL FIX: Static API rate limiter - no adaptive logic, no async per-request work
 export const apiRateLimiter = createTestSafeRateLimiter({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 100, // 100 requests per minute
+  max: 1000, // INCREASED: 1000 requests per minute (static, no system-load awareness)
   standardHeaders: true,
   legacyHeaders: false,
-  // Removed trustProxy: true since Express app sets it globally
+  // Skip expensive IP resolution and async work
+  skipSuccessfulRequests: false,
+  skipFailedRequests: false,
+  // Fast static handler - no async logging
   handler: (req: any, res: any) => {
-    logger.warn(`API rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
       error: "Too many requests",
-      message: "Please slow down your requests",
-      retryAfter: 60, // seconds
+      message: "Please slow down your requests", 
+      retryAfter: 60,
       code: "RATE_LIMIT_EXCEEDED"
     });
   },

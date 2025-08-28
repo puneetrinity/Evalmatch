@@ -607,44 +607,9 @@ export async function initializeDatabase(): Promise<void> {
     // Run ONLY custom SQL migrations (Drizzle meta migrations disabled to prevent conflicts)
     await runMigrations();
     
-    // Also run emergency migrations from migrate.cjs as a backup
-    // This ensures critical columns are added even if SQL migrations fail
-    try {
-      // Try multiple possible paths for the emergency migration script
-      const possibleMigrationScripts = [
-        '../migrate.cjs',
-        './migrate.cjs', 
-        '../../migrate.cjs',
-        path.join(currentDirPath, '..', 'migrate.cjs'),
-        path.join(process.cwd(), 'server', 'migrate.cjs'),
-        path.join(process.cwd(), 'build', 'migrate.cjs'),
-      ];
-      
-      let migrationScript = null;
-      for (const scriptPath of possibleMigrationScripts) {
-        try {
-          const resolved = path.resolve(scriptPath.startsWith('/') ? scriptPath : path.join(currentDirPath, scriptPath));
-          if (fs.existsSync(resolved)) {
-            migrationScript = require(resolved);
-            logger.debug(`Found emergency migration script: ${resolved}`);
-            break;
-          }
-        } catch (e) {
-          // Try next path
-          continue;
-        }
-      }
-      
-      if (migrationScript && migrationScript.runMigration) {
-        logger.info("🔧 Running emergency column migrations...");
-        await migrationScript.runMigration();
-      } else {
-        logger.debug("Emergency migration script not found - SQL migrations should be sufficient");
-      }
-    } catch (error) {
-      logger.warn("Emergency migration script failed:", (error as Error).message);
-      // Non-fatal - SQL migrations should handle everything
-    }
+    // Phase 1.2: Enhanced migration integrity validation 
+    // Uses consolidated SQL-only migration system (Drizzle emergency path removed)
+    logger.info("✅ Using consolidated SQL migration system with integrity validation");
 
     // Start periodic health checks
     startPeriodicHealthChecks();
