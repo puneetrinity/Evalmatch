@@ -1,4 +1,7 @@
 import { logger } from "./logger";
+import { emitAnalysisMetrics } from "./metrics";
+import { createAnalysisAudit, persistAuditTrail } from "./audit-trail";
+import { getProviderVersion } from "./provider-calibration";
 import {
   AnalyzeResumeResponse,
   AnalyzeJobDescriptionResponse,
@@ -31,6 +34,10 @@ import {
   BiasDetectionResult,
   CandidateProfile,
 } from "./bias-detection";
+import { 
+  isProviderResultFailed,
+  generateProviderMetadata 
+} from "./provider-calibration";
 
 // Define missing types locally until they are implemented
 interface JobContext {
@@ -97,7 +104,7 @@ import {
 export const HYBRID_SCORING_WEIGHTS: ScoringWeights = UNIFIED_SCORING_WEIGHTS;
 
 interface HybridMatchResult {
-  matchPercentage: number;
+  matchPercentage: number | null; // ✅ CRITICAL: Allow null for abstain state
   matchedSkills: SkillMatch[];
   missingSkills: string[];
   candidateStrengths: string[];
@@ -113,9 +120,19 @@ interface HybridMatchResult {
     semantic: number;
     overall: number;
   };
-  analysisMethod: "hybrid" | "ml_only" | "llm_only";
+  analysisMethod: "hybrid" | "ml_only" | "llm_only" | "abstain";
   confidence: number;
   matchInsights?: MatchInsights;
+  // ✅ CRITICAL: Track actual normalized weights used in blending
+  actualWeights?: {
+    ml: number;
+    llm: number;
+    wasNormalized: boolean;
+  };
+  // ✅ CRITICAL: Add abstain state support
+  status?: 'SUCCESS' | 'LOW_CONFIDENCE' | 'INSUFFICIENT_EVIDENCE';
+  abstainReason?: string;
+  providerMetadata?: Record<string, any>;
   // Task 8: Add match quality level based on unified thresholds
   matchQuality?: 'excellent' | 'strong' | 'moderate' | 'weak' | 'poor';
   // Task 6: Add validation metadata for comprehensive error handling
@@ -252,7 +269,7 @@ export class HybridMatchAnalyzer {
           const biasDetection = await detectMatchingBias(
             candidateProfile,
             jobProfile,
-            result.matchPercentage,
+            result.matchPercentage ?? 0, // Use 0 for abstain cases in bias detection
             result.scoringDimensions
           );
 
@@ -264,7 +281,7 @@ export class HybridMatchAnalyzer {
           } as FairnessMetrics;
 
           // Task 4: Apply bias adjustment to match score (integrated into main pipeline)
-          if (biasDetection.hasBias) {
+          if (biasDetection.hasBias && result.matchPercentage !== null) {
             const originalScore = result.matchPercentage;
             result.matchPercentage = applyBiasAdjustment(
               originalScore,
@@ -276,7 +293,7 @@ export class HybridMatchAnalyzer {
               originalScore,
               adjustedScore: result.matchPercentage,
               biasScore: biasDetection.biasScore,
-              adjustment: originalScore - result.matchPercentage
+              adjustment: originalScore - (result.matchPercentage ?? 0)
             });
           }
 
@@ -294,7 +311,7 @@ export class HybridMatchAnalyzer {
       // Generate user-focused match insights 
       try {
         const insightsInput: MatchAnalysisInput = {
-          matchPercentage: result.matchPercentage,
+          matchPercentage: result.matchPercentage ?? 0, // Use 0 for abstain cases in insights
           matchedSkills: result.matchedSkills,
           missingSkills: result.missingSkills,
           candidateStrengths: result.candidateStrengths,
@@ -415,6 +432,63 @@ export class HybridMatchAnalyzer {
         processingTime,
       });
 
+      // Emit metrics for monitoring
+      const analysisStatus = result.matchPercentage === null 
+        ? 'INSUFFICIENT_EVIDENCE' 
+        : result.confidence < 0.5 
+          ? 'LOW_CONFIDENCE' 
+          : 'SUCCESS';
+      
+      emitAnalysisMetrics({
+        status: analysisStatus,
+        score: result.matchPercentage,
+        confidence: result.confidence,
+        timings: {
+          totalMs: processingTime,
+        },
+        provider: result.analysisMethod,
+        model: 'hybrid-ensemble',
+      });
+
+      // Generate and persist audit trail
+      if (resumeText && jobText) {
+        // ✅ CRITICAL: Get locked provider versions for audit trail
+        const primaryProvider = result.analysisMethod === 'hybrid' ? 'groq' : result.analysisMethod.replace('_only', '');
+        const providerVersion = getProviderVersion(primaryProvider);
+        
+        const audit = createAnalysisAudit({
+          resumeText,
+          jobText,
+          mlScore: null, // TODO: Extract from result metadata
+          llmScore: null, // TODO: Extract from result metadata
+          biasAdjustedLLMScore: null, // TODO: Extract from result metadata
+          blendedScore: result.matchPercentage,
+          finalScore: result.matchPercentage,
+          confidence: result.confidence,
+          mlWeight: result.actualWeights?.ml || 0.3, // Use actual normalized weights
+          llmWeight: result.actualWeights?.llm || 0.7,
+          dimensionWeights: {
+            skills: 0.55,
+            experience: 0.30,
+            education: 0.10,
+            semantic: 0.05,
+          },
+          // ✅ CRITICAL: Use locked provider/prompt versions
+          provider: providerVersion?.provider || result.analysisMethod,
+          model: providerVersion?.model || 'hybrid-ensemble',
+          promptVersion: providerVersion?.promptVersion,
+          calibrationVersion: providerVersion?.calibrationVersion,
+          isAbstain: result.matchPercentage === null,
+          contaminatedSkills: [], // TODO: Extract from contamination detection
+          timingMs: processingTime,
+        });
+        
+        // Persist audit trail asynchronously (don't block return)
+        persistAuditTrail(audit).catch(err => {
+          logger.error('Failed to persist audit trail:', err);
+        });
+      }
+
       return result;
     } catch (error) {
       logger.error("🚨 HYBRID MATCH ANALYSIS FAILED 🚨", {
@@ -478,18 +552,64 @@ export class HybridMatchAnalyzer {
       this.runLLMAnalysis(resumeAnalysis, jobAnalysis, userTier, resumeText, jobText),
     ]);
 
-    // Blend results using confidence-weighted approach
-    const blendedResult = this.blendResults(mlResult, llmResult);
+    // ✅ CRITICAL: Run bias detection before blending
+    const candidateProfile: CandidateProfile = {
+      name: resumeAnalysis.analyzedData?.name || resumeAnalysis.name || "Unknown",
+      skills: resumeAnalysis.skills || resumeAnalysis.analyzedData?.skills || [],
+      experience: typeof resumeAnalysis.experience === 'string' ? 
+        resumeAnalysis.experience : 
+        (resumeAnalysis.analyzedData?.experience || ""),
+      education: Array.isArray(resumeAnalysis.education) ? 
+        resumeAnalysis.education.join(", ") :
+        (Array.isArray(resumeAnalysis.analyzedData?.education) ? 
+          resumeAnalysis.analyzedData.education.join(", ") : 
+          (resumeAnalysis.analyzedData?.education || "")),
+      technologies: [],
+      industries: [],
+      location: "",
+      resumeText: resumeText,
+    };
+
+    const jobProfile: JobProfile = {
+      requiredSkills: jobAnalysis.requiredSkills || jobAnalysis.analyzedData?.requiredSkills || jobAnalysis.skills || [],
+      experience: jobAnalysis.experience || "",
+      technologies: [],
+      industries: [],
+      jobText,
+    };
+
+    // Get preliminary score for bias detection (using LLM score)
+    const biasResult = await detectMatchingBias(
+      candidateProfile,
+      jobProfile,
+      llmResult.matchPercentage,
+      {
+        skills: Math.round(llmResult.matchPercentage * 0.55),
+        experience: Math.round(llmResult.matchPercentage * 0.30),
+        education: Math.round(llmResult.matchPercentage * 0.10),
+        semantic: Math.round(llmResult.matchPercentage * 0.05),
+        overall: llmResult.matchPercentage,
+      }
+    );
+
+    // ✅ CRITICAL: Blend results with bias adjustment applied to LLM score before blending
+    const blendedResult = this.blendResults(mlResult, llmResult, biasResult);
 
     return {
       ...blendedResult,
       analysisMethod: "hybrid",
+      biasDetection: biasResult,
+      fairnessMetrics: {
+        biasConfidenceScore: Math.round(100 - biasResult.biasScore),
+        potentialBiasAreas: biasResult.detectedBiases.map(bias => bias.type),
+        fairnessAssessment: biasResult.explanation
+      },
       scoringDimensions: {
         skills: mlResult.dimensionScores.skills,
         experience: mlResult.dimensionScores.experience,
         education: mlResult.dimensionScores.education,
         semantic: mlResult.dimensionScores.semantic,
-        overall: blendedResult.matchPercentage,
+        overall: blendedResult.matchPercentage ?? 0, // Use 0 for abstain cases in dimensions
       },
     };
   }
@@ -587,10 +707,11 @@ export class HybridMatchAnalyzer {
       recommendations: llmResult.recommendations,
       confidenceLevel: llmResult.matchPercentage > 80 ? "high" : llmResult.matchPercentage > 60 ? "medium" : "low",
       scoringDimensions: {
-        skills: Math.round(llmResult.matchPercentage * 0.6), // Estimate skills contribution
-        experience: Math.round(llmResult.matchPercentage * 0.3), // Estimate experience contribution
-        education: Math.round(llmResult.matchPercentage * 0.1), // Estimate education contribution
-        semantic: Math.round(llmResult.matchPercentage * 0.1), // Estimate semantic contribution
+        // ✅ CRITICAL FIX: Normalized 4-dimension system (55+30+10+5=100%)
+        skills: Math.round(llmResult.matchPercentage * 0.55), // Skills contribution
+        experience: Math.round(llmResult.matchPercentage * 0.30), // Experience contribution  
+        education: Math.round(llmResult.matchPercentage * 0.10), // Education contribution
+        semantic: Math.round(llmResult.matchPercentage * 0.05), // Semantic contribution
         overall: llmResult.matchPercentage,
       },
       analysisMethod: "llm_only",
@@ -736,6 +857,79 @@ export class HybridMatchAnalyzer {
   }
 
   /**
+   * Calculate total experience from resume analysis data
+   */
+  private calculateTotalExperience(resumeAnalysis: AnalyzeResumeResponse): number {
+    // Try multiple sources for total experience
+    if (typeof (resumeAnalysis as any).totalExperience === 'number') {
+      return (resumeAnalysis as any).totalExperience;
+    }
+    
+    // Calculate from work experience array
+    if (resumeAnalysis.analyzedData?.workExperience?.length) {
+      // Simple heuristic: count unique companies or positions
+      return resumeAnalysis.analyzedData.workExperience.length;
+    }
+    
+    // Parse from experience string
+    if (typeof resumeAnalysis.analyzedData?.experience === 'string') {
+      const experienceText = resumeAnalysis.analyzedData.experience.toLowerCase();
+      const yearMatch = experienceText.match(/(\d+)\s*(?:years?|yrs?)/);
+      if (yearMatch) {
+        return parseInt(yearMatch[1]);
+      }
+    }
+    
+    // Default fallback
+    return 0;
+  }
+
+  /**
+   * ✅ CRITICAL: Normalize ensemble weights to ensure they always sum to 1.0
+   */
+  private normalizeEnsembleWeights(mlWeight: number, llmWeight: number): {ml: number, llm: number, wasNormalized: boolean} {
+    // Clamp to valid ranges first
+    const clampedML = Math.max(0, Math.min(0.4, mlWeight));
+    const clampedLLM = Math.max(0, Math.min(0.8, llmWeight));
+    
+    // Calculate sum and check if normalization needed
+    const sum = clampedML + clampedLLM;
+    const wasNormalized = Math.abs(sum - 1.0) > 1e-6;
+    
+    // Prevent division by zero
+    if (sum === 0) {
+      logger.warn("Both ensemble weights are zero - using default fallback");
+      return { ml: 0.3, llm: 0.7, wasNormalized: true };
+    }
+    
+    // Normalize to ensure exact 1.0 sum
+    const normalizedML = clampedML / sum;
+    const normalizedLLM = clampedLLM / sum;
+    
+    // Validate normalization worked
+    const finalSum = normalizedML + normalizedLLM;
+    if (Math.abs(finalSum - 1.0) > 1e-10) {
+      logger.error("Weight normalization failed", { 
+        normalizedML, 
+        normalizedLLM, 
+        finalSum,
+        originalML: mlWeight,
+        originalLLM: llmWeight
+      });
+      throw new Error(`Weight normalization failed: sum=${finalSum}, expected=1.0`);
+    }
+    
+    if (wasNormalized) {
+      logger.debug("Ensemble weights renormalized", {
+        original: { ml: clampedML, llm: clampedLLM, sum },
+        normalized: { ml: normalizedML, llm: normalizedLLM, sum: finalSum }
+      });
+    }
+    
+    return { ml: normalizedML, llm: normalizedLLM, wasNormalized };
+  }
+
+  /**
    * Calculate ensemble weights based on research-backed approach
    * Based on Spotify Engineering (2024) and Amazon Science (2024) best practices
    */
@@ -796,40 +990,115 @@ export class HybridMatchAnalyzer {
    * Blend ML and LLM results using research-backed ensemble weighting
    * Based on Spotify Engineering (2024) and Amazon Science (2024) best practices
    */
-  private blendResults(mlResult: EnhancedMatchResult, llmResult: LLMAnalysisResult): HybridMatchResult {
+  private blendResults(
+    mlResult: EnhancedMatchResult, 
+    llmResult: LLMAnalysisResult, 
+    biasResult?: BiasDetectionResult
+  ): HybridMatchResult {
     const mlScore = mlResult.totalScore;
     const llmScore = llmResult.matchPercentage;
     const mlConfidence = mlResult.confidence;
     const llmConfidence = llmResult.matchPercentage / 100; // Convert to 0-1 range
 
+    // ✅ CRITICAL FIX: Apply bias adjustment to LLM score BEFORE blending
+    let biasAdjustedLLMScore = llmScore;
+    if (biasResult && biasResult.hasBias) {
+      biasAdjustedLLMScore = applyBiasAdjustment(
+        llmScore,
+        biasResult.biasScore,
+        biasResult.detectedBiases.length > 0 ? 0.9 : 0.5
+      );
+      
+      logger.info("✅ BIAS ADJUSTMENT APPLIED TO LLM SCORE", {
+        originalLLMScore: llmScore,
+        biasAdjustedLLMScore,
+        biasScore: biasResult.biasScore,
+        adjustment: llmScore - biasAdjustedLLMScore
+      });
+    }
+
+    // ✅ CRITICAL: Check for provider failures before blending
+    const mlFailureResult = isProviderResultFailed('ml', mlScore, mlConfidence);
+    const llmFailureResult = isProviderResultFailed('groq', biasAdjustedLLMScore, llmConfidence);
+    
+    // ✅ CRITICAL: Handle both-provider failure with abstain state
+    if (mlFailureResult.failed && llmFailureResult.failed) {
+      logger.warn("🚨 BOTH PROVIDERS FAILED - RETURNING ABSTAIN STATE", {
+        mlScore,
+        mlThreshold: mlFailureResult.threshold,
+        llmScore: biasAdjustedLLMScore,
+        llmThreshold: llmFailureResult.threshold,
+        mlConfidence,
+        llmConfidence,
+        abstainReason: 'both_providers_below_threshold'
+      });
+      
+      return {
+        matchPercentage: null, // ✅ CRITICAL: Explicit null for abstain state
+        matchedSkills: [],
+        missingSkills: [],
+        candidateStrengths: ["Unable to analyze - insufficient provider confidence"],
+        candidateWeaknesses: ["Analysis quality below reliability threshold"],
+        recommendations: ["Please try analyzing again or contact support"],
+        confidenceLevel: "low" as const,
+        analysisMethod: "abstain",
+        confidence: 0,
+        status: 'INSUFFICIENT_EVIDENCE',
+        abstainReason: 'both_providers_failed',
+        scoringDimensions: {
+          skills: 0,
+          experience: 0, 
+          education: 0,
+          semantic: 0,
+          overall: 0,
+        },
+        providerMetadata: {
+          ml: generateProviderMetadata('ml', mlScore, mlConfidence),
+          llm: generateProviderMetadata('groq', biasAdjustedLLMScore, llmConfidence)
+        }
+      };
+    }
+
     // Research-backed weighting strategy (Spotify 2024)
-    const weights = this.calculateEnsembleWeights(mlScore, llmScore, mlConfidence, llmConfidence);
+    const rawWeights = this.calculateEnsembleWeights(mlScore, biasAdjustedLLMScore, mlConfidence, llmConfidence);
+    
+    // ✅ CRITICAL: Normalize weights to ensure exact 1.0 sum
+    const normalizedWeights = this.normalizeEnsembleWeights(rawWeights.ml, rawWeights.llm);
     
     logger.info("🔄 HYBRID BLENDING PROCESS", {
       mlScore,
-      llmScore, 
+      originalLLMScore: llmScore,
+      biasAdjustedLLMScore,
       mlConfidence,
       llmConfidence,
-      weights,
-      method: weights.reason
+      mlFailed: mlFailureResult.failed,
+      llmFailed: llmFailureResult.failed,
+      rawWeights,
+      normalizedWeights,
+      wasRenormalized: normalizedWeights.wasNormalized,
+      method: rawWeights.reason
     });
 
-    // Blend match percentage using research-backed weights
+    // ✅ CRITICAL: Use bias-adjusted LLM score and renormalized weights for blending
     const blendedMatchPercentage = Math.round(
-      mlScore * weights.ml + llmScore * weights.llm
+      mlScore * normalizedWeights.ml + biasAdjustedLLMScore * normalizedWeights.llm
     );
 
     logger.info("✅ HYBRID BLENDING COMPLETED", {
       originalML: mlScore,
       originalLLM: llmScore,
+      biasAdjustedLLM: biasAdjustedLLMScore,
       finalBlended: blendedMatchPercentage,
-      mlWeight: weights.ml,
-      llmWeight: weights.llm,
+      // ✅ CRITICAL: Log the actual normalized weights used
+      mlWeight: normalizedWeights.ml,
+      llmWeight: normalizedWeights.llm,
+      weightSum: normalizedWeights.ml + normalizedWeights.llm,
       improvement: blendedMatchPercentage - mlScore,
+      biasAdjustment: biasResult ? llmScore - biasAdjustedLLMScore : 0,
       failureDetection: {
         mlFailed: mlScore <= 50,
-        llmFailed: llmScore <= 50,
-        semanticPreference: weights.llm > weights.ml
+        llmFailed: biasAdjustedLLMScore <= 50,
+        semanticPreference: normalizedWeights.llm > normalizedWeights.ml
       }
     });
 
@@ -871,6 +1140,12 @@ export class HybridMatchAnalyzer {
       },
       analysisMethod: "hybrid" as const,
       confidence: (mlResult.confidence + (llmResult.matchPercentage / 100)) / 2,
+      // ✅ CRITICAL: Include actual normalized weights used in blending
+      actualWeights: {
+        ml: normalizedWeights.ml,
+        llm: normalizedWeights.llm,
+        wasNormalized: normalizedWeights.wasNormalized,
+      },
     };
   }
 
@@ -995,7 +1270,7 @@ export class HybridMatchAnalyzer {
     }
     
     // Task 8: Apply unified match quality thresholds
-    result.matchQuality = getMatchQualityLevel(result.matchPercentage);
+    result.matchQuality = getMatchQualityLevel(result.matchPercentage ?? 0);
     
     // Task 6: Add comprehensive validation metadata
     result.validationMetadata = {
@@ -1158,8 +1433,8 @@ export class HybridMatchAnalyzer {
       dataQuality: dataQualityFactors.dataQuality
     });
     
-    // Conservative scoring adjustment for low confidence matches
-    if (result.matchPercentage > 70) {
+    // Conservative scoring adjustment for low confidence matches (skip for abstain cases)
+    if (result.matchPercentage !== null && result.matchPercentage > 70) {
       const adjustment = (result.matchPercentage - 70) * 0.3; // Reduce high scores by 30% of excess
       result.matchPercentage = Math.max(70, result.matchPercentage - adjustment);
       logger.info("Applied conservative scoring adjustment", {

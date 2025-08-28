@@ -8,6 +8,11 @@ import { logger } from "../lib/logger";
 import crypto from "crypto";
 import { createAdminService } from "../services/admin-service";
 import { handleRouteResult } from "../lib/route-error-handler";
+import { queueManager } from "../lib/queue-manager";
+import { getCacheStats } from "../lib/cached-ai-operations";
+import { embeddingManager } from "../lib/embedding-manager";
+import { executeQuery } from "../database/index.js";
+import foreignKeyCheckRouter from "./admin/foreign-key-check";
 
 const router = Router();
 
@@ -808,5 +813,217 @@ router.get("/skill-memory/promotions", requireAdmin, async (req, res) => {
     });
   }
 });
+
+// Comprehensive system metrics endpoint - Admin monitoring dashboard
+router.get(
+  "/metrics",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      logger.info("Admin metrics requested", { ip: req.ip });
+
+      const startTime = Date.now();
+      const memoryUsage = process.memoryUsage();
+      
+      // Gather metrics from all systems in parallel
+      const [
+        cacheStats,
+        embeddingStats,
+        queueHealth,
+        dbStats
+      ] = await Promise.allSettled([
+        getCacheStats(),
+        Promise.resolve(embeddingManager.getStats()),
+        queueManager.getSystemHealth().catch(() => null),
+        // Get database stats if available
+        (async () => {
+          try {
+            const { getConnectionStats, getPoolHealth } = await import("../database/index");
+            const [connStats, poolHealth] = await Promise.allSettled([
+              Promise.resolve(getConnectionStats()),
+              Promise.resolve(getPoolHealth()),
+            ]);
+            return {
+              connectionStats: connStats.status === 'fulfilled' ? connStats.value : null,
+              poolHealth: poolHealth.status === 'fulfilled' ? poolHealth.value : null,
+            };
+          } catch {
+            return null;
+          }
+        })()
+      ]);
+
+      const responseTime = Date.now() - startTime;
+      
+      // Calculate system health score (0-100)
+      let healthScore = 100;
+      const issues = [];
+      
+      // Memory health (30 points)
+      const heapUsedMB = Math.round(memoryUsage.heapUsed / 1024 / 1024);
+      if (heapUsedMB > 700) {
+        healthScore -= 30;
+        issues.push(`Critical memory usage: ${heapUsedMB}MB`);
+      } else if (heapUsedMB > 500) {
+        healthScore -= 15;
+        issues.push(`High memory usage: ${heapUsedMB}MB`);
+      }
+
+      // Queue health (25 points)
+      const queueData = queueHealth.status === 'fulfilled' ? queueHealth.value : null;
+      if (queueData?.memory?.pressure === 'CRITICAL') {
+        healthScore -= 25;
+        issues.push('Critical queue memory pressure');
+      } else if (queueData?.memory?.pressure === 'HIGH') {
+        healthScore -= 12;
+        issues.push('High queue memory pressure');
+      }
+
+      // Database health (25 points) 
+      const dbData = dbStats.status === 'fulfilled' ? dbStats.value : null;
+      if (dbData?.poolHealth && !dbData.poolHealth.healthy) {
+        healthScore -= 25;
+        issues.push('Database pool unhealthy');
+      } else if (dbData?.connectionStats?.querySuccessRate && dbData.connectionStats.querySuccessRate < 90) {
+        healthScore -= 15;
+        issues.push(`Low query success rate: ${dbData.connectionStats.querySuccessRate}%`);
+      }
+
+      // Cache health (10 points)
+      const cacheData = cacheStats.status === 'fulfilled' ? cacheStats.value : null;
+      if (!cacheData?.connected) {
+        healthScore -= 10;
+        issues.push('Redis cache disconnected');
+      }
+
+      // Uptime bonus (10 points)
+      const uptimeHours = Math.round(process.uptime() / 3600);
+      if (uptimeHours < 1) {
+        healthScore -= 10;
+        issues.push(`Low uptime: ${uptimeHours}h`);
+      }
+
+      healthScore = Math.max(0, Math.min(100, healthScore));
+
+      const comprehensiveMetrics = {
+        timestamp: new Date().toISOString(),
+        responseTime,
+        healthScore,
+        status: healthScore >= 80 ? 'healthy' : healthScore >= 60 ? 'degraded' : 'critical',
+        issues: issues.length > 0 ? issues : undefined,
+        
+        system: {
+          uptime: {
+            seconds: Math.round(process.uptime()),
+            hours: Math.round(process.uptime() / 3600),
+            formatted: `${Math.floor(process.uptime() / 3600)}h ${Math.floor((process.uptime() % 3600) / 60)}m`
+          },
+          platform: process.platform,
+          nodeVersion: process.version,
+          pid: process.pid,
+          env: process.env.NODE_ENV,
+          railwayEnv: !!process.env.RAILWAY_ENVIRONMENT
+        },
+
+        memory: {
+          heap: {
+            usedMB: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+            totalMB: Math.round(memoryUsage.heapTotal / 1024 / 1024),
+            usage: `${Math.round((memoryUsage.heapUsed / memoryUsage.heapTotal) * 100)}%`,
+            limitMB: Math.round(memoryUsage.heapTotal * 1.5 / 1024 / 1024) // Approximate limit
+          },
+          rss: {
+            mb: Math.round(memoryUsage.rss / 1024 / 1024)
+          },
+          external: {
+            mb: Math.round(memoryUsage.external / 1024 / 1024)
+          },
+          arrayBuffers: {
+            mb: Math.round(memoryUsage.arrayBuffers / 1024 / 1024)
+          },
+          pressure: heapUsedMB > 700 ? 'CRITICAL' : heapUsedMB > 500 ? 'HIGH' : heapUsedMB > 300 ? 'MEDIUM' : 'LOW'
+        },
+
+        queues: queueData ? {
+          status: queueData.redis.connected ? 'connected' : 'disconnected',
+          memoryPressure: queueData.memory.pressure,
+          heapUsedMB: queueData.memory.heapUsedMB,
+          stats: queueData.queues
+        } : { status: 'unavailable', error: 'Queue system not available' },
+
+        cache: {
+          redis: cacheData ? {
+            connected: cacheData.connected,
+            status: cacheData.connected ? 'available' : 'unavailable'
+          } : { connected: false, error: 'Cache stats unavailable' },
+          
+          embeddings: embeddingStats.status === 'fulfilled' ? {
+            size: embeddingStats.value.size,
+            memoryMB: embeddingStats.value.memoryMB,
+            oldestAgeSeconds: embeddingStats.value.oldestAge
+          } : { error: 'Embedding stats unavailable' }
+        },
+
+        database: dbData ? {
+          connectionPool: dbData.connectionStats ? {
+            total: dbData.connectionStats.totalConnections,
+            active: dbData.connectionStats.activeConnections,
+            failed: dbData.connectionStats.failedConnections,
+            successRate: `${dbData.connectionStats.connectionSuccessRate}%`,
+            uptime: Math.round(dbData.connectionStats.uptime / 1000)
+          } : null,
+          
+          queryPerformance: dbData.connectionStats ? {
+            total: dbData.connectionStats.totalQueries,
+            successful: dbData.connectionStats.successfulQueries,
+            failed: dbData.connectionStats.failedQueries,
+            successRate: `${dbData.connectionStats.querySuccessRate}%`,
+            avgTimeMs: Math.round(dbData.connectionStats.queryPerformance.averageTime),
+            maxTimeMs: Math.round(dbData.connectionStats.queryPerformance.maxTime)
+          } : null,
+          
+          poolHealth: dbData.poolHealth ? {
+            healthy: dbData.poolHealth.healthy,
+            connections: dbData.poolHealth.metrics.connections,
+            performance: dbData.poolHealth.metrics.performance,
+            errors: dbData.poolHealth.metrics.errors
+          } : null
+        } : { error: 'Database metrics unavailable' },
+
+        recommendations: healthScore < 80 ? [
+          ...(heapUsedMB > 500 ? ['Consider restarting application to free memory'] : []),
+          ...(queueData?.memory?.pressure === 'HIGH' ? ['Review queue processing efficiency'] : []),
+          ...(dbData?.connectionStats?.querySuccessRate && dbData.connectionStats.querySuccessRate < 95 ? ['Investigate database query failures'] : []),
+          ...(uptimeHours < 1 ? ['Monitor application stability'] : [])
+        ] : undefined
+      };
+
+      res.json({
+        success: true,
+        data: comprehensiveMetrics,
+        timestamp: new Date().toISOString()
+      });
+
+      logger.info('Admin metrics provided', {
+        healthScore,
+        responseTime,
+        heapUsedMB,
+        issueCount: issues.length
+      });
+
+    } catch (error) {
+      logger.error("Failed to generate admin metrics:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to generate system metrics",
+        message: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+);
+
+// Mount foreign key check routes
+router.use(foreignKeyCheckRouter);
 
 export default router;

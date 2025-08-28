@@ -14,7 +14,6 @@ const createTestSafeRateLimiter = (options: any) => {
 export const authRateLimiter = createTestSafeRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // 5 requests per IP per 15 minutes
-  message: "Too many authentication attempts, please try again later",
   standardHeaders: true,
   legacyHeaders: false,
   // Removed trustProxy: true since Express app sets it globally
@@ -24,6 +23,7 @@ export const authRateLimiter = createTestSafeRateLimiter({
       error: "Too many authentication attempts",
       message: "Please wait 15 minutes before trying again",
       retryAfter: 15 * 60, // seconds
+      code: "RATE_LIMIT_EXCEEDED"
     });
   },
   skip: (_req: any) => {
@@ -36,7 +36,6 @@ export const authRateLimiter = createTestSafeRateLimiter({
 export const apiRateLimiter = createTestSafeRateLimiter({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 100, // 100 requests per minute
-  message: "Too many requests, please slow down",
   standardHeaders: true,
   legacyHeaders: false,
   // Removed trustProxy: true since Express app sets it globally
@@ -46,6 +45,7 @@ export const apiRateLimiter = createTestSafeRateLimiter({
       error: "Too many requests",
       message: "Please slow down your requests",
       retryAfter: 60, // seconds
+      code: "RATE_LIMIT_EXCEEDED"
     });
   },
 });
@@ -54,7 +54,6 @@ export const apiRateLimiter = createTestSafeRateLimiter({
 export const uploadRateLimiter = createTestSafeRateLimiter({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 20, // 20 uploads per hour
-  message: "Too many file uploads, please try again later",
   standardHeaders: true,
   legacyHeaders: false,
   // Removed trustProxy: true since Express app sets it globally
@@ -64,6 +63,7 @@ export const uploadRateLimiter = createTestSafeRateLimiter({
       error: "Too many uploads",
       message: "You can upload up to 20 files per hour",
       retryAfter: 60 * 60, // seconds
+      code: "RATE_LIMIT_EXCEEDED"
     });
   },
   skip: (_req: any) => {

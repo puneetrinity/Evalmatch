@@ -80,25 +80,93 @@ const stats: ConnectionStats = {
   forcedConnectionCleanups: 0,
 };
 
-// Query timing tracking
+// Phase 0.1d: Optimized query timing tracking with LRU limits
 const queryTimes: number[] = [];
-const MAX_QUERY_TIME_SAMPLES = 100;
+const MAX_QUERY_TIME_SAMPLES = 50; // Reduced from 100 to save memory
 
-// Connection leak detection and tracking
+// Phase 0.1d: Optimized connection tracking with LRU limits
 interface TrackedConnection {
   id: string;
   acquiredAt: number;
   lastUsedAt: number;
-  stackTrace: string;
+  stackTrace?: string; // Optional - only for leak investigation
   queryCount: number;
   isHealthCheck: boolean;
   warningIssued: boolean;
 }
 
-const trackedConnections = new Map<string, TrackedConnection>();
+// LRU-limited connection tracking for performance
+class LRUConnectionTracker {
+  private connections = new Map<string, TrackedConnection>();
+  private readonly maxSize: number;
+  private readonly trackStackTrace: boolean;
+
+  constructor(maxSize: number = 50, trackStackTrace: boolean = false) {
+    this.maxSize = maxSize;
+    this.trackStackTrace = trackStackTrace;
+  }
+
+  set(connectionId: string, connection: TrackedConnection): void {
+    // Remove oldest entry if at capacity (LRU eviction)
+    if (this.connections.size >= this.maxSize && !this.connections.has(connectionId)) {
+      const firstKey = this.connections.keys().next().value;
+      if (firstKey) {
+        this.connections.delete(firstKey);
+      }
+    }
+
+    // Add stack trace only if enabled (reduces memory overhead)
+    if (!this.trackStackTrace) {
+      connection.stackTrace = undefined;
+    }
+
+    this.connections.set(connectionId, connection);
+  }
+
+  get(connectionId: string): TrackedConnection | undefined {
+    const connection = this.connections.get(connectionId);
+    if (connection) {
+      // Move to end (most recently used)
+      this.connections.delete(connectionId);
+      this.connections.set(connectionId, connection);
+    }
+    return connection;
+  }
+
+  delete(connectionId: string): boolean {
+    return this.connections.delete(connectionId);
+  }
+
+  entries(): IterableIterator<[string, TrackedConnection]> {
+    return this.connections.entries();
+  }
+
+  get size(): number {
+    return this.connections.size;
+  }
+
+  clear(): void {
+    this.connections.clear();
+  }
+
+  // Phase 0.1d: LRU performance metrics
+  getStats(): { size: number; maxSize: number; utilizationPercent: number } {
+    return {
+      size: this.connections.size,
+      maxSize: this.maxSize,
+      utilizationPercent: Math.round((this.connections.size / this.maxSize) * 100)
+    };
+  }
+}
+
+const trackedConnections = new LRUConnectionTracker(
+  50, // Max 50 tracked connections (LRU limit)
+  process.env.NODE_ENV === 'development' // Stack traces only in development
+);
+
 const CONNECTION_LEAK_THRESHOLD = 60000; // 60 seconds
 const CONNECTION_STALE_THRESHOLD = 300000; // 5 minutes
-const CONNECTION_CLEANUP_INTERVAL = 30000; // 30 seconds
+const CONNECTION_CLEANUP_INTERVAL = 45000; // 45 seconds (reduced frequency)
 
 let connectionCleanupTimer: NodeJS.Timeout | null = null;
 let connectionIdCounter = 0;
@@ -112,9 +180,12 @@ function generateConnectionId(): string {
 
 /**
  * Track a connection acquisition for leak detection
+ * Phase 0.1d: Optimized with conditional stack trace collection
  */
 function trackConnectionAcquisition(connectionId: string, isHealthCheck = false): void {
-  const stackTrace = new Error().stack || 'No stack trace available';
+  const stackTrace = (process.env.NODE_ENV === 'development') 
+    ? new Error().stack || 'No stack trace available'
+    : undefined;
   
   trackedConnections.set(connectionId, {
     id: connectionId,
@@ -126,10 +197,14 @@ function trackConnectionAcquisition(connectionId: string, isHealthCheck = false)
     warningIssued: false,
   });
   
-  logger.debug(`Connection acquired and tracked: ${connectionId}`, {
-    totalTracked: trackedConnections.size,
-    isHealthCheck,
-  });
+  // Reduced logging frequency for performance
+  if (process.env.NODE_ENV === 'development' || trackedConnections.size % 10 === 0) {
+    logger.debug(`Connection acquired and tracked: ${connectionId}`, {
+      totalTracked: trackedConnections.size,
+      maxTracked: 50, // LRU limit
+      isHealthCheck,
+    });
+  }
 }
 
 /**
@@ -170,6 +245,7 @@ function trackConnectionRelease(connectionId: string): void {
 
 /**
  * Detect and handle connection leaks
+ * Phase 0.1d: Optimized cleanup with batching and reduced overhead
  */
 async function detectAndHandleConnectionLeaks(): Promise<void> {
   if (!pool) return;
@@ -177,24 +253,37 @@ async function detectAndHandleConnectionLeaks(): Promise<void> {
   const now = Date.now();
   const leakedConnections: TrackedConnection[] = [];
   const staleConnections: TrackedConnection[] = [];
+  let maxAge = 0;
   
-  for (const [id, tracked] of trackedConnections) {
+  // Single pass through connections for efficiency
+  for (const [id, tracked] of trackedConnections.entries()) {
     const age = now - tracked.acquiredAt;
     const timeSinceLastUse = now - tracked.lastUsedAt;
     
     // Skip health check connections (they're expected to be short-lived)
     if (tracked.isHealthCheck) continue;
     
+    // Update longest connection age metric in same pass
+    if (age > maxAge) {
+      maxAge = age;
+    }
+    
     // Detect potential leaks
     if (age > CONNECTION_LEAK_THRESHOLD) {
       if (!tracked.warningIssued) {
-        logger.warn(`Potential connection leak detected`, {
+        // Optimized logging - only include stack trace if available and in development
+        const logData: any = {
           connectionId: id,
           age,
           timeSinceLastUse,
           queryCount: tracked.queryCount,
-          stackTrace: tracked.stackTrace.split('\n').slice(0, 5).join('\n'), // First 5 lines only
-        });
+        };
+        
+        if (tracked.stackTrace && process.env.NODE_ENV === 'development') {
+          logData.stackTrace = tracked.stackTrace.split('\n').slice(0, 3).join('\n'); // Reduced to 3 lines
+        }
+        
+        logger.warn(`Potential connection leak detected`, logData);
         tracked.warningIssued = true;
       }
       
@@ -206,12 +295,10 @@ async function detectAndHandleConnectionLeaks(): Promise<void> {
         staleConnections.push(tracked);
       }
     }
-    
-    // Update longest connection age metric
-    if (age > stats.longestConnectionAge) {
-      stats.longestConnectionAge = age;
-    }
   }
+  
+  // Update stats after single pass
+  stats.longestConnectionAge = maxAge;
   
   // Handle stale connections
   if (staleConnections.length > 0) {
@@ -593,7 +680,8 @@ export async function initializeDatabase(): Promise<void> {
 }
 
 /**
- * Get optimized pool configuration based on environment and best practices
+ * Get replica-aware pool configuration based on environment and Railway scaling
+ * Phase 0.1c: Updated with replica-aware sizing + session timeouts
  */
 function getOptimizedPoolConfig() {
   const env = config.env;
@@ -601,23 +689,40 @@ function getOptimizedPoolConfig() {
   const isTest = env === "test";
   const _isDevelopment = env === "development";
 
-  // Optimized environment-specific pool sizing based on research and best practices
+  // Railway-specific pool configuration for 100-user scalability
+  const getReplicaAwarePoolSize = (environment: string) => {
+    const railwayMaxConnections = 100;
+    const adminReservedConnections = 15;
+    const expectedReplicas = environment === "production" ? 2 : 1;
+    const safetyFactor = 0.75; // Conservative safety margin
+    
+    const availableConnections = railwayMaxConnections - adminReservedConnections;
+    const perReplicaMax = Math.floor((availableConnections / expectedReplicas) * safetyFactor);
+    const perReplicaMin = Math.max(3, Math.floor(perReplicaMax * 0.25)); // 25% of max as minimum
+    
+    return { min: perReplicaMin, max: perReplicaMax };
+  };
+
+  // Optimized environment-specific pool sizing with replica awareness
   const poolConfigs = {
     production: {
-      min: 8, // Maintain minimum connections for immediate availability
-      max: 25, // Increased from 20 for better scalability (PostgreSQL default is 100)
-      acquireTimeoutMillis: 8000, // Faster acquisition timeout for production
-      createTimeoutMillis: 10000, // Connection creation timeout
+      ...getReplicaAwarePoolSize("production"), // ~32 max per replica with 2 replicas
+      acquireTimeoutMillis: 10000, // 10s acquisition timeout (increased for stability)
+      createTimeoutMillis: 15000, // 15s connection creation timeout
       destroyTimeoutMillis: 5000, // Connection destruction timeout
       reapIntervalMillis: 1000, // Check for idle connections every second
       createRetryIntervalMillis: 200, // Retry connection creation every 200ms
       propagateCreateError: false, // Don't propagate create errors immediately
-      maxUses: 10000, // Higher connection reuse for production
+      maxUses: 7500, // Connection reuse limit (reduced for stability)
       validateOnBorrow: true, // Validate connections when borrowed
+      // Phase 0.1c: Enhanced session timeouts
+      idleTimeoutMillis: 45000, // 45s idle timeout (Railway-optimized)
+      connectionTimeoutMillis: 10000, // 10s connection timeout
+      statementTimeout: 30000, // 30s statement timeout
+      queryTimeout: 25000, // 25s query timeout
     },
     development: {
-      min: 3, // Lower minimum for development
-      max: 15, // Reasonable maximum for development
+      ...getReplicaAwarePoolSize("development"), // Single replica in dev
       acquireTimeoutMillis: 15000,
       createTimeoutMillis: 15000,
       destroyTimeoutMillis: 5000,
@@ -626,6 +731,11 @@ function getOptimizedPoolConfig() {
       propagateCreateError: false,
       maxUses: 7500,
       validateOnBorrow: false, // Skip validation in development for speed
+      // Development session timeouts
+      idleTimeoutMillis: 60000, // 60s idle timeout for development
+      connectionTimeoutMillis: 15000, // 15s connection timeout
+      statementTimeout: 60000, // 60s statement timeout
+      queryTimeout: 45000, // 45s query timeout
     },
     test: {
       min: 1, // Minimal connections for tests
@@ -638,31 +748,59 @@ function getOptimizedPoolConfig() {
       propagateCreateError: true, // Fail fast in tests
       maxUses: 1000, // Low reuse for test isolation
       validateOnBorrow: false,
+      // Test session timeouts (shorter for fast tests)
+      idleTimeoutMillis: 30000, // 30s idle timeout for tests
+      connectionTimeoutMillis: 8000, // 8s connection timeout
+      statementTimeout: 10000, // 10s statement timeout
+      queryTimeout: 8000, // 8s query timeout
     },
   };
 
   const poolConfig = poolConfigs[env] || poolConfigs.development;
 
+  // Log replica-aware configuration for Phase 0.1c
+  if (isProduction) {
+    const replicaConfig = getReplicaAwarePoolSize("production");
+    logger.info("🔧 Phase 0.1c: Railway replica-aware DB pool configuration", {
+      environment: env,
+      expectedReplicas: 2,
+      poolSizing: {
+        min: replicaConfig.min,
+        max: replicaConfig.max,
+        perReplicaAllocation: `${replicaConfig.max} connections per replica`,
+        railwayTotal: "100 total connections",
+        adminReserved: "15 admin connections",
+        safetyFactor: "75%"
+      },
+      sessionTimeouts: {
+        idle: poolConfig.idleTimeoutMillis,
+        connection: poolConfig.connectionTimeoutMillis,
+        statement: poolConfig.statementTimeout,
+        query: poolConfig.queryTimeout
+      }
+    });
+  }
+
   return {
-    // Core pool settings
+    // Core pool settings with replica-aware sizing
     min: poolConfig.min,
     max: poolConfig.max,
 
-    // Enhanced timeout settings based on environment
-    connectionTimeoutMillis: poolConfig.acquireTimeoutMillis,
+    // Enhanced timeout settings based on environment and replica configuration
+    connectionTimeoutMillis: poolConfig.connectionTimeoutMillis,
     acquireTimeoutMillis: poolConfig.acquireTimeoutMillis,
     createTimeoutMillis: poolConfig.createTimeoutMillis,
     destroyTimeoutMillis: poolConfig.destroyTimeoutMillis,
     reapIntervalMillis: poolConfig.reapIntervalMillis,
     createRetryIntervalMillis: poolConfig.createRetryIntervalMillis,
 
-    // Connection lifecycle management
-    idleTimeoutMillis: isProduction ? 45000 : isTest ? 3000 : 60000,
+    // Phase 0.1c: Railway-optimized session timeouts
+    idleTimeoutMillis: poolConfig.idleTimeoutMillis,
     maxUses: poolConfig.maxUses,
 
-    // Query and statement timeouts
-    query_timeout: isProduction ? 30000 : isTest ? 10000 : 60000,
-    statement_timeout: isProduction ? 28000 : isTest ? 9000 : 55000,
+    // Enhanced query and statement timeouts for 100-user load
+    query_timeout: poolConfig.queryTimeout,
+    statement_timeout: poolConfig.statementTimeout,
 
     // Connection validation and health
     validateOnBorrow: poolConfig.validateOnBorrow,
@@ -1178,6 +1316,8 @@ export function getConnectionStats(): ConnectionStats & {
       forcedCleanups: stats.forcedConnectionCleanups,
       currentlyTracked: trackedConnections.size,
     },
+    // Phase 0.1d: LRU tracking performance metrics
+    lruTracker: trackedConnections.getStats(),
   };
 }
 

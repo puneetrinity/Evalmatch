@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { EvalMatchClient } from '../client'
 import { AuthProvider, EvalMatchConfig } from '../types'
-import { ErrorCode } from '../core/errors'
+import { EvalMatchError, ErrorCode } from '../core/errors'
 import { server, resetHandlers } from './mocks/server'
 import { http, HttpResponse } from 'msw'
 
@@ -278,8 +278,7 @@ describe('EvalMatchClient', () => {
 
     it('should handle circuit breaker opening', async () => {
       // Force multiple failures to trigger circuit breaker
-      const promises = []
-      
+      const promises: Promise<unknown>[] = []
       for (let i = 0; i < 6; i++) {
         resetHandlers(
           http.get(`https://api.test.evalmatch.com/resumes-${i}`, () => {
@@ -294,7 +293,7 @@ describe('EvalMatchClient', () => {
           client._internalRequest({
             method: 'GET',
             url: `/resumes-${i}`
-          }).catch(error => error)
+          }).catch((err) => err as EvalMatchError)
         )
       }
 

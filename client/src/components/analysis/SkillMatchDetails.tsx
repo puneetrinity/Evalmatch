@@ -7,7 +7,7 @@ interface SkillMatchDetailsProps {
   missingSkills: string[];
   matchInsights?: MatchInsights;
   candidateStrengths: string[];
-  matchPercentage: number;
+  matchPercentage: number | null;
   onGenerateInterviewQuestions: () => void;
 }
 
@@ -169,7 +169,7 @@ export default function SkillMatchDetails({
                    const keySkills = matchedSkills?.slice(0, 3).map(s => typeof s === 'string' ? s : s.skill).join(', ') || 'various skills';
                    const strengthNote = candidateStrengths?.length > 0 ? 'Notable strengths: ' + candidateStrengths[0] : '';
                    
-                   return `${strengthText} with ${matchPercentage}% match. Key skills include ${keySkills}. ${strengthNote}`;
+                   return `${strengthText}${matchPercentage !== null ? ` with ${matchPercentage}% match` : ' - analysis pending'}. Key skills include ${keySkills}. ${strengthNote}`;
                  })()}
               </p>
             </div>

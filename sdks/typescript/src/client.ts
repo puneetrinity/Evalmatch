@@ -2,6 +2,43 @@
  * Main EvalMatch SDK Client
  * Provides a convenient wrapper around the generated API client with advanced error handling
  */
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  timestamp: string;
+}
+
+interface Resume {
+  id: number;
+  filename: string;
+  status: string;
+  skills?: string[];
+  uploadedAt: string;
+}
+
+interface JobDescription {
+  id: number;
+  title: string;
+  description: string;
+  requirements: string[];
+  createdAt: string;
+}
+
+interface AnalysisResult {
+  overallScore: number;
+  skillsMatch: {
+    matched: string[];
+    missing: string[];
+  };
+  recommendations: string[];
+}
+
+interface BiasAnalysisResult {
+  biasScore: number;
+  riskLevel: string;
+  issues: string[];
+  suggestions: string[];
+}
 
 import {
   postAnalysisAnalyzeByJobId,
@@ -152,7 +189,7 @@ export class EvalMatchClient {
     /**
      * List user's resumes
      */
-    list: async (options: ClientOptions = {}) => {
+    list: async (options: ClientOptions = {}): Promise<ApiResponse<Resume[]>> => {
       const headers = await this.getAuthHeaders();
       return this.request({
         method: 'GET',
@@ -164,7 +201,7 @@ export class EvalMatchClient {
     /**
      * Upload a new resume
      */
-    upload: async (file: File | Blob, options: ClientOptions = {}) => {
+    upload: async (file: File | Blob, options: ClientOptions = {}): Promise<ApiResponse<Resume>> => {
       const headers = await this.getAuthHeaders();
       const formData = new FormData();
       formData.append('file', file);
@@ -183,7 +220,7 @@ export class EvalMatchClient {
     /**
      * Get specific resume by ID
      */
-    get: async (id: number, options: ClientOptions = {}) => {
+    get: async (id: number, options: ClientOptions = {}): Promise<ApiResponse<Resume>> => {
       const headers = await this.getAuthHeaders();
       return this.request({
         method: 'GET',
@@ -200,7 +237,7 @@ export class EvalMatchClient {
     /**
      * Create a new job description
      */
-    create: async (data: { title: string; description: string; requirements?: string[] }, options: ClientOptions = {}) => {
+    create: async (data: { title: string; description: string; requirements?: string[] }, options: ClientOptions = {}): Promise<ApiResponse<JobDescription>> => {
       const headers = await this.getAuthHeaders();
       return this.request({
         method: 'POST',
@@ -218,7 +255,7 @@ export class EvalMatchClient {
     /**
      * Analyze resumes against a job description
      */
-    analyze: async (jobId: number, resumeIds?: number[], options: ClientOptions = {}) => {
+    analyze: async (jobId: number, resumeIds?: number[], options: ClientOptions = {}): Promise<ApiResponse<AnalysisResult>> => {
       const headers = await this.getAuthHeaders();
       return this.request({
         method: 'POST',
@@ -231,7 +268,7 @@ export class EvalMatchClient {
     /**
      * Analyze job description for bias
      */
-    analyzeBias: async (jobId: number, options: ClientOptions = {}) => {
+    analyzeBias: async (jobId: number, options: ClientOptions = {}): Promise<ApiResponse<BiasAnalysisResult>> => {
       const headers = await this.getAuthHeaders();
       return this.request({
         method: 'POST',

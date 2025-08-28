@@ -6,21 +6,18 @@
  */
 
 import { eq, desc, and, gte, sql, count } from 'drizzle-orm';
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes } from 'crypto';
 import { getDatabase } from '../database';
 import {
   userApiLimits,
   apiCallLogs, 
   userTokens,
-  usageStatistics,
   type UserApiLimits,
   type InsertUserApiLimits,
-  type UserToken,
-  type InsertUserToken,
-  type ApiCallLog,
   type InsertApiCallLog,
   type TokenGenerationRequest,
   type TokenGenerationResponse,
+  type InsertUserToken,
   type UsageOverview,
   type ApiUsageMetrics,
 } from '../../shared/schema';
@@ -157,7 +154,7 @@ export class TokenUsageService {
         usage: {
           remaining: userLimits.maxCalls - userLimits.usedCalls,
           total: userLimits.maxCalls,
-          resetDate: userLimits.resetPeriod === 'never' ? undefined : userLimits.lastReset,
+          resetDate: userLimits.resetPeriod === 'never' ? undefined : userLimits.lastReset ?? undefined,
         },
       };
     } catch (error) {
@@ -305,12 +302,12 @@ export class TokenUsageService {
         limit: userLimits.maxCalls,
         tier: userLimits.tier,
         remainingCalls: userLimits.maxCalls - userLimits.usedCalls,
-        resetDate,
+        resetDate: resetDate ?? undefined,
         tokens: tokens.map(token => ({
           id: token.tokenId,
-          name: token.tokenName,
+          name: token.tokenName ?? undefined,
           createdAt: token.createdAt!,
-          lastUsedAt: token.lastUsedAt,
+          lastUsedAt: token.lastUsedAt ?? undefined,
           totalRequests: token.totalRequests || 0,
           isActive: token.isActive,
         })),
@@ -441,7 +438,6 @@ export class TokenUsageService {
         .update(userTokens)
         .set({ 
           isActive: false,
-          updatedAt: new Date(),
         })
         .where(eq(userTokens.tokenId, tokenId));
 

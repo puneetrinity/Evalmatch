@@ -9,7 +9,7 @@ interface AnalysisResult {
   resumeId: ResumeId;
   filename: string;
   candidateName?: string;
-  matchPercentage: number;
+  matchPercentage: number | null;
   matchedSkills: MatchedSkill[];
   missingSkills: string[];
   candidateStrengths: string[];
@@ -66,7 +66,9 @@ export default function CandidateResultCard({
         
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <div className="text-3xl font-bold text-blue-600">{result.matchPercentage}%</div>
+            <div className="text-3xl font-bold text-blue-600">
+              {result.matchPercentage !== null ? `${result.matchPercentage}%` : 'N/A'}
+            </div>
             <div className="text-sm text-gray-500">match</div>
           </div>
           

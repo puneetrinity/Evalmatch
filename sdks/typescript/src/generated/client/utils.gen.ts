@@ -90,12 +90,12 @@ const defaultPathSerializer = ({ path, url: _url }: PathSerializer) => {
   return url;
 };
 
-export const createQuerySerializer = <T = unknown>({
+export const createQuerySerializer = ({
   allowReserved,
   array,
   object,
 }: QuerySerializerOptions = {}) => {
-  const querySerializer = (queryParams: T) => {
+  const querySerializer = (queryParams: Record<string, unknown>) => {
     const search: string[] = [];
     if (queryParams && typeof queryParams === 'object') {
       for (const name in queryParams) {
@@ -188,8 +188,9 @@ export const buildUrl: Client['buildUrl'] = (options) => {
     // let `paramsSerializer()` handle query params if it exists
     query: !options.paramsSerializer ? options.query : undefined,
     querySerializer:
-      typeof options.querySerializer === 'function'
-        ? options.querySerializer
+      typeof options.querySerializer === 'function' &&
+      options.querySerializer.length === 1
+        ? (options.querySerializer as QuerySerializer)
         : createQuerySerializer(options.querySerializer),
     url: options.url,
   });

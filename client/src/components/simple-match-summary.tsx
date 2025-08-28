@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
 interface SimpleMatchSummaryProps {
-  matchPercentage: number;
+  matchPercentage: number | null;
   matchedSkills: Array<{
     skill: string;
     matchPercentage?: number;
@@ -33,7 +33,8 @@ export default function SimpleMatchSummary({
   const [showDetails, setShowDetails] = useState(false);
 
   // Determine match strength and message
-  const getMatchStrength = (percentage: number) => {
+  const getMatchStrength = (percentage: number | null) => {
+    if (percentage === null) return { level: "Analysis Pending", color: "text-gray-700", bgColor: "bg-gray-50 border-gray-200" };
     if (percentage >= 85) return { level: "Excellent", color: "text-green-700", bgColor: "bg-green-50 border-green-200" };
     if (percentage >= 70) return { level: "Strong", color: "text-blue-700", bgColor: "bg-blue-50 border-blue-200" };
     if (percentage >= 55) return { level: "Good", color: "text-amber-700", bgColor: "bg-amber-50 border-amber-200" };
@@ -66,7 +67,7 @@ export default function SimpleMatchSummary({
             <span>Match Summary</span>
           </div>
           <div className={`px-3 py-1 rounded-full text-sm font-semibold ${matchStrength.bgColor} ${matchStrength.color}`}>
-            {matchPercentage}% - {matchStrength.level} Candidate
+            {matchPercentage !== null ? `${matchPercentage}%` : 'N/A'} - {matchStrength.level} Candidate
           </div>
         </CardTitle>
       </CardHeader>

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { embeddingManager } from "../lib/embedding-manager";
 import { logger } from "../lib/logger";
 import { getCacheStats } from "../lib/cached-ai-operations";
+import { queueManager } from "../lib/queue-manager";
 
 const router = Router();
 
@@ -15,6 +16,14 @@ router.get("/health", async (req, res) => {
   const memoryUsage = process.memoryUsage();
   const embeddingStats = embeddingManager.getStats();
   const cacheStats = await getCacheStats();
+  
+  // Get queue system health
+  let queueHealth = null;
+  try {
+    queueHealth = await queueManager.getSystemHealth();
+  } catch (error) {
+    logger.warn("Failed to get queue health:", error);
+  }
   
   const health = {
     status: "healthy",
@@ -32,14 +41,20 @@ router.get("/health", async (req, res) => {
       memoryMB: embeddingStats.memoryMB,
       oldestAgeSeconds: embeddingStats.oldestAge
     },
-    redisCache: cacheStats
+    redisCache: cacheStats,
+    queues: queueHealth
   };
   
-  // Set status based on memory usage
+  // Set status based on memory usage and queue health
   if (memoryUsage.heapUsed > 700 * 1024 * 1024) { // 700MB critical
     health.status = "critical";
     res.status(503);
   } else if (memoryUsage.heapUsed > 500 * 1024 * 1024) { // 500MB warning
+    health.status = "degraded";
+  } else if (queueHealth?.memory?.pressure === 'CRITICAL') {
+    health.status = "critical";
+    res.status(503);
+  } else if (queueHealth?.memory?.pressure === 'HIGH') {
     health.status = "degraded";
   }
   
