@@ -222,7 +222,6 @@ export default function SdkTokensPage() {
 
               <div className="text-sm text-muted-foreground space-y-1">
                 <p><strong>Token Name:</strong> {generatedToken.name}</p>
-                <p><strong>Created By:</strong> {user?.displayName || user?.email || 'Unknown User'}</p>
                 <p><strong>Created:</strong> {parseDate(generatedToken.createdAt)}</p>
                 <p><strong>Expires:</strong> {generatedToken.expiresAt ? parseDate(generatedToken.expiresAt) : 'Never'}</p>
               </div>
