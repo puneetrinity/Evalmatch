@@ -33,8 +33,10 @@ export default function MyResumesPage() {
 
   // Filter resumes based on search (file type filtering is now handled by API)
   const filteredResumes = resumes.filter(resume => {
-    return resume.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           resume.originalName.toLowerCase().includes(searchTerm.toLowerCase());
+    const filename = resume.filename || '';
+    const originalName = resume.originalName || '';
+    return filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           originalName.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   const handleUploadNew = () => {
