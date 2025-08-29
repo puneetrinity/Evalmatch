@@ -103,12 +103,12 @@ export default function MyAnalysesPage() {
     setLocation("/upload");
   };
 
-  const handleViewAnalysis = (analysisId: number) => {
+  const handleViewAnalysis = (analysisId: string) => {
     // Navigate to analysis details page
     setLocation(`/analysis/${analysisId}`);
   };
 
-  const handleInterviewPrep = (analysisId: number) => {
+  const handleInterviewPrep = (analysisId: string) => {
     // Navigate to interview prep
     toast({
       title: "Interview Prep",
@@ -159,9 +159,9 @@ export default function MyAnalysesPage() {
   };
 
   // Calculate summary statistics from real data
-  const totalAnalyses = analyses.length;
-  const completedAnalyses = analyses.filter(a => a.status === "completed").length;
-  const totalJobsAnalyzed = analyses.filter(a => a.status === "completed").length;
+  const totalAnalyses = mockAnalyses.length;
+  const completedAnalyses = mockAnalyses.filter(a => a.status === "completed").length;
+  const totalJobsAnalyzed = mockAnalyses.filter(a => a.status === "completed").length;
   const avgMatchScore = 0; // Would be calculated from actual analysis results
 
   return (
@@ -229,23 +229,7 @@ export default function MyAnalysesPage() {
         </div>
 
         {/* Analyses Grid */}
-        {isJobsLoading ? (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4 mx-auto"></div>
-            <p className="text-gray-500">Loading your analyses...</p>
-          </div>
-        ) : jobsError ? (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <div className="text-red-500 mb-4">
-              <i className="fas fa-exclamation-triangle text-4xl"></i>
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Analyses</h3>
-            <p className="text-gray-500 mb-4">There was a problem loading your analyses.</p>
-            <Button onClick={() => window.location.reload()} variant="outline">
-              Try Again
-            </Button>
-          </div>
-        ) : sortedAnalyses.length === 0 ? (
+        {sortedAnalyses.length === 0 ? (
           <div className="bg-white rounded-lg shadow-sm p-12 text-center">
             <BarChart3 className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
