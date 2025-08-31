@@ -42,11 +42,18 @@ export default function MyResumesPage() {
   };
 
   const handleViewAnalysis = (resumeId: string) => {
-    // Navigate to analysis page for this resume
-    toast({
-      title: "Feature Coming Soon",
-      description: "Resume analysis view will be available soon.",
-    });
+    // Navigate to specific resume analysis if available
+    const resume = resumes.find(r => r.id.toString() === resumeId);
+    if (resume && resume.status === 'analyzed') {
+      // Try to find associated analysis - for now navigate to my-analyses
+      setLocation('/my-analyses');
+    } else {
+      toast({
+        title: "Analysis Not Ready",
+        description: "This resume hasn't been analyzed yet or analysis failed.",
+        variant: "destructive"
+      });
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -193,24 +200,34 @@ export default function MyResumesPage() {
                           </span>
                           
                           {/* Actions */}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewAnalysis(resume.id.toString())}
-                            disabled={resume.status !== "analyzed"}
-                          >
-                            View Analysis
-                          </Button>
+                          {resume.status === "analyzed" ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewAnalysis(resume.id.toString())}
+                            >
+                              View Analysis
+                            </Button>
+                          ) : (
+                            <span className="text-sm text-gray-500 px-3 py-1">
+                              {resume.status === 'processing' ? 'Processing...' : 'Not analyzed'}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* Load More / Pagination could go here if needed */}
-                {resumes.length > 10 && (
+                {/* Pagination - only show if we have more than page limit */}
+                {resumes.length >= 50 && (
                   <div className="mt-6 text-center">
-                    <Button variant="outline">Load More Resumes</Button>
+                    <Button variant="outline" onClick={() => {
+                      toast({
+                        title: "Pagination",
+                        description: "Load more functionality coming soon."
+                      });
+                    }}>Load More Resumes</Button>
                   </div>
                 )}
               </>

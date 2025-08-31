@@ -18,55 +18,23 @@ import {
   CheckCircle,
   Clock,
   Loader,
-  ArrowUpDown
+  ArrowUpDown,
+  AlertTriangle
 } from "lucide-react";
 
 interface AnalysisItem {
-  id: string;
+  id: number;
   jobTitle: string;
-  status: "completed" | "running" | "failed";
+  jobDescription: string;
+  status: "completed" | "processing" | "failed";
   resumeCount: number;
   totalResumes: number;
-  completedDate: string;
-  topMatchScore: number;
-  averageScore: number;
-  progress?: number;
+  createdAt: string;
+  updatedAt: string;
+  topMatchScore?: number;
+  averageScore?: number;
+  results?: any[];
 }
-
-// Mock data based on the screenshot
-const mockAnalyses: AnalysisItem[] = [
-  {
-    id: "1",
-    jobTitle: "Senior Frontend Developer",
-    status: "completed",
-    resumeCount: 15,
-    totalResumes: 15,
-    completedDate: "Aug 22, 2025, 04:00 PM",
-    topMatchScore: 95,
-    averageScore: 72,
-  },
-  {
-    id: "2", 
-    jobTitle: "Full Stack Engineer",
-    status: "completed",
-    resumeCount: 8,
-    totalResumes: 8,
-    completedDate: "Aug 21, 2025, 07:50 PM",
-    topMatchScore: 87,
-    averageScore: 68,
-  },
-  {
-    id: "3",
-    jobTitle: "Data Scientist", 
-    status: "running",
-    resumeCount: 7,
-    totalResumes: 12,
-    completedDate: "Aug 20, 2025, 02:45 PM",
-    topMatchScore: 0,
-    averageScore: 0,
-    progress: 7,
-  }
-];
 
 export default function MyAnalysesPage() {
   const { toast } = useToast();
@@ -75,12 +43,52 @@ export default function MyAnalysesPage() {
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [sortBy, setSortBy] = useState("Sort by Newest");
 
+  // Fetch real analyses from backend
+  const { 
+    data: analysesResponse, 
+    isLoading, 
+    error,
+    refetch 
+  } = useQuery({
+    queryKey: ["my-analyses"],
+    queryFn: async () => {
+      try {
+        const response = await apiRequest("GET", "/api/job-descriptions");
+        const data = await response.json();
+        
+        if (data.success && data.data?.jobDescriptions) {
+          // Transform job descriptions into analysis items
+          return data.data.jobDescriptions.map((job: any) => ({
+            id: job.id,
+            jobTitle: job.title || "Untitled Position",
+            jobDescription: job.description || "",
+            status: job.hasAnalysis ? "completed" : "processing",
+            resumeCount: 0, // Will be updated when we get analysis results
+            totalResumes: 0,
+            createdAt: job.createdAt,
+            updatedAt: job.updatedAt || job.createdAt,
+            topMatchScore: 0,
+            averageScore: 0
+          })) as AnalysisItem[];
+        }
+        return [];
+      } catch (error) {
+        console.error("Failed to fetch analyses:", error);
+        throw new Error("Failed to load analyses");
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
+  });
+
+  const analyses = analysesResponse || [];
+
   // Filter analyses based on search and filters
-  const filteredAnalyses = mockAnalyses.filter(analysis => {
+  const filteredAnalyses = analyses.filter(analysis => {
     const matchesSearch = analysis.jobTitle.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "All Status" || 
       (statusFilter === "Completed" && analysis.status === "completed") ||
-      (statusFilter === "Running" && analysis.status === "running") ||
+      (statusFilter === "Processing" && analysis.status === "processing") ||
       (statusFilter === "Failed" && analysis.status === "failed");
     return matchesSearch && matchesStatus;
   });
@@ -89,11 +97,11 @@ export default function MyAnalysesPage() {
   const sortedAnalyses = [...filteredAnalyses].sort((a, b) => {
     switch (sortBy) {
       case "Sort by Newest":
-        return new Date(b.completedDate).getTime() - new Date(a.completedDate).getTime();
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       case "Sort by Oldest":
-        return new Date(a.completedDate).getTime() - new Date(b.completedDate).getTime();
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       case "Sort by Score":
-        return b.topMatchScore - a.topMatchScore;
+        return (b.topMatchScore || 0) - (a.topMatchScore || 0);
       default:
         return 0;
     }
@@ -104,19 +112,18 @@ export default function MyAnalysesPage() {
   };
 
   const handleViewAnalysis = (analysisId: number) => {
-    // Navigate to analysis details page
+    // Navigate to analysis details page with proper ID
     setLocation(`/analysis/${analysisId}`);
   };
 
   const handleInterviewPrep = (analysisId: number) => {
-    // Navigate to interview prep
     toast({
       title: "Interview Prep",
-      description: "Redirecting to interview preparation...",
+      description: "Interview preparation feature is coming soon.",
     });
   };
 
-  const getStatusBadge = (status: string, progress?: number) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
         return (
@@ -125,44 +132,49 @@ export default function MyAnalysesPage() {
             Completed
           </span>
         );
-      case "running":
+      case "processing":
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
             <Loader className="w-3 h-3 mr-1 animate-spin" />
-            Running
+            Processing
           </span>
         );
       case "failed":
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-            <Clock className="w-3 h-3 mr-1" />
+            <AlertTriangle className="w-3 h-3 mr-1" />
             Failed
           </span>
         );
       default:
-        return null;
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            <Clock className="w-3 h-3 mr-1" />
+            Unknown
+          </span>
+        );
     }
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return "text-blue-600";
-    if (score >= 80) return "text-green-600";
-    if (score >= 70) return "text-yellow-600";
-    return "text-red-600";
-  };
-
-  const getScoreLabel = (score: number) => {
-    if (score >= 90) return "Excellent";
-    if (score >= 80) return "Excellent";
-    if (score >= 70) return "Good";
-    return "Fair";
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return "Unknown date";
+    }
   };
 
   // Calculate summary statistics from real data
   const totalAnalyses = analyses.length;
   const completedAnalyses = analyses.filter(a => a.status === "completed").length;
-  const totalJobsAnalyzed = analyses.filter(a => a.status === "completed").length;
-  const avgMatchScore = 0; // Would be calculated from actual analysis results
+  const processingAnalyses = analyses.filter(a => a.status === "processing").length;
+  const failedAnalyses = analyses.filter(a => a.status === "failed").length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -184,6 +196,30 @@ export default function MyAnalysesPage() {
             </Button>
           </div>
         </div>
+
+        {/* Summary Statistics */}
+        {totalAnalyses > 0 && (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600 mb-1">{totalAnalyses}</div>
+                <div className="text-sm text-gray-600">Total Analyses</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600 mb-1">{completedAnalyses}</div>
+                <div className="text-sm text-gray-600">Completed</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-yellow-600 mb-1">{processingAnalyses}</div>
+                <div className="text-sm text-gray-600">Processing</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600 mb-1">{failedAnalyses}</div>
+                <div className="text-sm text-gray-600">Failed</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Search and Filter Section */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
@@ -208,7 +244,7 @@ export default function MyAnalysesPage() {
                 >
                   <option>All Status</option>
                   <option>Completed</option>
-                  <option>Running</option>
+                  <option>Processing</option>
                   <option>Failed</option>
                 </select>
               </div>
@@ -228,20 +264,20 @@ export default function MyAnalysesPage() {
           </div>
         </div>
 
-        {/* Analyses Grid */}
-        {isJobsLoading ? (
+        {/* Content Section */}
+        {isLoading ? (
           <div className="bg-white rounded-lg shadow-sm p-12 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4 mx-auto"></div>
             <p className="text-gray-500">Loading your analyses...</p>
           </div>
-        ) : jobsError ? (
+        ) : error ? (
           <div className="bg-white rounded-lg shadow-sm p-12 text-center">
             <div className="text-red-500 mb-4">
-              <i className="fas fa-exclamation-triangle text-4xl"></i>
+              <AlertTriangle className="h-16 w-16 mx-auto" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Analyses</h3>
             <p className="text-gray-500 mb-4">There was a problem loading your analyses.</p>
-            <Button onClick={() => window.location.reload()} variant="outline">
+            <Button onClick={() => refetch()} variant="outline">
               Try Again
             </Button>
           </div>
@@ -265,124 +301,73 @@ export default function MyAnalysesPage() {
             )}
           </div>
         ) : (
-          <>
-            {/* Analysis Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {sortedAnalyses.map((analysis) => (
-                <div key={analysis.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold text-gray-900 truncate">
-                        {analysis.jobTitle}
-                      </h3>
-                      <div className="mt-1">
-                        {getStatusBadge(analysis.status, analysis.progress)}
-                      </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {sortedAnalyses.map((analysis) => (
+              <div key={analysis.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                {/* Header */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-gray-900 truncate" title={analysis.jobTitle}>
+                      {analysis.jobTitle}
+                    </h3>
+                    <div className="mt-2">
+                      {getStatusBadge(analysis.status)}
                     </div>
-                    <button className="text-gray-400 hover:text-gray-600 p-1">
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
                   </div>
+                  <button 
+                    className="text-gray-400 hover:text-gray-600 p-1"
+                    onClick={() => toast({ title: "Options", description: "More options coming soon." })}
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                </div>
 
-                  {/* Stats */}
-                  <div className="space-y-3 mb-4">
+                {/* Job Description Preview */}
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 line-clamp-3">
+                    {analysis.jobDescription || "No description available"}
+                  </p>
+                </div>
+
+                {/* Stats */}
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    <span>Created {formatDate(analysis.createdAt)}</span>
+                  </div>
+                  {analysis.status === "completed" && analysis.resumeCount > 0 && (
                     <div className="flex items-center text-sm text-gray-600">
                       <Users className="h-4 w-4 mr-2" />
-                      <span>{analysis.resumeCount}/{analysis.totalResumes} resumes</span>
+                      <span>{analysis.resumeCount} resumes analyzed</span>
                     </div>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      <span>{analysis.completedDate}</span>
-                    </div>
-                  </div>
+                  )}
+                </div>
 
-                  {/* Progress or Results */}
-                  {analysis.status === "running" ? (
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-gray-600">Progress</span>
-                        <span className="text-gray-900 font-medium">{analysis.progress}/{analysis.totalResumes}</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                          style={{ width: `${(analysis.progress! / analysis.totalResumes) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ) : analysis.status === "completed" ? (
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <div className="text-sm text-gray-600 mb-1">Top Match</div>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-2xl font-bold ${getScoreColor(analysis.topMatchScore)}`}>
-                            {analysis.topMatchScore}%
-                          </span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded ${
-                            analysis.topMatchScore >= 80 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {getScoreLabel(analysis.topMatchScore)}
-                          </span>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-600 mb-1">Average</div>
-                        <div className={`text-2xl font-bold ${getScoreColor(analysis.averageScore)}`}>
-                          {analysis.averageScore}%
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {/* Actions */}
-                  <div className="flex gap-2">
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewAnalysis(analysis.id)}
+                    className="flex-1"
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    View
+                  </Button>
+                  {analysis.status === "completed" && (
                     <Button
-                      variant="outline"
                       size="sm"
-                      onClick={() => handleViewAnalysis(analysis.id)}
+                      onClick={() => handleInterviewPrep(analysis.id)}
                       className="flex-1"
-                      disabled={analysis.status === "running"}
+                      variant="outline"
                     >
-                      <Eye className="h-4 w-4 mr-1" />
-                      {analysis.status === "running" ? "View" : "View"}
+                      Interview
                     </Button>
-                    {analysis.status === "completed" && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleInterviewPrep(analysis.id)}
-                        className="flex-1"
-                      >
-                        Interview Prep
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Summary Statistics */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-600 mb-1">{totalAnalyses}</div>
-                  <div className="text-sm text-gray-600">Total Analyses</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600 mb-1">{completedAnalyses}</div>
-                  <div className="text-sm text-gray-600">Completed</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-purple-600 mb-1">{totalJobsAnalyzed}</div>
-                  <div className="text-sm text-gray-600">Jobs Analyzed</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-indigo-600 mb-1">{avgMatchScore}%</div>
-                  <div className="text-sm text-gray-600">Avg Match Score</div>
+                  )}
                 </div>
               </div>
-            </div>
-          </>
+            ))}
+          </div>
         )}
       </main>
       
