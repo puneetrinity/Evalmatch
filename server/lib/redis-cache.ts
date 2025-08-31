@@ -24,7 +24,8 @@ export class CacheManager {
   };
   
   // PERFORMANCE FIX: Memory management constants
-  private static readonly MAX_CACHE_SIZE_MB = 512; // 512MB limit
+  // With 8GB RAM and 7GB heap, we can afford larger cache
+  private static readonly MAX_CACHE_SIZE_MB = 1024; // 1GB limit for Redis cache operations
   private static readonly CLEANUP_INTERVAL = 10 * 60 * 1000; // 10 minutes
   private cleanupTimer: NodeJS.Timeout | null = null;
 

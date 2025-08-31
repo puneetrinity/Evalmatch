@@ -1,0 +1,39 @@
+{
+  "timestamp": "2025-08-28T18:37:11.174Z",
+  "test": "Two-Stage Validation",
+  "stages": {
+    "stability": {
+      "target_vu": 50,
+      "p95_ms": 0,
+      "threshold_ms": 2500,
+      "passed": true
+    },
+    "push": {
+      "target_vu": 100,
+      "p95_ms": 0,
+      "threshold_ms": 4000,
+      "passed": true
+    }
+  },
+  "quality_gates": {
+    "error_rate": 99.84399375975039,
+    "circuit_breaker_errors": 0,
+    "deadline_exceeded": 0,
+    "null_responses": 0,
+    "header_validation": 0
+  },
+  "performance": {
+    "median_ms": 0,
+    "p90_ms": 351,
+    "p95_ms": 361,
+    "p99_ms": 0,
+    "requests_per_second": 98,
+    "total_requests": 18589
+  },
+  "go_no_go": {
+    "stability_passed": true,
+    "push_passed": true,
+    "overall_passed": true,
+    "recommendation": "GO"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "timestamp": "2025-08-28T19:03:31.686Z",
+  "test": "Focused Business Validation (Railway Safe)",
+  "go_no_go": {
+    "stage1_25vu": {
+      "p95_ms": 0,
+      "threshold_ms": 2000,
+      "passed": true,
+      "status": "PASS"
+    },
+    "stage2_50vu": {
+      "p95_ms": 0,
+      "threshold_ms": 3000,
+      "passed": true,
+      "status": "PASS"
+    },
+    "overall_recommendation": "GO"
+  },
+  "business_quality": {
+    "success_rate": 0,
+    "error_rate": 100,
+    "total_business_requests": 0,
+    "requests_per_second": 0
+  },
+  "circuit_breaker_observability": {
+    "open_rate_percent": 0,
+    "avg_queue_depth": 0,
+    "memory_pressure_rate": 0,
+    "avg_deadline_remaining": 0
+  },
+  "health_monitoring": {
+    "health_success_rate": 0,
+    "health_p95_ms": 402,
+    "total_health_requests": 0
+  }
+}

@@ -62,19 +62,73 @@ interface JobProfile {
 }
 
 // Placeholder functions until they are implemented
-function detectJobIndustry(_title: string, _description: string): string {
+function detectJobIndustry(title: string, description: string): string {
+  const combinedText = `${title.toLowerCase()} ${description.toLowerCase()}`;
+  if (/\b(software|developer|engineer|data|machine learning|react|node)\b/.test(combinedText)) {
+    return 'tech';
+  }
+  if (/\b(finance|investment|banking|analyst|trading|asset)\b/.test(combinedText)) {
+    return 'finance';
+  }
+  if (/\b(medical|doctor|nurse|pharma|clinical|patient|healthcare)\b/.test(combinedText)) {
+    return 'healthcare';
+  }
   return 'general';
 }
 
-async function cleanContaminatedSkills(skills: string[], _context: JobContext): Promise<{
+// Define industry-specific skills
+const industrySkills: Record<string, string[]> = {
+  tech: ['javascript', 'python', 'java', 'c++', 'react', 'angular', 'vue', 'node.js', 'django', 'flask', 'spring', 'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'sql', 'nosql', 'mongodb', 'postgresql', 'machine learning', 'data science', 'ai'],
+  finance: ['financial modeling', 'excel', 'vba', 'sql', 'python', 'r', 'bloomberg terminal', 'factset', 'investment banking', 'private equity', 'venture capital', 'asset management', 'risk management', 'quantitative analysis'],
+  healthcare: ['epic', 'cerner', 'hipaa', 'medical billing', 'patient care', 'clinical research', 'pharmacology', 'electronic health records (ehr)', 'medical terminology', 'fda regulations'],
+};
+
+async function cleanContaminatedSkills(skills: string[], context: JobContext): Promise<{
   cleanSkills: string[];
   blockedSkills: string[];
   flaggedSkills: string[];
 }> {
+  const { industry } = context;
+  if (industry === 'general' || !industrySkills[industry]) {
+    return {
+      cleanSkills: skills,
+      blockedSkills: [],
+      flaggedSkills: [],
+    };
+  }
+
+  const allowedSkills = new Set(industrySkills[industry]);
+  const cleanSkills: string[] = [];
+  const blockedSkills: string[] = [];
+
+  for (const skill of skills) {
+    const normalizedSkill = skill.toLowerCase();
+    let isAllowed = false;
+    // Check if the skill is directly in the allowed list or if an allowed skill is a substring of the skill
+    for (const allowed of allowedSkills) {
+        if (normalizedSkill.includes(allowed)) {
+            isAllowed = true;
+            break;
+        }
+    }
+
+    // Also check for general skills that can apply to any industry
+    const generalSkills = ['communication', 'teamwork', 'problem solving', 'management', 'leadership'];
+    if (generalSkills.includes(normalizedSkill)) {
+        isAllowed = true;
+    }
+
+    if (isAllowed) {
+      cleanSkills.push(skill);
+    } else {
+      blockedSkills.push(skill);
+    }
+  }
+
   return {
-    cleanSkills: skills,
-    blockedSkills: [],
-    flaggedSkills: []
+    cleanSkills,
+    blockedSkills,
+    flaggedSkills: [], // Not implementing flagged skills in this simple version
   };
 }
 import { 
@@ -445,6 +499,8 @@ export class HybridMatchAnalyzer {
         confidence: result.confidence,
         timings: {
           totalMs: processingTime,
+          mlMs: result.providerMetadata?.timings?.mlMs,
+          llmMs: result.providerMetadata?.timings?.llmMs,
         },
         provider: result.analysisMethod,
         model: 'hybrid-ensemble',
@@ -547,9 +603,12 @@ export class HybridMatchAnalyzer {
     jobText: string,
   ): Promise<HybridMatchResult> {
     // Run ML and LLM analysis in parallel for efficiency
-    const [mlResult, llmResult] = await Promise.all([
-      this.runMLAnalysis(resumeAnalysis, jobAnalysis, resumeText, jobText),
-      this.runLLMAnalysis(resumeAnalysis, jobAnalysis, userTier, resumeText, jobText),
+    const mlPromise = this.runMLAnalysis(resumeAnalysis, jobAnalysis, resumeText, jobText);
+    const llmPromise = this.runLLMAnalysis(resumeAnalysis, jobAnalysis, userTier, resumeText, jobText);
+
+    const [{ result: mlResult, time: mlMs }, { result: llmResult, time: llmMs }] = await Promise.all([
+      this.timePromise(mlPromise, 'ml'),
+      this.timePromise(llmPromise, 'llm'),
     ]);
 
     // ✅ CRITICAL: Run bias detection before blending
@@ -603,6 +662,12 @@ export class HybridMatchAnalyzer {
         biasConfidenceScore: Math.round(100 - biasResult.biasScore),
         potentialBiasAreas: biasResult.detectedBiases.map(bias => bias.type),
         fairnessAssessment: biasResult.explanation
+      },
+      providerMetadata: {
+        timings: {
+          mlMs,
+          llmMs,
+        }
       },
       scoringDimensions: {
         skills: mlResult.dimensionScores.skills,
@@ -1452,6 +1517,20 @@ export class HybridMatchAnalyzer {
     result.confidenceLevel = "low";
     
     return result;
+  }
+
+  private async timePromise<T>(promise: Promise<T>, name: string): Promise<{ result: T; time: number }> {
+    const startTime = Date.now();
+    try {
+      const result = await promise;
+      const time = Date.now() - startTime;
+      logger.info(`⏱️  ${name.toUpperCase()} analysis took ${time}ms`);
+      return { result, time };
+    } catch (error) {
+      const time = Date.now() - startTime;
+      logger.error(`⏱️  ${name.toUpperCase()} analysis failed after ${time}ms`, { error });
+      throw error;
+    }
   }
 }
 
