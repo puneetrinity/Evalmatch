@@ -34,7 +34,7 @@ export default function MyResumesPage() {
   // Filter resumes based on search (file type filtering is now handled by API)
   const filteredResumes = resumes.filter(resume => {
     return resume.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           resume.originalName.toLowerCase().includes(searchTerm.toLowerCase());
+           (resume.originalName || '').toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   const handleUploadNew = () => {
@@ -177,30 +177,30 @@ export default function MyResumesPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4 flex-1">
                           <div className="flex-shrink-0">
-                            <i className={`${getFileIcon(resume.mimeType)} text-2xl text-blue-600`} aria-hidden="true"></i>
+                            <i className={`${getFileIcon(resume.mimeType || resume.fileType)} text-2xl text-blue-600`} aria-hidden="true"></i>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h4 className="text-lg font-medium text-gray-900 truncate">{resume.originalName}</h4>
+                            <h4 className="text-lg font-medium text-gray-900 truncate">{resume.originalName || resume.filename}</h4>
                             <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
                               <span className="flex items-center">
                                 <Calendar className="h-4 w-4 mr-1" />
                                 {formatDate(resume.uploadedAt)}
                               </span>
                               <span>{formatFileSize(resume.fileSize)}</span>
-                              <span className="uppercase">{resume.mimeType.split('/')[1] || 'file'}</span>
+                              <span className="uppercase">{(resume.mimeType || resume.fileType).split('/').pop() || 'file'}</span>
                             </div>
                           </div>
                         </div>
                         
                         <div className="flex items-center space-x-3 flex-shrink-0">
                           {/* Status Badge */}
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getResumeStatusColor(resume.status)}`}>
-                            <i className={`fas fa-${getResumeStatusIcon(resume.status)} mr-1`} aria-hidden="true"></i>
-                            {resume.status.charAt(0).toUpperCase() + resume.status.slice(1)}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getResumeStatusColor(resume.status || 'uploaded')}`}>
+                            <i className={`fas fa-${getResumeStatusIcon(resume.status || 'uploaded')} mr-1`} aria-hidden="true"></i>
+                            {(resume.status || 'uploaded').charAt(0).toUpperCase() + (resume.status || 'uploaded').slice(1)}
                           </span>
                           
                           {/* Actions */}
-                          {resume.status === "analyzed" ? (
+                          {(resume.status || 'uploaded') === "analyzed" ? (
                             <Button
                               variant="outline"
                               size="sm"
@@ -210,7 +210,7 @@ export default function MyResumesPage() {
                             </Button>
                           ) : (
                             <span className="text-sm text-gray-500 px-3 py-1">
-                              {resume.status === 'processing' ? 'Processing...' : 'Not analyzed'}
+                              {(resume.status || 'uploaded') === 'processing' ? 'Processing...' : 'Not analyzed'}
                             </span>
                           )}
                         </div>

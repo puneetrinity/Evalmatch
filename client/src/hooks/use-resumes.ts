@@ -137,7 +137,7 @@ export function useResumeUpload() {
       
       toast({
         title: "Resume Uploaded Successfully",
-        description: `${data.resume.originalName} has been uploaded and is being processed.`,
+        description: `${data.filename} has been uploaded and is being processed.`,
       });
     },
     onError: (error) => {

@@ -101,7 +101,7 @@ export function useCreateJobDescription() {
       
       toast({
         title: "Job Description Created Successfully",
-        description: `"${data.jobDescription.title}" has been created and analyzed.`,
+        description: `"${data.title}" has been created and analyzed.`,
       });
     },
     onError: (error) => {

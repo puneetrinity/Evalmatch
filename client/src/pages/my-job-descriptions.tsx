@@ -114,7 +114,7 @@ export default function MyJobDescriptionsPage() {
   });
 
   // Filter job descriptions based on search and filter
-  const filteredJobDescriptions = jobDescriptions.filter(job => {
+  const filteredJobDescriptions = jobDescriptions.filter((job: JobDescriptionItem) => {
     const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          job.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "All Status" || 
@@ -195,7 +195,7 @@ export default function MyJobDescriptionsPage() {
   // Calculate summary statistics
   const totalJobs = jobDescriptions.length;
   const activeJobs = jobDescriptions.length; // All jobs are considered active for now
-  const totalSkills = jobDescriptions.reduce((sum, j) => sum + (j.skills?.length || 0), 0);
+  const totalSkills = jobDescriptions.reduce((sum: number, j: JobDescriptionItem) => sum + (j.skills?.length || 0), 0);
   const avgSkillsPerJob = totalJobs > 0 ? Math.round(totalSkills / totalJobs) : 0;
 
   return (
@@ -298,7 +298,7 @@ export default function MyJobDescriptionsPage() {
 
             {/* Job Descriptions Cards */}
             <div className="space-y-4 mb-8">
-              {filteredJobDescriptions.map((job) => (
+              {filteredJobDescriptions.map((job: JobDescriptionItem) => (
                 <div key={job.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
@@ -318,7 +318,7 @@ export default function MyJobDescriptionsPage() {
                       {job.requirements && job.requirements.length > 0 && (
                         <div className="mb-4">
                           <div className="flex flex-wrap gap-2">
-                            {job.requirements.slice(0, 5).map((req, index) => (
+                            {job.requirements.slice(0, 5).map((req: string, index: number) => (
                               <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                 {req}
                               </span>
