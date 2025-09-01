@@ -201,6 +201,8 @@ export interface ResumeUploadRequest {
   file: File | Buffer;
   sessionId?: SessionId;
   userId?: UserId;
+  batchId?: string;
+  autoAnalyze?: boolean;
 }
 
 export interface ResumeListResponse {
@@ -218,6 +220,33 @@ export interface ResumeListResponse {
   }>;
   sessionId?: SessionId;
   totalCount: number;
+}
+
+export interface ResumeUploadResponse {
+  resumeId: ResumeId;
+  filename: string;
+  status: 'uploaded' | 'processed';
+  message?: string;
+}
+
+export interface ResumeListQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sessionId?: SessionId;
+}
+
+export interface ResumeItem {
+  id: ResumeId;
+  filename: string;
+  fileSize: number;
+  fileType: string;
+  uploadedAt: string;
+  analyzedData?: {
+    skills?: string[];
+    experience?: string;
+    education?: string[];
+  };
 }
 
 export interface ResumeDetailsResponse {
@@ -246,6 +275,28 @@ export interface JobCreateRequest {
   skills?: string[];
   experience?: string;
   userId?: UserId;
+}
+
+export interface JobCreateResponse {
+  jobId: JobId;
+  title: string;
+  status: 'created' | 'analyzed';
+  message?: string;
+}
+
+export interface JobItem {
+  id: JobId;
+  title: string;
+  description: string;
+  requirements?: string[];
+  skills?: string[];
+  experience?: string;
+  createdAt: string;
+  analyzedData?: {
+    skills?: string[];
+    requirements?: string[];
+    experience?: string;
+  };
 }
 
 export interface JobListResponse {
@@ -345,6 +396,9 @@ export interface AnalysisResponse {
   createdAt: string;
   processingTime: number;
 }
+
+// Type alias for backward compatibility
+export type AnalysisResult = AnalysisResponse;
 
 // Interview questions endpoint types
 export interface InterviewQuestion {

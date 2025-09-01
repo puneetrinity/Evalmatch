@@ -186,7 +186,7 @@ export const filterAnalysisResults = (results: AnalysisResult[], filters: {
     // Filter by required skills
     if (filters.requiredSkills && filters.requiredSkills.length > 0) {
       const hasAllRequiredSkills = filters.requiredSkills.every(skill =>
-        result.matchedSkills.some(matchedSkill => 
+        result.matchedSkills.some((matchedSkill: any) => 
           matchedSkill.toLowerCase().includes(skill.toLowerCase())
         )
       );
@@ -199,8 +199,8 @@ export const filterAnalysisResults = (results: AnalysisResult[], filters: {
       const matchesSearch = 
         result.candidateName.toLowerCase().includes(searchLower) ||
         result.filename.toLowerCase().includes(searchLower) ||
-        result.matchedSkills.some(skill => skill.toLowerCase().includes(searchLower)) ||
-        result.candidateStrengths.some(strength => strength.toLowerCase().includes(searchLower));
+        result.matchedSkills.some((skill: any) => skill.toLowerCase().includes(searchLower)) ||
+        result.candidateStrengths.some((strength: any) => strength.toLowerCase().includes(searchLower));
       
       if (!matchesSearch) return false;
     }
@@ -248,7 +248,7 @@ export const getCommonSkills = (results: AnalysisResult[]): { skill: string; cou
   const totalCandidates = results.length;
 
   results.forEach(result => {
-    result.matchedSkills.forEach(skill => {
+    result.matchedSkills.forEach((skill: any) => {
       skillCount.set(skill, (skillCount.get(skill) || 0) + 1);
     });
   });

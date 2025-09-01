@@ -28,6 +28,8 @@ interface JobDescriptionItem {
   title: string;
   description: string;
   requirements?: string[];
+  skills?: string[];
+  experience?: string;
   createdAt: string;
   updatedAt: string;
   status: "active" | "draft" | "archived";
@@ -83,14 +85,33 @@ const mockJobDescriptions: JobDescriptionItem[] = [
   }
 ];
 
+// Helper function to format experience level
+const formatExperienceLevel = (experience: string): string => {
+  return experience.charAt(0).toUpperCase() + experience.slice(1).toLowerCase();
+};
+
 export default function MyJobDescriptionsPage() {
   const { toast } = useToast();
   const [_, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
 
-  // In a real app, this would fetch from API
-  const jobDescriptions = mockJobDescriptions;
+  // Fetch job descriptions from API
+  const { data: jobDescriptions = mockJobDescriptions, isLoading, error, refetch } = useQuery({
+    queryKey: ['/api/job-descriptions'],
+    queryFn: async () => {
+      try {
+        const response = await apiRequest("GET", "/api/job-descriptions");
+        const data = await response.json();
+        return data.jobs || mockJobDescriptions; // Fallback to mock data
+      } catch (error) {
+        console.warn('Failed to fetch job descriptions, using mock data:', error);
+        return mockJobDescriptions;
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 1
+  });
 
   // Filter job descriptions based on search and filter
   const filteredJobDescriptions = jobDescriptions.filter(job => {
