@@ -255,7 +255,7 @@ export default function BiasDetectionPage() {
         biasAnalyzeMutation.mutate();
       }
     }
-  }, [jobData, hasAttemptedBiasAnalysis, isBiasAnalyzing]); // Removed biasAnalysis from deps to prevent loop
+  }, [jobData, hasAttemptedBiasAnalysis, isBiasAnalyzing, biasAnalyzeMutation]); // Added biasAnalyzeMutation to deps - CRITICAL for React hooks rules
 
   // Handle analyze bias button click
   const handleAnalyzeBias = () => {
