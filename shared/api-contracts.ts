@@ -369,30 +369,35 @@ export interface MatchInsights {
   summary: string;
 }
 
+// Individual analysis result item
+export interface AnalysisResultItem {
+  resumeId: ResumeId;
+  filename: string;
+  candidateName?: string;
+  matchPercentage: number;
+  matchedSkills: MatchedSkill[];
+  missingSkills: string[];
+  candidateStrengths: string[];
+  candidateWeaknesses: string[];
+  recommendations: string[];
+  confidenceLevel: 'low' | 'medium' | 'high';
+  confidenceScore?: number; // Add for backward compatibility
+  analyzedAt?: string; // Add for backward compatibility
+  fairnessMetrics?: FairnessMetrics;
+  scoringDimensions?: {
+    skills: number;
+    experience: number;
+    education: number;
+    semantic: number;
+    overall: number;
+  };
+  matchInsights?: MatchInsights;
+}
+
 export interface AnalysisResponse {
   analysisId: AnalysisId;
   jobId: JobId;
-  results: Array<{
-    resumeId: ResumeId;
-    filename: string;
-    candidateName?: string;
-    matchPercentage: number;
-    matchedSkills: MatchedSkill[];
-    missingSkills: string[];
-    candidateStrengths: string[];
-    candidateWeaknesses: string[];
-    recommendations: string[];
-    confidenceLevel: 'low' | 'medium' | 'high';
-    fairnessMetrics?: FairnessMetrics;
-    scoringDimensions?: {
-      skills: number;
-      experience: number;
-      education: number;
-      semantic: number;
-      overall: number;
-    };
-    matchInsights?: MatchInsights;
-  }>;
+  results: Array<AnalysisResultItem>;
   createdAt: string;
   processingTime: number;
 }

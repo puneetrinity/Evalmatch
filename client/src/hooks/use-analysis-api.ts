@@ -6,6 +6,7 @@ import {
   AnalysisRequest,
   AnalysisResponse,
   AnalysisResult,
+  AnalysisResultItem,
   ApiResponse,
   isApiSuccess
 } from "@shared/api-contracts";
@@ -150,30 +151,30 @@ export const getConfidenceLabel = (confidence: number): string => {
 };
 
 // Sort analysis results by match percentage
-export const sortAnalysisResults = (results: AnalysisResult[], sortBy: string = "score"): AnalysisResult[] => {
+export const sortAnalysisResults = (results: AnalysisResultItem[], sortBy: string = "score"): AnalysisResultItem[] => {
   const sorted = [...results];
   
   switch (sortBy) {
     case "score":
       return sorted.sort((a, b) => b.matchPercentage - a.matchPercentage);
     case "confidence":
-      return sorted.sort((a, b) => b.confidenceScore - a.confidenceScore);
+      return sorted.sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0));
     case "name":
-      return sorted.sort((a, b) => a.candidateName.localeCompare(b.candidateName));
+      return sorted.sort((a, b) => (a.candidateName || '').localeCompare(b.candidateName || ''));
     case "date":
-      return sorted.sort((a, b) => new Date(b.analyzedAt).getTime() - new Date(a.analyzedAt).getTime());
+      return sorted.sort((a, b) => new Date(b.analyzedAt || 0).getTime() - new Date(a.analyzedAt || 0).getTime());
     default:
       return sorted;
   }
 };
 
 // Filter analysis results
-export const filterAnalysisResults = (results: AnalysisResult[], filters: {
+export const filterAnalysisResults = (results: AnalysisResultItem[], filters: {
   minScore?: number;
   maxScore?: number;
   requiredSkills?: string[];
   searchTerm?: string;
-}): AnalysisResult[] => {
+}): AnalysisResultItem[] => {
   return results.filter(result => {
     // Filter by score range
     if (filters.minScore !== undefined && result.matchPercentage < filters.minScore) {
@@ -197,7 +198,7 @@ export const filterAnalysisResults = (results: AnalysisResult[], filters: {
     if (filters.searchTerm) {
       const searchLower = filters.searchTerm.toLowerCase();
       const matchesSearch = 
-        result.candidateName.toLowerCase().includes(searchLower) ||
+        (result.candidateName || '').toLowerCase().includes(searchLower) ||
         result.filename.toLowerCase().includes(searchLower) ||
         result.matchedSkills.some((skill: any) => skill.toLowerCase().includes(searchLower)) ||
         result.candidateStrengths.some((strength: any) => strength.toLowerCase().includes(searchLower));
@@ -210,7 +211,7 @@ export const filterAnalysisResults = (results: AnalysisResult[], filters: {
 };
 
 // Calculate analysis statistics
-export const calculateAnalysisStats = (results: AnalysisResult[]) => {
+export const calculateAnalysisStats = (results: AnalysisResultItem[]) => {
   if (results.length === 0) {
     return {
       totalCandidates: 0,
@@ -224,7 +225,7 @@ export const calculateAnalysisStats = (results: AnalysisResult[]) => {
   const totalCandidates = results.length;
   const averageScore = Math.round(results.reduce((sum, r) => sum + r.matchPercentage, 0) / totalCandidates);
   const topScore = Math.max(...results.map(r => r.matchPercentage));
-  const averageConfidence = Math.round(results.reduce((sum, r) => sum + r.confidenceScore, 0) / totalCandidates);
+  const averageConfidence = Math.round(results.reduce((sum, r) => sum + (r.confidenceScore || 0), 0) / totalCandidates);
   
   const scoreDistribution = {
     excellent: results.filter(r => r.matchPercentage >= 90).length,
@@ -243,7 +244,7 @@ export const calculateAnalysisStats = (results: AnalysisResult[]) => {
 };
 
 // Extract common skills from analysis results
-export const getCommonSkills = (results: AnalysisResult[]): { skill: string; count: number; percentage: number }[] => {
+export const getCommonSkills = (results: AnalysisResultItem[]): { skill: string; count: number; percentage: number }[] => {
   const skillCount = new Map<string, number>();
   const totalCandidates = results.length;
 
