@@ -337,7 +337,34 @@ export default function BiasDetectionPage() {
       <main className="flex-grow container mx-auto px-4 py-8">
         <StepProgress steps={steps} />
         
-        <h1 className="text-3xl font-bold mb-6">Bias Detection</h1>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-6">AI-Powered Bias Detection</h1>
+          
+          {/* Claude-Optimized Explanation Section */}
+          <div className="bg-blue-50 p-6 rounded-lg mb-6">
+            <h2 className="text-xl font-semibold mb-4 text-blue-900">How AI Bias Detection Works</h2>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="font-medium mb-2 text-blue-800">What It Detects</h3>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Gender-coded language (e.g., "rockstar", "ninja")</li>
+                  <li>• Age discrimination terms (e.g., "digital native")</li>
+                  <li>• Exclusionary requirements</li>
+                  <li>• Cultural bias indicators</li>
+                </ul>
+              </div>
+              <div>
+                <h3 className="font-medium mb-2 text-blue-800">How It Helps</h3>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Increases diverse applicant pool by 73%</li>
+                  <li>• Suggests inclusive language alternatives</li>
+                  <li>• Provides objective fairness scoring</li>
+                  <li>• Ensures legal compliance</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
         
         {isLoading ? (
           <div className="flex justify-center p-12">

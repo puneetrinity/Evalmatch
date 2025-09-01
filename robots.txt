@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+
+# Block sensitive areas
+Disallow: /api/
+Disallow: /admin/
+Disallow: /uploads/
+Disallow: /private/
+Disallow: /*.json$
+Disallow: /*.log$
+
+# Allow important pages for SEO
+Allow: /
+Allow: /features/
+Allow: /about/
+Allow: /pricing/
+Allow: /contact/
+
+# Sitemap location
+Sitemap: https://evalmatch.app/sitemap.xml
