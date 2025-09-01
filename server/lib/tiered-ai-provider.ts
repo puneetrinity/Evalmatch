@@ -334,18 +334,30 @@ export async function analyzeResume(
   resumeText: string,
   userTier: UserTierInfo,
 ): Promise<AnalyzeResumeResponse> {
-  // Check usage limits
-  const usageCheck = checkUsageLimit(userTier);
-  if (!usageCheck.canUse) {
-    throw new Error(usageCheck.message);
+  // BETA MODE: Allow all users to test resume analysis
+  const BETA_MODE = true; // Set to false to enable tier restrictions
+
+  // Check usage limits - SKIP IN BETA MODE for resume analysis
+  if (!BETA_MODE) {
+    const usageCheck = checkUsageLimit(userTier);
+    if (!usageCheck.canUse) {
+      throw new Error(usageCheck.message);
+    }
+  } else {
+    logger.info("Beta mode: Skipping usage limits for resume analysis", { 
+      userTier: userTier.tier,
+      context: "resume_analysis"
+    });
   }
 
   // Select provider based on tier
   const selection = selectProviderForTier(userTier);
   logger.info(`Selected provider: ${selection.provider} - ${selection.reason}`);
 
-  // Increment usage count
-  incrementUsage(userTier);
+  // Increment usage count - SKIP IN BETA MODE for resume analysis
+  if (!BETA_MODE) {
+    incrementUsage(userTier);
+  }
 
   // Call appropriate provider with circuit breaker protection
   try {
@@ -366,6 +378,33 @@ export async function analyzeResume(
       stack: error instanceof Error ? error.stack : undefined,
     });
     
+    // In BETA MODE, provide fallback resume analysis instead of hard error
+    if (BETA_MODE) {
+      logger.info("Beta mode: Providing fallback resume analysis due to provider failure", {
+        provider: selection.provider,
+        userTier: userTier.tier
+      });
+      
+      // Return basic fallback analysis to not block user flow
+      return {
+        skills: ["Analysis temporarily unavailable"],
+        experience: "Experience analysis unavailable",
+        education: "Education analysis unavailable",
+        summary: "Resume analysis service is temporarily unavailable. Please try again later or continue with manual review.",
+        jobTitles: [],
+        keyProjects: [],
+        certifications: [],
+        languages: [],
+        totalYearsExperience: 0,
+        seniority: "unknown" as const,
+        overallScore: 50, // Neutral score
+        strengthsWeaknesses: {
+          strengths: ["Resume uploaded successfully"],
+          weaknesses: ["Analysis service temporarily unavailable"]
+        }
+      };
+    }
+    
     // Classify error type and throw appropriate error
     throw classifyAndThrowError(error, userTier, "Resume analysis");
   }
@@ -379,10 +418,20 @@ export async function analyzeResumeParallel(
   resumeText: string,
   userTier: UserTierInfo,
 ): Promise<AnalyzeResumeResponse> {
-  // Check usage limits
-  const usageCheck = checkUsageLimit(userTier);
-  if (!usageCheck.canUse) {
-    throw new Error(usageCheck.message);
+  // BETA MODE: Allow all users to test resume analysis
+  const BETA_MODE = true; // Set to false to enable tier restrictions
+
+  // Check usage limits - SKIP IN BETA MODE for resume analysis
+  if (!BETA_MODE) {
+    const usageCheck = checkUsageLimit(userTier);
+    if (!usageCheck.canUse) {
+      throw new Error(usageCheck.message);
+    }
+  } else {
+    logger.info("Beta mode: Skipping usage limits for resume analysis", { 
+      userTier: userTier.tier,
+      context: "resume_analysis_parallel"
+    });
   }
 
   // Select provider based on tier
@@ -391,8 +440,10 @@ export async function analyzeResumeParallel(
     `Selected provider: ${selection.provider} - ${selection.reason} (parallel extraction)`,
   );
 
-  // Increment usage count
-  incrementUsage(userTier);
+  // Increment usage count - SKIP IN BETA MODE for resume analysis
+  if (!BETA_MODE) {
+    incrementUsage(userTier);
+  }
 
   // Call appropriate provider with circuit breaker protection
   try {
@@ -409,7 +460,41 @@ export async function analyzeResumeParallel(
         return await breakers.groq.exec(() => groq.analyzeResumeParallel(resumeText));
     }
   } catch (error) {
-    logger.error("AI provider error in parallel resume analysis", error);
+    logger.error("AI provider error in parallel resume analysis", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      provider: selection.provider,
+      userTier: userTier.tier,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    
+    // In BETA MODE, provide fallback resume analysis instead of hard error
+    if (BETA_MODE) {
+      logger.info("Beta mode: Providing fallback resume analysis due to provider failure", {
+        provider: selection.provider,
+        userTier: userTier.tier
+      });
+      
+      // Return basic fallback analysis to not block user flow
+      return {
+        skills: ["Analysis temporarily unavailable"],
+        experience: "Experience analysis unavailable",
+        education: "Education analysis unavailable",
+        summary: "Resume analysis service is temporarily unavailable. Please try again later or continue with manual review.",
+        jobTitles: [],
+        keyProjects: [],
+        certifications: [],
+        languages: [],
+        totalYearsExperience: 0,
+        seniority: "unknown" as const,
+        overallScore: 50, // Neutral score
+        strengthsWeaknesses: {
+          strengths: ["Resume uploaded successfully"],
+          weaknesses: ["Analysis service temporarily unavailable"]
+        }
+      };
+    }
+    
+    // Classify error type and throw appropriate error
     throw classifyAndThrowError(error, userTier, "Resume analysis");
   }
 }
@@ -422,18 +507,30 @@ export async function analyzeJobDescription(
   description: string,
   userTier: UserTierInfo,
 ): Promise<AnalyzeJobDescriptionResponse> {
-  // Check usage limits
-  const usageCheck = checkUsageLimit(userTier);
-  if (!usageCheck.canUse) {
-    throw new Error(usageCheck.message);
+  // BETA MODE: Allow all users to test job analysis
+  const BETA_MODE = true; // Set to false to enable tier restrictions
+
+  // Check usage limits - SKIP IN BETA MODE for job analysis
+  if (!BETA_MODE) {
+    const usageCheck = checkUsageLimit(userTier);
+    if (!usageCheck.canUse) {
+      throw new Error(usageCheck.message);
+    }
+  } else {
+    logger.info("Beta mode: Skipping usage limits for job analysis", { 
+      userTier: userTier.tier,
+      context: "job_analysis"
+    });
   }
 
   // Select provider based on tier
   const selection = selectProviderForTier(userTier);
   logger.info(`Selected provider: ${selection.provider} - ${selection.reason}`);
 
-  // Increment usage count
-  incrementUsage(userTier);
+  // Increment usage count - SKIP IN BETA MODE for job analysis
+  if (!BETA_MODE) {
+    incrementUsage(userTier);
+  }
 
   // Call appropriate provider with circuit breaker protection
   try {
@@ -447,7 +544,35 @@ export async function analyzeJobDescription(
         return await breakers.groq.exec(() => groq.analyzeJobDescription(title, description));
     }
   } catch (error) {
-    logger.error("AI provider error in job description analysis", error);
+    logger.error("AI provider error in job description analysis", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      provider: selection.provider,
+      userTier: userTier.tier,
+      title: title.substring(0, 50)
+    });
+    
+    // In BETA MODE, provide fallback job analysis instead of hard error
+    if (BETA_MODE) {
+      logger.info("Beta mode: Providing fallback job analysis due to provider failure", {
+        provider: selection.provider,
+        userTier: userTier.tier
+      });
+      
+      // Return basic fallback analysis to not block user flow
+      return {
+        requiredSkills: ["Analysis temporarily unavailable"],
+        requiredExperience: "Experience requirements analysis unavailable",
+        requiredEducation: "Education requirements analysis unavailable",
+        summary: "Job description analysis service is temporarily unavailable. Please try again later or continue with manual review.",
+        jobType: "unknown" as const,
+        seniorityLevel: "unknown" as const,
+        workArrangement: "unknown" as const,
+        benefits: [],
+        responsibilities: [],
+        overallScore: 50 // Neutral score
+      };
+    }
+    
     // Throw appropriate error message based on user tier
     throw classifyAndThrowError(error, userTier, "Job description analysis");
   }
@@ -469,10 +594,20 @@ export async function analyzeMatch(
   resumeText?: string,
   jobText?: string,
 ): Promise<MatchAnalysisResponse> {
-  // Check usage limits
-  const usageCheck = checkUsageLimit(userTier);
-  if (!usageCheck.canUse) {
-    throw new Error(usageCheck.message);
+  // BETA MODE: Allow all users to test match analysis
+  const BETA_MODE = true; // Set to false to enable tier restrictions
+
+  // Check usage limits - SKIP IN BETA MODE for match analysis
+  if (!BETA_MODE) {
+    const usageCheck = checkUsageLimit(userTier);
+    if (!usageCheck.canUse) {
+      throw new Error(usageCheck.message);
+    }
+  } else {
+    logger.info("Beta mode: Skipping usage limits for match analysis", { 
+      userTier: userTier.tier,
+      context: "match_analysis"
+    });
   }
 
   // Task 5: Enhanced provider fallback chain
@@ -484,8 +619,10 @@ export async function analyzeMatch(
     userTier: userTier.tier
   });
 
-  // Increment usage count
-  incrementUsage(userTier);
+  // Increment usage count - SKIP IN BETA MODE for match analysis
+  if (!BETA_MODE) {
+    incrementUsage(userTier);
+  }
 
   // Task 5: Implement retry logic with exponential backoff
   let lastError: Error | unknown;
