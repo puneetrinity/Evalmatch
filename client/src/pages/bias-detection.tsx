@@ -242,13 +242,13 @@ export default function BiasDetectionPage() {
       }
       
       // Only auto-trigger bias analysis if:
-      // 1. Job is analyzed 
+      // 1. Job data exists (no need to wait for isAnalyzed - bias analysis is independent)
       // 2. No existing bias analysis found
       // 3. Haven't attempted bias analysis yet
       // 4. Not currently analyzing
-      if ((jobData as JobData).isAnalyzed && !existingBiasAnalysis && !hasAttemptedBiasAnalysis && !isBiasAnalyzing) {
+      if (!existingBiasAnalysis && !hasAttemptedBiasAnalysis && !isBiasAnalyzing) {
         if (import.meta.env.DEV) {
-          console.log("Job analysis complete, automatically starting new bias analysis via API");
+          console.log("Job data loaded, automatically starting bias analysis via API");
         }
         setIsBiasAnalyzing(true);
         setHasAttemptedBiasAnalysis(true);
