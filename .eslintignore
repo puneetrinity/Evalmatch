@@ -43,3 +43,13 @@ monitoring-logs/
 performance-reports/
 railway-test-report.json
 performance-results.json
+
+# Test and development scripts
+*.mjs
+test-*.js
+check-*.js
+backend-e2e-tests.js
+test_*.js
+analyze-*.mjs
+memory-stress-test.cjs
+test/

@@ -390,6 +390,10 @@ export async function analyzeResume(
         skills: ["Analysis temporarily unavailable"],
         experience: "Experience analysis unavailable",
         education: "Education analysis unavailable",
+        jobTitles: [],
+        keyProjects: [],
+        certifications: [],
+        languages: [],
         summary: "Resume analysis service is temporarily unavailable. Please try again later or continue with manual review.",
         jobTitles: [],
         keyProjects: [],
@@ -479,6 +483,10 @@ export async function analyzeResumeParallel(
         skills: ["Analysis temporarily unavailable"],
         experience: "Experience analysis unavailable",
         education: "Education analysis unavailable",
+        jobTitles: [],
+        keyProjects: [],
+        certifications: [],
+        languages: [],
         summary: "Resume analysis service is temporarily unavailable. Please try again later or continue with manual review.",
         jobTitles: [],
         keyProjects: [],
@@ -561,8 +569,8 @@ export async function analyzeJobDescription(
       // Return basic fallback analysis to not block user flow
       return {
         requiredSkills: ["Analysis temporarily unavailable"],
-        requiredExperience: "Experience requirements analysis unavailable",
-        requiredEducation: "Education requirements analysis unavailable",
+        experience: "Experience requirements analysis unavailable",
+        education: "Education requirements analysis unavailable",
         summary: "Job description analysis service is temporarily unavailable. Please try again later or continue with manual review.",
         jobType: "unknown" as const,
         seniorityLevel: "unknown" as const,
@@ -896,19 +904,16 @@ export async function generateInterviewQuestions(
         questions: [
           {
             question: "Can you tell me about yourself and your professional background?",
-            type: "general" as const,
             difficulty: "easy" as const,
             purpose: "Getting to know the candidate"
           },
           {
             question: "What interests you most about this position?",
-            type: "general" as const,
             difficulty: "easy" as const,
             purpose: "Understanding motivation and fit"
           },
           {
             question: "Interview questions service is temporarily unavailable. Please prepare standard technical and behavioral questions based on the job requirements.",
-            type: "fallback" as const,
             difficulty: "medium" as const,
             purpose: "Service unavailable notice"
           }
