@@ -651,7 +651,7 @@ export async function detectJobBias(jobDescription: string): Promise<BiasDetecti
     }
 
     // Check for education bias indicators
-    const educationBiasWords = BIAS_PATTERNS.education.excessive.filter(keyword => 
+    const educationBiasWords = BIAS_PATTERNS.education.degreeRequirements.filter((keyword: string) => 
       text.includes(keyword.toLowerCase())
     );
     if (educationBiasWords.length > 0) {

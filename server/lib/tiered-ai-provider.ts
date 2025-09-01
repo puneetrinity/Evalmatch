@@ -80,6 +80,13 @@ function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: 
   const errorMessage = error instanceof Error ? error.message.toLowerCase() : "";
   const errorStack = error instanceof Error ? error.stack?.toLowerCase() || "" : "";
   
+  // Circuit breaker errors - handle these first for clarity
+  if (errorMessage.includes("err_breaker_open")) {
+    const provider = errorMessage.split(':')[1] || 'AI provider';
+    logger.error("Circuit breaker is open", { provider, context, userTier: userTier.tier });
+    throw new Error(`${context} service is temporarily unavailable. The system is recovering from previous errors. Please try again in a few minutes or skip this step.`);
+  }
+  
   // Rate limit errors
   if (errorMessage.includes("rate limit") || 
       errorMessage.includes("too many requests") ||
@@ -583,18 +590,27 @@ export async function analyzeBias(
     );
   }
 
-  // Check usage limits
-  const usageCheck = checkUsageLimit(userTier);
-  if (!usageCheck.canUse) {
-    throw new Error(usageCheck.message);
+  // Check usage limits - SKIP IN BETA MODE for bias analysis
+  if (!BETA_MODE) {
+    const usageCheck = checkUsageLimit(userTier);
+    if (!usageCheck.canUse) {
+      throw new Error(usageCheck.message);
+    }
+  } else {
+    logger.info("Beta mode: Skipping usage limits for bias analysis", { 
+      userTier: userTier.tier,
+      context: "bias_analysis"
+    });
   }
 
   // Select provider based on tier
   const selection = selectProviderForTier(userTier);
   logger.info(`Selected provider: ${selection.provider} - ${selection.reason}`);
 
-  // Increment usage count
-  incrementUsage(userTier);
+  // Increment usage count - SKIP IN BETA MODE for bias analysis
+  if (!BETA_MODE) {
+    incrementUsage(userTier);
+  }
 
   // Call appropriate provider with circuit breaker protection
   try {
@@ -608,7 +624,53 @@ export async function analyzeBias(
         return await breakers.groq.exec(() => groq.analyzeBias(title, description));
     }
   } catch (error) {
-    logger.error("AI provider error in bias analysis", error);
+    logger.error("AI provider error in bias analysis", {
+      error: error instanceof Error ? error.message : String(error),
+      provider: selection.provider,
+      userTier: userTier.tier,
+      title: title.substring(0, 50)
+    });
+    
+    // In BETA MODE, provide fallback bias analysis instead of hard error
+    if (BETA_MODE) {
+      logger.info("Beta mode: Providing fallback bias analysis due to provider failure", {
+        provider: selection.provider,
+        userTier: userTier.tier
+      });
+      
+      // Use local bias detection as fallback
+      try {
+        const { detectJobBias } = await import("./bias-detection");
+        const fallbackResult = await detectJobBias(`${title}\n\n${description}`);
+        
+        // Convert to BiasAnalysisResponse format
+        return {
+          hasBias: fallbackResult.hasBias,
+          biasTypes: fallbackResult.detectedBiases?.map(b => b.type) || [],
+          biasedPhrases: fallbackResult.detectedBiases?.map(b => ({
+            phrase: b.evidence?.[0] || b.type,
+            reason: b.description
+          })) || [],
+          suggestions: fallbackResult.recommendations || [],
+          improvedDescription: description, // Keep original for now
+          overallScore: 100 - fallbackResult.biasScore,
+          summary: fallbackResult.explanation || "Local bias analysis completed"
+        };
+      } catch (fallbackError) {
+        logger.error("Fallback bias detection also failed", fallbackError);
+        // Return neutral result to not block user flow
+        return {
+          hasBias: false,
+          biasTypes: [],
+          biasedPhrases: [],
+          suggestions: ["Bias analysis temporarily unavailable. Manual review recommended."],
+          improvedDescription: description,
+          overallScore: 85,
+          summary: "Bias analysis service temporarily unavailable"
+        };
+      }
+    }
+    
     // Throw appropriate error message based on user tier
     throw classifyAndThrowError(error, userTier, "Bias analysis");
   }

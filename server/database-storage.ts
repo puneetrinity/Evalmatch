@@ -130,6 +130,13 @@ export class DatabaseStorage implements IStorage {
     }, `updateResumeAnalysis(${id})`);
   }
   
+  async deleteResume(id: number): Promise<void> {
+    return withRetry(async () => {
+      await this.db.delete(resumes).where(eq(resumes.id, id));
+      logger.info('Resume deleted successfully from database', { id });
+    }, `deleteResume(${id})`);
+  }
+  
   // Job description methods
   async getJobDescription(id: number): Promise<JobDescription | undefined> {
     logger.debug('Looking up job description', { jobId: id });

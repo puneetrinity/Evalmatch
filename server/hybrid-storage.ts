@@ -529,6 +529,15 @@ export class HybridStorage implements IStorage {
     );
   }
   
+  async deleteResume(id: number): Promise<void> {
+    return this.executeWithFallback(
+      `deleteResume(${id})`,
+      () => this.dbStorage.deleteResume(id),
+      () => this.memStorage.deleteResume(id),
+      true
+    );
+  }
+  
   // Job description methods
   async getJobDescription(id: number): Promise<JobDescription | undefined> {
     return this.executeWithFallback(

@@ -1,4 +1,4 @@
-import { cacheManager, CacheManager } from "./redis-cache";
+import { cacheManager } from "./redis-cache";
 import { logger } from "./logger";
 import * as tieredAI from "./tiered-ai-provider";
 import { 
@@ -25,8 +25,6 @@ import {
 import crypto from "crypto";
 import {
   generateMatchAnalysisKey,
-  generateResumeAnalysisKey,
-  generateJobAnalysisKey,
   generateInflightLockKey,
   CURRENT_VERSIONS,
   type CacheKeyParts
@@ -35,8 +33,7 @@ import {
   createAnalysisEnvelope,
   extractMetrics,
   type CacheInfo,
-  type TimingInfo,
-  type MatchAnalysisEnvelope
+  type TimingInfo
 } from "./cache-envelope";
 import { serviceLevelManager } from "./service-level-manager";
 import { metricsCollector } from "./metrics-collector";
@@ -79,12 +76,6 @@ interface CachedResult<T> {
   metadata: CacheMetadata;
 }
 
-interface CacheInfo {
-  hit: boolean;
-  fallbackUsed?: boolean;
-  provider?: CacheProvider;
-  age?: number;
-}
 
 /**
  * Phase 1.1: Generate provider-aware cache key
@@ -104,7 +95,7 @@ function generateProviderAwareKey(
 /**
  * Phase 1.1: Generate in-flight lock key for deduplication
  */
-function generateInflightKey(contentHash: string, type: string): string {
+function _generateInflightKey(contentHash: string, type: string): string {
   return `analysis:lock:${type}:${contentHash.substring(0, 16)}`;
 }
 

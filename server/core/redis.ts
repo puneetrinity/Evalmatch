@@ -18,7 +18,7 @@ export const redis = new IORedis(process.env.REDIS_URL!, {
   autoResubscribe: true,
   // Connection pool settings optimized for Railway
   maxRetriesPerRequest: 3,
-  retryDelayOnFailover: 100,
+  retryDelayOnClusterDown: 100,
   keepAlive: 30000,
   // Timeout settings
   commandTimeout: 5000,

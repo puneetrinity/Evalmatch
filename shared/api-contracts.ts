@@ -234,14 +234,20 @@ export interface ResumeListQuery {
   limit?: number;
   search?: string;
   sessionId?: SessionId;
+  fileType?: string;
+  hasAnalysis?: boolean;
+  batchId?: string;
 }
 
 export interface ResumeItem {
   id: ResumeId;
   filename: string;
+  originalName?: string; // Original filename when uploaded
   fileSize: number;
   fileType: string;
+  mimeType?: string; // MIME type of the file
   uploadedAt: string;
+  status?: 'uploaded' | 'processing' | 'analyzed' | 'error'; // Resume processing status
   analyzedData?: {
     skills?: string[];
     experience?: string;

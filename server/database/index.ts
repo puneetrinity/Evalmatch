@@ -651,7 +651,7 @@ export async function initializeDatabase(): Promise<void> {
 function getOptimizedPoolConfig() {
   const env = config.env;
   const isProduction = env === "production";
-  const isTest = env === "test";
+  const _isTest = env === "test";
   const _isDevelopment = env === "development";
 
   // Railway-specific pool configuration for 100-user scalability

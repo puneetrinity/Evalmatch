@@ -312,7 +312,8 @@ export default function BiasDetectionPage() {
   const hasAnalysis = !!jobData?.analysis;
   const hasBiasAnalysis = !!jobData?.analysis?.biasAnalysis || !!jobData?.analyzedData?.biasAnalysis;
   const isJobAnalyzed = !!jobData?.isAnalyzed;
-  const isJobAnalysisComplete = isJobAnalyzed || hasBiasAnalysis;
+  // Allow continuation after bias analysis attempt (successful or failed)
+  const isJobAnalysisComplete = isJobAnalyzed || hasBiasAnalysis || hasAttemptedBiasAnalysis;
 
   // Early return for invalid jobId to prevent component rendering issues
   if (!isValidJobId) {

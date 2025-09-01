@@ -97,7 +97,7 @@ export abstract class BaseAIProvider {
    * PERFORMANCE: Abstract method for provider-specific implementation
    * Each provider only implements the core API call logic
    */
-  protected abstract executeRequest(request: AIRequest): Promise<AIResponse>;
+  protected abstract executeRequest(_request: AIRequest): Promise<AIResponse>;
 
   /**
    * PERFORMANCE: Intelligent caching TTL based on request type
