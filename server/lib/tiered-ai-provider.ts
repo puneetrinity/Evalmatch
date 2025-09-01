@@ -205,27 +205,29 @@ function selectProviderForTier(
   const BETA_MODE = true; // Set to false to enable full tiered system
 
   if (BETA_MODE) {
-    if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
+    // Check if Groq is configured AND circuit breaker is not open
+    if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable && breakers.groq.status().state !== 'open') {
       return {
         provider: "groq",
         reason: `Beta mode - all users use cost-effective Groq (tier: ${userTier.tier})`,
       };
     }
-    // Emergency fallback during beta if Groq is down
-    if (isOpenAIConfigured && openai.getOpenAIServiceStatus().isAvailable) {
+    // Emergency fallback during beta if Groq is down or circuit breaker is open
+    if (isOpenAIConfigured && openai.getOpenAIServiceStatus().isAvailable && breakers.openai.status().state !== 'open') {
       return {
         provider: "openai",
-        reason: "Beta mode - emergency fallback (Groq unavailable)",
+        reason: "Beta mode - emergency fallback (Groq circuit breaker open or unavailable)",
       };
     }
     // Last resort fallback
     if (
       isAnthropicConfigured &&
-      anthropic.getAnthropicServiceStatus().isAvailable
+      anthropic.getAnthropicServiceStatus().isAvailable &&
+      breakers.anthropic.status().state !== 'open'
     ) {
       return {
         provider: "anthropic",
-        reason: "Beta mode - last resort fallback",
+        reason: "Beta mode - last resort fallback (OpenAI circuit breaker also open)",
       };
     }
     // All providers unavailable - throw error instead of fallback
@@ -240,7 +242,8 @@ function selectProviderForTier(
     if (
       (allowedProviders as unknown as string[]).includes("anthropic") &&
       isAnthropicConfigured &&
-      anthropic.getAnthropicServiceStatus().isAvailable
+      anthropic.getAnthropicServiceStatus().isAvailable &&
+      breakers.anthropic.status().state !== 'open'
     ) {
       return {
         provider: "anthropic",
@@ -250,7 +253,8 @@ function selectProviderForTier(
     if (
       (allowedProviders as unknown as string[]).includes("openai") &&
       isOpenAIConfigured &&
-      openai.getOpenAIServiceStatus().isAvailable
+      openai.getOpenAIServiceStatus().isAvailable &&
+      breakers.openai.status().state !== 'open'
     ) {
       return {
         provider: "openai",
@@ -260,7 +264,8 @@ function selectProviderForTier(
     if (
       allowedProviders.includes("groq") &&
       isGroqConfigured &&
-      groq.getGroqServiceStatus().isAvailable
+      groq.getGroqServiceStatus().isAvailable &&
+      breakers.groq.status().state !== 'open'
     ) {
       return {
         provider: "groq",
@@ -274,7 +279,8 @@ function selectProviderForTier(
     if (
       allowedProviders.includes("groq") &&
       isGroqConfigured &&
-      groq.getGroqServiceStatus().isAvailable
+      groq.getGroqServiceStatus().isAvailable &&
+      breakers.groq.status().state !== 'open'
     ) {
       return {
         provider: "groq",
@@ -282,7 +288,7 @@ function selectProviderForTier(
       };
     }
     // If Groq is down, freemium users get limited OpenAI as fallback
-    if (isOpenAIConfigured && openai.getOpenAIServiceStatus().isAvailable) {
+    if (isOpenAIConfigured && openai.getOpenAIServiceStatus().isAvailable && breakers.openai.status().state !== 'open') {
       return {
         provider: "openai",
         reason: "Freemium tier - emergency fallback (Groq unavailable)",
