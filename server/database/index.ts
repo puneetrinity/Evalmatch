@@ -1281,8 +1281,6 @@ export function getConnectionStats(): ConnectionStats & {
       forcedCleanups: stats.forcedConnectionCleanups,
       currentlyTracked: trackedConnections.size,
     },
-    // Phase 0.1d: LRU tracking performance metrics
-    lruTracker: trackedConnections.getStats(),
   };
 }
 

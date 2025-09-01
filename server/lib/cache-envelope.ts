@@ -13,6 +13,8 @@ export interface CacheInfo {
   tier?: CacheTier;
   provider?: ProviderUsed;
   age?: number; // milliseconds since cached
+  cacheMs?: number; // cache operation duration
+  fallbackUsed?: boolean; // whether fallback was used
 }
 
 export interface TimingInfo {

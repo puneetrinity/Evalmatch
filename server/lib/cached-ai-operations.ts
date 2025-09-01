@@ -237,9 +237,9 @@ export async function analyzeResumeWithCache(
   const primaryProvider: CacheProvider = 'groq'; // Primary provider per system config
   
   // Try provider-aware cache with fallback
+  const cacheKey = generateProviderAwareKey('resume_analysis', primaryProvider, contentHash);
   const { result: cached, cacheInfo } = await tryProviderCache<AnalyzeResumeResponse>(
-    'resume_analysis',
-    contentHash,
+    cacheKey,
     primaryProvider
   );
   
@@ -303,9 +303,9 @@ export async function analyzeJobDescriptionWithCache(
   const primaryProvider: CacheProvider = 'groq'; // Primary provider per system config
   
   // Try provider-aware cache with fallback
+  const cacheKey = generateProviderAwareKey('job_analysis', primaryProvider, contentHash);
   const { result: cached, cacheInfo } = await tryProviderCache<AnalyzeJobDescriptionResponse>(
-    'job_analysis',
-    contentHash,
+    cacheKey,
     primaryProvider
   );
   
@@ -385,8 +385,7 @@ export async function matchAnalysisWithCache(
     resumeData: {
       skills: resumeAnalysis.analyzedData.skills || [],
       experience: resumeAnalysis.analyzedData.experience,
-      education: resumeAnalysis.analyzedData.education || [],
-      jobTitles: resumeAnalysis.analyzedData.jobTitles || []
+      education: resumeAnalysis.analyzedData.education || []
     },
     jobData: {
       requiredSkills: jobAnalysis.analyzedData.requiredSkills || [],
@@ -397,7 +396,7 @@ export async function matchAnalysisWithCache(
     useFullText,
     provider: primaryProvider,
     versions: CURRENT_VERSIONS,
-    tenantId: userTier.userId // Tenant-scoped caching
+    tenantId: userTier.tier // Tenant-scoped caching based on tier
   };
   
   const cacheKey = generateMatchAnalysisKey(keyParts);
