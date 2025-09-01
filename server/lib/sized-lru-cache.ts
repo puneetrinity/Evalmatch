@@ -20,6 +20,9 @@ export class SizedLRUCache<T = any> {
   constructor(maxSizeBytes: number = 1_000_000, ttlMs: number = 60_000) {
     this.maxSize = maxSizeBytes;
     this.ttl = ttlMs;
+    
+    // PERFORMANCE: Start periodic cleanup to prevent memory leaks
+    setInterval(() => this.performMaintenanceCleanup(), 300_000); // 5 minutes
   }
   
   private calculateSize(value: any): number {
@@ -121,6 +124,31 @@ export class SizedLRUCache<T = any> {
     }
   }
   
+  /**
+   * PERFORMANCE: Enhanced maintenance cleanup
+   */
+  private performMaintenanceCleanup(): void {
+    const now = Date.now();
+    let expiredCount = 0;
+    
+    // Remove expired entries
+    for (const [key, entry] of this.cache.entries()) {
+      if (now - entry.timestamp > this.ttl) {
+        this.delete(key);
+        expiredCount++;
+      }
+    }
+    
+    // If still over 80% capacity, perform LRU cleanup
+    if (this.currentSize > this.maxSize * 0.8) {
+      this.cleanup(this.maxSize * 0.6); // Target 60% capacity
+    }
+    
+    if (expiredCount > 0) {
+      console.debug(`Cache maintenance: removed ${expiredCount} expired entries`);
+    }
+  }
+
   getStats() {
     const hitRate = this.hits + this.misses > 0 ? (this.hits / (this.hits + this.misses)) * 100 : 0;
     

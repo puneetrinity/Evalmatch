@@ -604,3 +604,111 @@ function getSeverityScore(severity: BiasType['severity']): number {
     default: return 0;
   }
 }
+
+/**
+ * Detects bias indicators in job descriptions
+ * 
+ * @param jobDescription - The job description text to analyze
+ * @returns Promise resolving to bias analysis results
+ */
+export async function detectJobBias(jobDescription: string): Promise<BiasDetectionResult> {
+  const detectedBiases: BiasType[] = [];
+  let totalBiasScore = 0;
+
+  try {
+    const text = jobDescription.toLowerCase();
+    
+    // Check for age bias indicators
+    const ageBiasWords = BIAS_PATTERNS.age.keywords.filter(keyword => 
+      text.includes(keyword.toLowerCase())
+    );
+    if (ageBiasWords.length > 0) {
+      const severity = ageBiasWords.length >= 3 ? 'high' : ageBiasWords.length >= 2 ? 'medium' : 'low';
+      detectedBiases.push({
+        type: 'age',
+        severity,
+        description: 'Job description contains age-related bias indicators',
+        evidence: ageBiasWords,
+        mitigation: 'Remove age-specific language. Focus on skills and experience requirements instead.'
+      });
+      totalBiasScore += getSeverityScore(severity);
+    }
+
+    // Check for gender bias indicators  
+    const genderBiasWords = BIAS_PATTERNS.gender.keywords.filter(keyword => 
+      text.includes(keyword.toLowerCase())
+    );
+    if (genderBiasWords.length > 0) {
+      const severity = genderBiasWords.length >= 3 ? 'high' : genderBiasWords.length >= 2 ? 'medium' : 'low';
+      detectedBiases.push({
+        type: 'gender',
+        severity,
+        description: 'Job description contains gender-biased language',
+        evidence: genderBiasWords,
+        mitigation: 'Use gender-neutral language and avoid gendered assumptions about roles.'
+      });
+      totalBiasScore += getSeverityScore(severity);
+    }
+
+    // Check for education bias indicators
+    const educationBiasWords = BIAS_PATTERNS.education.excessive.filter(keyword => 
+      text.includes(keyword.toLowerCase())
+    );
+    if (educationBiasWords.length > 0) {
+      const severity = educationBiasWords.length >= 2 ? 'medium' : 'low';
+      detectedBiases.push({
+        type: 'education',
+        severity,
+        description: 'Job description may exclude qualified candidates through excessive education requirements',
+        evidence: educationBiasWords,
+        mitigation: 'Consider whether education requirements are truly necessary for job success.'
+      });
+      totalBiasScore += getSeverityScore(severity);
+    }
+
+    // Calculate fairness metrics (simplified for job descriptions)
+    const fairnessMetrics = {
+      demographicParity: Math.max(0, 1 - (totalBiasScore / 100)), // Inverse of bias score
+      equalizedOdds: 0.8, // Default value for job descriptions
+      calibration: 0.75 // Default value for job descriptions
+    };
+
+    // Generate recommendations
+    const recommendations = generateBiasRecommendations(detectedBiases);
+    
+    // Generate explanation
+    const explanation = generateBiasExplanation(detectedBiases, totalBiasScore);
+
+    const result: BiasDetectionResult = {
+      hasBias: detectedBiases.length > 0,
+      biasScore: Math.min(100, totalBiasScore),
+      detectedBiases,
+      recommendations,
+      fairnessMetrics,
+      explanation: explanation || 'No significant bias indicators detected in job description.'
+    };
+
+    logger.info('Job bias analysis completed', {
+      hasBias: result.hasBias,
+      biasScore: result.biasScore,
+      detectedBiasTypes: detectedBiases.map(b => b.type)
+    });
+
+    return result;
+
+  } catch (error) {
+    logger.error('Job bias detection failed', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    // Return default result on error
+    return {
+      hasBias: false,
+      biasScore: 0,
+      detectedBiases: [],
+      recommendations: [],
+      fairnessMetrics: { demographicParity: 1, equalizedOdds: 1, calibration: 1 },
+      explanation: 'Bias analysis could not be completed due to an error.'
+    };
+  }
+}

@@ -33,7 +33,7 @@ import { QueryBuilder } from '../lib/query-builder';
 import { analyzeJobDescriptionWithCache } from '../lib/cached-ai-operations';
 import { getUserTierInfo } from '../lib/user-tiers';
 import { generateEmbedding } from '../lib/embeddings';
-// import { detectJobBias } from '../lib/bias-detection'; // Function not implemented yet
+import { detectJobBias } from '../lib/bias-detection';
 import {
   success,
   failure,
@@ -228,10 +228,9 @@ export class JobService {
         // Bias analysis if requested
         if (options.includeBiasAnalysis) {
           try {
-            // TODO: Implement bias detection functionality
-            // const biasAnalysis = await detectJobBias(options.description);
-            const biasAnalysis = null; // Placeholder until implementation
-            result.biasAnalysis = biasAnalysis as unknown as undefined;
+            // Implement bias detection functionality
+            const biasAnalysis = await detectJobBias(options.description);
+            result.biasAnalysis = biasAnalysis;
           } catch (error) {
             logger.warn('Bias analysis failed', {
               jobId: jobDescription.id,

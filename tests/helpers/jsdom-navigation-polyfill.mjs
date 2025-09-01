@@ -25,8 +25,34 @@ if (typeof window !== 'undefined' && !window.navigation) {
 
 // Enhanced location polyfill to handle navigation errors
 if (typeof window !== 'undefined') {
-  // Store the original JSDOM location implementation
+  // Store the original JSDOM location implementation first
   const originalLocation = window.location;
+  
+  // Intercept the JSDOM Location implementation before it triggers navigation
+  try {
+    // Get the JSDOM internal objects
+    const LocationImpl = window.location.constructor;
+    if (LocationImpl && LocationImpl.prototype._locationObjectNavigate) {
+      // Override the internal navigation method
+      LocationImpl.prototype._locationObjectNavigate = function(url, options = {}) {
+        // Just update the URL properties without navigating
+        if (url && typeof url === 'object' && url.href) {
+          this._href = url.href;
+        }
+        return Promise.resolve();
+      };
+      
+      LocationImpl.prototype._locationObjectSetterNavigate = function(url) {
+        // Same as above but for setter navigation
+        if (url && typeof url === 'object' && url.href) {
+          this._href = url.href;
+        }
+        return Promise.resolve();
+      };
+    }
+  } catch (e) {
+    // If we can't override the prototype, continue with fallback approach
+  }
   
   // Create a safer location mock that doesn't trigger navigation
   const createLocationMock = (url = 'http://localhost/') => {
@@ -50,29 +76,67 @@ if (typeof window !== 'undefined') {
     };
   };
   
-  // Replace the location object with a safer mock
+  // Safer approach: Only override problematic properties instead of replacing entire location
   try {
-    delete window.location;
-    window.location = createLocationMock();
-  } catch (e) {
-    // If we can't delete location, try to override its properties
-    Object.defineProperty(window, 'location', {
-      value: createLocationMock(),
-      writable: true,
-      configurable: true,
+    // Override specific location setters that trigger navigation
+    Object.defineProperty(window.location, 'href', {
+      get: () => window.location._href || 'http://localhost/',
+      set: (value) => {
+        window.location._href = value;
+        // Don't actually navigate, just store the value
+      },
+      configurable: true
     });
+    
+    // Override other navigation-triggering properties
+    ['protocol', 'hostname', 'port', 'pathname', 'search', 'hash'].forEach(prop => {
+      const originalGetter = Object.getOwnPropertyDescriptor(window.location, prop)?.get;
+      if (originalGetter) {
+        Object.defineProperty(window.location, prop, {
+          get: originalGetter,
+          set: (value) => {
+            // Store the change but don't navigate
+            const currentUrl = new URL(window.location._href || window.location.href);
+            currentUrl[prop] = value;
+            window.location._href = currentUrl.href;
+          },
+          configurable: true
+        });
+      }
+    });
+  } catch (e) {
+    // If property override fails, fall back to full replacement
+    try {
+      Object.defineProperty(window, 'location', {
+        value: createLocationMock(),
+        writable: true,
+        configurable: true,
+      });
+    } catch (e2) {
+      // Last resort: silent failure
+      console.warn('Could not override window.location for JSDOM navigation polyfill');
+    }
   }
   
   // Provide a way to safely update location for tests
   window.mockLocation = (url) => {
-    const newLocation = createLocationMock(url);
     try {
-      // Try to replace the entire location object
-      delete window.location;
-      window.location = newLocation;
+      window.location._href = url;
+      // Update other properties to match
+      const urlObj = new URL(url);
+      Object.assign(window.location, {
+        href: urlObj.href,
+        origin: urlObj.origin,
+        protocol: urlObj.protocol,
+        hostname: urlObj.hostname,
+        port: urlObj.port,
+        pathname: urlObj.pathname,
+        search: urlObj.search,
+        hash: urlObj.hash,
+        host: urlObj.host,
+      });
     } catch (e) {
-      // If we can't replace it, update individual properties
-      Object.assign(window.location, newLocation);
+      console.warn('Could not update mock location:', e.message);
     }
   };
 }

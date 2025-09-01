@@ -57,10 +57,20 @@ export default defineConfig({
         manualChunks: undefined
       },
     },
-    // PERFORMANCE: Optimized build settings
+    // PERFORMANCE: Optimized build settings for memory efficiency
     chunkSizeWarningLimit: 500, // Stricter chunk size limit
     target: 'esnext',
     reportCompressedSize: false, // Speed up build
+    // PERFORMANCE: Reduce memory usage during build
+    terserOptions: {
+      compress: {
+        drop_console: process.env.NODE_ENV === 'production',
+        drop_debugger: true,
+      },
+      mangle: {
+        safari10: true,
+      },
+    },
   },
   
   // PERFORMANCE: Optimize dev server

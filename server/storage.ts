@@ -114,6 +114,15 @@ export interface IStorage {
    * @throws {Error} If resume not found or update fails
    */
   updateResumeAnalysis(_id: number, _analysis: AnalyzeResumeResponse): Promise<Resume>;
+
+  /**
+   * Permanently deletes a resume from the storage system.
+   * 
+   * @param id - The unique identifier of the resume to delete
+   * @returns Promise that resolves when deletion is complete
+   * @throws {Error} If resume not found or deletion fails
+   */
+  deleteResume(_id: number): Promise<void>;
   
   /**
    * Updates a resume with vector embeddings for semantic search.
@@ -549,6 +558,10 @@ export class MemStorage implements IStorage {
     
     this.resumesData.set(id, updatedResume);
     return updatedResume;
+  }
+
+  async deleteResume(id: number): Promise<void> {
+    this.resumesData.delete(id);
   }
 
   // Job description methods

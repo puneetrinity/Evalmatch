@@ -558,8 +558,24 @@ export class ResumeService {
       // Execute query using storage provider
       const resumes = await this.getStorageProvider().getResumesByUserId(userId, sessionId, batchId);
       
+      // Handle empty result as success with empty list, not an error
       if (!resumes || resumes.length === 0) {
-        return failure(mapNotFoundToBusinessLogic(AppNotFoundError.resourceNotFound('resumes')));
+        return success({
+          resumes: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0
+          },
+          metadata: {
+            totalSize: 0,
+            totalAnalyzed: 0,
+            totalPending: 0,
+            hasMore: false,
+            processingTime: Date.now() - startTime
+          }
+        });
       }
 
       // Apply pagination (would be done in storage layer in practice)
@@ -752,13 +768,12 @@ export class ResumeService {
         return resumeResult; // Already returns App error types
       }
 
-      // Delete resume
-      // TODO: Implement deleteResume method in storage layer
-      throw new Error('Delete resume functionality not yet implemented');
+      // Delete resume using existing storage pattern
+      const storage = getStorage();
+      await storage.deleteResume(resumeId);
       
-      // TODO: When delete functionality is implemented, uncomment:
-      // logger.info('Resume deleted successfully', { userId, resumeId });
-      // return success({ deleted: true });
+      logger.info('Resume deleted successfully', { userId, resumeId });
+      return success({ deleted: true });
     } catch (error) {
       logger.error('Failed to delete resume', {
         userId,

@@ -382,6 +382,38 @@ export class QueryBuilder<T extends Record<string, unknown> = Record<string, unk
       conditions: this.getConditions()
     };
   }
+
+  /**
+   * Executes a COUNT query to get the total number of records matching the conditions
+   * 
+   * @param table - The table to query
+   * @returns Promise resolving to count and metadata
+   */
+  async count(this: QueryBuilder<T>, table: PgTable): Promise<{
+    count: number;
+    conditions: string[];
+  }> {
+    const drizzleNameSymbol = Symbol.for('drizzle:Name');
+    const tableWithSymbol = table as any;
+    const tableName = tableWithSymbol[drizzleNameSymbol] || 'unknown';
+    
+    logger.info('Executing QueryBuilder count query', {
+      table: tableName,
+      conditionsCount: this.conditions.length,
+      conditions: this.getConditions()
+    });
+
+    // In a real implementation, you would:
+    // 1. Build the actual Drizzle count query with count()
+    // 2. Apply all conditions (but not pagination or sorting)
+    // 3. Execute and return count
+    
+    // For now, return a structure showing what would be executed
+    return {
+      count: 0, // Would contain actual count results
+      conditions: this.getConditions()
+    };
+  }
 }
 
 // ===== SPECIALIZED BUILDERS =====

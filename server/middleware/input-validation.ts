@@ -38,6 +38,13 @@ export const commonSchemas = {
 
   // Enhanced numeric validation with bounds checking
   id: SecureSchemas.secureNumber({ min: 1, max: Number.MAX_SAFE_INTEGER, integer: true }),
+  
+  // Route parameter ID validation (more lenient for string params)
+  routeId: z.string().regex(/^\d+$/, "Must be a valid positive integer").transform(val => {
+    const num = parseInt(val, 10);
+    if (isNaN(num) || num < 1) throw new Error("Must be a positive integer");
+    return num;
+  }),
 
   // Enhanced pagination with security limits
   page: SecureSchemas.secureNumber({ min: 1, max: 10000, integer: true }),
@@ -121,7 +128,7 @@ export const validationSchemas = {
 
   getResume: z.object({
     params: z.object({
-      id: commonSchemas.id,
+      id: commonSchemas.routeId,
     }),
   }),
 
@@ -160,7 +167,7 @@ export const validationSchemas = {
 
   updateJob: z.object({
     params: z.object({
-      id: commonSchemas.id,
+      id: commonSchemas.routeId,
     }),
     body: z.object({
       title: commonSchemas.jobTitle.optional(),
@@ -178,7 +185,7 @@ export const validationSchemas = {
   // Analysis endpoints
   analyzeResume: z.object({
     params: z.object({
-      jobId: commonSchemas.id,
+      jobId: commonSchemas.routeId,
     }),
     body: z.object({
       // Make resumeIds optional so API can analyze all resumes when not provided
@@ -195,7 +202,7 @@ export const validationSchemas = {
 
   getAnalysis: z.object({
     params: z.object({
-      jobId: commonSchemas.id,
+      jobId: commonSchemas.routeId,
     }),
     query: z.object({
       sessionId: z.string().min(1, "Session ID is required").optional(),
@@ -206,8 +213,8 @@ export const validationSchemas = {
   // Interview endpoints
   generateQuestions: z.object({
     params: z.object({
-      resumeId: commonSchemas.id,
-      jobId: commonSchemas.id,
+      resumeId: commonSchemas.routeId,
+      jobId: commonSchemas.routeId,
     }),
     body: z.object({
       questionTypes: z
