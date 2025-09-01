@@ -45,7 +45,7 @@ function extractSingleResult(
   }
   // Fallback for empty results
   return {
-    matchPercentage: 0,
+    matchPercentage: null,
     matchedSkills: [],
     missingSkills: [],
     candidateStrengths: [],

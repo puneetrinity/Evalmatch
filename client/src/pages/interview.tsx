@@ -191,9 +191,9 @@ export default function InterviewPage() {
               <div className="mb-4 mx-auto">
                 <i className="fas fa-exclamation-circle text-4xl text-red-500"></i>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Error Generating Questions</h3>
+              <h3 className="text-xl font-semibold mb-2">Service Temporarily Unavailable</h3>
               <p className="text-gray-600 mb-6">
-                {error instanceof Error ? error.message : "An unknown error occurred"}
+                Interview questions generation is temporarily unavailable. Please try again in a few minutes or proceed with your own prepared questions.
               </p>
               <Button
                 onClick={() => setLocation(`/analysis/${jobId}`)}

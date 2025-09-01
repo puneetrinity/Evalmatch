@@ -77,6 +77,7 @@ export function cleanupCircuitBreakerTimer(): void {
  * Classify error types and throw appropriate errors based on actual failure reasons
  */
 function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: string): never {
+  const BETA_MODE = true; // Set to false to enable full error classification
   const errorMessage = error instanceof Error ? error.message.toLowerCase() : "";
   const errorStack = error instanceof Error ? error.stack?.toLowerCase() || "" : "";
   
@@ -87,11 +88,14 @@ function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: 
     throw new Error(`${context} service is temporarily unavailable. The system is recovering from previous errors. Please try again in a few minutes or skip this step.`);
   }
   
-  // Rate limit errors
+  // Rate limit errors - provide beta-friendly messages
   if (errorMessage.includes("rate limit") || 
       errorMessage.includes("too many requests") ||
       errorMessage.includes("quota exceeded") ||
       errorStack.includes("429")) {
+    if (BETA_MODE) {
+      throw new Error(`${context} service is experiencing high demand. Please try again in a moment.`);
+    }
     throw getApiLimitExceededError(userTier, context);
   }
   
@@ -112,12 +116,15 @@ function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: 
     throw new Error(`${context} service is temporarily unavailable due to network issues. Please try again.`);
   }
   
-  // Authentication errors
+  // Authentication errors - provide beta-friendly messages
   if (errorMessage.includes("unauthorized") ||
       errorMessage.includes("invalid api key") ||
       errorMessage.includes("authentication") ||
       errorStack.includes("401")) {
     logger.error("AI provider authentication failure", { context, userTier: userTier.tier });
+    if (BETA_MODE) {
+      throw new Error(`${context} service is temporarily unavailable. Please try again in a moment.`);
+    }
     throw getServiceUnavailableError(userTier, context);
   }
   
@@ -129,11 +136,14 @@ function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: 
     throw new Error(`${context} could not be completed due to content guidelines. Please review your input and try again.`);
   }
   
-  // Model overload/capacity issues
+  // Model overload/capacity issues - provide beta-friendly messages
   if (errorMessage.includes("overload") ||
       errorMessage.includes("capacity") ||
       errorMessage.includes("server overloaded") ||
       errorStack.includes("503")) {
+    if (BETA_MODE) {
+      throw new Error(`${context} service is experiencing high demand. Please try again in a moment.`);
+    }
     throw getServiceUnavailableError(userTier, context);
   }
   
@@ -148,11 +158,14 @@ function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: 
     throw new Error(`${context} received an invalid response. Please try again.`);
   }
   
-  // Model-specific errors
+  // Model-specific errors - provide beta-friendly messages
   if (errorMessage.includes("model not found") ||
       errorMessage.includes("model unavailable") ||
       errorMessage.includes("invalid model")) {
     logger.error("AI model configuration error", { context, userTier: userTier.tier });
+    if (BETA_MODE) {
+      throw new Error(`${context} service is temporarily unavailable. Please try again in a moment.`);
+    }
     throw getServiceUnavailableError(userTier, context);
   }
   
@@ -164,12 +177,15 @@ function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: 
     throw new Error(`${context} input is too large. Please try with a shorter resume or job description.`);
   }
   
-  // Billing/payment related errors
+  // Billing/payment related errors - provide beta-friendly messages
   if (errorMessage.includes("billing") ||
       errorMessage.includes("payment") ||
       errorMessage.includes("insufficient funds") ||
       errorMessage.includes("expired")) {
     logger.error("AI provider billing issue", { context, userTier: userTier.tier });
+    if (BETA_MODE) {
+      throw new Error(`${context} service is temporarily unavailable. Please try again in a moment.`);
+    }
     throw getServiceUnavailableError(userTier, context);
   }
   
@@ -181,7 +197,7 @@ function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: 
     throw new Error(`${context} request blocked by security policy. Please contact support.`);
   }
   
-  // Default fallback - log the unclassified error for investigation
+  // Default fallback - log the unclassified error for investigation and provide beta-friendly message
   logger.error("Unclassified AI provider error requiring investigation", {
     context,
     userTier: userTier.tier,
@@ -191,6 +207,9 @@ function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: 
     timestamp: new Date().toISOString()
   });
   
+  if (BETA_MODE) {
+    throw new Error(`${context} analysis failed. Please try again or skip this step.`);
+  }
   throw getServiceUnavailableError(userTier, context);
 }
 

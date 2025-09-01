@@ -45,7 +45,7 @@ export function useRunAnalysis() {
     onError: (error) => {
       toast({
         title: "Analysis Failed",
-        description: error instanceof Error ? error.message : "Failed to run analysis",
+        description: "Analysis service is temporarily unavailable. Please try again in a few minutes.",
         variant: "destructive",
       });
     },
@@ -69,7 +69,7 @@ export function useAnalysisResults(jobId: number) {
         }
         throw new Error("Invalid response format");
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to fetch analysis results";
+        const message = "Unable to load analysis results. Please try again.";
         toast({
           title: "Error Loading Analysis",
           description: message,
@@ -103,9 +103,9 @@ export function useAnalysisResultByResume(jobId: number, resumeId: number) {
         }
         throw new Error("Invalid response format");
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to fetch analysis result";
+        const message = "Unable to load analysis result. Please try again.";
         toast({
-          title: "Error Loading Analysis Result",
+          title: "Service Temporarily Unavailable",
           description: message,
           variant: "destructive",
         });

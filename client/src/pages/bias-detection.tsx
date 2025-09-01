@@ -174,10 +174,10 @@ export default function BiasDetectionPage() {
     },
     onError: (error) => {
       console.error("Bias analysis API error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Could not complete the bias analysis. Please try again later.";
+      // Provide user-friendly error message regardless of backend error
       toast({
-        title: "Bias analysis failed",
-        description: errorMessage + " You can skip this step and continue to job matching.",
+        title: "Service temporarily unavailable",
+        description: "Bias analysis is temporarily unavailable. You can skip this step and continue to job matching, or try again in a few minutes.",
         variant: "destructive",
       });
       setIsBiasAnalyzing(false);

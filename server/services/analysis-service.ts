@@ -420,7 +420,7 @@ export class AnalysisService {
           resumeId: resume.id,
           filename: resume.filename,
           candidateName: resume.filename.replace(/\.[^/.]+$/, ""),
-          matchPercentage: 0,
+          matchPercentage: null,
           matchedSkills: [],
           missingSkills: [],
           candidateStrengths: [],
@@ -518,7 +518,7 @@ export class AnalysisService {
         resumeId,
         jobId,
         match: {
-          matchPercentage: existingAnalysis.matchPercentage || 0,
+          matchPercentage: existingAnalysis.matchPercentage ?? null,
           matchedSkills: existingAnalysis.matchedSkills || [],
           missingSkills: existingAnalysis.missingSkills || [],
           candidateStrengths: existingAnalysis.candidateStrengths || [],
@@ -656,7 +656,7 @@ export class AnalysisService {
       resumeId: result.resumeId as number, // Ensure it's always a number
       filename: String((result as any).resume?.filename || `Resume ${result.resumeId}`),
       candidateName: String((result as any).resume?.filename?.replace(/\.[^/.]+$/, "") || `Candidate ${result.resumeId}`),
-      matchPercentage: result.matchPercentage || 0,
+      matchPercentage: result.matchPercentage ?? null,
       matchedSkills: (result.matchedSkills || []).map((skill: string | SkillMatch) => 
         typeof skill === 'string' 
           ? { skill, matchPercentage: 85, category: 'general', importance: 'nice-to-have' as const, source: 'inferred' as const }

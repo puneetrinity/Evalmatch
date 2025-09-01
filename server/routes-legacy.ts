@@ -559,11 +559,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (err) {
           logger.error("Failed to analyze resume:", err);
           
-          // Check if error is due to tier limits
-          const errorMessage = err instanceof Error ? err.message : "Resume analysis failed";
-          const isUsageLimitError = errorMessage.includes('Daily limit') || errorMessage.includes('premium feature');
+          // BETA MODE: Provide user-friendly error messages without tier restrictions
           
-          res.status(isUsageLimitError ? 429 : 201).json({
+          res.status(201).json({
             id: resume.id,
             filename: resume.filename,
             fileSize: resume.fileSize,
@@ -681,11 +679,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId: req.user!.uid
         });
         
-        // Check if error is due to tier limits
-        const errorMessage = err instanceof Error ? err.message : "Job description analysis failed";
-        const isUsageLimitError = errorMessage.includes('Daily limit') || errorMessage.includes('premium feature');
+        // BETA MODE: Provide user-friendly error messages without tier restrictions
         
-        res.status(isUsageLimitError ? 429 : 201).json({
+        res.status(201).json({
           id: jobDescription.id,
           title: jobDescription.title,
           isAnalyzed: false,
@@ -2021,14 +2017,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("Error in /api/analyze:", error);
       
-      // Check if error is due to tier limits
-      const errorMessage = error instanceof Error ? error.message : "Analysis failed";
-      const isUsageLimitError = errorMessage.includes('Daily limit') || errorMessage.includes('premium feature');
+      // BETA MODE: Provide user-friendly error messages without tier restrictions
       
-      res.status(isUsageLimitError ? 429 : 500).json({
-        error: 'Analysis failed',
-        message: errorMessage,
-        tierLimitReached: isUsageLimitError,
+      res.status(500).json({
+        error: 'Service temporarily unavailable',
+        message: 'Analysis service is temporarily unavailable. Please try again in a few minutes.',
+        tierLimitReached: false, // Always false in BETA MODE
       });
     }
   });
@@ -2063,14 +2057,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("Error in /api/interview-questions:", error);
       
-      // Check if error is due to tier limits
-      const errorMessage = error instanceof Error ? error.message : "Question generation failed";
-      const isUsageLimitError = errorMessage.includes('Daily limit') || errorMessage.includes('premium feature');
+      // BETA MODE: Provide user-friendly error messages without tier restrictions
       
-      res.status(isUsageLimitError ? 429 : 500).json({
-        error: 'Question generation failed',
-        message: errorMessage,
-        tierLimitReached: isUsageLimitError,
+      res.status(500).json({
+        error: 'Service temporarily unavailable',
+        message: 'Interview questions service is temporarily unavailable. Please try again in a few minutes.',
+        tierLimitReached: false, // Always false in BETA MODE
       });
     }
   });
@@ -2110,14 +2102,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("Error in /api/analyze-bias:", error);
       
-      // Check if error is due to tier limits
-      const errorMessage = error instanceof Error ? error.message : "Bias analysis failed";
-      const isUsageLimitError = errorMessage.includes('Daily limit') || errorMessage.includes('premium feature');
-      
-      res.status(isUsageLimitError ? 429 : 500).json({
-        error: 'Bias analysis failed',
-        message: errorMessage,
-        tierLimitReached: isUsageLimitError,
+      // BETA MODE: Provide user-friendly error messages without tier restrictions
+      res.status(500).json({
+        error: 'Service temporarily unavailable',
+        message: 'Bias analysis service is temporarily unavailable. Please try again in a few minutes.',
+        tierLimitReached: false, // Always false in BETA MODE
       });
     }
   });
