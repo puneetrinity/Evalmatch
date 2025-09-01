@@ -74,10 +74,11 @@ export function fastPathMiddleware(req: Request, res: Response, next: NextFuncti
       
       // Log fast path hit (minimal logging)
       if (process.env.NODE_ENV === 'development') {
-        logger.debug(`Fast path: ${path} (${Date.now() - req.timestamp}ms)`, { path });
+        logger.debug(`Fast path: ${path}`, { path });
       }
       
-      return res.status(200).json(response);
+      res.status(200).json(response);
+      return;
     }
   }
   

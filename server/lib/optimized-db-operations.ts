@@ -127,7 +127,7 @@ class OptimizedDatabaseManager {
         const result = await client.query(operation.query, operation.params);
         const transformed = operation.transform 
           ? operation.transform(result.rows)
-          : result.rows;
+          : result.rows as T;
         results.push(transformed);
       }
 
@@ -207,7 +207,7 @@ class OptimizedDatabaseManager {
     } catch (error) {
       return {
         healthy: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         poolStats: {
           total: this.pool.totalCount,
           idle: this.pool.idleCount,

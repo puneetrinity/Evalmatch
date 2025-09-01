@@ -133,7 +133,7 @@ router.get('/foreign-key-check', async (req: Request, res: Response) => {
             results.tableAnalysis[tableName].foreignKeyColumns.push({
               column: column,
               hasConstraint: true,
-              constraintName: existingConstraints.find((c: any) => c.column_name === column)?.constraint_name as string || null
+              constraintName: (existingConstraints.find((c: any) => c.column_name === column) as any)?.constraint_name || null
             });
           }
         }

@@ -671,11 +671,11 @@ export class AnalysisService {
     }));
 
     // Sort by match percentage
-    formattedResults.sort((a, b) => b.matchPercentage - a.matchPercentage);
+    formattedResults.sort((a, b) => (b.matchPercentage || 0) - (a.matchPercentage || 0));
 
     // Calculate statistics
     const averageMatch = formattedResults.length > 0
-      ? Math.round(formattedResults.reduce((sum, r) => sum + r.matchPercentage, 0) / formattedResults.length)
+      ? Math.round(formattedResults.reduce((sum, r) => sum + (r.matchPercentage || 0), 0) / formattedResults.length)
       : 0;
 
     return success({

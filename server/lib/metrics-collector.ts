@@ -221,10 +221,11 @@ export class MetricsCollector {
     };
     
     // Business metrics
+    const analysesCompletedToday = Math.round(this.metricsStore.getRequestsPerMinute() * 60 * 24);
     const business = {
-      analysesCompletedToday: Math.round(this.metricsStore.getRequestsPerMinute() * 60 * 24), // Rough estimate
+      analysesCompletedToday,
       averageAnalysisTimeMs: performance.avgResponseTimeMs,
-      costSavingsFromCache: this.calculateCostSavings(cache.hitRate, business.analysesCompletedToday),
+      costSavingsFromCache: this.calculateCostSavings(cache.hitRate, analysesCompletedToday),
     };
     
     // Calculate overall health score

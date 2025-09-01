@@ -14,6 +14,7 @@ import {
   InterviewScriptResponse,
   BiasAnalysisResponse,
 } from "@shared/schema";
+import { ResumeId, JobId } from "@shared/api-contracts";
 import {
   UserTierInfo,
   TIER_LIMITS,
@@ -231,29 +232,25 @@ function selectProviderForTier(
   const BETA_MODE = true; // Set to false to enable full tiered system
 
   if (BETA_MODE) {
-    // Check if Groq is configured AND circuit breaker is not open
-    if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable && breakers.groq.status().state !== 'open') {
+    // BETA MODE: Ignore circuit breakers and prioritize Groq first
+    if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
       return {
         provider: "groq",
-        reason: `Beta mode - all users use cost-effective Groq (tier: ${userTier.tier})`,
+        reason: `Beta mode - Groq priority (bypassing circuit breakers, tier: ${userTier.tier})`,
       };
     }
-    // Emergency fallback during beta if Groq is down or circuit breaker is open
-    if (isOpenAIConfigured && openai.getOpenAIServiceStatus().isAvailable && breakers.openai.status().state !== 'open') {
+    // Emergency fallback during beta if Groq is unavailable
+    if (isOpenAIConfigured && openai.getOpenAIServiceStatus().isAvailable) {
       return {
         provider: "openai",
-        reason: "Beta mode - emergency fallback (Groq circuit breaker open or unavailable)",
+        reason: "Beta mode - emergency fallback (Groq unavailable)",
       };
     }
     // Last resort fallback
-    if (
-      isAnthropicConfigured &&
-      anthropic.getAnthropicServiceStatus().isAvailable &&
-      breakers.anthropic.status().state !== 'open'
-    ) {
+    if (isAnthropicConfigured && anthropic.getAnthropicServiceStatus().isAvailable) {
       return {
         provider: "anthropic",
-        reason: "Beta mode - last resort fallback (OpenAI circuit breaker also open)",
+        reason: "Beta mode - last resort fallback (Groq and OpenAI unavailable)",
       };
     }
     // All providers unavailable - throw error instead of fallback
@@ -407,20 +404,18 @@ export async function analyzeResume(
       // Return basic fallback analysis to not block user flow
       return {
         skills: ["Analysis temporarily unavailable"],
-        experience: "Experience analysis unavailable",
-        education: "Education analysis unavailable",
-        jobTitles: [],
-        keyProjects: [],
-        certifications: [],
-        languages: [],
-        summary: "Resume analysis service is temporarily unavailable. Please try again later or continue with manual review.",
-        jobTitles: [],
-        keyProjects: [],
-        certifications: [],
-        languages: [],
-        totalYearsExperience: 0,
-        seniority: "unknown" as const,
-        overallScore: 50, // Neutral score
+        experience: [{
+          company: "Analysis unavailable",
+          position: "N/A",
+          duration: "N/A",
+          description: "Experience analysis unavailable in beta mode"
+        }],
+        education: [{
+          degree: "Analysis unavailable",
+          institution: "N/A",
+          field: "Analysis service temporarily unavailable"
+        }],
+        // jobTitles property removed - not in interface
         strengthsWeaknesses: {
           strengths: ["Resume uploaded successfully"],
           weaknesses: ["Analysis service temporarily unavailable"]
@@ -500,20 +495,18 @@ export async function analyzeResumeParallel(
       // Return basic fallback analysis to not block user flow
       return {
         skills: ["Analysis temporarily unavailable"],
-        experience: "Experience analysis unavailable",
-        education: "Education analysis unavailable",
-        jobTitles: [],
-        keyProjects: [],
-        certifications: [],
-        languages: [],
-        summary: "Resume analysis service is temporarily unavailable. Please try again later or continue with manual review.",
-        jobTitles: [],
-        keyProjects: [],
-        certifications: [],
-        languages: [],
-        totalYearsExperience: 0,
-        seniority: "unknown" as const,
-        overallScore: 50, // Neutral score
+        experience: [{
+          company: "Analysis unavailable",
+          position: "N/A",
+          duration: "N/A",
+          description: "Experience analysis unavailable in beta mode"
+        }],
+        education: [{
+          degree: "Analysis unavailable",
+          institution: "N/A",
+          field: "Analysis service temporarily unavailable"
+        }],
+        // jobTitles property removed - not in interface
         strengthsWeaknesses: {
           strengths: ["Resume uploaded successfully"],
           weaknesses: ["Analysis service temporarily unavailable"]
@@ -585,18 +578,27 @@ export async function analyzeJobDescription(
         userTier: userTier.tier
       });
       
-      // Return basic fallback analysis to not block user flow
+      // Return proper fallback response matching AnalyzeJobDescriptionResponse interface
       return {
+        id: 0 as JobId,
+        title: "Job Analysis Unavailable", 
+        analyzedData: {
+          requiredSkills: ["Analysis temporarily unavailable"],
+          preferredSkills: [],
+          responsibilities: ["Job analysis service temporarily unavailable"],
+          experienceLevel: "Unknown",
+          summary: "Job description analysis service is temporarily unavailable",
+          salaryRange: {
+            min: 0,
+            max: 0,
+            currency: "USD"
+          }
+        },
+        processingTime: 0,
+        confidence: 0,
+        // Convenience properties for backward compatibility
         requiredSkills: ["Analysis temporarily unavailable"],
-        experience: "Experience requirements analysis unavailable",
-        education: "Education requirements analysis unavailable",
-        summary: "Job description analysis service is temporarily unavailable. Please try again later or continue with manual review.",
-        jobType: "unknown" as const,
-        seniorityLevel: "unknown" as const,
-        workArrangement: "unknown" as const,
-        benefits: [],
-        responsibilities: [],
-        overallScore: 50 // Neutral score
+        experience: "Experience requirements analysis unavailable"
       };
     }
     
@@ -920,28 +922,42 @@ export async function generateInterviewQuestions(
       
       // Return basic fallback questions to not block user flow
       return {
+        resumeId: 0 as ResumeId,
+        jobId: 0 as JobId,
+        jobTitle: "Position",
         questions: [
           {
             question: "Can you tell me about yourself and your professional background?",
+            category: "behavioral" as const,
             difficulty: "easy" as const,
-            purpose: "Getting to know the candidate"
+            expectedAnswer: "General professional background and experience",
+            skillsAssessed: ["Communication", "Self-awareness"],
+            timeAllotted: 5
           },
           {
             question: "What interests you most about this position?",
+            category: "behavioral" as const,
             difficulty: "easy" as const,
-            purpose: "Understanding motivation and fit"
+            expectedAnswer: "Understanding of role and company fit",
+            skillsAssessed: ["Motivation", "Research skills"],
+            timeAllotted: 3
           },
           {
             question: "Interview questions service is temporarily unavailable. Please prepare standard technical and behavioral questions based on the job requirements.",
+            category: "technical" as const,
             difficulty: "medium" as const,
-            purpose: "Service unavailable notice"
+            expectedAnswer: "Service unavailable - manual question preparation needed",
+            skillsAssessed: ["Manual review"],
+            timeAllotted: 0
           }
         ],
-        followUpQuestions: ["What questions do you have for us?"],
-        interviewStructure: {
-          duration: 45,
-          sections: ["Introduction", "Experience Review", "Technical Discussion", "Q&A"]
-        }
+        metadata: {
+          estimatedDuration: 8,
+          difficulty: "mid" as const,
+          focusAreas: ["Communication", "Technical skills"],
+          interviewType: "video" as const
+        },
+        processingTime: 0
       };
     }
     
@@ -1037,33 +1053,57 @@ export async function generateInterviewScript(
         userTier: userTier.tier
       });
       
-      // Return basic fallback script to not block user flow
+      // Return basic fallback script that matches InterviewScriptResponse interface
       return {
-        introduction: `Welcome ${candidateName || 'candidate'} to the interview for ${jobTitle}. Thank you for your time today.`,
-        sections: [
-          {
-            title: "Getting Started",
-            duration: 10,
-            questions: ["Can you tell me about yourself?", "What interests you about this role?"],
-            notes: "Build rapport and understand candidate motivation"
-          },
-          {
-            title: "Experience Review", 
-            duration: 20,
-            questions: ["Walk me through your relevant experience", "What achievement are you most proud of?"],
-            notes: "Assess experience and accomplishments"
-          },
-          {
-            title: "Closing",
-            duration: 15,
-            questions: ["What questions do you have for us?", "What are your salary expectations?"],
-            notes: "Answer candidate questions and discuss next steps"
-          }
-        ],
-        conclusion: "Thank you for your time. We'll be in touch soon regarding next steps.",
-        notes: "Interview script service temporarily unavailable. This is a basic template - please customize based on specific role requirements.",
-        estimatedDuration: 45,
-        fallbackNotice: "AI-generated interview script is temporarily unavailable. Please use this basic template and customize as needed."
+        jobTitle,
+        candidateName: candidateName || 'Candidate',
+        interviewDuration: '45 minutes',
+        opening: {
+          salutation: `Hello ${candidateName || 'Candidate'}, welcome to the interview for ${jobTitle}.`,
+          iceBreaker: 'Thank you for your time today. How are you doing?',
+          interviewOverview: 'We\'ll be discussing your background, skills, and fit for this role.'
+        },
+        currentRoleDiscussion: {
+          roleAcknowledgment: 'Let\'s start by discussing your current professional situation.',
+          currentWorkQuestions: [
+            {
+              question: 'Can you tell me about your current role and responsibilities?',
+              purpose: 'Understanding current position',
+              expectedAnswer: 'Description of current job duties and challenges'
+            }
+          ]
+        },
+        skillMatchDiscussion: {
+          introduction: 'Now let\'s discuss how your skills align with this position.',
+          matchedSkillsQuestions: [
+            {
+              skill: 'Technical Skills',
+              question: 'Walk me through your technical experience relevant to this role.',
+              expectedAnswer: 'Overview of relevant technical background'
+            }
+          ]
+        },
+        skillGapAssessment: {
+          introduction: 'We\'d like to understand areas where you might grow in this role.',
+          gapQuestions: []
+        },
+        roleSell: {
+          transitionStatement: 'Let me tell you more about this opportunity.',
+          roleHighlights: ['Great team environment', 'Growth opportunities', 'Challenging work'],
+          opportunityDescription: 'This role offers excellent growth potential.',
+          closingQuestions: [
+            {
+              question: 'What questions do you have about this role or our company?',
+              purpose: 'Address candidate concerns'
+            }
+          ]
+        },
+        closing: {
+          nextSteps: 'We\'ll follow up with next steps within the next few days.',
+          candidateQuestions: 'Please feel free to ask any remaining questions.',
+          finalStatement: 'Thank you for your time today. We appreciate your interest in this position.'
+        }
+        // Properties aligned with InterviewScriptResponse interface
       };
     }
     

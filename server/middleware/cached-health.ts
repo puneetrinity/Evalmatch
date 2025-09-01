@@ -186,7 +186,7 @@ export function cachedHealthMiddleware(req: Request, res: Response, next: NextFu
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     
     const status = healthSnapshot.basic.status === 'healthy' ? 200 : 503;
-    return res.status(status).json({
+    res.status(status).json({
       success: true,
       data: {
         status: healthSnapshot.basic.status,
@@ -229,15 +229,15 @@ export function cachedHealthMiddleware(req: Request, res: Response, next: NextFu
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     
     if (!healthSnapshot.detailed) {
-      return res.status(503).json({
+      res.status(503).json({
         status: 'error',
         message: 'Health snapshot not yet available',
         timestamp: new Date().toISOString()
       });
     }
     
-    const status = healthSnapshot.detailed.status === 'healthy' ? 200 : 503;
-    return res.status(status).json({
+    const status = healthSnapshot.detailed?.status === 'healthy' ? 200 : 503;
+    res.status(status).json({
       status: 'ok',
       data: {
         ...healthSnapshot.detailed,
@@ -257,7 +257,7 @@ export function cachedHealthMiddleware(req: Request, res: Response, next: NextFu
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     
     const isReady = healthSnapshot.basic.status === 'healthy';
-    return res.status(isReady ? 200 : 503).json({
+    res.status(isReady ? 200 : 503).json({
       success: isReady,
       status: isReady ? 'ready' : 'not ready',
       timestamp: new Date().toISOString(),

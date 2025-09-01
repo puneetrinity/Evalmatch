@@ -101,7 +101,8 @@ export async function optimizedReadyzHandler(req: Request, res: Response): Promi
  */
 export function gcHandler(req: Request, res: Response): void {
   if (process.env.NODE_ENV === 'production') {
-    return res.status(403).json({ error: 'GC not allowed in production' });
+    res.status(403).json({ error: 'GC not allowed in production' });
+    return;
   }
   
   if (global.gc) {

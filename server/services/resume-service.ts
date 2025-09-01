@@ -566,14 +566,13 @@ export class ResumeService {
             page,
             limit,
             total: 0,
-            totalPages: 0
+            totalPages: 0,
+            hasNext: false,
+            hasPrev: false
           },
           metadata: {
-            totalSize: 0,
-            totalAnalyzed: 0,
-            totalPending: 0,
-            hasMore: false,
-            processingTime: Date.now() - startTime
+            queryTime: Date.now() - startTime,
+            filters: {}
           }
         });
       }

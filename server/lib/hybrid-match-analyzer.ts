@@ -1589,11 +1589,11 @@ export function extractMLScores(result: HybridMatchResult, aiProvider: string): 
     // This simulates what an ML model would focus on: skills, experience, quantifiable metrics
     let mlScore: number | null = null;
     
-    if (result.matchedSkills && result.actualWeights) {
+    if (result.matchedSkills && result.scoringDimensions) {
       // Calculate ML score based on quantifiable factors
-      const skillsWeight = result.actualWeights.skills || 0.6;
-      const experienceWeight = result.actualWeights.experience || 0.3; 
-      const educationWeight = result.actualWeights.education || 0.1;
+      const skillsWeight = result.scoringDimensions.skills || 0.6;
+      const experienceWeight = result.scoringDimensions.experience || 0.3; 
+      const educationWeight = result.scoringDimensions.education || 0.1;
       
       // Skills matching score (quantifiable)
       const skillsScore = (result.matchedSkills.length / (result.matchedSkills.length + (result.missingSkills?.length || 0))) * 100;
@@ -1601,8 +1601,8 @@ export function extractMLScores(result: HybridMatchResult, aiProvider: string): 
       // Experience score (based on confidence and reasoning quality) 
       const experienceScore = result.confidence * 100;
       
-      // Education score (simplified - based on presence of analysis)
-      const educationScore = result.reasoning && result.reasoning.length > 100 ? 80 : 60;
+      // Education score (simplified - based on presence of recommendations)
+      const educationScore = result.recommendations && result.recommendations.length > 0 ? 80 : 60;
       
       // Weighted ML score
       mlScore = Math.round(
@@ -1669,9 +1669,9 @@ export function extractConfidenceMetrics(result: HybridMatchResult, aiProvider: 
       result.matchedSkills.length / (result.matchedSkills.length + result.missingSkills.length) :
       result.confidence;
     
-    // Reasoning quality based on detail and length of analysis
-    const reasoningQuality = result.reasoning ?
-      Math.min(1.0, result.reasoning.length / 500) : // Normalize by expected reasoning length
+    // Reasoning quality based on detail and length of recommendations
+    const reasoningQuality = result.recommendations && result.recommendations.length > 0 ?
+      Math.min(1.0, result.recommendations.join(' ').length / 500) : // Normalize by expected reasoning length
       result.confidence;
 
     logger.debug('Confidence metrics extracted', {
