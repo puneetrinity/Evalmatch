@@ -119,10 +119,30 @@ export default function BiasDetectionPage() {
     }
   });
 
-  // Analyze bias mutation
+  // Analyze bias mutation with timeout handling
   const biasAnalyzeMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", `/api/analysis/analyze-bias/${jobId}`);
+      // Add timeout to prevent UI hanging when circuit breakers are open
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      try {
+        const response = await apiRequest("POST", `/api/analysis/analyze-bias/${jobId}`, undefined, {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        return response;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        // Transform circuit breaker errors into user-friendly messages
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw new Error('Analysis service is taking too long to respond. Please try again later.');
+        }
+        if (error instanceof Error && error.message.includes('at capacity')) {
+          throw new Error('Analysis service is currently busy. You can continue to the next step and run analysis later.');
+        }
+        throw error;
+      }
     },
     onSuccess: async (response) => {
       try {
@@ -154,9 +174,10 @@ export default function BiasDetectionPage() {
     },
     onError: (error) => {
       console.error("Bias analysis API error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Could not complete the bias analysis. Please try again later.";
       toast({
         title: "Bias analysis failed",
-        description: "Could not complete the bias analysis. Please try again later.",
+        description: errorMessage + " You can skip this step and continue to job matching.",
         variant: "destructive",
       });
       setIsBiasAnalyzing(false);
