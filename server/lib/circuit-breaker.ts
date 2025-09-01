@@ -24,8 +24,8 @@ export class CircuitBreaker {
   private rts: number[] = [];
 
   constructor(
-    public readonly name: string,
-    private readonly opts: CircuitBreakerOptions = {
+    public readonly _name: string,
+    private readonly _opts: CircuitBreakerOptions = {
       failureThreshold: 5,
       windowSize: 50,
       rtP95Ms: 6000,
@@ -43,7 +43,7 @@ export class CircuitBreaker {
 
   private record(rt: number, ok: boolean): void {
     this.rts.push(rt);
-    if (this.rts.length > this.opts.windowSize) this.rts.shift();
+    if (this.rts.length > this._opts.windowSize) this.rts.shift();
     this.fails = ok ? Math.max(0, this.fails - 1) : this.fails + 1;
   }
 
@@ -52,18 +52,18 @@ export class CircuitBreaker {
     const previousState = this.state;
     
     // Check if we should force-open due to external conditions (memory pressure)
-    if (this.opts.shouldForceOpen()) {
+    if (this._opts.shouldForceOpen()) {
       this.state = 'open';
       this.openedAt = now;
       if (previousState !== 'open') {
         this._notifyStateChange();
       }
-      throw new Error(`ERR_BREAKER_OPEN:${this.name}`);
+      throw new Error(`ERR_BREAKER_OPEN:${this._name}`);
     }
 
     // Standard circuit breaker logic
-    if (this.state === 'open' && now - this.openedAt < this.opts.halfOpenAfterMs) {
-      throw new Error(`ERR_BREAKER_OPEN:${this.name}`);
+    if (this.state === 'open' && now - this.openedAt < this._opts.halfOpenAfterMs) {
+      throw new Error(`ERR_BREAKER_OPEN:${this._name}`);
     }
     
     if (this.state === 'open') {
@@ -77,13 +77,13 @@ export class CircuitBreaker {
       const res = await fn();
       this.record(Date.now() - t0, true);
       
-      if (this.state === 'half-open' && ++this.succHalfOpen >= this.opts.succToClose) {
+      if (this.state === 'half-open' && ++this.succHalfOpen >= this._opts.succToClose) {
         this.state = 'closed';
         this.fails = 0;
         this._notifyStateChange();
       }
       
-      if (this.p95() < this.opts.rtP95Ms && this.fails < this.opts.failureThreshold) {
+      if (this.p95() < this._opts.rtP95Ms && this.fails < this._opts.failureThreshold) {
         const newState = 'closed';
         if (this.state !== newState) {
           this.state = newState;
@@ -95,7 +95,7 @@ export class CircuitBreaker {
     } catch (e) {
       this.record(Date.now() - t0, false);
       
-      if (this.fails >= this.opts.failureThreshold || this.p95() > this.opts.rtP95Ms) {
+      if (this.fails >= this._opts.failureThreshold || this.p95() > this._opts.rtP95Ms) {
         this.state = 'open';
         this.openedAt = Date.now();
         this._notifyStateChange();
@@ -110,7 +110,7 @@ export class CircuitBreaker {
     setImmediate(async () => {
       try {
         const { persistBreakerState } = await import('./circuit-breakers');
-        await persistBreakerState(this.name, this.status());
+        await persistBreakerState(this._name, this.status());
       } catch (error) {
         // Silently fail to avoid breaking circuit breaker functionality
       }
@@ -119,7 +119,7 @@ export class CircuitBreaker {
 
   status() {
     return {
-      name: this.name,
+      name: this._name,
       state: this.state,
       p95: Math.round(this.p95()),
       fails: this.fails,

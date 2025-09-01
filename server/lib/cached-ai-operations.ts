@@ -161,7 +161,7 @@ async function tryProviderCache<T>(
  */
 async function acquireInflightLock(lockKey: string, ttlSeconds: number = 60): Promise<boolean> {
   try {
-    const result = await cacheManager.set(lockKey, "locked", ttlSeconds);
+    await cacheManager.set(lockKey, "locked", ttlSeconds);
     return true;
   } catch (error) {
     // Lock already exists

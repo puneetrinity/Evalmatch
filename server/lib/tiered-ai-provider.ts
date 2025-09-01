@@ -24,6 +24,33 @@ import {
   getApiLimitExceededError,
 } from "@shared/user-tiers";
 
+// GLOBAL BETA MODE CONFIGURATION
+// Set to true to bypass circuit breakers and tier restrictions for cost optimization during beta
+const BETA_MODE = true;
+
+// Helper function to execute AI provider calls with beta mode bypass
+async function executeBetaAwareCall<T>(
+  provider: 'groq' | 'openai' | 'anthropic',
+  fn: () => Promise<T>
+): Promise<T> {
+  if (BETA_MODE) {
+    // Direct execution bypassing circuit breakers in beta mode
+    return await fn();
+  } else {
+    // Use circuit breaker protection in production mode
+    switch (provider) {
+      case 'groq':
+        return await breakers.groq.exec(fn);
+      case 'openai':
+        return await breakers.openai.exec(fn);
+      case 'anthropic':
+        return await breakers.anthropic.exec(fn);
+      default:
+        throw new Error(`Unknown provider: ${provider}`);
+    }
+  }
+}
+
 // Verify if providers are configured
 const isAnthropicConfigured = !!config.ai.providers.anthropic.apiKey;
 const isGroqConfigured = !!process.env.GROQ_API_KEY;
@@ -78,7 +105,7 @@ export function cleanupCircuitBreakerTimer(): void {
  * Classify error types and throw appropriate errors based on actual failure reasons
  */
 function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: string): never {
-  const BETA_MODE = true; // Set to false to enable full error classification
+  // Using global BETA_MODE constant
   const errorMessage = error instanceof Error ? error.message.toLowerCase() : "";
   const errorStack = error instanceof Error ? error.stack?.toLowerCase() || "" : "";
   
@@ -229,7 +256,7 @@ function selectProviderForTier(
 ): TierAwareProviderSelection {
   // BETA MODE: Force all users to Groq for cost optimization
   // This will be removed after beta testing period (~1 month)
-  const BETA_MODE = true; // Set to false to enable full tiered system
+  // Using global BETA_MODE constant
 
   if (BETA_MODE) {
     // BETA MODE: Ignore circuit breakers and prioritize Groq first
@@ -351,7 +378,7 @@ export async function analyzeResume(
   userTier: UserTierInfo,
 ): Promise<AnalyzeResumeResponse> {
   // BETA MODE: Allow all users to test resume analysis
-  const BETA_MODE = true; // Set to false to enable tier restrictions
+  // Using global BETA_MODE constant
 
   // Check usage limits - SKIP IN BETA MODE for resume analysis
   if (!BETA_MODE) {
@@ -375,16 +402,16 @@ export async function analyzeResume(
     incrementUsage(userTier);
   }
 
-  // Call appropriate provider with circuit breaker protection
+  // Call appropriate provider with beta-aware circuit breaker handling
   try {
     switch (selection.provider) {
       case "anthropic":
-        return await breakers.anthropic.exec(() => anthropic.analyzeResume(resumeText));
+        return await executeBetaAwareCall('anthropic', () => anthropic.analyzeResume(resumeText));
       case "openai":
-        return await breakers.openai.exec(() => openai.analyzeResume(resumeText));
+        return await executeBetaAwareCall('openai', () => openai.analyzeResume(resumeText));
       case "groq":
       default:
-        return await breakers.groq.exec(() => groq.analyzeResume(resumeText));
+        return await executeBetaAwareCall('groq', () => groq.analyzeResume(resumeText));
     }
   } catch (error) {
     logger.error("AI provider error in resume analysis", {
@@ -401,8 +428,26 @@ export async function analyzeResume(
         userTier: userTier.tier
       });
       
-      // Return basic fallback analysis to not block user flow
+      // Return proper fallback response matching AnalyzeResumeResponse interface
       return {
+        id: 0 as ResumeId,
+        filename: "fallback",
+        analyzedData: {
+          name: "Analysis Unavailable",
+          skills: ["Analysis temporarily unavailable"],
+          experience: "Experience analysis unavailable in beta mode",
+          education: ["Analysis service temporarily unavailable"],
+          summary: "Resume analysis service is temporarily unavailable",
+          keyStrengths: ["Resume uploaded successfully"],
+          contactInfo: {
+            email: "",
+            phone: "",
+            location: ""
+          }
+        },
+        processingTime: 0,
+        confidence: 0,
+        // Convenience properties for backward compatibility
         skills: ["Analysis temporarily unavailable"],
         experience: [{
           company: "Analysis unavailable",
@@ -414,12 +459,7 @@ export async function analyzeResume(
           degree: "Analysis unavailable",
           institution: "N/A",
           field: "Analysis service temporarily unavailable"
-        }],
-        // jobTitles property removed - not in interface
-        strengthsWeaknesses: {
-          strengths: ["Resume uploaded successfully"],
-          weaknesses: ["Analysis service temporarily unavailable"]
-        }
+        }]
       };
     }
     
@@ -437,7 +477,7 @@ export async function analyzeResumeParallel(
   userTier: UserTierInfo,
 ): Promise<AnalyzeResumeResponse> {
   // BETA MODE: Allow all users to test resume analysis
-  const BETA_MODE = true; // Set to false to enable tier restrictions
+  // Using global BETA_MODE constant
 
   // Check usage limits - SKIP IN BETA MODE for resume analysis
   if (!BETA_MODE) {
@@ -468,14 +508,14 @@ export async function analyzeResumeParallel(
     switch (selection.provider) {
       case "anthropic":
         // Fallback to standard analysis for non-Groq providers
-        return await breakers.anthropic.exec(() => anthropic.analyzeResume(resumeText));
+        return await executeBetaAwareCall('anthropic', () => anthropic.analyzeResume(resumeText));
       case "openai":
         // Fallback to standard analysis for non-Groq providers
-        return await breakers.openai.exec(() => openai.analyzeResume(resumeText));
+        return await executeBetaAwareCall('openai', () => openai.analyzeResume(resumeText));
       case "groq":
       default:
         // Use optimized parallel extraction for Groq
-        return await breakers.groq.exec(() => groq.analyzeResumeParallel(resumeText));
+        return await executeBetaAwareCall('groq', () => groq.analyzeResumeParallel(resumeText));
     }
   } catch (error) {
     logger.error("AI provider error in parallel resume analysis", {
@@ -492,8 +532,26 @@ export async function analyzeResumeParallel(
         userTier: userTier.tier
       });
       
-      // Return basic fallback analysis to not block user flow
+      // Return proper fallback response matching AnalyzeResumeResponse interface
       return {
+        id: 0 as ResumeId,
+        filename: "fallback",
+        analyzedData: {
+          name: "Analysis Unavailable",
+          skills: ["Analysis temporarily unavailable"],
+          experience: "Experience analysis unavailable in beta mode",
+          education: ["Analysis service temporarily unavailable"],
+          summary: "Resume analysis service is temporarily unavailable",
+          keyStrengths: ["Resume uploaded successfully"],
+          contactInfo: {
+            email: "",
+            phone: "",
+            location: ""
+          }
+        },
+        processingTime: 0,
+        confidence: 0,
+        // Convenience properties for backward compatibility
         skills: ["Analysis temporarily unavailable"],
         experience: [{
           company: "Analysis unavailable",
@@ -505,12 +563,7 @@ export async function analyzeResumeParallel(
           degree: "Analysis unavailable",
           institution: "N/A",
           field: "Analysis service temporarily unavailable"
-        }],
-        // jobTitles property removed - not in interface
-        strengthsWeaknesses: {
-          strengths: ["Resume uploaded successfully"],
-          weaknesses: ["Analysis service temporarily unavailable"]
-        }
+        }]
       };
     }
     
@@ -528,7 +581,7 @@ export async function analyzeJobDescription(
   userTier: UserTierInfo,
 ): Promise<AnalyzeJobDescriptionResponse> {
   // BETA MODE: Allow all users to test job analysis
-  const BETA_MODE = true; // Set to false to enable tier restrictions
+  // Using global BETA_MODE constant
 
   // Check usage limits - SKIP IN BETA MODE for job analysis
   if (!BETA_MODE) {
@@ -556,12 +609,12 @@ export async function analyzeJobDescription(
   try {
     switch (selection.provider) {
       case "anthropic":
-        return await breakers.anthropic.exec(() => anthropic.analyzeJobDescription(title, description));
+        return await executeBetaAwareCall('anthropic', () => anthropic.analyzeJobDescription(title, description));
       case "openai":
-        return await breakers.openai.exec(() => openai.analyzeJobDescription(title, description));
+        return await executeBetaAwareCall('openai', () => openai.analyzeJobDescription(title, description));
       case "groq":
       default:
-        return await breakers.groq.exec(() => groq.analyzeJobDescription(title, description));
+        return await executeBetaAwareCall('groq', () => groq.analyzeJobDescription(title, description));
     }
   } catch (error) {
     logger.error("AI provider error in job description analysis", {
@@ -624,7 +677,7 @@ export async function analyzeMatch(
   jobText?: string,
 ): Promise<MatchAnalysisResponse> {
   // BETA MODE: Allow all users to test match analysis
-  const BETA_MODE = true; // Set to false to enable tier restrictions
+  // Using global BETA_MODE constant
 
   // Check usage limits - SKIP IN BETA MODE for match analysis
   if (!BETA_MODE) {
@@ -747,7 +800,7 @@ export async function analyzeBias(
   userTier: UserTierInfo,
 ): Promise<BiasAnalysisResponse> {
   // BETA MODE: Allow all users to test bias analysis
-  const BETA_MODE = true; // Set to false to enable premium-only restrictions
+  // Using global BETA_MODE constant
 
   // Premium feature check (disabled during beta)
   if (!BETA_MODE && userTier.tier === "freemium") {
@@ -782,12 +835,12 @@ export async function analyzeBias(
   try {
     switch (selection.provider) {
       case "anthropic":
-        return await breakers.anthropic.exec(() => anthropic.analyzeBias(title, description));
+        return await executeBetaAwareCall('anthropic', () => anthropic.analyzeBias(title, description));
       case "openai":
-        return await breakers.openai.exec(() => openai.analyzeBias(title, description));
+        return await executeBetaAwareCall('openai', () => openai.analyzeBias(title, description));
       case "groq":
       default:
-        return await breakers.groq.exec(() => groq.analyzeBias(title, description));
+        return await executeBetaAwareCall('groq', () => groq.analyzeBias(title, description));
     }
   } catch (error) {
     logger.error("AI provider error in bias analysis", {
@@ -852,7 +905,7 @@ export async function generateInterviewQuestions(
   userTier: UserTierInfo,
 ): Promise<InterviewQuestionsResponse> {
   // BETA MODE: Allow all users to test interview questions generation
-  const BETA_MODE = true; // Set to false to enable premium-only restrictions
+  // Using global BETA_MODE constant
 
   // Premium feature check (disabled during beta)
   if (!BETA_MODE && userTier.tier === "freemium") {
@@ -978,7 +1031,7 @@ export async function generateInterviewScript(
   candidateName?: string,
 ): Promise<InterviewScriptResponse> {
   // BETA MODE: Allow all users to test interview script generation
-  const BETA_MODE = true; // Set to false to enable premium-only restrictions
+  // Using global BETA_MODE constant
 
   // Premium feature check (disabled during beta)
   if (!BETA_MODE && userTier.tier === "freemium") {
@@ -1242,11 +1295,11 @@ async function callProvider(
   
   switch (provider) {
     case "anthropic":
-      return await breakers.anthropic.exec(() => anthropic.analyzeMatch(resumeAnalysis, jobAnalysis));
+      return await executeBetaAwareCall('anthropic', () => anthropic.analyzeMatch(resumeAnalysis, jobAnalysis));
     case "openai":
-      return await breakers.openai.exec(() => openai.analyzeMatch(resumeAnalysis, jobAnalysis));
+      return await executeBetaAwareCall('openai', () => openai.analyzeMatch(resumeAnalysis, jobAnalysis));
     case "groq":
-      return await breakers.groq.exec(() => groq.analyzeMatch(resumeAnalysis, jobAnalysis, resumeText, jobText));
+      return await executeBetaAwareCall('groq', () => groq.analyzeMatch(resumeAnalysis, jobAnalysis, resumeText, jobText));
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }

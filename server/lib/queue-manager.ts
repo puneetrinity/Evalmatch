@@ -1,5 +1,4 @@
 import { Queue, Worker } from 'bullmq';
-import type { ConnectionOptions } from 'bullmq';
 import { logger } from './logger';
 import { redis } from '../core/redis';
 import { cacheManager } from './redis-cache';

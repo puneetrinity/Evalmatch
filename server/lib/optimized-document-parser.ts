@@ -133,7 +133,7 @@ class OptimizedDocumentParser {
    */
   private async parsePDF(filePath: string, options: ParseOptions): Promise<DocumentParseResult> {
     return new Promise((resolve, reject) => {
-      const workerId = crypto.randomUUID();
+      const _workerId = crypto.randomUUID();
       const worker = new Worker(`
         const { parentPort } = require('worker_threads');
         const fs = require('fs');
@@ -195,7 +195,7 @@ class OptimizedDocumentParser {
   /**
    * PERFORMANCE: Optimized DOCX parsing
    */
-  private async parseDOCX(filePath: string, options: ParseOptions): Promise<DocumentParseResult> {
+  private async parseDOCX(filePath: string, _options: ParseOptions): Promise<DocumentParseResult> {
     try {
       const mammoth = await import('mammoth');
       const result = await mammoth.extractRawText({ path: filePath });

@@ -3,9 +3,7 @@
  * Provides comprehensive system monitoring with business-friendly health scores
  */
 
-import { logger } from "./logger";
 import { queueManager } from "./queue-manager";
-import { cacheManager } from "./redis-cache";
 import { serviceLevelManager } from "./service-level-manager";
 import { getCacheStats } from "./cached-ai-operations";
 

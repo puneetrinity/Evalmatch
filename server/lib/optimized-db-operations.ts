@@ -8,7 +8,6 @@
  * - Batch operations reduce round trips
  */
 
-import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool, PoolClient } from 'pg';
 import { logger } from './logger';
 import { cacheManager } from './redis-cache';
@@ -22,7 +21,7 @@ interface QueryCacheOptions {
 interface BatchOperation<T> {
   query: string;
   params: any[];
-  transform?: (result: any) => T;
+  transform?: (_result: any) => T;
 }
 
 class OptimizedDatabaseManager {
@@ -195,7 +194,7 @@ class OptimizedDatabaseManager {
    */
   async healthCheck() {
     try {
-      const result = await this.executeQuery('SELECT 1 as health');
+      await this.executeQuery('SELECT 1 as health');
       return {
         healthy: true,
         poolStats: {
