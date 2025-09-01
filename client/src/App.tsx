@@ -22,6 +22,8 @@ const SdkTokensPage = lazy(() => import("./pages/sdk-tokens"));
 const PrivacyPolicy = lazy(() => import("./pages/privacy-policy"));
 const TermsOfService = lazy(() => import("./pages/terms-of-service"));
 const Feedback = lazy(() => import("./pages/feedback"));
+const MyResumesPage = lazy(() => import("./pages/my-resumes"));
+const MyAnalysesPage = lazy(() => import("./pages/my-analyses"));
 
 // Lazy load onboarding components
 const Welcome = lazy(() => import("@/components/onboarding").then(m => ({ default: m.Welcome })));
@@ -100,6 +102,20 @@ function Router() {
         <RequireAuth>
           <Suspense fallback={<PageLoader />}>
             <InterviewPage />
+          </Suspense>
+        </RequireAuth>
+      </Route>
+      <Route path="/my-resumes">
+        <RequireAuth>
+          <Suspense fallback={<PageLoader />}>
+            <MyResumesPage />
+          </Suspense>
+        </RequireAuth>
+      </Route>
+      <Route path="/my-analyses">
+        <RequireAuth>
+          <Suspense fallback={<PageLoader />}>
+            <MyAnalysesPage />
           </Suspense>
         </RequireAuth>
       </Route>
