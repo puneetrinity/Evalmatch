@@ -832,18 +832,27 @@ export async function generateInterviewQuestions(
     );
   }
 
-  // Check usage limits
-  const usageCheck = checkUsageLimit(userTier);
-  if (!usageCheck.canUse) {
-    throw new Error(usageCheck.message);
+  // Check usage limits - SKIP IN BETA MODE for interview questions
+  if (!BETA_MODE) {
+    const usageCheck = checkUsageLimit(userTier);
+    if (!usageCheck.canUse) {
+      throw new Error(usageCheck.message);
+    }
+  } else {
+    logger.info("Beta mode: Skipping usage limits for interview questions", { 
+      userTier: userTier.tier,
+      context: "interview_questions"
+    });
   }
 
   // Select provider based on tier
   const selection = selectProviderForTier(userTier);
   logger.info(`Selected provider: ${selection.provider} - ${selection.reason}`);
 
-  // Increment usage count
-  incrementUsage(userTier);
+  // Increment usage count - SKIP IN BETA MODE for interview questions
+  if (!BETA_MODE) {
+    incrementUsage(userTier);
+  }
 
   // Call appropriate provider with error handling
   try {
@@ -869,7 +878,49 @@ export async function generateInterviewQuestions(
         );
     }
   } catch (error) {
-    logger.error("AI provider error in interview questions generation", error);
+    logger.error("AI provider error in interview questions generation", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      provider: selection.provider,
+      userTier: userTier.tier,
+    });
+    
+    // In BETA MODE, provide fallback interview questions instead of hard error
+    if (BETA_MODE) {
+      logger.info("Beta mode: Providing fallback interview questions due to provider failure", {
+        provider: selection.provider,
+        userTier: userTier.tier
+      });
+      
+      // Return basic fallback questions to not block user flow
+      return {
+        questions: [
+          {
+            question: "Can you tell me about yourself and your professional background?",
+            type: "general" as const,
+            difficulty: "easy" as const,
+            purpose: "Getting to know the candidate"
+          },
+          {
+            question: "What interests you most about this position?",
+            type: "general" as const,
+            difficulty: "easy" as const,
+            purpose: "Understanding motivation and fit"
+          },
+          {
+            question: "Interview questions service is temporarily unavailable. Please prepare standard technical and behavioral questions based on the job requirements.",
+            type: "fallback" as const,
+            difficulty: "medium" as const,
+            purpose: "Service unavailable notice"
+          }
+        ],
+        followUpQuestions: ["What questions do you have for us?"],
+        interviewStructure: {
+          duration: 45,
+          sections: ["Introduction", "Experience Review", "Technical Discussion", "Q&A"]
+        }
+      };
+    }
+    
     // Throw appropriate error message based on user tier
     throw classifyAndThrowError(error, userTier, "Interview questions generation");
   }
@@ -896,18 +947,27 @@ export async function generateInterviewScript(
     );
   }
 
-  // Check usage limits
-  const usageCheck = checkUsageLimit(userTier);
-  if (!usageCheck.canUse) {
-    throw new Error(usageCheck.message);
+  // Check usage limits - SKIP IN BETA MODE for interview script
+  if (!BETA_MODE) {
+    const usageCheck = checkUsageLimit(userTier);
+    if (!usageCheck.canUse) {
+      throw new Error(usageCheck.message);
+    }
+  } else {
+    logger.info("Beta mode: Skipping usage limits for interview script", { 
+      userTier: userTier.tier,
+      context: "interview_script"
+    });
   }
 
   // Select provider based on tier
   const selection = selectProviderForTier(userTier);
   logger.info(`Selected provider: ${selection.provider} - ${selection.reason}`);
 
-  // Increment usage count
-  incrementUsage(userTier);
+  // Increment usage count - SKIP IN BETA MODE for interview script
+  if (!BETA_MODE) {
+    incrementUsage(userTier);
+  }
 
   // Call appropriate provider with error handling
   try {
@@ -939,7 +999,50 @@ export async function generateInterviewScript(
         );
     }
   } catch (error) {
-    logger.error("AI provider error in interview script generation", error);
+    logger.error("AI provider error in interview script generation", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      provider: selection.provider,
+      userTier: userTier.tier,
+      jobTitle: jobTitle.substring(0, 50)
+    });
+    
+    // In BETA MODE, provide fallback interview script instead of hard error
+    if (BETA_MODE) {
+      logger.info("Beta mode: Providing fallback interview script due to provider failure", {
+        provider: selection.provider,
+        userTier: userTier.tier
+      });
+      
+      // Return basic fallback script to not block user flow
+      return {
+        introduction: `Welcome ${candidateName || 'candidate'} to the interview for ${jobTitle}. Thank you for your time today.`,
+        sections: [
+          {
+            title: "Getting Started",
+            duration: 10,
+            questions: ["Can you tell me about yourself?", "What interests you about this role?"],
+            notes: "Build rapport and understand candidate motivation"
+          },
+          {
+            title: "Experience Review", 
+            duration: 20,
+            questions: ["Walk me through your relevant experience", "What achievement are you most proud of?"],
+            notes: "Assess experience and accomplishments"
+          },
+          {
+            title: "Closing",
+            duration: 15,
+            questions: ["What questions do you have for us?", "What are your salary expectations?"],
+            notes: "Answer candidate questions and discuss next steps"
+          }
+        ],
+        conclusion: "Thank you for your time. We'll be in touch soon regarding next steps.",
+        notes: "Interview script service temporarily unavailable. This is a basic template - please customize based on specific role requirements.",
+        estimatedDuration: 45,
+        fallbackNotice: "AI-generated interview script is temporarily unavailable. Please use this basic template and customize as needed."
+      };
+    }
+    
     // Throw appropriate error message based on user tier
     throw classifyAndThrowError(error, userTier, "Interview script generation");
   }
