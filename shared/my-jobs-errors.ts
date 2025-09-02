@@ -3,7 +3,8 @@
  * Extends the existing error system with job-specific error handling
  */
 
-import { AppError, AppValidationError, AppNotFoundError, AppBusinessLogicError, AppExternalServiceError } from './errors';
+import { BaseAppError, AppValidationError, AppNotFoundError, AppBusinessLogicError, AppExternalServiceError } from './errors';
+import type { AppError } from './result-types';
 
 // ===== MY JOBS SPECIFIC ERROR CODES =====
 
@@ -45,15 +46,18 @@ export const MyJobsErrorCodes = {
 
 export class JobStatusError extends AppBusinessLogicError {
   constructor(message: string, context?: Record<string, any>) {
-    super(message, MyJobsErrorCodes.JOB_STATUS_TRANSITION_INVALID, context);
+    super('job-status', message, context);
     this.name = 'JobStatusError';
   }
 
   static alreadyArchived(jobId: number): JobStatusError {
-    return new JobStatusError(
+    const error = new JobStatusError(
       `Job ${jobId} is archived and cannot be modified`,
       { jobId, currentStatus: 'archived' }
     );
+    // Store the specific error type in context for later reference
+    (error as any).isArchived = true;
+    return error;
   }
 
   static invalidTransition(fromStatus: string, toStatus: string, jobId: number): JobStatusError {
@@ -65,9 +69,12 @@ export class JobStatusError extends AppBusinessLogicError {
 }
 
 export class ResumeAssociationError extends AppBusinessLogicError {
+  public customCode: string;
+  
   constructor(message: string, code: string = MyJobsErrorCodes.RESUME_ASSOCIATION_FAILED, context?: Record<string, any>) {
-    super(message, code, context);
+    super('resume-association', message, context);
     this.name = 'ResumeAssociationError';
+    this.customCode = code;
   }
 
   static alreadyAssociated(resumeId: number, jobId: number): ResumeAssociationError {
@@ -104,9 +111,12 @@ export class ResumeAssociationError extends AppBusinessLogicError {
 }
 
 export class BulkOperationError extends AppBusinessLogicError {
+  public customCode: string;
+  
   constructor(message: string, code: string = MyJobsErrorCodes.BULK_OPERATION_PARTIAL_FAILURE, context?: Record<string, any>) {
-    super(message, code, context);
+    super('bulk-operation', message, context);
     this.name = 'BulkOperationError';
+    this.customCode = code;
   }
 
   static partialFailure(operation: string, totalCount: number, failedCount: number, errors: Array<{ id: number; error: string }>): BulkOperationError {
@@ -135,9 +145,11 @@ export class BulkOperationError extends AppBusinessLogicError {
 }
 
 export class JobAnalyticsError extends AppExternalServiceError {
+  public customCode: string;
+  
   constructor(message: string, code: string = MyJobsErrorCodes.ANALYTICS_UNAVAILABLE, context?: Record<string, any>) {
-    super(message, 'Analytics', 'computation', context);
-    this.code = code;
+    super('EXTERNAL_SERVICE_ERROR', 'Analytics', message, 'computation', context);
+    this.customCode = code;
     this.name = 'JobAnalyticsError';
   }
 
@@ -167,9 +179,11 @@ export class JobAnalyticsError extends AppExternalServiceError {
 }
 
 export class JobSearchError extends AppExternalServiceError {
+  public customCode: string;
+  
   constructor(message: string, code: string = MyJobsErrorCodes.SEARCH_QUERY_INVALID, context?: Record<string, any>) {
-    super(message, 'Search', 'query', context);
-    this.code = code;
+    super('EXTERNAL_SERVICE_ERROR', 'Search', message, 'query', context);
+    this.customCode = code;
     this.name = 'JobSearchError';
   }
 
@@ -199,8 +213,10 @@ export class JobSearchError extends AppExternalServiceError {
 }
 
 export class JobTemplateError extends AppBusinessLogicError {
+  public customCode: string = MyJobsErrorCodes.JOB_TEMPLATE_CREATION_FAILED;
+  
   constructor(message: string, context?: Record<string, any>) {
-    super(message, MyJobsErrorCodes.JOB_TEMPLATE_CREATION_FAILED, context);
+    super('job-template', message, context);
     this.name = 'JobTemplateError';
   }
 
@@ -212,17 +228,20 @@ export class JobTemplateError extends AppBusinessLogicError {
   }
 
   static notAccessible(templateId: number, userId: string): JobTemplateError {
-    return new JobTemplateError(
+    const error = new JobTemplateError(
       `Template ${templateId} is not accessible to user ${userId}`,
       { templateId, userId }
     );
+    error.customCode = MyJobsErrorCodes.JOB_TEMPLATE_NOT_ACCESSIBLE;
+    return error;
   }
 }
 
 export class JobPerformanceError extends AppExternalServiceError {
+  public customCode: string = MyJobsErrorCodes.JOB_PROCESSING_OVERLOADED;
+  
   constructor(message: string, context?: Record<string, any>) {
-    super(message, 'Performance', 'overload', context);
-    this.code = MyJobsErrorCodes.JOB_PROCESSING_OVERLOADED;
+    super('EXTERNAL_SERVICE_ERROR', 'Performance', message, 'overload', context);
     this.name = 'JobPerformanceError';
   }
 
@@ -238,7 +257,7 @@ export class JobPerformanceError extends AppExternalServiceError {
       `Analysis queue is full: ${queueSize}/${maxSize}`,
       { queueSize, maxSize }
     );
-    error.code = MyJobsErrorCodes.ANALYSIS_QUEUE_FULL;
+    error.customCode = MyJobsErrorCodes.ANALYSIS_QUEUE_FULL;
     return error;
   }
 
@@ -247,7 +266,7 @@ export class JobPerformanceError extends AppExternalServiceError {
       `Concurrent modification detected for ${resourceType} ${resourceId}`,
       { resourceId, resourceType }
     );
-    error.code = MyJobsErrorCodes.CONCURRENT_MODIFICATION;
+    error.customCode = MyJobsErrorCodes.CONCURRENT_MODIFICATION;
     return error;
   }
 }
@@ -263,7 +282,7 @@ export function getMyJobsErrorStatusCode(error: AppError): number {
   }
   
   if (error instanceof ResumeAssociationError) {
-    switch (error.code) {
+    switch (error.customCode) {
       case MyJobsErrorCodes.RESUME_ALREADY_ASSOCIATED:
         return 409; // Conflict
       case MyJobsErrorCodes.RESUME_NOT_ASSOCIATED:
@@ -276,7 +295,7 @@ export function getMyJobsErrorStatusCode(error: AppError): number {
   }
   
   if (error instanceof BulkOperationError) {
-    switch (error.code) {
+    switch (error.customCode) {
       case MyJobsErrorCodes.BULK_OPERATION_LIMIT_EXCEEDED:
         return 429; // Too Many Requests
       case MyJobsErrorCodes.BULK_OPERATION_PARTIAL_FAILURE:
@@ -287,7 +306,7 @@ export function getMyJobsErrorStatusCode(error: AppError): number {
   }
   
   if (error instanceof JobAnalyticsError) {
-    switch (error.code) {
+    switch (error.customCode) {
       case MyJobsErrorCodes.ANALYTICS_UNAVAILABLE:
         return 503; // Service Unavailable
       case MyJobsErrorCodes.ANALYTICS_COMPUTATION_FAILED:
@@ -299,7 +318,7 @@ export function getMyJobsErrorStatusCode(error: AppError): number {
   }
   
   if (error instanceof JobSearchError) {
-    switch (error.code) {
+    switch (error.customCode) {
       case MyJobsErrorCodes.SEARCH_TIMEOUT:
         return 504; // Gateway Timeout
       case MyJobsErrorCodes.SEARCH_FACET_UNAVAILABLE:
@@ -310,11 +329,11 @@ export function getMyJobsErrorStatusCode(error: AppError): number {
   }
   
   if (error instanceof JobTemplateError) {
-    return error.code === MyJobsErrorCodes.JOB_TEMPLATE_NOT_ACCESSIBLE ? 403 : 400;
+    return error.customCode === MyJobsErrorCodes.JOB_TEMPLATE_NOT_ACCESSIBLE ? 403 : 400;
   }
   
   if (error instanceof JobPerformanceError) {
-    switch (error.code) {
+    switch (error.customCode) {
       case MyJobsErrorCodes.JOB_PROCESSING_OVERLOADED:
       case MyJobsErrorCodes.ANALYSIS_QUEUE_FULL:
         return 503; // Service Unavailable
@@ -339,14 +358,12 @@ export function getMyJobsErrorStatusCode(error: AppError): number {
  */
 export function getMyJobsUserFriendlyMessage(error: AppError): string {
   if (error instanceof JobStatusError) {
-    if (error.code === MyJobsErrorCodes.JOB_ALREADY_ARCHIVED) {
-      return 'This job has been archived and cannot be modified. Please create a new job or restore it from archives.';
-    }
+    // JobStatusError doesn't have a customCode, it's always JOB_STATUS_TRANSITION_INVALID
     return 'The job status cannot be changed at this time. Please check the current status and try again.';
   }
   
   if (error instanceof ResumeAssociationError) {
-    switch (error.code) {
+    switch (error.customCode) {
       case MyJobsErrorCodes.RESUME_ALREADY_ASSOCIATED:
         return 'This resume is already associated with the job. No action needed.';
       case MyJobsErrorCodes.RESUME_NOT_ASSOCIATED:
@@ -359,17 +376,17 @@ export function getMyJobsUserFriendlyMessage(error: AppError): string {
   }
   
   if (error instanceof BulkOperationError) {
-    if (error.code === MyJobsErrorCodes.BULK_OPERATION_PARTIAL_FAILURE) {
+    if (error.customCode === MyJobsErrorCodes.BULK_OPERATION_PARTIAL_FAILURE) {
       return 'Some operations completed successfully, but others failed. Check the details below.';
     }
-    if (error.code === MyJobsErrorCodes.BULK_OPERATION_LIMIT_EXCEEDED) {
+    if (error.customCode === MyJobsErrorCodes.BULK_OPERATION_LIMIT_EXCEEDED) {
       return 'Too many items selected for bulk operation. Please select fewer items and try again.';
     }
     return 'The bulk operation could not be completed. Please try again or contact support.';
   }
   
   if (error instanceof JobAnalyticsError) {
-    switch (error.code) {
+    switch (error.customCode) {
       case MyJobsErrorCodes.ANALYTICS_UNAVAILABLE:
         return 'Analytics are not available for this job yet. Please try again after running some analyses.';
       case MyJobsErrorCodes.ANALYTICS_COMPUTATION_FAILED:
@@ -382,21 +399,21 @@ export function getMyJobsUserFriendlyMessage(error: AppError): string {
   }
   
   if (error instanceof JobSearchError) {
-    if (error.code === MyJobsErrorCodes.SEARCH_TIMEOUT) {
+    if (error.customCode === MyJobsErrorCodes.SEARCH_TIMEOUT) {
       return 'Search took too long to complete. Please try a simpler search query.';
     }
     return 'Unable to complete search. Please check your search terms and try again.';
   }
   
   if (error instanceof JobTemplateError) {
-    if (error.code === MyJobsErrorCodes.JOB_TEMPLATE_NOT_ACCESSIBLE) {
+    if (error.customCode === MyJobsErrorCodes.JOB_TEMPLATE_NOT_ACCESSIBLE) {
       return 'This template is not available to your account. Please choose a different template.';
     }
     return 'Unable to create job template. Please check your input and try again.';
   }
   
   if (error instanceof JobPerformanceError) {
-    switch (error.code) {
+    switch (error.customCode) {
       case MyJobsErrorCodes.JOB_PROCESSING_OVERLOADED:
         return 'Our servers are currently busy. Please try again in a few minutes.';
       case MyJobsErrorCodes.ANALYSIS_QUEUE_FULL:
@@ -421,14 +438,15 @@ export function getMyJobsRecoveryActions(error: AppError): string[] {
   if (error instanceof JobStatusError) {
     actions.push('Check the current job status');
     actions.push('Verify you have permission to modify this job');
-    if (error.code === MyJobsErrorCodes.JOB_ALREADY_ARCHIVED) {
+    // Check if it's specifically an archive error by looking at the message
+    if (error.message.includes('archived')) {
       actions.push('Create a duplicate of this job to continue working');
       actions.push('Contact an administrator to restore from archives');
     }
   }
   
   if (error instanceof ResumeAssociationError) {
-    if (error.code === MyJobsErrorCodes.ASSOCIATION_LIMIT_EXCEEDED) {
+    if (error.customCode === MyJobsErrorCodes.ASSOCIATION_LIMIT_EXCEEDED) {
       actions.push('Remove some existing resume associations');
       actions.push('Upgrade your plan for higher limits at dashboard.evalmatch.com/billing');
     } else {
@@ -481,13 +499,24 @@ export function getMyJobsRecoveryActions(error: AppError): string[] {
  * Create standardized error response for My Jobs APIs
  */
 export function createMyJobsErrorResponse(error: AppError) {
+  // Get the appropriate error code for response
+  let errorCode = error.code;
+  if (error instanceof ResumeAssociationError ||
+      error instanceof BulkOperationError ||
+      error instanceof JobAnalyticsError ||
+      error instanceof JobSearchError ||
+      error instanceof JobTemplateError ||
+      error instanceof JobPerformanceError) {
+    errorCode = (error as any).customCode || error.code;
+  }
+  
   return {
     success: false,
-    error: error.code,
+    error: errorCode,
     message: getMyJobsUserFriendlyMessage(error),
     details: {
       originalError: error.message,
-      context: error.context || {},
+      context: (error as any).context || (error as any).details || {},
       recoveryActions: getMyJobsRecoveryActions(error),
       supportId: `mj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     },
@@ -518,17 +547,18 @@ export async function withMyJobsErrorHandling<T>(
     }
     
     // Convert other errors to appropriate My Jobs errors
-    if (error instanceof AppError) {
+    if (error instanceof BaseAppError) {
       throw error;
     }
     
     // Convert unknown errors to generic App errors with context
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     throw new AppExternalServiceError(
-      `${operationName} failed: ${errorMessage}`,
+      'EXTERNAL_SERVICE_ERROR',
       'MyJobs',
-      operationName,
-      { ...context, originalError: errorMessage }
+      `${operationName} failed: ${errorMessage}`,
+      errorMessage,
+      { ...context }
     );
   }
 }
@@ -539,11 +569,22 @@ export async function withMyJobsErrorHandling<T>(
  * Log My Jobs errors with structured data for monitoring
  */
 export function logMyJobsError(error: AppError, request?: any, userId?: string) {
+  // Get the appropriate error code for logging
+  let errorCode = error.code;
+  if (error instanceof ResumeAssociationError ||
+      error instanceof BulkOperationError ||
+      error instanceof JobAnalyticsError ||
+      error instanceof JobSearchError ||
+      error instanceof JobTemplateError ||
+      error instanceof JobPerformanceError) {
+    errorCode = (error as any).customCode || error.code;
+  }
+  
   const errorData = {
     errorType: error.constructor.name,
-    errorCode: error.code,
+    errorCode,
     message: error.message,
-    context: error.context,
+    context: (error as any).context || (error as any).details,
     userId,
     endpoint: request?.url,
     method: request?.method,
