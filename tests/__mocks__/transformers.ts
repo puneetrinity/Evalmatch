@@ -3,21 +3,21 @@
  * Prevents the actual transformers library from loading during tests
  */
 
-export const pipeline = jest.fn().mockResolvedValue({
-  encode: jest.fn().mockResolvedValue([[1, 2, 3, 4, 5]]), // Mock embeddings
-  decode: jest.fn().mockResolvedValue('mock decoded text')
+export const pipeline = async () => ({
+  encode: async () => [[1, 2, 3, 4, 5]], // Mock embeddings
+  decode: async () => 'mock decoded text'
 });
 
 export const AutoTokenizer = {
-  from_pretrained: jest.fn().mockResolvedValue({
-    encode: jest.fn().mockReturnValue([1, 2, 3, 4, 5]),
-    decode: jest.fn().mockReturnValue('mock text')
+  from_pretrained: async () => ({
+    encode: () => [1, 2, 3, 4, 5],
+    decode: () => 'mock text'
   })
 };
 
 export const AutoModel = {
-  from_pretrained: jest.fn().mockResolvedValue({
-    forward: jest.fn().mockResolvedValue({
+  from_pretrained: async () => ({
+    forward: async () => ({
       last_hidden_state: [[1, 2, 3, 4, 5]]
     })
   })
