@@ -1,6 +1,6 @@
 import rateLimit from "express-rate-limit";
 import { logger } from "../lib/logger";
-import { shouldBypassMiddleware, conditionalMiddleware } from "./fast-path";
+import { conditionalMiddleware } from "./fast-path";
 
 // Create test-safe rate limiter configuration with fast-path bypass
 const createTestSafeRateLimiter = (options: any) => {

@@ -12,10 +12,14 @@
  * - Dashboard queries
  */
 
+/* eslint-env node */
+/* eslint no-console: 0 */
+
 const https = require('https');
 const fs = require('fs');
-const path = require('path');
 const { performance } = require('perf_hooks');
+const { URL } = require('url');
+const { setTimeout, setInterval, clearInterval } = require('timers');
 
 // Configuration
 const CONFIG = {
@@ -91,7 +95,7 @@ Nice to have:
 
 // Helper functions
 function makeRequest(endpoint, authToken = null) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     const startTime = performance.now();
     const url = new URL(CONFIG.baseUrl + endpoint.path);
     
@@ -127,10 +131,8 @@ function makeRequest(endpoint, authToken = null) {
     }
 
     const req = https.request(url, options, (res) => {
-      let data = '';
-      
-      res.on('data', (chunk) => {
-        data += chunk;
+      res.on('data', (_chunk) => {
+        // Ignore response data for load testing
       });
       
       res.on('end', () => {
@@ -181,7 +183,7 @@ function makeRequest(endpoint, authToken = null) {
 }
 
 // User simulation
-async function simulateUser(userId) {
+async function simulateUser(_userId) {
   const delayBetweenRequests = 60000 / CONFIG.requestsPerUserPerMinute;
   
   while (Date.now() - metrics.startTime < CONFIG.testDurationSeconds * 1000) {

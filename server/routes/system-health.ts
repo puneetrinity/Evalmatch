@@ -133,7 +133,7 @@ router.post("/service-level", async (req, res) => {
 router.get("/alerts", async (req, res) => {
   try {
     const summary = await metricsCollector.getHealthSummary();
-    const metrics = await metricsCollector.collectMetrics();
+    await metricsCollector.collectMetrics();
     
     // Generate structured alerts
     const alerts = summary.alerts.map((alert, index) => ({

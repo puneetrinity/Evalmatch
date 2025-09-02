@@ -61,16 +61,12 @@ export default defineConfig({
     chunkSizeWarningLimit: 500, // Stricter chunk size limit
     target: 'esnext',
     reportCompressedSize: false, // Speed up build
-    // PERFORMANCE: Reduce memory usage during build
-    terserOptions: {
-      compress: {
-        drop_console: process.env.NODE_ENV === 'production',
-        drop_debugger: true,
-      },
-      mangle: {
-        safari10: true,
-      },
-    },
+    // PERFORMANCE: esbuild minification with console dropping
+    ...(process.env.NODE_ENV === 'production' && {
+      esbuild: {
+        drop: ['console', 'debugger'],
+      }
+    }),
   },
   
   // PERFORMANCE: Optimize dev server

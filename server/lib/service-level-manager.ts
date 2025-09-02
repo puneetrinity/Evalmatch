@@ -5,7 +5,6 @@
 
 import { logger } from "./logger";
 import { queueManager } from "./queue-manager";
-import { cacheManager } from "./redis-cache";
 
 export type ServiceLevel = "FULL" | "REDUCED" | "BASIC" | "MAINTENANCE";
 

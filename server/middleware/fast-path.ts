@@ -106,7 +106,7 @@ export function shouldBypassMiddleware(path: string): boolean {
  * Express middleware factory for conditional middleware application
  * Skips middleware for fast-path endpoints
  */
-export function conditionalMiddleware(middleware: (req: Request, res: Response, next: NextFunction) => void) {
+export function conditionalMiddleware(middleware: (_req: Request, _res: Response, _next: NextFunction) => void) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (shouldBypassMiddleware(req.path)) {
       // Skip middleware for fast-path endpoints

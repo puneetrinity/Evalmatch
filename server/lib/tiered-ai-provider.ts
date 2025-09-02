@@ -4,7 +4,7 @@ import * as groq from "./groq";
 import { config } from "../config/unified-config";
 import { logger } from "./logger";
 import { AI_PROVIDER_CONFIG, UNIFIED_SCORING_WEIGHTS as _UNIFIED_SCORING_WEIGHTS } from "./unified-scoring-config";
-import { getBreaker, getBreakerStatuses } from "./circuit-breakers";
+import { getBreaker } from "./circuit-breakers";
 import { getMemoryPressure } from "./memory-monitor";
 import {
   AnalyzeResumeResponse,

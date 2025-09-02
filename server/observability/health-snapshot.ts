@@ -48,7 +48,9 @@ function getCgroupLimitBytes(): number {
       cgroupMemoryLimit = Number(v2);
       return cgroupMemoryLimit;
     }
-  } catch {}
+  } catch {
+    // Ignore cgroup v2 read errors
+  }
   
   // cgroup v1
   try {
@@ -57,7 +59,9 @@ function getCgroupLimitBytes(): number {
       cgroupMemoryLimit = Number(v1);
       return cgroupMemoryLimit;
     }
-  } catch {}
+  } catch {
+    // Ignore cgroup v1 read errors
+  }
   
   // fallback: 8GB for Railway
   cgroupMemoryLimit = 8 * 1024 * 1024 * 1024;
