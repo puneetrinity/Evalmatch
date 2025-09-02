@@ -24,16 +24,15 @@ import {
   getApiLimitExceededError,
 } from "@shared/user-tiers";
 
-// GLOBAL BETA MODE CONFIGURATION
-// Set to true to bypass circuit breakers and tier restrictions for cost optimization during beta
-const BETA_MODE = true;
+// BETA MODE CONFIGURATION
+// Now centralized in unified-config.ts and controlled via BETA_MODE environment variable
 
 // Helper function to execute AI provider calls with beta mode bypass
 async function executeBetaAwareCall<T>(
   provider: 'groq' | 'openai' | 'anthropic',
   fn: () => Promise<T>
 ): Promise<T> {
-  if (BETA_MODE) {
+  if (config.features.betaMode) {
     // Direct execution bypassing circuit breakers in beta mode
     return await fn();
   } else {
@@ -105,7 +104,7 @@ export function cleanupCircuitBreakerTimer(): void {
  * Classify error types and throw appropriate errors based on actual failure reasons
  */
 function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: string): never {
-  // Using global BETA_MODE constant
+  // Using centralized beta mode config
   const errorMessage = error instanceof Error ? error.message.toLowerCase() : "";
   const errorStack = error instanceof Error ? error.stack?.toLowerCase() || "" : "";
   
@@ -121,7 +120,7 @@ function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: 
       errorMessage.includes("too many requests") ||
       errorMessage.includes("quota exceeded") ||
       errorStack.includes("429")) {
-    if (BETA_MODE) {
+    if (config.features.betaMode) {
       throw new Error(`${context} service is experiencing high demand. Please try again in a moment.`);
     }
     throw getApiLimitExceededError(userTier, context);
@@ -150,7 +149,7 @@ function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: 
       errorMessage.includes("authentication") ||
       errorStack.includes("401")) {
     logger.error("AI provider authentication failure", { context, userTier: userTier.tier });
-    if (BETA_MODE) {
+    if (config.features.betaMode) {
       throw new Error(`${context} service is temporarily unavailable. Please try again in a moment.`);
     }
     throw getServiceUnavailableError(userTier, context);
@@ -169,7 +168,7 @@ function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: 
       errorMessage.includes("capacity") ||
       errorMessage.includes("server overloaded") ||
       errorStack.includes("503")) {
-    if (BETA_MODE) {
+    if (config.features.betaMode) {
       throw new Error(`${context} service is experiencing high demand. Please try again in a moment.`);
     }
     throw getServiceUnavailableError(userTier, context);
@@ -191,7 +190,7 @@ function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: 
       errorMessage.includes("model unavailable") ||
       errorMessage.includes("invalid model")) {
     logger.error("AI model configuration error", { context, userTier: userTier.tier });
-    if (BETA_MODE) {
+    if (config.features.betaMode) {
       throw new Error(`${context} service is temporarily unavailable. Please try again in a moment.`);
     }
     throw getServiceUnavailableError(userTier, context);
@@ -211,7 +210,7 @@ function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: 
       errorMessage.includes("insufficient funds") ||
       errorMessage.includes("expired")) {
     logger.error("AI provider billing issue", { context, userTier: userTier.tier });
-    if (BETA_MODE) {
+    if (config.features.betaMode) {
       throw new Error(`${context} service is temporarily unavailable. Please try again in a moment.`);
     }
     throw getServiceUnavailableError(userTier, context);
@@ -235,7 +234,7 @@ function classifyAndThrowError(error: unknown, userTier: UserTierInfo, context: 
     timestamp: new Date().toISOString()
   });
   
-  if (BETA_MODE) {
+  if (config.features.betaMode) {
     throw new Error(`${context} analysis failed. Please try again or skip this step.`);
   }
   throw getServiceUnavailableError(userTier, context);
@@ -256,9 +255,9 @@ function selectProviderForTier(
 ): TierAwareProviderSelection {
   // BETA MODE: Force all users to Groq for cost optimization
   // This will be removed after beta testing period (~1 month)
-  // Using global BETA_MODE constant
+  // Using centralized beta mode config
 
-  if (BETA_MODE) {
+  if (config.features.betaMode) {
     // BETA MODE: Ignore circuit breakers and prioritize Groq first
     if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
       return {
@@ -378,10 +377,10 @@ export async function analyzeResume(
   userTier: UserTierInfo,
 ): Promise<AnalyzeResumeResponse> {
   // BETA MODE: Allow all users to test resume analysis
-  // Using global BETA_MODE constant
+  // Using centralized beta mode config
 
   // Check usage limits - SKIP IN BETA MODE for resume analysis
-  if (!BETA_MODE) {
+  if (!config.features.betaMode) {
     const usageCheck = checkUsageLimit(userTier);
     if (!usageCheck.canUse) {
       throw new Error(usageCheck.message);
@@ -398,7 +397,7 @@ export async function analyzeResume(
   logger.info(`Selected provider: ${selection.provider} - ${selection.reason}`);
 
   // Increment usage count - SKIP IN BETA MODE for resume analysis
-  if (!BETA_MODE) {
+  if (!config.features.betaMode) {
     incrementUsage(userTier);
   }
 
@@ -422,7 +421,7 @@ export async function analyzeResume(
     });
     
     // In BETA MODE, provide fallback resume analysis instead of hard error
-    if (BETA_MODE) {
+    if (config.features.betaMode) {
       logger.info("Beta mode: Providing fallback resume analysis due to provider failure", {
         provider: selection.provider,
         userTier: userTier.tier
@@ -477,10 +476,10 @@ export async function analyzeResumeParallel(
   userTier: UserTierInfo,
 ): Promise<AnalyzeResumeResponse> {
   // BETA MODE: Allow all users to test resume analysis
-  // Using global BETA_MODE constant
+  // Using centralized beta mode config
 
   // Check usage limits - SKIP IN BETA MODE for resume analysis
-  if (!BETA_MODE) {
+  if (!config.features.betaMode) {
     const usageCheck = checkUsageLimit(userTier);
     if (!usageCheck.canUse) {
       throw new Error(usageCheck.message);
@@ -499,7 +498,7 @@ export async function analyzeResumeParallel(
   );
 
   // Increment usage count - SKIP IN BETA MODE for resume analysis
-  if (!BETA_MODE) {
+  if (!config.features.betaMode) {
     incrementUsage(userTier);
   }
 
@@ -526,7 +525,7 @@ export async function analyzeResumeParallel(
     });
     
     // In BETA MODE, provide fallback resume analysis instead of hard error
-    if (BETA_MODE) {
+    if (config.features.betaMode) {
       logger.info("Beta mode: Providing fallback resume analysis due to provider failure", {
         provider: selection.provider,
         userTier: userTier.tier
@@ -581,10 +580,10 @@ export async function analyzeJobDescription(
   userTier: UserTierInfo,
 ): Promise<AnalyzeJobDescriptionResponse> {
   // BETA MODE: Allow all users to test job analysis
-  // Using global BETA_MODE constant
+  // Using centralized beta mode config
 
   // Check usage limits - SKIP IN BETA MODE for job analysis
-  if (!BETA_MODE) {
+  if (!config.features.betaMode) {
     const usageCheck = checkUsageLimit(userTier);
     if (!usageCheck.canUse) {
       throw new Error(usageCheck.message);
@@ -601,7 +600,7 @@ export async function analyzeJobDescription(
   logger.info(`Selected provider: ${selection.provider} - ${selection.reason}`);
 
   // Increment usage count - SKIP IN BETA MODE for job analysis
-  if (!BETA_MODE) {
+  if (!config.features.betaMode) {
     incrementUsage(userTier);
   }
 
@@ -625,7 +624,7 @@ export async function analyzeJobDescription(
     });
     
     // In BETA MODE, provide fallback job analysis instead of hard error
-    if (BETA_MODE) {
+    if (config.features.betaMode) {
       logger.info("Beta mode: Providing fallback job analysis due to provider failure", {
         provider: selection.provider,
         userTier: userTier.tier
@@ -677,10 +676,10 @@ export async function analyzeMatch(
   jobText?: string,
 ): Promise<MatchAnalysisResponse> {
   // BETA MODE: Allow all users to test match analysis
-  // Using global BETA_MODE constant
+  // Using centralized beta mode config
 
   // Check usage limits - SKIP IN BETA MODE for match analysis
-  if (!BETA_MODE) {
+  if (!config.features.betaMode) {
     const usageCheck = checkUsageLimit(userTier);
     if (!usageCheck.canUse) {
       throw new Error(usageCheck.message);
@@ -702,7 +701,7 @@ export async function analyzeMatch(
   });
 
   // Increment usage count - SKIP IN BETA MODE for match analysis
-  if (!BETA_MODE) {
+  if (!config.features.betaMode) {
     incrementUsage(userTier);
   }
 
@@ -800,17 +799,17 @@ export async function analyzeBias(
   userTier: UserTierInfo,
 ): Promise<BiasAnalysisResponse> {
   // BETA MODE: Allow all users to test bias analysis
-  // Using global BETA_MODE constant
+  // Using centralized beta mode config
 
   // Premium feature check (disabled during beta)
-  if (!BETA_MODE && userTier.tier === "freemium") {
+  if (!config.features.betaMode && userTier.tier === "freemium") {
     throw new Error(
       "Bias analysis is a premium feature. Upgrade to access advanced analysis tools.",
     );
   }
 
   // Check usage limits - SKIP IN BETA MODE for bias analysis
-  if (!BETA_MODE) {
+  if (!config.features.betaMode) {
     const usageCheck = checkUsageLimit(userTier);
     if (!usageCheck.canUse) {
       throw new Error(usageCheck.message);
@@ -827,7 +826,7 @@ export async function analyzeBias(
   logger.info(`Selected provider: ${selection.provider} - ${selection.reason}`);
 
   // Increment usage count - SKIP IN BETA MODE for bias analysis
-  if (!BETA_MODE) {
+  if (!config.features.betaMode) {
     incrementUsage(userTier);
   }
 
@@ -851,7 +850,7 @@ export async function analyzeBias(
     });
     
     // In BETA MODE, provide fallback bias analysis instead of hard error
-    if (BETA_MODE) {
+    if (config.features.betaMode) {
       logger.info("Beta mode: Providing fallback bias analysis due to provider failure", {
         provider: selection.provider,
         userTier: userTier.tier
@@ -905,17 +904,17 @@ export async function generateInterviewQuestions(
   userTier: UserTierInfo,
 ): Promise<InterviewQuestionsResponse> {
   // BETA MODE: Allow all users to test interview questions generation
-  // Using global BETA_MODE constant
+  // Using centralized beta mode config
 
   // Premium feature check (disabled during beta)
-  if (!BETA_MODE && userTier.tier === "freemium") {
+  if (!config.features.betaMode && userTier.tier === "freemium") {
     throw new Error(
       "Interview questions generation is a premium feature. Upgrade to access advanced analysis tools.",
     );
   }
 
   // Check usage limits - SKIP IN BETA MODE for interview questions
-  if (!BETA_MODE) {
+  if (!config.features.betaMode) {
     const usageCheck = checkUsageLimit(userTier);
     if (!usageCheck.canUse) {
       throw new Error(usageCheck.message);
@@ -932,7 +931,7 @@ export async function generateInterviewQuestions(
   logger.info(`Selected provider: ${selection.provider} - ${selection.reason}`);
 
   // Increment usage count - SKIP IN BETA MODE for interview questions
-  if (!BETA_MODE) {
+  if (!config.features.betaMode) {
     incrementUsage(userTier);
   }
 
@@ -967,7 +966,7 @@ export async function generateInterviewQuestions(
     });
     
     // In BETA MODE, provide fallback interview questions instead of hard error
-    if (BETA_MODE) {
+    if (config.features.betaMode) {
       logger.info("Beta mode: Providing fallback interview questions due to provider failure", {
         provider: selection.provider,
         userTier: userTier.tier
@@ -1031,17 +1030,17 @@ export async function generateInterviewScript(
   candidateName?: string,
 ): Promise<InterviewScriptResponse> {
   // BETA MODE: Allow all users to test interview script generation
-  // Using global BETA_MODE constant
+  // Using centralized beta mode config
 
   // Premium feature check (disabled during beta)
-  if (!BETA_MODE && userTier.tier === "freemium") {
+  if (!config.features.betaMode && userTier.tier === "freemium") {
     throw new Error(
       "Complete interview script generation is a premium feature. Upgrade to access advanced interview tools.",
     );
   }
 
   // Check usage limits - SKIP IN BETA MODE for interview script
-  if (!BETA_MODE) {
+  if (!config.features.betaMode) {
     const usageCheck = checkUsageLimit(userTier);
     if (!usageCheck.canUse) {
       throw new Error(usageCheck.message);
@@ -1058,7 +1057,7 @@ export async function generateInterviewScript(
   logger.info(`Selected provider: ${selection.provider} - ${selection.reason}`);
 
   // Increment usage count - SKIP IN BETA MODE for interview script
-  if (!BETA_MODE) {
+  if (!config.features.betaMode) {
     incrementUsage(userTier);
   }
 
@@ -1100,7 +1099,7 @@ export async function generateInterviewScript(
     });
     
     // In BETA MODE, provide fallback interview script instead of hard error
-    if (BETA_MODE) {
+    if (config.features.betaMode) {
       logger.info("Beta mode: Providing fallback interview script due to provider failure", {
         provider: selection.provider,
         userTier: userTier.tier

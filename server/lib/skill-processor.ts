@@ -220,12 +220,57 @@ export class SkillProcessor {
   private embeddingCache = new Map<string, number[]>();
   private escoCache = new Map<string, ESCOResult>();
   private regexCache = new Map<string, RegExp>();
+  
+  // Precomputed alias maps for O(1) lookups (optimization from approved plan)
+  private aliasToCanonicalMap = new Map<string, string>();
+  private canonicalToAliasesMap = new Map<string, string[]>();
+  private skillToCategoryMap = new Map<string, string>();
 
   static getInstance(): SkillProcessor {
     if (!SkillProcessor.instance) {
       SkillProcessor.instance = new SkillProcessor();
     }
     return SkillProcessor.instance;
+  }
+
+  constructor() {
+    this.precomputeAliasMaps();
+  }
+
+  /**
+   * Precompute alias mapping for O(1) lookups instead of nested iterations
+   * Optimizes categorizeSkill() and findSkillAliases() performance
+   */
+  private precomputeAliasMaps(): void {
+    // Iterate through categories → skills as per correct structure
+    for (const [category, skills] of Object.entries(SKILL_DICTIONARY)) {
+      for (const [skillName, skillData] of Object.entries(skills)) {
+        const canonicalSkill = skillName;
+        const normalizedCanonical = canonicalSkill.toLowerCase();
+        
+        // Build skill → category mapping
+        this.skillToCategoryMap.set(normalizedCanonical, category);
+        
+        // Build canonical → aliases mapping  
+        if (skillData.aliases && skillData.aliases.length > 0) {
+          this.canonicalToAliasesMap.set(canonicalSkill, skillData.aliases);
+          
+          // Build reverse mapping: alias → canonical
+          skillData.aliases.forEach(alias => {
+            this.aliasToCanonicalMap.set(alias.toLowerCase(), canonicalSkill);
+          });
+        }
+        
+        // Also map canonical name to itself
+        this.aliasToCanonicalMap.set(normalizedCanonical, canonicalSkill);
+      }
+    }
+    
+    logger.debug('Precomputed skill alias maps', {
+      totalCanonicalSkills: this.skillToCategoryMap.size,
+      totalAliases: this.aliasToCanonicalMap.size,
+      categoriesProcessed: Object.keys(SKILL_DICTIONARY).length
+    });
   }
 
   /**
@@ -501,24 +546,16 @@ export class SkillProcessor {
   }
 
   private categorizeSkill(skill: string): string {
-    // Check each category in skill dictionary
-  for (const [_category, skills] of Object.entries(SKILL_DICTIONARY)) {
-      for (const [skillName] of Object.entries(skills)) {
-        if (skill.toLowerCase() === skillName.toLowerCase()) {
-          return _category;
-        }
-      }
-    }
-    return 'general';
+    // Use precomputed map for O(1) lookup instead of nested iteration
+    const category = this.skillToCategoryMap.get(skill.toLowerCase());
+    return category || 'general';
   }
 
   private findSkillAliases(skill: string): string[] {
-  for (const [_category, skills] of Object.entries(SKILL_DICTIONARY)) {
-      for (const [skillName, skillData] of Object.entries(skills)) {
-        if (skill.toLowerCase() === skillName.toLowerCase()) {
-          return skillData.aliases;
-        }
-      }
+    // Use precomputed map for O(1) lookup instead of nested iteration
+    const canonicalSkill = this.aliasToCanonicalMap.get(skill.toLowerCase());
+    if (canonicalSkill) {
+      return this.canonicalToAliasesMap.get(canonicalSkill) || [];
     }
     return [];
   }

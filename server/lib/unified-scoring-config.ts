@@ -285,3 +285,87 @@ export function validateUnifiedConfig(): void {
 
 // Run validation on module load
 validateUnifiedConfig();
+
+// ===== HYBRID ANALYZER THRESHOLD HELPERS =====
+
+/**
+ * Centralized threshold access functions for hybrid analyzer
+ * Replaces hardcoded ≤50 literals and ML/LLM weight caps
+ */
+import { config } from '../config/unified-config';
+
+export function getFailureThreshold(): number {
+  return config.hybridAnalyzer.thresholds.failureThreshold;
+}
+
+export function getMLWeightCap(): number {
+  return config.hybridAnalyzer.thresholds.mlWeightCap;
+}
+
+export function getLLMWeightCap(): number {
+  return config.hybridAnalyzer.thresholds.llmWeightCap;
+}
+
+export function getBiasAdjustmentLimit(): number {
+  return config.hybridAnalyzer.thresholds.biasAdjustmentLimit;
+}
+
+export function getConfidenceFloor(): number {
+  // Ensure confidence floor is never higher than MINIMUM_VIABLE threshold
+  return Math.min(config.hybridAnalyzer.thresholds.confidenceFloor, CONFIDENCE_THRESHOLDS.MINIMUM_VIABLE);
+}
+
+// Feature flag helpers
+export function isBiasAdjustmentEnabled(): boolean {
+  return config.hybridAnalyzer.features.enableBiasAdjustment;
+}
+
+export function isContaminationFilteringEnabled(): boolean {
+  return config.hybridAnalyzer.features.enableContaminationFiltering;
+}
+
+export function isTelemetryEnabled(): boolean {
+  return config.hybridAnalyzer.features.enableTelemetry;
+}
+
+// ===== A/B TESTING & EXPERIMENTATION HELPERS =====
+
+/**
+ * Determine if a user should participate in an experiment based on deterministic hashing
+ * Uses consistent naming: hybridAnalyzerThresholds everywhere
+ */
+export function shouldParticipateInExperiment(experimentName: keyof typeof config.experiments, userId: string): boolean {
+  const experiment = config.experiments[experimentName];
+  if (!experiment.enabled) return false;
+  
+  // Deterministic assignment based on user ID hash for consistent experience
+  const hash = Array.from(userId).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const participation = (hash % 100) < (experiment.participationRate * 100);
+  
+  return participation;
+}
+
+/**
+ * Get experiment variant for a user (if participating)
+ */
+export function getExperimentVariant(experimentName: keyof typeof config.experiments, userId: string): string {
+  if (!shouldParticipateInExperiment(experimentName, userId)) {
+    return 'control'; // Default to control if not participating
+  }
+  
+  return config.experiments[experimentName].variant;
+}
+
+/**
+ * Check if hybrid analyzer threshold experiments are enabled
+ */
+export function isHybridAnalyzerThresholdExperimentEnabled(): boolean {
+  return config.experiments.hybridAnalyzerThresholds.enabled;
+}
+
+/**
+ * Check if ESCO contamination V2 experiments are enabled  
+ */
+export function isEscoContaminationV2ExperimentEnabled(): boolean {
+  return config.experiments.escoContaminationV2.enabled;
+}

@@ -22,7 +22,7 @@ import {
   type BiasAnalysisResponse,
 } from "@shared/schema";
 import type { ResumeId, JobId } from "@shared/api-contracts";
-import { GroqErrorHandler as _GroqErrorHandler, logApiServiceStatus as _logApiServiceStatus } from "./shared/error-handler";
+import { GroqErrorHandler, logApiServiceStatus as _logApiServiceStatus } from "./shared/error-handler";
 import { GroqResponseParser as _GroqResponseParser } from "./shared/response-parser";
 import { PromptTemplateEngine as _PromptTemplateEngine, type ResumeAnalysisContext as _ResumeAnalysisContext, type JobAnalysisContext as _JobAnalysisContext, type MatchAnalysisContext as _MatchAnalysisContext } from "./shared/prompt-templates";
 
@@ -32,6 +32,9 @@ const groq = process.env.GROQ_API_KEY
       apiKey: process.env.GROQ_API_KEY,
     })
   : null;
+
+// Initialize shared error handler for Groq
+const errorHandler = new GroqErrorHandler();
 
 // Model configuration with current supported Groq models
 const MODELS = {
@@ -339,17 +342,33 @@ async function callGroqAPI(
       throw new Error("No response content from Groq API");
     }
 
-    // Update usage statistics
+    // Update usage statistics and record success
     if ("usage" in response && response.usage) {
+      const usage = {
+        promptTokens: response.usage.prompt_tokens || 0,
+        completionTokens: response.usage.completion_tokens || 0,
+        totalTokens: response.usage.total_tokens || 0,
+        estimatedCost: 0 // Will be calculated in updateUsage
+      };
+      
       updateUsage(
         model,
-        response.usage.prompt_tokens || 0,
-        response.usage.completion_tokens || 0,
+        usage.promptTokens,
+        usage.completionTokens,
       );
+      
+      // Record success for circuit breaker
+      errorHandler.recordSuccess({
+        input_tokens: usage.promptTokens,
+        output_tokens: usage.completionTokens,
+        total_tokens: usage.totalTokens
+      });
     }
 
     return content;
   } catch (error) {
+    // Record failure for circuit breaker and retry logic
+    errorHandler.recordFailure(error instanceof Error ? error : new Error(String(error)));
     logger.error("Groq API call failed", error);
     throw error;
   }
@@ -414,18 +433,36 @@ async function _callGroqAPIWithResult(
         throw new Error("No response content from Groq API");
       }
 
-      // Update usage statistics
+      // Update usage statistics and record success
       if ("usage" in response && response.usage) {
+        const usage = {
+          promptTokens: response.usage.prompt_tokens || 0,
+          completionTokens: response.usage.completion_tokens || 0,
+          totalTokens: response.usage.total_tokens || 0,
+          estimatedCost: 0 // Will be calculated in updateUsage
+        };
+        
         updateUsage(
           model,
-          response.usage.prompt_tokens || 0,
-          response.usage.completion_tokens || 0,
+          usage.promptTokens,
+          usage.completionTokens,
         );
+        
+        // Record success for circuit breaker
+        errorHandler.recordSuccess({
+          input_tokens: usage.promptTokens,
+          output_tokens: usage.completionTokens,
+          total_tokens: usage.totalTokens
+        });
       }
 
       return content;
     })(),
-    (error: unknown) => AppExternalServiceError.aiProviderFailure('Groq', 'api-call', error instanceof Error ? error.message : String(error))
+    (error: unknown) => {
+      // Record failure for circuit breaker and retry logic
+      errorHandler.recordFailure(error instanceof Error ? error : new Error(String(error)));
+      return AppExternalServiceError.aiProviderFailure('Groq', 'api-call', error instanceof Error ? error.message : String(error));
+    }
   );
 
   if (result.success) {

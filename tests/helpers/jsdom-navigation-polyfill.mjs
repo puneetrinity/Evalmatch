@@ -113,8 +113,8 @@ if (typeof window !== 'undefined') {
         configurable: true,
       });
     } catch (e2) {
-      // Last resort: silent failure
-      console.warn('Could not override window.location for JSDOM navigation polyfill');
+      // Last resort: silent failure (expected in some test environments)
+      // console.warn('Could not override window.location for JSDOM navigation polyfill');
     }
   }
   

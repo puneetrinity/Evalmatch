@@ -103,6 +103,37 @@ export interface AppConfig {
     staticFiles: boolean;
     monitoring: boolean;
     uploads: boolean;
+    betaMode: boolean;
+  };
+
+  // Hybrid Analyzer Configuration (aligned to existing thresholds)
+  hybridAnalyzer: {
+    thresholds: {
+      failureThreshold: number;       // Replace ≤50 literals
+      mlWeightCap: number;           // Align to existing ML_MAX 0.4
+      llmWeightCap: number;          // Align to existing LLM_MAX 0.8
+      biasAdjustmentLimit: number;   // From BIAS_DETECTION_CONFIG.MAX_PENALTY_FACTOR
+      confidenceFloor: number;       // Align with CONFIDENCE_THRESHOLDS.MINIMUM_VIABLE
+    };
+    features: {
+      enableBiasAdjustment: boolean;
+      enableContaminationFiltering: boolean;
+      enableTelemetry: boolean;      // Default false, enable first for gradual rollout
+    };
+  };
+
+  // A/B Testing & Experimentation Framework
+  experiments: {
+    hybridAnalyzerThresholds: {
+      enabled: boolean;
+      participationRate: number;     // 0.1 = 10% participation
+      variant: 'control' | 'experimental';
+    };
+    escoContaminationV2: {
+      enabled: boolean;
+      participationRate: number;
+      variant: 'current' | 'wordBoundary';
+    };
   };
 
   // Validation status
@@ -243,6 +274,37 @@ export function loadUnifiedConfig(): AppConfig {
     staticFiles: process.env.SERVE_STATIC !== "false",
     monitoring: env === Environment.Production,
     uploads: true, // Always enabled for now
+    betaMode: process.env.BETA_MODE === "true" || env === Environment.Development, // Enable beta mode via env var or in development
+  };
+
+  // Hybrid Analyzer Configuration (aligned to unified-scoring-config.ts thresholds)
+  const hybridAnalyzer = {
+    thresholds: {
+      failureThreshold: parseInt(process.env.HYBRID_FAILURE_THRESHOLD || '50', 10),
+      mlWeightCap: parseFloat(process.env.HYBRID_ML_WEIGHT_CAP || '0.4'),        // Align to existing ML_MAX
+      llmWeightCap: parseFloat(process.env.HYBRID_LLM_WEIGHT_CAP || '0.8'),      // Align to existing LLM_MAX
+      biasAdjustmentLimit: parseFloat(process.env.HYBRID_BIAS_LIMIT || '0.1'),   // From BIAS_DETECTION_CONFIG
+      confidenceFloor: parseFloat(process.env.HYBRID_CONFIDENCE_FLOOR || '0.75'), // Aligned with CONFIDENCE_THRESHOLDS.MINIMUM_VIABLE
+    },
+    features: {
+      enableBiasAdjustment: process.env.HYBRID_BIAS_ADJUSTMENT === 'true',        // Default false
+      enableContaminationFiltering: process.env.HYBRID_CONTAMINATION_FILTERING !== 'false', // Default true (existing behavior)
+      enableTelemetry: process.env.HYBRID_TELEMETRY === 'true',                   // Default false, enable first
+    },
+  };
+
+  // A/B Testing & Experimentation Framework Configuration
+  const experiments = {
+    hybridAnalyzerThresholds: {
+      enabled: process.env.EXPERIMENT_HYBRID_ANALYZER_THRESHOLDS === 'true',       // Default false
+      participationRate: parseFloat(process.env.EXPERIMENT_HYBRID_ANALYZER_RATE || '0.1'), // Start at 10%
+      variant: (process.env.EXPERIMENT_HYBRID_ANALYZER_VARIANT as 'control' | 'experimental') || 'control',
+    },
+    escoContaminationV2: {
+      enabled: process.env.EXPERIMENT_ESCO_CONTAMINATION_V2 === 'true',            // Default false  
+      participationRate: parseFloat(process.env.EXPERIMENT_ESCO_CONTAMINATION_RATE || '0.1'), // Start at 10%
+      variant: (process.env.EXPERIMENT_ESCO_CONTAMINATION_VARIANT as 'current' | 'wordBoundary') || 'current',
+    },
   };
 
   // Storage configuration
@@ -312,6 +374,8 @@ export function loadUnifiedConfig(): AppConfig {
       corsOrigins,
     },
     features,
+    hybridAnalyzer,
+    experiments,
     validation: {
       isValid: true, // Assumed valid since env-validator ran successfully
       errors: [],
@@ -412,6 +476,10 @@ function logConfigurationSummary(config: AppConfig): void {
       config.env === "development"
         ? "Allow All (Dev Mode)"
         : `${config.security.corsOrigins.length} origins configured`,
+    hybridAnalyzer: `bias:${config.hybridAnalyzer.features.enableBiasAdjustment}, contamination:${config.hybridAnalyzer.features.enableContaminationFiltering}, telemetry:${config.hybridAnalyzer.features.enableTelemetry}`,
+    experiments: Object.entries(config.experiments)
+      .map(([name, experiment]) => `${name}:${experiment.enabled ? `${(experiment.participationRate * 100).toFixed(0)}%` : 'off'}`)
+      .join(", "),
   });
 }
 

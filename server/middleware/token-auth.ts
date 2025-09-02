@@ -8,6 +8,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { tokenUsageService } from '../services/token-usage';
 import { logger } from '../config/logger';
+import { config } from '../config/unified-config';
 
 // Extend Request interface to include token user
 declare global {
@@ -86,8 +87,8 @@ export function authenticateApiToken(options: TokenAuthOptions = {}) {
         return next();
       }
 
-      // Check if user can make requests (has remaining calls)
-      if (!tokenValidation.canMakeRequest) {
+      // Check if user can make requests (has remaining calls) - SKIP IN BETA MODE
+      if (!config.features.betaMode && !tokenValidation.canMakeRequest) {
         logger.warn('API limit exceeded', {
           userId: tokenValidation.userId,
           tokenId: tokenValidation.tokenId,
@@ -104,6 +105,16 @@ export function authenticateApiToken(options: TokenAuthOptions = {}) {
             remainingCalls: tokenValidation.remainingCalls,
             upgradeUrl: '/api/upgrade', // This could be a frontend upgrade page
           },
+        });
+      }
+
+      // Beta mode logging for unlimited API access
+      if (config.features.betaMode) {
+        logger.debug('Beta mode: Bypassing API rate limits', {
+          userId: tokenValidation.userId,
+          tokenId: tokenValidation.tokenId,
+          path: req.path,
+          method: req.method,
         });
       }
 
@@ -220,7 +231,8 @@ export function requireUsageLimit(minimumCallsRemaining: number = 1) {
       });
     }
 
-    if (req.tokenUser.remainingCalls < minimumCallsRemaining) {
+    // Skip usage limit checks in beta mode
+    if (!config.features.betaMode && req.tokenUser.remainingCalls < minimumCallsRemaining) {
       return res.status(429).json({
         error: 'Insufficient API calls',
         message: `This endpoint requires at least ${minimumCallsRemaining} remaining API calls`,

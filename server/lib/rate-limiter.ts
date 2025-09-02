@@ -7,6 +7,7 @@
  */
 
 import { logger } from './logger';
+import { config } from '../config/unified-config';
 
 // Configuration for the rate limiter
 interface RateLimiterConfig {
@@ -87,8 +88,8 @@ export class DatabaseRateLimiter {
     // Clean up old timestamps
     this.cleanOldTimestamps();
 
-    // If rate limiting is disabled, just execute the operation
-    if (!this.enabled) {
+    // If rate limiting is disabled or in beta mode, just execute the operation
+    if (!this.enabled || config.features.betaMode) {
       return operation();
     }
 

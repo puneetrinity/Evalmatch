@@ -444,4 +444,69 @@ router.get("/service-status", async (req: Request, res: Response) => {
   }
 });
 
+// ESCO service health endpoint - Monitor SQLite FTS5 database health
+router.get("/health/esco", async (req: Request, res: Response) => {
+  try {
+    const { getESCOService } = await import("../lib/esco-service");
+    const escoService = getESCOService();
+    const health = await escoService.healthCheck();
+    
+    // Set appropriate HTTP status
+    const httpStatus = health.status === 'healthy' ? 200 : 503;
+    
+    // Add headers for monitoring
+    res.setHeader('X-Service-Type', 'esco-sqlite');
+    if (health.status !== 'healthy') {
+      res.setHeader('X-Health-Status', 'unhealthy');
+    }
+    
+    res.status(httpStatus).json({
+      success: health.status === 'healthy',
+      data: {
+        service: 'ESCO Skill Extraction',
+        status: health.status,
+        details: health.details,
+        checks: {
+          databaseConnection: health.status === 'healthy',
+          skillsDataAvailable: health.details.totalSkills > 0,
+          ftsIndexHealthy: health.details.ftsEntries > 0,
+          cacheOperational: true, // Cache is always operational
+        }
+      },
+      timestamp: new Date().toISOString(),
+    });
+    
+    // Log health check results for monitoring
+    logger.info('ESCO service health check completed', {
+      status: health.status,
+      totalSkills: health.details.totalSkills,
+      ftsEntries: health.details.ftsEntries,
+      cacheSize: health.details.cacheSize,
+    });
+    
+  } catch (error) {
+    logger.error("ESCO service health check failed:", error);
+    res.status(503).json({
+      success: false,
+      data: {
+        service: 'ESCO Skill Extraction',
+        status: 'unhealthy',
+        details: { 
+          error: error instanceof Error ? error.message : 'ESCO service unavailable',
+          lastChecked: new Date().toISOString()
+        },
+        checks: {
+          databaseConnection: false,
+          skillsDataAvailable: false,
+          ftsIndexHealthy: false,
+          cacheOperational: false,
+        }
+      },
+      error: "ESCO service unavailable",
+      message: error instanceof Error ? error.message : "Unknown error",
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 export default router;

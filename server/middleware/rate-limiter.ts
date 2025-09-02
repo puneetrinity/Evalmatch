@@ -1,6 +1,7 @@
 import rateLimit from "express-rate-limit";
 import { logger } from "../lib/logger";
 import { conditionalMiddleware } from "./fast-path";
+import { config } from "../config/unified-config";
 
 // Create test-safe rate limiter configuration with fast-path bypass
 const createTestSafeRateLimiter = (options: any) => {
@@ -34,8 +35,8 @@ export const authRateLimiter = createTestSafeRateLimiter({
     });
   },
   skip: (_req: any) => {
-    // Skip rate limiting in development
-    return process.env.NODE_ENV === "development";
+    // Skip rate limiting in development or beta mode
+    return process.env.NODE_ENV === "development" || config.features.betaMode;
   },
 });
 
@@ -76,7 +77,7 @@ export const uploadRateLimiter = createTestSafeRateLimiter({
     });
   },
   skip: (_req: any) => {
-    // Skip rate limiting in development and test
-    return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
+    // Skip rate limiting in development, test, or beta mode
+    return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test" || config.features.betaMode;
   },
 });

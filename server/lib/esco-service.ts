@@ -161,7 +161,10 @@ export class ESCOService {
     const pharmaScore = pharmaKeywords.filter(keyword => normalizedText.includes(keyword)).length;
     const techScore = techKeywords.filter(keyword => normalizedText.includes(keyword)).length;
     
-    logger.debug(`Domain detection - Pharma: ${pharmaScore}, Tech: ${techScore}`);
+    logger.debug(`Domain detection - Pharma: ${pharmaScore}, Tech: ${techScore}`, {
+      textLength: text.length,
+      // PII-SAFE: Only log text length, not content
+    });
     
     if (pharmaScore > techScore && pharmaScore >= 2) {
       return 'pharmaceutical';

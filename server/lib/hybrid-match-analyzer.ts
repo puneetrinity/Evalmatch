@@ -23,6 +23,12 @@ import {
   applyBiasAdjustment,
   getMatchQualityLevel,
   getConfidenceLevel,
+  getFailureThreshold,
+  getMLWeightCap,
+  getLLMWeightCap,
+  isBiasAdjustmentEnabled,
+  isContaminationFilteringEnabled,
+  isTelemetryEnabled,
 } from "./unified-scoring-config";
 import { UserTierInfo } from "@shared/user-tiers";
 import * as groq from "./groq";
@@ -104,11 +110,21 @@ async function cleanContaminatedSkills(skills: string[], context: JobContext): P
   for (const skill of skills) {
     const normalizedSkill = skill.toLowerCase();
     let isAllowed = false;
-    // Check if the skill is directly in the allowed list or if an allowed skill is a substring of the skill
+    // Check if the skill is directly in the allowed list or if an allowed skill is a word boundary match
     for (const allowed of allowedSkills) {
-        if (normalizedSkill.includes(allowed)) {
+        // Use word boundary regex to prevent single-letter contamination
+        if (allowed.length >= 3) { // Only apply word boundary for skills with 3+ chars
+          const wordBoundaryRegex = new RegExp(`\\b${allowed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+          if (wordBoundaryRegex.test(normalizedSkill)) {
             isAllowed = true;
             break;
+          }
+        } else {
+          // For short skills, require exact match to prevent contamination
+          if (normalizedSkill === allowed) {
+            isAllowed = true;
+            break;
+          }
         }
     }
 
@@ -335,7 +351,7 @@ export class HybridMatchAnalyzer {
           } as FairnessMetrics;
 
           // Task 4: Apply bias adjustment to match score (integrated into main pipeline)
-          if (biasDetection.hasBias && result.matchPercentage !== null) {
+          if (isBiasAdjustmentEnabled() && biasDetection.hasBias && result.matchPercentage !== null) {
             const originalScore = result.matchPercentage;
             result.matchPercentage = applyBiasAdjustment(
               originalScore,
@@ -389,6 +405,7 @@ export class HybridMatchAnalyzer {
       }
 
       // 🚨 EMERGENCY CONTAMINATION CLEANUP - Apply "smell test" before returning results
+      if (isContaminationFilteringEnabled()) {
       try {
         const jobContext: JobContext = {
           industry: detectJobIndustry(
@@ -428,29 +445,35 @@ export class HybridMatchAnalyzer {
             flaggedSkills: flaggedSkills.length
           });
 
-          // Update matched skills with only clean skills
+          // Preserve original skill objects and filter to clean skills only
+          const originalSkillsMap = new Map(
+            result.matchedSkills?.map(s => [
+              typeof s === 'string' ? s : s.skill, s
+            ]) || []
+          );
+          
           result.matchedSkills = cleanSkills.map((skill: string) => {
-            // Find original skill object or create new one
-            const originalSkill = result.matchedSkills?.find(s => 
-              (typeof s === 'string' ? s : s.skill) === skill
-            );
+            const originalSkill = originalSkillsMap.get(skill);
             
             if (originalSkill && typeof originalSkill === 'object') {
+              // Preserve original scoring and source information
               return originalSkill;
             }
             
+            // Only create new skill objects as last resort, preserving quality scores
             return {
               skill: skill,
-              matchPercentage: flaggedSkills.includes(skill) ? 60 : 85,
+              matchPercentage: flaggedSkills.includes(skill) ? 60 : 75, // Slightly lower default since we lack original context
               category: "technical",
               importance: "important" as const,
-              source: "semantic" as const, // Use 'semantic' since we're doing intelligent filtering
+              source: "semantic" as const, // Use valid source type
             };
           });
 
-          // Add blocked skills to missing skills (they were incorrectly matched)
+          // Add blocked skills to missing skills (they were incorrectly matched) with deduplication
           const existingMissingSkills = result.missingSkills || [];
-          result.missingSkills = [...existingMissingSkills, ...blockedSkills];
+          const allMissingSkills = [...existingMissingSkills, ...blockedSkills];
+          result.missingSkills = [...new Set(allMissingSkills)]; // Deduplicate
 
           // Add contamination note to weaknesses
           if (blockedSkills.length > 0) {
@@ -474,6 +497,7 @@ export class HybridMatchAnalyzer {
         logger.error('Contamination detection failed:', contaminationError);
         // Continue without contamination cleanup - not critical for basic functionality
       }
+      } // End contamination filtering feature flag
 
       const processingTime = Date.now() - startTime;
       logger.info(`🎯 HYBRID MATCH ANALYSIS COMPLETED`, {
@@ -485,6 +509,7 @@ export class HybridMatchAnalyzer {
         finalSkillsCount: result.matchedSkills?.length || 0,
         processingTime,
       });
+
 
       // Emit metrics for monitoring
       const analysisStatus = result.matchPercentage === null 
@@ -783,7 +808,7 @@ export class HybridMatchAnalyzer {
         overall: llmResult.matchPercentage,
       },
       analysisMethod: "llm_only",
-      confidence: llmResult.matchPercentage / 100,
+      confidence: Math.min(1.0, Math.max(0.0, (llmResult.matchPercentage || 0) / 100)), // Ensure 0-1 range
     };
   }
 
@@ -956,9 +981,9 @@ export class HybridMatchAnalyzer {
    * ✅ CRITICAL: Normalize ensemble weights to ensure they always sum to 1.0
    */
   private normalizeEnsembleWeights(mlWeight: number, llmWeight: number): {ml: number, llm: number, wasNormalized: boolean} {
-    // Clamp to valid ranges first
-    const clampedML = Math.max(0, Math.min(0.4, mlWeight));
-    const clampedLLM = Math.max(0, Math.min(0.8, llmWeight));
+    // Clamp to valid ranges first (using centralized thresholds)
+    const clampedML = Math.max(0, Math.min(getMLWeightCap(), mlWeight));
+    const clampedLLM = Math.max(0, Math.min(getLLMWeightCap(), llmWeight));
     
     // Calculate sum and check if normalization needed
     const sum = clampedML + clampedLLM;
@@ -1008,9 +1033,10 @@ export class HybridMatchAnalyzer {
     llmConfidence: number
   ): { ml: number; llm: number; reason: string } {
     
-    // Detect failure scenarios (scores ≤ 50 indicate analysis failure)
-    const mlFailed = mlScore <= 50;
-    const llmFailed = llmScore <= 50;
+    // Detect failure scenarios (scores ≤ threshold indicate analysis failure)
+    const failureThreshold = getFailureThreshold();
+    const mlFailed = mlScore <= failureThreshold;
+    const llmFailed = llmScore <= failureThreshold;
     
     // If one analysis fails, use the other with full weight
     if (mlFailed && !llmFailed) {
@@ -1164,11 +1190,35 @@ export class HybridMatchAnalyzer {
       improvement: blendedMatchPercentage - mlScore,
       biasAdjustment: biasResult ? llmScore - biasAdjustedLLMScore : 0,
       failureDetection: {
-        mlFailed: mlScore <= 50,
-        llmFailed: biasAdjustedLLMScore <= 50,
+        mlFailed: mlScore <= getFailureThreshold(),
+        llmFailed: biasAdjustedLLMScore <= getFailureThreshold(),
         semanticPreference: normalizedWeights.llm > normalizedWeights.ml
       }
     });
+
+    // Enhanced telemetry logging (if enabled) - with all variables in scope
+    if (isTelemetryEnabled()) {
+      logger.info('📊 HYBRID ANALYZER TELEMETRY', {
+        abstainDetected: blendedMatchPercentage === null,
+        contaminationFilteringEnabled: isContaminationFilteringEnabled(),
+        biasAdjustmentEnabled: isBiasAdjustmentEnabled(),
+        biasAdjustmentApplied: biasResult !== null,
+        mlScore,
+        llmScore,
+        biasAdjustedLLMScore,
+        finalScore: blendedMatchPercentage,
+        weights: {
+          ml: normalizedWeights.ml,
+          llm: normalizedWeights.llm,
+          wasNormalized: normalizedWeights.wasNormalized
+        },
+        thresholds: {
+          failure: getFailureThreshold(),
+          mlCap: getMLWeightCap(),
+          llmCap: getLLMWeightCap()
+        }
+      });
+    }
 
     // Combine matched skills (deduplicate)
     const mlSkills = new Set(mlResult.skillBreakdown.filter((s: { matched: boolean }) => s.matched).map((s: { skill: string }) => s.skill));
@@ -1207,7 +1257,7 @@ export class HybridMatchAnalyzer {
         overall: blendedMatchPercentage,
       },
       analysisMethod: "hybrid" as const,
-      confidence: (mlResult.confidence + (llmResult.matchPercentage / 100)) / 2,
+      confidence: (mlResult.confidence + Math.min(1.0, Math.max(0.0, (llmResult.matchPercentage || 0) / 100))) / 2, // Normalize LLM percent to 0-1
       // ✅ CRITICAL: Include actual normalized weights used in blending
       actualWeights: {
         ml: normalizedWeights.ml,
@@ -1437,10 +1487,11 @@ export class HybridMatchAnalyzer {
    * Task 6: Validate that result contains all required fields with valid ranges
    */
   private validateResultFields(result: HybridMatchResult): void {
-    // Match percentage validation
-    if (typeof result.matchPercentage !== 'number' || 
-        result.matchPercentage < 0 || 
-        result.matchPercentage > 100) {
+    // Match percentage validation - preserve null for abstain flow
+    if (result.matchPercentage !== null && 
+        (typeof result.matchPercentage !== 'number' || 
+         result.matchPercentage < 0 || 
+         result.matchPercentage > 100)) {
       logger.warn("Invalid match percentage, applying bounds", {
         original: result.matchPercentage,
         corrected: Math.min(100, Math.max(0, result.matchPercentage || 0))
@@ -1598,8 +1649,8 @@ export function extractMLScores(result: HybridMatchResult, aiProvider: string): 
       // Skills matching score (quantifiable)
       const skillsScore = (result.matchedSkills.length / (result.matchedSkills.length + (result.missingSkills?.length || 0))) * 100;
       
-      // Experience score (based on confidence and reasoning quality) 
-      const experienceScore = result.confidence * 100;
+      // Experience score (based on confidence and reasoning quality) - confidence is in 0-1 range
+      const experienceScore = Math.round(result.confidence * 100); // Convert 0-1 to percentage
       
       // Education score (simplified - based on presence of recommendations)
       const educationScore = result.recommendations && result.recommendations.length > 0 ? 80 : 60;

@@ -9,6 +9,7 @@ import rateLimit from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
 import { redis } from '../core/redis';
 import { Request, Response, NextFunction } from 'express';
+import { config } from '../config/unified-config';
 
 // Create rate limiters lazily to ensure Redis connection is ready
 let userLimiter: any = null;
@@ -144,6 +145,11 @@ if (redis.status === 'ready') {
 
 // Export wrapper functions that use the lazily-created limiters
 export const userLimiterMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  // Skip rate limiting in beta mode
+  if (config.features.betaMode) {
+    return next();
+  }
+  
   if (userLimiter) {
     return userLimiter(req, res, next);
   }
@@ -151,6 +157,11 @@ export const userLimiterMiddleware = (req: Request, res: Response, next: NextFun
 };
 
 export const analysisLimiterMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  // Skip rate limiting in beta mode  
+  if (config.features.betaMode) {
+    return next();
+  }
+  
   if (analysisLimiter) {
     return analysisLimiter(req, res, next);
   }
@@ -158,6 +169,11 @@ export const analysisLimiterMiddleware = (req: Request, res: Response, next: Nex
 };
 
 export const adminLimiterMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  // Skip rate limiting in beta mode
+  if (config.features.betaMode) {
+    return next();
+  }
+  
   if (adminLimiter) {
     return adminLimiter(req, res, next);
   }
