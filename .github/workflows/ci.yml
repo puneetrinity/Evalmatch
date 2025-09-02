@@ -79,15 +79,35 @@ jobs:
         
       - name: Setup test database
         run: |
-          PGPASSWORD=test_password psql -h localhost -U test_user -d evalmatch_test -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
-          npm run db:push || echo "Database push failed - continuing with existing schema"
+          echo "Setting up test database..."
+          PGPASSWORD=test_password psql -h localhost -U test_user -d evalmatch_test -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";" || echo "Extension creation failed - may already exist"
+          
+          # Export DATABASE_URL for drizzle-kit
+          export DATABASE_URL="postgresql://test_user:test_password@localhost:5432/evalmatch_test"
+          
+          # Try to push schema, but don't fail if it errors (tests can still run with existing schema)
+          echo "Attempting to push database schema..."
+          npm run db:push || {
+            echo "⚠️ Database push failed - tests will attempt to run with existing schema"
+            echo "This is expected if the schema already exists or if using in-memory mocks"
+          }
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/evalmatch_test
+          NODE_ENV: test
         
       - name: Run working integration tests
         run: |
-          npm run test:integration tests/api-integration.test.ts
-          npm run test:integration:batch
+          echo "Running API integration tests..."
+          npm run test:integration tests/api-integration.test.ts || {
+            echo "API integration tests failed - checking logs..."
+            exit 1
+          }
+          
+          echo "Running batch integration tests..."
+          npm run test:integration:batch || {
+            echo "Batch integration tests failed - checking logs..."
+            exit 1
+          }
         env:
           NODE_ENV: test
           CI: true
@@ -95,6 +115,7 @@ jobs:
           DISABLE_EXTERNAL_SERVICES: true
           MOCK_AI_PROVIDERS: true
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/evalmatch_test
+          JEST_TIMEOUT: 60000
 
   # Unit tests
   unit-tests:

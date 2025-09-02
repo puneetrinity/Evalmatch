@@ -74,7 +74,7 @@
     "test:shard:unit": "node scripts/run-tests-sharded.js --config jest.config.unit.mjs",
     "test:shard:integration": "TOTAL_SHARDS=2 node scripts/run-tests-sharded.js --config jest.config.integration.mjs",
     "test:shard:ci": "node scripts/run-tests-sharded.js --coverage",
-    "db:push": "drizzle-kit push",
+    "db:push": "DATABASE_URL=${DATABASE_URL:-postgresql://test_user:test_password@localhost:5432/evalmatch_test} drizzle-kit push",
     "railway:deploy": "railway up",
     "docs:generate": "node scripts/generate-swagger-docs.js",
     "docs:validate": "node scripts/generate-swagger-docs.js"
