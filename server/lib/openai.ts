@@ -144,30 +144,61 @@ function calculateHash(text: string): string {
   return crypto.createHash("sha256").update(text).digest("hex");
 }
 
-// Track token usage and cost
-function trackUsage(usage: {
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-}) {
+// Track token usage and cost with database persistence
+async function trackUsage(
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  },
+  operation: 'resume_analysis' | 'job_analysis' | 'match_analysis' | 'bias_analysis' | 'interview_questions' | 'interview_script',
+  userId?: string,
+  analysisId?: string
+) {
   // Current estimates: $0.01 per 1K tokens for input, $0.03 per 1K tokens for output
   const promptCost = (usage.prompt_tokens / 1000) * 0.01;
   const completionCost = (usage.completion_tokens / 1000) * 0.03;
+  const totalCost = promptCost + completionCost;
 
   apiUsage.promptTokens += usage.prompt_tokens;
   apiUsage.completionTokens += usage.completion_tokens;
   apiUsage.totalTokens += usage.total_tokens;
-  apiUsage.estimatedCost += promptCost + completionCost;
+  apiUsage.estimatedCost += totalCost;
 
   logger.info('OpenAI API call usage', { 
     promptTokens: usage.prompt_tokens, 
     completionTokens: usage.completion_tokens 
   });
-  logger.info('OpenAI API call cost', { cost: `$${(promptCost + completionCost).toFixed(4)}` });
+  logger.info('OpenAI API call cost', { cost: `$${totalCost.toFixed(4)}` });
   logger.info('OpenAI API cumulative usage', { 
     totalTokens: apiUsage.totalTokens, 
     totalCost: `$${apiUsage.estimatedCost.toFixed(4)}` 
   });
+
+  // Track usage in database
+  try {
+    const { tokenUsageService } = await import('../services/token-usage');
+    await tokenUsageService.trackAITokenUsage({
+      provider: 'openai',
+      model: MODEL,
+      operation,
+      inputTokens: usage.prompt_tokens,
+      outputTokens: usage.completion_tokens,
+      totalTokens: usage.total_tokens,
+      estimatedCost: totalCost,
+      currency: 'USD',
+      timestamp: new Date(),
+      userId,
+      analysisId,
+    });
+  } catch (error) {
+    logger.error('Failed to track OpenAI token usage in database', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      usage,
+      operation,
+      userId,
+    });
+  }
 }
 
 // Get cached response or undefined if not in cache or expired
@@ -454,6 +485,11 @@ async function analyzeResumeInternal(
         total_tokens: response.usage?.total_tokens,
       });
 
+      // Track token usage in database
+      if (response.usage) {
+        await trackUsage(response.usage, 'resume_analysis');
+      }
+
       // Parse the response
       const content = response.choices[0].message.content || "{}";
       const rawResult = JSON.parse(content);
@@ -651,7 +687,7 @@ export async function analyzeJobDescription(
 
     // Track token usage
     if (requirementsResponse.usage) {
-      trackUsage(requirementsResponse.usage);
+      await trackUsage(requirementsResponse.usage, 'job_analysis');
     }
 
     // Parse the requirements response
@@ -685,6 +721,11 @@ export async function analyzeJobDescription(
       ],
       response_format: { type: "json_object" },
     });
+
+    // Track token usage for bias analysis
+    if (biasResponse.usage) {
+      await trackUsage(biasResponse.usage, 'bias_analysis');
+    }
 
     // Parse the bias response
     const biasContent = biasResponse.choices[0].message.content || "{}";
@@ -916,6 +957,11 @@ export async function analyzeMatch(
       ],
       response_format: { type: "json_object" },
     });
+
+    // Track token usage
+    if (response.usage) {
+      await trackUsage(response.usage, 'match_analysis');
+    }
 
     // Parse the response
     const content = response.choices[0].message.content || "{}";
@@ -1328,6 +1374,11 @@ export async function analyzeBias(
       max_tokens: 2000, // Ensure enough tokens for the response
     });
 
+    // Track token usage
+    if (response.usage) {
+      await trackUsage(response.usage, 'bias_analysis');
+    }
+
     // Parse the response
     if (
       !response.choices ||
@@ -1447,6 +1498,11 @@ export async function extractSkills(
       ],
       response_format: { type: "json_object" },
     });
+
+    // Track token usage
+    if (response.usage) {
+      await trackUsage(response.usage, 'resume_analysis'); // Could be 'job_analysis' depending on type
+    }
 
     // Parse the response
     const content = response.choices[0].message.content || "[]";
@@ -1602,6 +1658,11 @@ Return a JSON object that creates a natural, professional interview conversation
       max_tokens: 4000,
     });
 
+    // Track token usage
+    if (response.usage) {
+      await trackUsage(response.usage, 'interview_script');
+    }
+
     const content = response.choices[0]?.message?.content;
     if (!content) {
       throw new Error("No content received from OpenAI");
@@ -1751,6 +1812,11 @@ export async function generateInterviewQuestions(
       ],
       response_format: { type: "json_object" },
     });
+
+    // Track token usage
+    if (response.usage) {
+      await trackUsage(response.usage, 'interview_questions');
+    }
 
     // Parse the response
     const content =

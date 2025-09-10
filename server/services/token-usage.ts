@@ -7,14 +7,17 @@
 
 import { eq, desc, and, gte, sql, count } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
+import * as crypto from 'crypto';
 import { getDatabase } from '../database';
 import {
   userApiLimits,
   apiCallLogs, 
   userTokens,
+  aiTokenUsageLogs,
   type UserApiLimits,
   type InsertUserApiLimits,
   type InsertApiCallLog,
+  type InsertAITokenUsageLog,
   type TokenGenerationRequest,
   type TokenGenerationResponse,
   type InsertUserToken,
@@ -22,6 +25,7 @@ import {
   type ApiUsageMetrics,
 } from '../../shared/schema';
 import { logger } from '../config/logger';
+import { type AITokenUsage, type AITokenConsumptionSummary } from '../../shared/ai-token-types';
 
 interface UsageTrackingOptions {
   endpoint: string;
@@ -549,6 +553,232 @@ export class TokenUsageService {
         newTier,
       });
       throw new Error('Failed to upgrade user tier');
+    }
+  }
+
+  /**
+   * Track AI provider token usage
+   */
+  async trackAITokenUsage(tokenUsage: AITokenUsage): Promise<void> {
+    try {
+      const logData: InsertAITokenUsageLog = {
+        userId: tokenUsage.userId || null,
+        provider: tokenUsage.provider,
+        model: tokenUsage.model,
+        operation: tokenUsage.operation,
+        inputTokens: tokenUsage.inputTokens,
+        outputTokens: tokenUsage.outputTokens,
+        totalTokens: tokenUsage.totalTokens,
+        estimatedCost: tokenUsage.estimatedCost,
+        currency: tokenUsage.currency,
+        analysisId: tokenUsage.analysisId || null,
+        requestId: crypto.randomBytes(8).toString('hex'), // Generate request ID for correlation
+      };
+
+      await getDatabase().insert(aiTokenUsageLogs).values(logData);
+
+      logger.debug('AI token usage tracked', {
+        userId: tokenUsage.userId,
+        provider: tokenUsage.provider,
+        operation: tokenUsage.operation,
+        totalTokens: tokenUsage.totalTokens,
+        estimatedCost: tokenUsage.estimatedCost,
+      });
+    } catch (error) {
+      logger.error('Failed to track AI token usage', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: tokenUsage.userId,
+        provider: tokenUsage.provider,
+        operation: tokenUsage.operation,
+      });
+    }
+  }
+
+  /**
+   * Get AI token consumption summary for a user
+   */
+  async getAITokenConsumptionSummary(
+    userId: string,
+    days: number = 30
+  ): Promise<AITokenConsumptionSummary> {
+    try {
+      const since = new Date();
+      since.setDate(since.getDate() - days);
+      const now = new Date();
+
+      // Get all token usage for the user in the specified period
+      const tokenUsageRecords = await getDatabase()
+        .select()
+        .from(aiTokenUsageLogs)
+        .where(and(
+          eq(aiTokenUsageLogs.userId, userId),
+          gte(aiTokenUsageLogs.createdAt, since)
+        ))
+        .orderBy(desc(aiTokenUsageLogs.createdAt));
+
+      // Calculate totals
+      const totalTokensAllProviders = tokenUsageRecords.reduce(
+        (sum, record) => sum + record.totalTokens,
+        0
+      );
+      const totalCostAllProviders = tokenUsageRecords.reduce(
+        (sum, record) => sum + record.estimatedCost,
+        0
+      );
+
+      // Group by provider
+      const byProvider: AITokenConsumptionSummary['byProvider'] = {};
+      const providerStats = tokenUsageRecords.reduce((stats, record) => {
+        const provider = record.provider as 'openai' | 'anthropic' | 'groq';
+        if (!stats[provider]) {
+          stats[provider] = {
+            totalTokens: 0,
+            totalCost: 0,
+            callCount: 0,
+          };
+        }
+        stats[provider].totalTokens += record.totalTokens;
+        stats[provider].totalCost += record.estimatedCost;
+        stats[provider].callCount += 1;
+        return stats;
+      }, {} as Record<string, { totalTokens: number; totalCost: number; callCount: number }>);
+
+      Object.entries(providerStats).forEach(([provider, stats]) => {
+        byProvider[provider as 'openai' | 'anthropic' | 'groq'] = {
+          ...stats,
+          avgTokensPerCall: stats.callCount > 0 ? stats.totalTokens / stats.callCount : 0,
+          avgCostPerCall: stats.callCount > 0 ? stats.totalCost / stats.callCount : 0,
+        };
+      });
+
+      // Group by operation
+      const byOperation: AITokenConsumptionSummary['byOperation'] = {};
+      const operationStats = tokenUsageRecords.reduce((stats, record) => {
+        const operation = record.operation as AITokenUsage['operation'];
+        if (!stats[operation]) {
+          stats[operation] = {
+            totalTokens: 0,
+            totalCost: 0,
+            callCount: 0,
+          };
+        }
+        stats[operation].totalTokens += record.totalTokens;
+        stats[operation].totalCost += record.estimatedCost;
+        stats[operation].callCount += 1;
+        return stats;
+      }, {} as Record<string, { totalTokens: number; totalCost: number; callCount: number }>);
+
+      Object.entries(operationStats).forEach(([operation, stats]) => {
+        byOperation[operation as AITokenUsage['operation']] = stats;
+      });
+
+      return {
+        totalTokensAllProviders,
+        totalCostAllProviders,
+        byProvider,
+        byOperation,
+        period: {
+          startDate: since,
+          endDate: now,
+        },
+      };
+    } catch (error) {
+      logger.error('Failed to get AI token consumption summary', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId,
+        days,
+      });
+      throw new Error('Failed to get AI token consumption summary');
+    }
+  }
+
+  /**
+   * Get system-wide AI token usage stats (admin only)
+   */
+  async getSystemAITokenStats(days: number = 30): Promise<{
+    totalTokens: number;
+    totalCost: number;
+    totalCalls: number;
+    avgTokensPerCall: number;
+    avgCostPerCall: number;
+    byProvider: Record<string, { tokens: number; cost: number; calls: number }>;
+    byOperation: Record<string, { tokens: number; cost: number; calls: number }>;
+  }> {
+    try {
+      const since = new Date();
+      since.setDate(since.getDate() - days);
+
+      // Get aggregated stats
+      const [statsResult] = await getDatabase()
+        .select({
+          totalTokens: sql<number>`SUM(${aiTokenUsageLogs.totalTokens})`,
+          totalCost: sql<number>`SUM(${aiTokenUsageLogs.estimatedCost})`,
+          totalCalls: count(),
+        })
+        .from(aiTokenUsageLogs)
+        .where(gte(aiTokenUsageLogs.createdAt, since));
+
+      // Get stats by provider
+      const providerStats = await getDatabase()
+        .select({
+          provider: aiTokenUsageLogs.provider,
+          tokens: sql<number>`SUM(${aiTokenUsageLogs.totalTokens})`,
+          cost: sql<number>`SUM(${aiTokenUsageLogs.estimatedCost})`,
+          calls: count(),
+        })
+        .from(aiTokenUsageLogs)
+        .where(gte(aiTokenUsageLogs.createdAt, since))
+        .groupBy(aiTokenUsageLogs.provider);
+
+      // Get stats by operation
+      const operationStats = await getDatabase()
+        .select({
+          operation: aiTokenUsageLogs.operation,
+          tokens: sql<number>`SUM(${aiTokenUsageLogs.totalTokens})`,
+          cost: sql<number>`SUM(${aiTokenUsageLogs.estimatedCost})`,
+          calls: count(),
+        })
+        .from(aiTokenUsageLogs)
+        .where(gte(aiTokenUsageLogs.createdAt, since))
+        .groupBy(aiTokenUsageLogs.operation);
+
+      const totalTokens = statsResult?.totalTokens || 0;
+      const totalCost = statsResult?.totalCost || 0;
+      const totalCalls = statsResult?.totalCalls || 0;
+
+      const byProvider = providerStats.reduce((acc, stat) => {
+        acc[stat.provider] = {
+          tokens: stat.tokens,
+          cost: stat.cost,
+          calls: stat.calls,
+        };
+        return acc;
+      }, {} as Record<string, { tokens: number; cost: number; calls: number }>);
+
+      const byOperation = operationStats.reduce((acc, stat) => {
+        acc[stat.operation] = {
+          tokens: stat.tokens,
+          cost: stat.cost,
+          calls: stat.calls,
+        };
+        return acc;
+      }, {} as Record<string, { tokens: number; cost: number; calls: number }>);
+
+      return {
+        totalTokens,
+        totalCost,
+        totalCalls,
+        avgTokensPerCall: totalCalls > 0 ? totalTokens / totalCalls : 0,
+        avgCostPerCall: totalCalls > 0 ? totalCost / totalCalls : 0,
+        byProvider,
+        byOperation,
+      };
+    } catch (error) {
+      logger.error('Failed to get system AI token stats', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        days,
+      });
+      throw new Error('Failed to get system AI token stats');
     }
   }
 }

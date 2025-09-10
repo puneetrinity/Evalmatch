@@ -303,6 +303,60 @@ function updateUsage(
   });
 }
 
+/**
+ * Enhanced usage tracking with database persistence
+ */
+async function _trackTokenUsage(
+  model: string,
+  promptTokens: number,
+  completionTokens: number,
+  operation: 'resume_analysis' | 'job_analysis' | 'match_analysis' | 'bias_analysis' | 'interview_questions' | 'interview_script',
+  userId?: string,
+  analysisId?: string
+): Promise<void> {
+  const totalTokens = promptTokens + completionTokens;
+  const cost = calculateCost(model, promptTokens, completionTokens);
+
+  // Update internal stats
+  updateUsage(model, promptTokens, completionTokens);
+
+  // Track usage in database
+  try {
+    const { tokenUsageService } = await import('../services/token-usage');
+    await tokenUsageService.trackAITokenUsage({
+      provider: 'groq',
+      model,
+      operation,
+      inputTokens: promptTokens,
+      outputTokens: completionTokens,
+      totalTokens,
+      estimatedCost: cost,
+      currency: 'USD',
+      timestamp: new Date(),
+      userId,
+      analysisId,
+    });
+
+    logger.debug('Groq token usage tracked in database', {
+      model,
+      operation,
+      promptTokens,
+      completionTokens,
+      totalTokens,
+      cost: cost.toFixed(6),
+    });
+  } catch (error) {
+    logger.error('Failed to track Groq token usage in database', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      model,
+      operation,
+      promptTokens,
+      completionTokens,
+      userId,
+    });
+  }
+}
+
 // Generic function to call Groq API with deterministic settings
 async function callGroqAPI(
   prompt: string,

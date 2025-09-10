@@ -420,6 +420,22 @@ export const usageStatistics = pgTable("usage_statistics", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const aiTokenUsageLogs = pgTable("ai_token_usage_logs", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id"), // Firebase UID, nullable for system calls
+  provider: varchar("provider", { length: 20 }).notNull(), // 'openai', 'anthropic', 'groq'
+  model: varchar("model", { length: 100 }).notNull(),
+  operation: varchar("operation", { length: 50 }).notNull(), // 'resume_analysis', 'job_analysis', etc.
+  inputTokens: integer("input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  totalTokens: integer("total_tokens").notNull().default(0),
+  estimatedCost: real("estimated_cost").notNull().default(0),
+  currency: varchar("currency", { length: 3 }).notNull().default('USD'),
+  analysisId: text("analysis_id"), // Optional link to specific analysis
+  requestId: text("request_id"), // For correlating with API call logs
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Enhanced Zod schemas for runtime validation - MUST be defined before insert schemas
 export const resumeFileSchema = z.object({
   originalname: z.string().min(1, 'Filename is required'),
@@ -837,6 +853,9 @@ export type InsertUserToken = typeof userTokens.$inferInsert;
 
 export type UsageStatistics = typeof usageStatistics.$inferSelect;
 export type InsertUsageStatistics = typeof usageStatistics.$inferInsert;
+
+export type AITokenUsageLog = typeof aiTokenUsageLogs.$inferSelect;
+export type InsertAITokenUsageLog = typeof aiTokenUsageLogs.$inferInsert;
 
 // Token usage interfaces
 export interface TokenGenerationRequest {

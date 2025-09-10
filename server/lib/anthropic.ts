@@ -159,6 +159,68 @@ function recordApiSuccess() {
 }
 
 /**
+ * Track Anthropic token usage with database persistence
+ */
+async function trackTokenUsage(
+  usage: {
+    input_tokens?: number;
+    output_tokens?: number;
+  },
+  operation: 'resume_analysis' | 'job_analysis' | 'match_analysis' | 'bias_analysis' | 'interview_questions' | 'interview_script',
+  userId?: string,
+  analysisId?: string
+) {
+  if (!usage.input_tokens && !usage.output_tokens) return;
+
+  const inputTokens = usage.input_tokens || 0;
+  const outputTokens = usage.output_tokens || 0;
+  const totalTokens = inputTokens + outputTokens;
+
+  // Claude pricing: approximately $3 per million input tokens, $15 per million output tokens
+  const inputCost = inputTokens * 0.000003;
+  const outputCost = outputTokens * 0.000015;
+  const totalCost = inputCost + outputCost;
+
+  // Update internal stats
+  serviceStatus.apiUsageStats.promptTokens += inputTokens;
+  serviceStatus.apiUsageStats.completionTokens += outputTokens;
+  serviceStatus.apiUsageStats.totalTokens += totalTokens;
+  serviceStatus.apiUsageStats.estimatedCost += totalCost;
+
+  logger.info('Anthropic API call usage', { 
+    inputTokens, 
+    outputTokens,
+    totalTokens,
+    cost: `$${totalCost.toFixed(6)}`
+  });
+
+  // Track usage in database
+  try {
+    const { tokenUsageService } = await import('../services/token-usage');
+    await tokenUsageService.trackAITokenUsage({
+      provider: 'anthropic',
+      model: 'claude-3-5-sonnet-20241022', // Current model
+      operation,
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      estimatedCost: totalCost,
+      currency: 'USD',
+      timestamp: new Date(),
+      userId,
+      analysisId,
+    });
+  } catch (error) {
+    logger.error('Failed to track Anthropic token usage in database', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      usage,
+      operation,
+      userId,
+    });
+  }
+}
+
+/**
  * Try to recover service availability after backoff period
  * This function checks if we should attempt to restore Anthropic service
  * after a failure period
@@ -228,6 +290,11 @@ async function analyzeResumeInternal(
       });
 
       recordApiSuccess();
+
+      // Track token usage in database
+      if (response.usage) {
+        await trackTokenUsage(response.usage, 'resume_analysis');
+      }
 
       // Transform to expected response format
       const analyzedData: AnalyzedResumeData = {
@@ -514,6 +581,11 @@ export async function analyzeMatch(
         input_tokens: response.usage?.input_tokens,
         output_tokens: response.usage?.output_tokens
       });
+
+      // Track token usage in database
+      if (response.usage) {
+        await trackTokenUsage(response.usage, 'match_analysis');
+      }
 
       // Return normalized response
       const normalizedMatchedSkills: SkillMatch[] = Array.isArray(
@@ -846,6 +918,11 @@ export async function analyzeJobDescription(
         output_tokens: response.usage?.output_tokens
       });
 
+      // Track token usage in database
+      if (response.usage) {
+        await trackTokenUsage(response.usage, 'job_analysis');
+      }
+
       // Return normalized response matching AnalyzeJobDescriptionResponse interface
       const requiredSkills = Array.isArray(parsedResponse.skills)
         ? parsedResponse.skills
@@ -1003,19 +1080,9 @@ Format your response as valid JSON with this structure:
 
       const parsedResponse = JSON.parse(jsonStr);
 
-      // Track token usage
+      // Track token usage in database
       if (response.usage) {
-        serviceStatus.apiUsageStats.promptTokens +=
-          response.usage.input_tokens || 0;
-        serviceStatus.apiUsageStats.completionTokens +=
-          response.usage.output_tokens || 0;
-        serviceStatus.apiUsageStats.totalTokens +=
-          (response.usage.input_tokens || 0) +
-          (response.usage.output_tokens || 0);
-        // Update estimated cost - Claude pricing is approximately $3 per million input tokens, $15 per million output tokens
-        const inputCost = (response.usage.input_tokens || 0) * 0.000003;
-        const outputCost = (response.usage.output_tokens || 0) * 0.000015;
-        serviceStatus.apiUsageStats.estimatedCost += inputCost + outputCost;
+        await trackTokenUsage(response.usage, 'bias_analysis');
       }
 
       // Return normalized response
