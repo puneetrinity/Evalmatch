@@ -26,6 +26,7 @@ import {
   getFailureThreshold,
   getMLWeightCap,
   getLLMWeightCap,
+  getConfidenceFloor,
   isBiasAdjustmentEnabled,
   isContaminationFilteringEnabled,
   isTelemetryEnabled,
@@ -350,8 +351,10 @@ export class HybridMatchAnalyzer {
             fairnessAssessment: biasDetection.explanation
           } as FairnessMetrics;
 
-          // Task 4: Apply bias adjustment to match score (integrated into main pipeline)
-          if (isBiasAdjustmentEnabled() && biasDetection.hasBias && result.matchPercentage !== null) {
+          // Task 4: Apply bias adjustment to match score (only for non-hybrid methods)
+          // Note: Hybrid method already applies bias adjustment in blendResults()
+          if (isBiasAdjustmentEnabled() && biasDetection.hasBias && result.matchPercentage !== null && 
+              result.analysisMethod !== "hybrid") {
             const originalScore = result.matchPercentage;
             result.matchPercentage = applyBiasAdjustment(
               originalScore,
@@ -359,11 +362,17 @@ export class HybridMatchAnalyzer {
               biasDetection.detectedBiases.length > 0 ? 0.9 : 0.5 // Confidence based on detection count
             );
             
-            logger.info("Bias adjustment applied to match score", {
+            logger.info("Bias adjustment applied to match score (non-hybrid path)", {
+              analysisMethod: result.analysisMethod,
               originalScore,
               adjustedScore: result.matchPercentage,
               biasScore: biasDetection.biasScore,
               adjustment: originalScore - (result.matchPercentage ?? 0)
+            });
+          } else if (result.analysisMethod === "hybrid" && biasDetection.hasBias) {
+            logger.info("Bias adjustment already applied in hybrid blending", {
+              biasScore: biasDetection.biasScore,
+              finalScore: result.matchPercentage
             });
           }
 
@@ -1376,10 +1385,13 @@ export class HybridMatchAnalyzer {
     result.confidenceLevel = level === 'excellent' ? 'high' : level;
     
     // Task 3: Apply quality gates - implement minimum confidence requirements
-    if (enhancedConfidence < CONFIDENCE_THRESHOLDS.MINIMUM_VIABLE) {
+    const confidenceThreshold = getConfidenceFloor();
+    if (enhancedConfidence < confidenceThreshold) {
       logger.warn("Match confidence below minimum threshold", {
         confidence: enhancedConfidence,
-        threshold: CONFIDENCE_THRESHOLDS.MINIMUM_VIABLE,
+        threshold: confidenceThreshold,
+        configuredFloor: getConfidenceFloor(),
+        systemMinimum: CONFIDENCE_THRESHOLDS.MINIMUM_VIABLE,
         matchPercentage: result.matchPercentage
       });
       
@@ -1394,7 +1406,7 @@ export class HybridMatchAnalyzer {
     result.validationMetadata = {
       dataQualityScore: dataQualityFactors.dataQuality,
       confidenceScore: enhancedConfidence,
-      qualityGatesPassed: enhancedConfidence >= CONFIDENCE_THRESHOLDS.MINIMUM_VIABLE,
+      qualityGatesPassed: enhancedConfidence >= confidenceThreshold,
       validationTimestamp: new Date().toISOString(),
       validationVersion: "2024.1"
     };
