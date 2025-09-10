@@ -372,6 +372,24 @@ describe('Advanced File Security Tests', () => {
     });
   });
 
+  describe('Batch Upload Security', () => {
+    test('should reject batch if one file is malicious', async () => {
+      const validFile = Buffer.from('%PDF-1.4\n%%EOF');
+      const maliciousFile = Buffer.from('MZ_THIS_IS_MALICIOUS');
+
+      const response = await request(app)
+        .post('/api/resumes/batch')
+        .attach('files', validFile, 'valid.pdf')
+        .attach('files', maliciousFile, 'malicious.pdf')
+        .expect(400);
+
+      expect(response.body.error).toBe('Batch validation failed');
+      expect(response.body.details).toContain('malicious.pdf');
+
+      recordSecurityIncident('batch_malicious_rejection', 'critical', true, 'Batch with malicious file was rejected');
+    });
+  });
+
   describe('Advanced Threat Detection', () => {
     test('should detect steganography attempts', async () => {
       // Create a PDF with suspicious data patterns that might hide steganographic content

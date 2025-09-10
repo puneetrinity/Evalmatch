@@ -690,7 +690,6 @@ export const secureUpload = multer({
   storage: secureStorage,
   limits: {
     fileSize: MAX_FILE_SIZE,
-    files: 1, // Only allow one file at a time for security
     fieldSize: 1024 * 1024, // 1MB for field data
     fieldNameSize: 100, // Limit field name length
     fields: 10, // Limit number of fields
@@ -1020,6 +1019,76 @@ export async function validateUploadedFile(
       code: "VALIDATION_ERROR"
     });
   }
+}
+
+// Enhanced post-upload validation middleware for BATCH uploads
+export async function validateUploadedFiles(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const files = req.files as Express.Multer.File[];
+  if (!files || files.length === 0) {
+    return next();
+  }
+
+  const userId = req.user?.uid;
+  const validationPromises = files.map(async (file) => {
+    const startTime = Date.now();
+
+    try {
+      const contentValidation = await validateFileContent(file.path, file.mimetype);
+      if (!contentValidation.isValid) {
+        throw new Error(`Content validation failed: ${contentValidation.details}`);
+      }
+
+      const securityScan = await checkForSuspiciousPatterns(file.path, file.mimetype);
+      if (securityScan.isSuspicious) {
+        throw new Error(`Security scan failed: ${securityScan.threats.join(', ')}`);
+      }
+
+      const finalPath = path.join(UPLOAD_DIR, file.filename);
+      await fs.rename(file.path, finalPath);
+      file.path = finalPath;
+
+      file.securityChecked = true;
+      file.uploadedBy = userId;
+      file.uploadedAt = new Date().toISOString();
+      file.securityInfo = {
+        contentValidation: contentValidation.securityInfo,
+        securityScan: {
+          confidence: securityScan.confidence,
+          threatsDetected: securityScan.threats.length,
+          scanTime: Date.now() - startTime
+        },
+        validatedAt: new Date().toISOString()
+      };
+      return { success: true, file };
+    } catch (error) {
+      await quarantineFile(file.path, error instanceof Error ? error.message : 'Unknown error', userId);
+      return { success: false, file, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  const results = await Promise.all(validationPromises);
+  const failedFiles = results.filter(r => !r.success);
+
+  if (failedFiles.length > 0) {
+    const errorMessages = failedFiles.map(f => `${f.file.originalname}: ${f.error}`).join('; ');
+    logger.warn("Batch upload validation failed for some files", {
+      userId,
+      failedCount: failedFiles.length,
+      errors: errorMessages
+    });
+    return res.status(400).json({
+      error: "Batch validation failed",
+      message: "One or more files in the batch failed validation.",
+      details: errorMessages,
+      code: "BATCH_VALIDATION_FAILED"
+    });
+  }
+
+  next();
 }
 
 // Cleanup old uploads (run periodically)
