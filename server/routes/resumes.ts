@@ -5,7 +5,7 @@
 
 import { Router, Request, Response } from "express";
 import { authenticateUser } from "../middleware/auth";
-import { secureUpload, validateUploadedFile } from "../middleware/upload";
+import { secureUpload, validateUploadedFile, validateUploadedFiles } from "../middleware/upload";
 import { uploadRateLimiter } from "../middleware/rate-limiter";
 import { validators } from "../middleware/input-validation";
 import { logger } from "../lib/logger";
@@ -569,6 +569,7 @@ router.post(
   authenticateUser,
   uploadRateLimiter,
   secureUpload.array("files", 10), // Max 10 files
+  validateUploadedFiles,
   validators.rateLimitModerate,
   async (req: Request, res: Response) => {
     const files = req.files as Express.Multer.File[];

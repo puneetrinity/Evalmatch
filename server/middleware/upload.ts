@@ -6,5 +6,6 @@
 export {
   secureUpload,
   validateUploadedFile,
+  validateUploadedFiles,
   cleanupOldUploads,
 } from "../lib/secure-upload";
