@@ -42,6 +42,16 @@ const PROVIDER_CALIBRATION_CONFIGS: Record<string, ProviderVersionConfig> = {
     failureThreshold: parseInt(process.env.ANTHROPIC_FAILURE_THRESHOLD || '48'),
     confidenceThreshold: parseFloat(process.env.ANTHROPIC_CONFIDENCE_THRESHOLD || '0.72'),
     lastUpdated: '2025-08-27'
+  },
+  ml: {
+    provider: 'ml',
+    model: 'sklearn-ensemble',
+    promptVersion: 'n/a',
+    promptHash: 'n/a',
+    calibrationVersion: 'ml-v1-2025-08-27',
+    failureThreshold: parseInt(process.env.ML_FAILURE_THRESHOLD || '40'),
+    confidenceThreshold: parseFloat(process.env.ML_CONFIDENCE_THRESHOLD || '0.65'),
+    lastUpdated: '2025-08-27'
   }
 };
 
