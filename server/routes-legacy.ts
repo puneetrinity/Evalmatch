@@ -1,5 +1,6 @@
 // @ts-nocheck
 import type { Express, Request, Response } from "express";
+import { config } from "./config/unified-config";
 // Legacy file type suppressions - quick fixes without refactoring
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -482,6 +483,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         ...tierStatus,
         userId: req.user!.uid,
+        // Add beta access indication to tier name when in beta mode
+        tier: config.features.betaMode ? `${tierStatus.tier} (Beta Access)` : tierStatus.tier,
+        betaMode: config.features.betaMode,
         timestamp: new Date().toISOString()
       });
     } catch (error) {

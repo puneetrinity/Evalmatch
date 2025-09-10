@@ -146,4 +146,4 @@ function updatePerformanceCounters(
 }
 
 // ✅ Export interface for use in other modules
-export { PerformanceMetrics };
+export type { PerformanceMetrics };
