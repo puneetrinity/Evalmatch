@@ -165,6 +165,20 @@ export const validationSchemas = {
     }),
   }),
 
+  getJobDescriptions: z.object({
+    query: z.object({
+      page: commonSchemas.page.optional(),
+      limit: commonSchemas.limit.optional(),
+      search: commonSchemas.searchQuery.optional(),
+    }),
+  }),
+
+  getJobDescription: z.object({
+    params: z.object({
+      id: commonSchemas.routeId,
+    }),
+  }),
+
   updateJob: z.object({
     params: z.object({
       id: commonSchemas.routeId,
@@ -580,6 +594,8 @@ export const validators = {
   getResume: validateRequest(validationSchemas.getResume),
   getResumes: validateRequest(validationSchemas.getResumes),
   createJob: validateRequest(validationSchemas.createJob),
+  getJobDescriptions: validateRequest(validationSchemas.getJobDescriptions),
+  getJobDescription: validateRequest(validationSchemas.getJobDescription),
   updateJob: validateRequest(validationSchemas.updateJob),
   analyzeResume: validateRequest(validationSchemas.analyzeResume),
   getAnalysis: validateRequest(validationSchemas.getAnalysis),

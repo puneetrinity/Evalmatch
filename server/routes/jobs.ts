@@ -241,7 +241,7 @@ router.post("/", authenticateUser, validators.createJob, async (req: Request, re
 });
 
 // Get all job descriptions for the authenticated user
-router.get("/", authenticateUser, validators.getAnalysis, async (req: Request, res: Response) => {
+router.get("/", authenticateUser, validators.getJobDescriptions, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
     const limit = parseInt(req.query.limit as string) || 20;
@@ -299,7 +299,7 @@ router.get("/", authenticateUser, validators.getAnalysis, async (req: Request, r
 });
 
 // Get specific job description by ID
-router.get("/:id", authenticateUser, validators.getResume, async (req: Request, res: Response) => {
+router.get("/:id", authenticateUser, validators.getJobDescription, async (req: Request, res: Response) => {
   try {
     const jobId = parseInt(req.params.id);
     const userId = req.user!.uid;
@@ -410,7 +410,7 @@ router.patch("/:id", authenticateUser, validators.updateJob, async (req: Request
 });
 
 // Delete job description
-router.delete("/:id", authenticateUser, validators.getResume, async (req: Request, res: Response) => {
+router.delete("/:id", authenticateUser, validators.getJobDescription, async (req: Request, res: Response) => {
   try {
     const jobId = parseInt(req.params.id);
     const userId = req.user!.uid;
