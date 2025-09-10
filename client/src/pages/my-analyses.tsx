@@ -53,22 +53,32 @@ export default function MyAnalysesPage() {
     queryKey: ["my-analyses"],
     queryFn: async () => {
       try {
-        const response = await apiRequest("GET", "/api/job-descriptions");
+        console.log("Fetching user analyses from /api/analysis/my-analyses...");
+        const response = await apiRequest("GET", "/api/analysis/my-analyses");
         const data = await response.json();
         
-        if (data.success && data.data?.jobDescriptions) {
-          // Transform job descriptions into analysis items
-          return data.data.jobDescriptions.map((job: any) => ({
-            id: job.id,
-            jobTitle: job.title || "Untitled Position",
-            jobDescription: job.description || "",
-            status: job.hasAnalysis ? "completed" : "processing",
-            resumeCount: 0, // Will be updated when we get analysis results
-            totalResumes: 0,
-            createdAt: job.createdAt,
-            updatedAt: job.updatedAt || job.createdAt,
-            topMatchScore: 0,
-            averageScore: 0
+        console.log("My-analyses API response:", {
+          success: data.success,
+          analysesCount: data.analyses?.length || 0,
+          completedCount: data.completedAnalyses || 0,
+          processingCount: data.processingAnalyses || 0,
+          failedCount: data.failedAnalyses || 0
+        });
+        
+        if (data.success && data.analyses) {
+          // Transform API response to match AnalysisItem interface
+          return data.analyses.map((analysis: any) => ({
+            id: analysis.jobId,
+            jobTitle: analysis.jobTitle,
+            jobDescription: analysis.jobDescription,
+            status: analysis.status as "completed" | "processing" | "failed",
+            resumeCount: analysis.resumeCount,
+            totalResumes: analysis.totalResumes,
+            createdAt: analysis.createdAt,
+            updatedAt: analysis.updatedAt,
+            topMatchScore: analysis.topMatchScore,
+            averageScore: analysis.averageScore,
+            results: analysis.results || []
           })) as AnalysisItem[];
         }
         return [];
@@ -77,11 +87,19 @@ export default function MyAnalysesPage() {
         throw new Error("Failed to load analyses");
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 2 * 60 * 1000, // 2 minutes (shorter for better UX)
     retry: 2,
   });
 
   const analyses = analysesResponse || [];
+  
+  // Log current state for debugging
+  console.log("My-analyses page state:", {
+    isLoading,
+    error: error?.message,
+    analysesCount: analyses.length,
+    hasAnalyses: analyses.length > 0
+  });
 
   // Filter analyses based on search and filters
   const filteredAnalyses = analyses.filter(analysis => {

@@ -22,6 +22,178 @@ import { getRemainingDeadline } from "../middleware/request-deadline";
 const router = Router();
 
 /**
+ * @swagger
+ * /analysis/my-analyses:
+ *   get:
+ *     tags: [Analysis]
+ *     summary: Get all analysis results for the current user
+ *     description: |
+ *       Retrieve all analysis results across all job descriptions for the authenticated user.
+ *       Returns a summary of each job with analysis statistics and recent results.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User analyses retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     analyses:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           jobId:
+ *                             type: integer
+ *                           jobTitle:
+ *                             type: string
+ *                           jobDescription:
+ *                             type: string
+ *                           status:
+ *                             type: string
+ *                             enum: [completed, processing, failed]
+ *                           resumeCount:
+ *                             type: integer
+ *                           totalResumes:
+ *                             type: integer
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                           updatedAt:
+ *                             type: string
+ *                             format: date-time
+ *                           topMatchScore:
+ *                             type: number
+ *                           averageScore:
+ *                             type: number
+ *                           results:
+ *                             type: array
+ *                             items:
+ *                               $ref: '#/components/schemas/AnalysisResult'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+// Get all analyses for the current user
+router.get(
+  "/my-analyses",
+  authenticateUser,
+  async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.uid;
+      
+      // Get storage instance
+      const storage = getStorage();
+      
+      // Get all job descriptions for the user
+      const jobDescriptions = await storage.getJobDescriptionsByUserId(userId);
+      
+      // Get analysis results for each job
+      const analyses = await Promise.all(
+        jobDescriptions.map(async (job) => {
+          try {
+            // Get analysis results for this job (without session/batch filtering)
+            const analysisResults = await storage.getAnalysisResultsByJob(
+              job.id, 
+              userId
+              // No sessionId/batchId to get all results for this job
+            );
+            
+            // Calculate statistics
+            const resumeCount = analysisResults.length;
+            const scores = analysisResults
+              .map(r => r.matchPercentage)
+              .filter(score => score != null);
+            
+            const topMatchScore = scores.length > 0 ? Math.max(...scores) : 0;
+            const averageScore = scores.length > 0 
+              ? scores.reduce((sum, score) => sum + score, 0) / scores.length 
+              : 0;
+            
+            // Determine status
+            let status = "completed";
+            if (resumeCount === 0) {
+              status = "processing"; // No results yet, might be processing
+            }
+            
+            return {
+              jobId: job.id,
+              jobTitle: job.title || "Untitled Position",
+              jobDescription: job.description,
+              status,
+              resumeCount,
+              totalResumes: resumeCount, // For now, same as resumeCount
+              createdAt: job.createdAt,
+              updatedAt: job.updatedAt || job.createdAt,
+              topMatchScore: Math.round(topMatchScore * 10) / 10, // Round to 1 decimal
+              averageScore: Math.round(averageScore * 10) / 10,
+              results: analysisResults.slice(0, 5) // Include top 5 results
+            };
+          } catch (error) {
+            logger.error('Failed to get analysis results for job', {
+              jobId: job.id,
+              userId,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+            
+            // Return job info without analysis data
+            return {
+              jobId: job.id,
+              jobTitle: job.title || "Untitled Position", 
+              jobDescription: job.description,
+              status: "failed",
+              resumeCount: 0,
+              totalResumes: 0,
+              createdAt: job.createdAt,
+              updatedAt: job.updatedAt || job.createdAt,
+              topMatchScore: 0,
+              averageScore: 0,
+              results: []
+            };
+          }
+        })
+      );
+      
+      // Sort by most recent first
+      analyses.sort((a, b) => 
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      );
+      
+      // Add lightweight headers for observability
+      await addAIResponseHeaders(res, req);
+      
+      res.json({
+        success: true,
+        analyses,
+        totalAnalyses: analyses.length,
+        completedAnalyses: analyses.filter(a => a.status === "completed").length,
+        processingAnalyses: analyses.filter(a => a.status === "processing").length,
+        failedAnalyses: analyses.filter(a => a.status === "failed").length,
+        timestamp: new Date().toISOString(),
+      });
+      
+    } catch (error) {
+      logger.error("My analyses route failed", {
+        userId: req.user?.uid,
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+
+      res.status(500).json({
+        success: false,
+        error: "ROUTE_ERROR",
+        message: "Failed to retrieve user analyses",
+        timestamp: new Date().toISOString(),
+      });
+    }
+  },
+);
+
+/**
  * Add lightweight headers to AI responses for observability
  */
 async function addAIResponseHeaders(res: Response, req: Request, provider?: string): Promise<void> {
