@@ -159,8 +159,11 @@ export const userLimiterMiddleware = (req: Request, res: Response, next: NextFun
 export const analysisLimiterMiddleware = (req: Request, res: Response, next: NextFunction) => {
   // Skip rate limiting in beta mode  
   if (config.features.betaMode) {
+    console.log('[analysis-limiter] BETA_MODE is enabled - skipping rate limiting for', req.path);
     return next();
   }
+  
+  console.log('[analysis-limiter] BETA_MODE is disabled - applying rate limiting for', req.path, 'betaMode:', config.features.betaMode);
   
   if (analysisLimiter) {
     return analysisLimiter(req, res, next);
