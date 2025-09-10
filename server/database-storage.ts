@@ -319,27 +319,11 @@ export class DatabaseStorage implements IStorage {
 
   async getAnalysisResultsByJob(jobId: number, userId: string, sessionId?: string, batchId?: string): Promise<AnalysisResult[]> {
     return withRetry(async () => {
-      const conditions = [
-        eq(analysisResults.jobDescriptionId, jobId),
-        eq(analysisResults.userId, userId)
-      ];
+      // CRITICAL FIX: More robust approach - get all analysis results first, then filter by session/batch if needed
+      // This prevents the JOIN from excluding valid results when session/batch IDs don't match exactly
       
-      // Add batch or session filtering conditions for resumes
-      const resumeConditions = [];
-      if (batchId) {
-        resumeConditions.push(eq(resumes.batchId, batchId));
-      }
-      
-      if (sessionId) {
-        resumeConditions.push(eq(resumes.sessionId, sessionId));
-      }
-      
-      // Get analysis results ordered by creation time (most recent first)
-      // This is a simpler approach than the complex subquery
-      
-      // Since we can't directly use the subquery in this context with Drizzle,
-      // we'll use a window function approach instead
-      const results = await this.db.select({
+      // First, get all analysis results for this job and user
+      const allResults = await this.db.select({
         id: analysisResults.id,
         userId: analysisResults.userId,
         resumeId: analysisResults.resumeId,
@@ -370,16 +354,40 @@ export class DatabaseStorage implements IStorage {
         .from(analysisResults)
         .leftJoin(resumes, eq(analysisResults.resumeId, resumes.id))
         .where(and(
-          ...conditions,
-          ...(resumeConditions.length > 0 ? resumeConditions : [])
+          eq(analysisResults.jobDescriptionId, jobId),
+          eq(analysisResults.userId, userId)
         ))
         .orderBy(desc(analysisResults.createdAt));
       
+      // If session or batch filtering is requested, filter the results
+      let filteredResults = allResults;
+      if ((sessionId || batchId) && allResults.length > 0) {
+        filteredResults = allResults.filter(result => {
+          // Keep result if no filtering requested OR if resume matches session/batch criteria
+          if (!sessionId && !batchId) return true;
+          if (!result.resume) return false; // Skip if no resume info
+          
+          const resumeMatches = (!sessionId || result.resume.sessionId === sessionId) &&
+                               (!batchId || result.resume.batchId === batchId);
+          return resumeMatches;
+        });
+        
+        // Log filtering results for debugging
+        console.log(`[database-storage] Analysis results filtering: found ${allResults.length} total, ${filteredResults.length} after session/batch filtering`, {
+          jobId,
+          userId,
+          sessionId: sessionId || 'none',
+          batchId: batchId || 'none',
+          totalResults: allResults.length,
+          filteredResults: filteredResults.length
+        });
+      }
+      
       // Deduplicate by keeping only the most recent analysis per resume
-      type QueryResult = typeof results[0];
+      type QueryResult = typeof filteredResults[0];
       const deduplicatedResults = new Map<number, QueryResult>();
       
-      for (const result of results) {
+      for (const result of filteredResults) {
         if (result.resumeId && (!deduplicatedResults.has(result.resumeId) || 
             new Date(result.createdAt!) > new Date(deduplicatedResults.get(result.resumeId)!.createdAt!))) {
           deduplicatedResults.set(result.resumeId, result);
@@ -389,6 +397,12 @@ export class DatabaseStorage implements IStorage {
       // Convert back to array and sort by creation date (most recent first)
       const finalResults = Array.from(deduplicatedResults.values())
         .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+      
+      console.log(`[database-storage] Final analysis results: ${finalResults.length} results after deduplication`, {
+        jobId,
+        userId,
+        finalCount: finalResults.length
+      });
       
       // Transform the results to match the expected AnalysisResult type
       return finalResults.map(result => ({
