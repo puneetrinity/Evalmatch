@@ -104,6 +104,8 @@ export interface AppConfig {
     monitoring: boolean;
     uploads: boolean;
     betaMode: boolean;
+    enableCreditSystem: boolean;
+    enableMauticTracking: boolean;
   };
 
   // Hybrid Analyzer Configuration (aligned to existing thresholds)
@@ -275,6 +277,8 @@ export function loadUnifiedConfig(): AppConfig {
     monitoring: env === Environment.Production,
     uploads: true, // Always enabled for now
     betaMode: process.env.BETA_MODE === "true" || env === Environment.Development, // Enable beta mode via env var or in development
+    enableCreditSystem: process.env.ENABLE_CREDIT_SYSTEM === "true", // Default false - enable explicitly
+    enableMauticTracking: process.env.ENABLE_MAUTIC_TRACKING === "true", // Default false - enable explicitly
   };
 
   // Hybrid Analyzer Configuration (aligned to unified-scoring-config.ts thresholds)

@@ -34,6 +34,9 @@ import {
 
 import { analyzeMatchHybrid } from '../lib/hybrid-match-analyzer';
 import { getUserTierInfo } from '../lib/user-tiers';
+import { creditService } from './credit-service';
+import { config } from '../config/unified-config';
+import { createHash } from 'crypto';
 
 // Prefix unused import to silence warnings
 const _matchAnalysisWithCache = matchAnalysisWithCache;
@@ -69,6 +72,37 @@ const _chainResult = chainResult;
 const _chainResultAsync = chainResultAsync;
 const _AppValidationError = AppValidationError;
 const _toAppError = toAppError;
+
+// ===== HELPER FUNCTIONS =====
+
+/**
+ * Generate deterministic reference ID for batch operations
+ * This ensures idempotency by making the same batch request produce the same reference ID
+ */
+function generateBatchReferenceId(
+  userId: string,
+  jobId: number,
+  resumeIds: number[],
+  sessionId?: string,
+  batchId?: string
+): string {
+  // Sort resume IDs to ensure deterministic ordering
+  const sortedResumeIds = [...resumeIds].sort((a, b) => a - b);
+  
+  // Create a hash input that uniquely identifies this batch request
+  const hashInput = JSON.stringify({
+    userId,
+    jobId,
+    resumeIds: sortedResumeIds,
+    sessionId: sessionId || null,
+    batchId: batchId || null
+  });
+  
+  // Generate SHA-256 hash (first 16 chars for readability)
+  const hash = createHash('sha256').update(hashInput).digest('hex').substring(0, 16);
+  
+  return `batch_${hash}`;
+}
 
 // ===== SERVICE INPUT TYPES =====
 
@@ -256,6 +290,75 @@ export class AnalysisService {
 
     // Get user tier for AI provider selection
     const userTierInfo = getUserTierInfo(userId);
+
+    // Credit system: Check and deduct credits if enabled
+    if (config.features.enableCreditSystem && !config.features.betaMode) {
+      const analysisCreditsNeeded = resumes.length; // 1 credit per resume analysis
+      
+      logger.info('Checking user credits for batch analysis', {
+        userId,
+        creditsNeeded: analysisCreditsNeeded,
+        resumeCount: resumes.length
+      });
+
+      // Check if user has sufficient credits
+      const creditCheck = await creditService.hasCredits(userId, analysisCreditsNeeded);
+      if (!creditCheck.success) {
+        logger.warn('Insufficient credits for batch analysis', {
+          userId,
+          creditsNeeded: analysisCreditsNeeded,
+          userCredits: creditCheck.credits || 0
+        });
+        return failure(new AppBusinessLogicError(
+          'INSUFFICIENT_CREDITS',
+          `Insufficient credits. Required: ${analysisCreditsNeeded}, Available: ${creditCheck.credits || 0}. Please purchase more credits to continue.`,
+          { 
+            required: analysisCreditsNeeded, 
+            available: creditCheck.credits || 0,
+            action: 'purchase_credits'
+          }
+        ));
+      }
+
+      // Generate deterministic reference ID for idempotency
+      const resumeIds = resumes.map(r => r.id);
+      const referenceId = generateBatchReferenceId(userId, jobId, resumeIds, sessionId, batchId);
+      
+      // Deduct credits upfront for the entire batch
+      const deductResult = await creditService.deductCredits(
+        userId,
+        analysisCreditsNeeded,
+        `Batch resume analysis: ${analysisCreditsNeeded} resumes against job ${jobId}`,
+        referenceId,
+        { 
+          job_id: jobId,
+          resume_count: analysisCreditsNeeded,
+          session_id: sessionId,
+          batch_id: batchId,
+          resume_ids: resumeIds
+        }
+      );
+
+      if (!deductResult.success) {
+        logger.error('Failed to deduct credits for batch analysis', {
+          userId,
+          creditsNeeded: analysisCreditsNeeded,
+          error: deductResult.error
+        });
+        return failure(new AppExternalServiceError(
+          'EXTERNAL_SERVICE_ERROR',
+          'credit-service',
+          'Credit deduction failed',
+          deductResult.error || 'Credit deduction failed'
+        ));
+      }
+
+      logger.info('Credits deducted for batch analysis', {
+        userId,
+        creditsDeducted: analysisCreditsNeeded,
+        remainingCredits: deductResult.credits
+      });
+    }
 
     // Analyze job description if not already analyzed
     let jobAnalysis = jobDescription.analyzedData;
@@ -460,6 +563,47 @@ export class AnalysisService {
       averageMatch,
       processingTime: totalProcessingTime
     });
+
+    // Handle partial refunds for failed analyses if credit system is enabled
+    if (config.features.enableCreditSystem && !config.features.betaMode && failed.length > 0) {
+      const failedCount = failed.length;
+      const batchReferenceId = generateBatchReferenceId(userId, jobId, resumes.map(r => r.id), sessionId, batchId);
+      
+      logger.info('Processing partial refund for failed analyses', {
+        userId,
+        failedCount,
+        referenceId: batchReferenceId
+      });
+      
+      try {
+        const refundResult = await creditService.refundCredits(
+          userId,
+          failedCount,
+          batchReferenceId,
+          `Refund for ${failedCount} failed resume analyses`
+        );
+        
+        if (refundResult.success) {
+          logger.info('Partial refund processed successfully', {
+            userId,
+            refundedCredits: failedCount,
+            remainingCredits: refundResult.credits
+          });
+        } else {
+          logger.error('Failed to process partial refund', {
+            userId,
+            failedCount,
+            error: refundResult.error
+          });
+        }
+      } catch (refundError) {
+        logger.error('Error during partial refund processing', {
+          userId,
+          failedCount,
+          error: refundError instanceof Error ? refundError.message : 'Unknown error'
+        });
+      }
+    }
 
     return success({
       analysisId: Date.now().toString(),

@@ -145,8 +145,8 @@ if (redis.status === 'ready') {
 
 // Export wrapper functions that use the lazily-created limiters
 export const userLimiterMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  // Skip rate limiting in beta mode
-  if (config.features.betaMode) {
+  // Skip rate limiting in beta mode or when credit system is enabled
+  if (config.features.betaMode || config.features.enableCreditSystem) {
     return next();
   }
   
@@ -157,13 +157,13 @@ export const userLimiterMiddleware = (req: Request, res: Response, next: NextFun
 };
 
 export const analysisLimiterMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  // Skip rate limiting in beta mode  
-  if (config.features.betaMode) {
-    console.log('[analysis-limiter] BETA_MODE is enabled - skipping rate limiting for', req.path);
+  // Skip rate limiting in beta mode or when credit system is enabled
+  if (config.features.betaMode || config.features.enableCreditSystem) {
+    console.log('[analysis-limiter] Rate limiting skipped - betaMode:', config.features.betaMode, 'creditSystem:', config.features.enableCreditSystem, 'path:', req.path);
     return next();
   }
   
-  console.log('[analysis-limiter] BETA_MODE is disabled - applying rate limiting for', req.path, 'betaMode:', config.features.betaMode);
+  console.log('[analysis-limiter] Applying rate limiting for', req.path);
   
   if (analysisLimiter) {
     return analysisLimiter(req, res, next);
@@ -172,8 +172,8 @@ export const analysisLimiterMiddleware = (req: Request, res: Response, next: Nex
 };
 
 export const adminLimiterMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  // Skip rate limiting in beta mode
-  if (config.features.betaMode) {
+  // Skip rate limiting in beta mode or when credit system is enabled
+  if (config.features.betaMode || config.features.enableCreditSystem) {
     return next();
   }
   

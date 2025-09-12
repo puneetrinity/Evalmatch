@@ -379,16 +379,18 @@ export async function analyzeResume(
   // BETA MODE: Allow all users to test resume analysis
   // Using centralized beta mode config
 
-  // Check usage limits - SKIP IN BETA MODE for resume analysis
-  if (!config.features.betaMode) {
+  // Check usage limits - SKIP IN BETA MODE or when credit system is enabled
+  if (!config.features.betaMode && !config.features.enableCreditSystem) {
     const usageCheck = checkUsageLimit(userTier);
     if (!usageCheck.canUse) {
       throw new Error(usageCheck.message);
     }
   } else {
-    logger.info("Beta mode: Skipping usage limits for resume analysis", { 
+    logger.info("Beta mode or credit system: Skipping usage limits for resume analysis", { 
       userTier: userTier.tier,
-      context: "resume_analysis"
+      context: "resume_analysis",
+      betaMode: config.features.betaMode,
+      creditSystem: config.features.enableCreditSystem
     });
   }
 
@@ -396,8 +398,8 @@ export async function analyzeResume(
   const selection = selectProviderForTier(userTier);
   logger.info(`Selected provider: ${selection.provider} - ${selection.reason}`);
 
-  // Increment usage count - SKIP IN BETA MODE for resume analysis
-  if (!config.features.betaMode) {
+  // Increment usage count - SKIP IN BETA MODE or when credit system is enabled
+  if (!config.features.betaMode && !config.features.enableCreditSystem) {
     incrementUsage(userTier);
   }
 
@@ -478,16 +480,18 @@ export async function analyzeResumeParallel(
   // BETA MODE: Allow all users to test resume analysis
   // Using centralized beta mode config
 
-  // Check usage limits - SKIP IN BETA MODE for resume analysis
-  if (!config.features.betaMode) {
+  // Check usage limits - SKIP IN BETA MODE or when credit system is enabled
+  if (!config.features.betaMode && !config.features.enableCreditSystem) {
     const usageCheck = checkUsageLimit(userTier);
     if (!usageCheck.canUse) {
       throw new Error(usageCheck.message);
     }
   } else {
-    logger.info("Beta mode: Skipping usage limits for resume analysis", { 
+    logger.info("Beta mode or credit system: Skipping usage limits for resume analysis", { 
       userTier: userTier.tier,
-      context: "resume_analysis_parallel"
+      context: "resume_analysis_parallel",
+      betaMode: config.features.betaMode,
+      creditSystem: config.features.enableCreditSystem
     });
   }
 
@@ -497,8 +501,8 @@ export async function analyzeResumeParallel(
     `Selected provider: ${selection.provider} - ${selection.reason} (parallel extraction)`,
   );
 
-  // Increment usage count - SKIP IN BETA MODE for resume analysis
-  if (!config.features.betaMode) {
+  // Increment usage count - SKIP IN BETA MODE or when credit system is enabled
+  if (!config.features.betaMode && !config.features.enableCreditSystem) {
     incrementUsage(userTier);
   }
 
@@ -582,8 +586,8 @@ export async function analyzeJobDescription(
   // BETA MODE: Allow all users to test job analysis
   // Using centralized beta mode config
 
-  // Check usage limits - SKIP IN BETA MODE for job analysis
-  if (!config.features.betaMode) {
+  // Check usage limits - SKIP IN BETA MODE or when credit system is enabled
+  if (!config.features.betaMode && !config.features.enableCreditSystem) {
     const usageCheck = checkUsageLimit(userTier);
     if (!usageCheck.canUse) {
       throw new Error(usageCheck.message);
@@ -599,8 +603,8 @@ export async function analyzeJobDescription(
   const selection = selectProviderForTier(userTier);
   logger.info(`Selected provider: ${selection.provider} - ${selection.reason}`);
 
-  // Increment usage count - SKIP IN BETA MODE for job analysis
-  if (!config.features.betaMode) {
+  // Increment usage count - SKIP IN BETA MODE or when credit system is enabled
+  if (!config.features.betaMode && !config.features.enableCreditSystem) {
     incrementUsage(userTier);
   }
 
@@ -678,8 +682,8 @@ export async function analyzeMatch(
   // BETA MODE: Allow all users to test match analysis
   // Using centralized beta mode config
 
-  // Check usage limits - SKIP IN BETA MODE for match analysis
-  if (!config.features.betaMode) {
+  // Check usage limits - SKIP IN BETA MODE or when credit system is enabled
+  if (!config.features.betaMode && !config.features.enableCreditSystem) {
     const usageCheck = checkUsageLimit(userTier);
     if (!usageCheck.canUse) {
       throw new Error(usageCheck.message);
@@ -700,8 +704,8 @@ export async function analyzeMatch(
     userTier: userTier.tier
   });
 
-  // Increment usage count - SKIP IN BETA MODE for match analysis
-  if (!config.features.betaMode) {
+  // Increment usage count - SKIP IN BETA MODE or when credit system is enabled
+  if (!config.features.betaMode && !config.features.enableCreditSystem) {
     incrementUsage(userTier);
   }
 
@@ -808,8 +812,8 @@ export async function analyzeBias(
     );
   }
 
-  // Check usage limits - SKIP IN BETA MODE for bias analysis
-  if (!config.features.betaMode) {
+  // Check usage limits - SKIP IN BETA MODE or when credit system is enabled
+  if (!config.features.betaMode && !config.features.enableCreditSystem) {
     const usageCheck = checkUsageLimit(userTier);
     if (!usageCheck.canUse) {
       throw new Error(usageCheck.message);
@@ -825,8 +829,8 @@ export async function analyzeBias(
   const selection = selectProviderForTier(userTier);
   logger.info(`Selected provider: ${selection.provider} - ${selection.reason}`);
 
-  // Increment usage count - SKIP IN BETA MODE for bias analysis
-  if (!config.features.betaMode) {
+  // Increment usage count - SKIP IN BETA MODE or when credit system is enabled
+  if (!config.features.betaMode && !config.features.enableCreditSystem) {
     incrementUsage(userTier);
   }
 
@@ -913,8 +917,8 @@ export async function generateInterviewQuestions(
     );
   }
 
-  // Check usage limits - SKIP IN BETA MODE for interview questions
-  if (!config.features.betaMode) {
+  // Check usage limits - SKIP IN BETA MODE or when credit system is enabled
+  if (!config.features.betaMode && !config.features.enableCreditSystem) {
     const usageCheck = checkUsageLimit(userTier);
     if (!usageCheck.canUse) {
       throw new Error(usageCheck.message);
@@ -930,8 +934,8 @@ export async function generateInterviewQuestions(
   const selection = selectProviderForTier(userTier);
   logger.info(`Selected provider: ${selection.provider} - ${selection.reason}`);
 
-  // Increment usage count - SKIP IN BETA MODE for interview questions
-  if (!config.features.betaMode) {
+  // Increment usage count - SKIP IN BETA MODE or when credit system is enabled
+  if (!config.features.betaMode && !config.features.enableCreditSystem) {
     incrementUsage(userTier);
   }
 
@@ -1039,8 +1043,8 @@ export async function generateInterviewScript(
     );
   }
 
-  // Check usage limits - SKIP IN BETA MODE for interview script
-  if (!config.features.betaMode) {
+  // Check usage limits - SKIP IN BETA MODE or when credit system is enabled
+  if (!config.features.betaMode && !config.features.enableCreditSystem) {
     const usageCheck = checkUsageLimit(userTier);
     if (!usageCheck.canUse) {
       throw new Error(usageCheck.message);
@@ -1056,8 +1060,8 @@ export async function generateInterviewScript(
   const selection = selectProviderForTier(userTier);
   logger.info(`Selected provider: ${selection.provider} - ${selection.reason}`);
 
-  // Increment usage count - SKIP IN BETA MODE for interview script
-  if (!config.features.betaMode) {
+  // Increment usage count - SKIP IN BETA MODE or when credit system is enabled
+  if (!config.features.betaMode && !config.features.enableCreditSystem) {
     incrementUsage(userTier);
   }
 

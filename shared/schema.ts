@@ -841,6 +841,35 @@ export interface ValidationError {
   code: string;
 }
 
+// Credit System tables
+export const userCredits = pgTable("user_credits", {
+  userId: text("user_id").primaryKey(), // Firebase UID
+  credits: integer("credits").notNull().default(0),
+  totalCreditsPurchased: integer("total_credits_purchased").notNull().default(0),
+  totalCreditsUsed: integer("total_credits_used").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const creditTransactions = pgTable("credit_transactions", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => userCredits.userId, { onDelete: 'cascade' }),
+  transactionType: varchar("transaction_type", { length: 20 }).notNull(), // 'debit', 'credit', 'grant', 'refund'
+  amount: integer("amount").notNull(), // positive for credits added, negative for credits used
+  balanceBefore: integer("balance_before").notNull(),
+  balanceAfter: integer("balance_after").notNull(),
+  description: text("description").notNull(),
+  referenceId: text("reference_id"), // analysis_id, purchase_id, batch_id, etc.
+  metadata: json("metadata").$type<{
+    source?: string;
+    version?: string;
+    grant_type?: string;
+    analysis_batch_id?: string;
+    [key: string]: any;
+  }>().default({}),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Token Usage System types
 export type UserApiLimits = typeof userApiLimits.$inferSelect;
 export type InsertUserApiLimits = typeof userApiLimits.$inferInsert;
@@ -856,6 +885,13 @@ export type InsertUsageStatistics = typeof usageStatistics.$inferInsert;
 
 export type AITokenUsageLog = typeof aiTokenUsageLogs.$inferSelect;
 export type InsertAITokenUsageLog = typeof aiTokenUsageLogs.$inferInsert;
+
+// Credit System types
+export type UserCredit = typeof userCredits.$inferSelect;
+export type InsertUserCredit = typeof userCredits.$inferInsert;
+
+export type CreditTransaction = typeof creditTransactions.$inferSelect;
+export type InsertCreditTransaction = typeof creditTransactions.$inferInsert;
 
 // Token usage interfaces
 export interface TokenGenerationRequest {

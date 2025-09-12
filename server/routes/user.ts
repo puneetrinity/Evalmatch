@@ -17,11 +17,35 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const { getUserTierInfo } = await import("../lib/user-tiers");
+      const { config } = await import("../config/unified-config");
       const userTier = getUserTierInfo(req.user!.uid);
+
+      // Include credit information if credit system is enabled
+      let creditInfo = null;
+      if (config.features.enableCreditSystem) {
+        try {
+          const { creditService } = await import("../services/credit-service");
+          const creditResult = await creditService.getUserCredits(req.user!.uid);
+          if (creditResult.success) {
+            creditInfo = {
+              credits: creditResult.credits,
+              analysisCreditsPerResume: 1
+            };
+          }
+        } catch (creditError) {
+          logger.warn("Failed to get credit information for user tier:", creditError);
+          // Continue without credit info - not critical
+        }
+      }
 
       res.json({
         status: "ok",
         tier: userTier,
+        creditSystem: {
+          enabled: config.features.enableCreditSystem,
+          betaMode: config.features.betaMode,
+          credits: creditInfo
+        },
         timestamp: new Date().toISOString(),
       });
     } catch (error) {

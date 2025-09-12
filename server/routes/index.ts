@@ -17,6 +17,8 @@ import batchRoutes from "./batches";
 import versionRoutes from "./version";
 import { monitoringRouter } from "./monitoring";
 import { tokensRouter } from "./tokens";
+import creditsRoutes from "./credits";
+import authTrackingRoutes from "./auth-tracking";
 
 /**
  * Register all modular routes with the Express app
@@ -47,6 +49,12 @@ function registerV1Routes(app: Express): void {
   
   // Token management routes
   app.use("/api/v1/tokens", tokensRouter);
+
+  // Credit system routes
+  app.use("/api/v1/credits", creditsRoutes);
+
+  // Auth tracking routes
+  app.use("/api/v1", authTrackingRoutes);
 
   // Resume management routes
   app.use("/api/v1/resumes", resumeRoutes);
@@ -87,6 +95,12 @@ function registerLegacyRoutes(app: Express): void {
   // Token management routes (legacy)
   app.use("/api/tokens", tokensRouter);
 
+  // Credit system routes (legacy)
+  app.use("/api/credits", creditsRoutes);
+
+  // Auth tracking routes (legacy)
+  app.use("/api", authTrackingRoutes);
+
   // Resume management routes
   app.use("/api/resumes", resumeRoutes);
 
@@ -121,11 +135,12 @@ export function getRoutesSummary(): {
   };
 } {
   return {
-    totalModules: 9,
+    totalModules: 10,
     modules: [
       "health (5 routes)",
       "user (2 routes)",
       "tokens (6 routes)",
+      "credits (6 routes)",
       "resumes (4 routes)",
       "batches (6 routes)",
       "jobs (5 routes)",
@@ -133,10 +148,10 @@ export function getRoutesSummary(): {
       "admin (5 routes)",
       "debug (6 routes)",
     ],
-    estimatedRoutes: 90, // Double routes for v1 + legacy support
+    estimatedRoutes: 102, // Double routes for v1 + legacy support
     versioning: {
-      v1Routes: 45,
-      legacyRoutes: 45,
+      v1Routes: 51,
+      legacyRoutes: 51,
       deprecationNotice: "Legacy /api/* routes are deprecated. Use /api/v1/* instead."
     }
   };
