@@ -75,7 +75,7 @@ export default function HomePage() {
                   </div>
                   <div className="flex items-center">
                     <Users className="h-4 w-4 mr-1 text-primary" />
-                    <span>500+ companies trust us</span>
+                    <span>100+ recruiters trust us</span>
                   </div>
                   <div className="flex items-center">
                     <CheckCircle2 className="h-4 w-4 mr-1 text-green-500" />
@@ -152,8 +152,8 @@ export default function HomePage() {
                 <div className="text-blue-100">Time Saved</div>
               </div>
               <div className="space-y-2">
-                <div className="text-4xl font-bold">500+</div>
-                <div className="text-blue-100">Companies</div>
+                <div className="text-4xl font-bold">100+</div>
+                <div className="text-blue-100">Recruiters</div>
               </div>
               <div className="space-y-2">
                 <div className="text-4xl font-bold">50K+</div>
@@ -433,7 +433,7 @@ export default function HomePage() {
                   Ready to Transform Your Hiring Process?
                 </h2>
                 <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
-                  Join 500+ companies using AI to eliminate bias and find the best candidates faster than ever before.
+                  Join 100+ recruiters using AI to eliminate bias and find the best candidates faster than ever before.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
                   <Button 
