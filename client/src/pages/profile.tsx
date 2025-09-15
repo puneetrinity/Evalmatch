@@ -5,6 +5,8 @@
  */
 
 import React from 'react';
+import Header from '@/components/layout/header';
+import Footer from '@/components/layout/footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,27 +42,39 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Card>
-          <CardContent className="flex items-center justify-center h-32">
-            <p className="text-muted-foreground">Please sign in to view your profile.</p>
-          </CardContent>
-        </Card>
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-grow">
+          <div className="container mx-auto px-4 py-8">
+            <Card>
+              <CardContent className="flex items-center justify-center h-32">
+                <p className="text-muted-foreground">Please sign in to view your profile.</p>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }
 
   if (profileLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="space-y-6">
-          {/* Loading skeleton */}
-          <div className="animate-pulse bg-muted rounded-lg h-32"></div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="animate-pulse bg-muted rounded-lg h-48"></div>
-            <div className="animate-pulse bg-muted rounded-lg h-48"></div>
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-grow">
+          <div className="container mx-auto px-4 py-8">
+            <div className="space-y-6">
+              {/* Loading skeleton */}
+              <div className="animate-pulse bg-muted rounded-lg h-32"></div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="animate-pulse bg-muted rounded-lg h-48"></div>
+                <div className="animate-pulse bg-muted rounded-lg h-48"></div>
+              </div>
+            </div>
           </div>
-        </div>
+        </main>
+        <Footer />
       </div>
     );
   }
@@ -93,7 +107,10 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
+    <div className="flex flex-col min-h-screen">
+      <Header />
+      <main className="flex-grow">
+        <div className="container mx-auto px-4 py-8 space-y-6">
       {/* Profile Header */}
       <Card>
         <CardContent className="p-6">
@@ -265,6 +282,9 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+        </div>
+      </main>
+      <Footer />
     </div>
   );
 }
