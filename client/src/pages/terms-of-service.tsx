@@ -14,7 +14,7 @@ export default function TermsOfService() {
           <section className="mb-8">
             <h2 className="text-xl font-semibold mb-3">1. Introduction</h2>
             <p>
-              Welcome to EvalMatchAI ("we", "our", or "us"). By accessing or using our semantic matching
+              Welcome to EvalMatch by AirevoLabs ("we", "our", or "us"). By accessing or using our semantic matching
               service for resume analysis and job matching (the "Service"), you agree to be bound by these Terms of Service 
               ("Terms"). Please read these Terms carefully before using the Service.
             </p>
@@ -27,7 +27,7 @@ export default function TermsOfService() {
           <section className="mb-8">
             <h2 className="text-xl font-semibold mb-3">2. Service Description</h2>
             <p>
-              EvalMatchAI provides a semantic matching platform that analyzes resumes and job descriptions to 
+              EvalMatch provides a semantic matching platform that analyzes resumes and job descriptions to 
               assess compatibility, detect potential bias in job descriptions, and generate tailored interview 
               questions. The Service is provided on an "as is" and "as available" basis.
             </p>
@@ -139,8 +139,9 @@ export default function TermsOfService() {
               If you have any questions about these Terms, please contact us at:
             </p>
             <p className="mt-2">
-              <strong>Email:</strong> terms@talentmateai.com<br />
-              <strong>Address:</strong> TalentMate AI, 123 AI Boulevard, Tech Valley, CA 94000
+              <strong>Email:</strong> hello@airevolabs.co.in<br />
+              <strong>Phone:</strong> +91-8447774595<br />
+              <strong>Company:</strong> AirevoLabs
             </p>
           </section>
         </div>

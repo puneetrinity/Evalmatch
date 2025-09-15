@@ -64,7 +64,7 @@ export default function Feedback() {
         <Card className="mb-8">
           <CardContent className="pt-6">
             <p className="text-gray-600 mb-6">
-              We value your feedback on TalentMate AI. Please let us know about your experience 
+              We value your feedback on EvalMatch. Please let us know about your experience 
               using our platform. Your insights help us improve our services and better meet your needs.
             </p>
             
@@ -172,7 +172,7 @@ export default function Feedback() {
                 <h2 className="text-2xl font-bold mb-2">Thank You!</h2>
                 <p className="text-gray-600 mb-6">
                   Your feedback has been submitted successfully. We appreciate your 
-                  time and input to help us improve TalentMate AI.
+                  time and input to help us improve EvalMatch.
                 </p>
                 <Button onClick={() => setIsSubmitted(false)}>
                   Submit Another Response
@@ -192,13 +192,13 @@ export default function Feedback() {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              <span>support@talentmateai.com</span>
+              <span>hello@airevolabs.co.in</span>
             </li>
             <li className="flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
               </svg>
-              <span>(555) 123-4567</span>
+              <span>+91-8447774595</span>
             </li>
           </ul>
         </div>

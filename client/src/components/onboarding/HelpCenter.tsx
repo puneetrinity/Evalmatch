@@ -272,7 +272,7 @@ export function HelpCenter({ triggerButton }: { triggerButton?: React.ReactNode 
                 <AccordionItem value="faq-7">
                   <AccordionTrigger>What AI models are used for analysis?</AccordionTrigger>
                   <AccordionContent>
-                    TalentMate AI uses OpenAI's models as the primary provider, with Anthropic Claude as a secondary provider for certain analyses.
+                    EvalMatch uses OpenAI's models as the primary provider, with Anthropic Claude as a secondary provider for certain analyses.
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>

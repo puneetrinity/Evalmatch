@@ -14,7 +14,7 @@ export default function PrivacyPolicy() {
           <section className="mb-8">
             <h2 className="text-xl font-semibold mb-3">1. Introduction</h2>
             <p>
-              At TalentMate AI ("we", "our", or "us"), we respect your privacy and are committed to protecting 
+              At EvalMatch by AirevoLabs ("we", "our", or "us"), we respect your privacy and are committed to protecting 
               your personal data. This privacy policy explains how we collect, use, and safeguard your information 
               when you use our resume analysis and job matching service.
             </p>
@@ -122,8 +122,9 @@ export default function PrivacyPolicy() {
               If you have any questions about this privacy policy or our data practices, please contact us at:
             </p>
             <p className="mt-2">
-              <strong>Email:</strong> privacy@talentmateai.com<br />
-              <strong>Address:</strong> TalentMate AI, 123 AI Boulevard, Tech Valley, CA 94000
+              <strong>Email:</strong> hello@airevolabs.co.in<br />
+              <strong>Phone:</strong> +91-8447774595<br />
+              <strong>Company:</strong> AirevoLabs
             </p>
           </section>
         </div>
