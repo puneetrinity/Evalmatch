@@ -120,6 +120,13 @@ function Router() {
           </Suspense>
         </RequireAuth>
       </Route>
+      <Route path="/profile">
+        <RequireAuth>
+          <Suspense fallback={<PageLoader />}>
+            <ProfilePage />
+          </Suspense>
+        </RequireAuth>
+      </Route>
       
       <Route component={NotFound} />
     </Switch>
