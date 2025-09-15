@@ -173,20 +173,39 @@ async function processLoginRewards(
       }
     }
 
-    // Daily login bonus (2 credits)
-    // TODO: Add logic to check if user already got daily bonus today
+    // Daily login bonus (2 credits) with idempotency check
     const dailyBonusAmount = 2;
-    const dailyBonusResult = await creditService.addCredits(
-      userId,
-      dailyBonusAmount,
-      'Daily login bonus',
-      'grant',
-      `daily_login_${new Date().toISOString().split('T')[0]}`, // Date-based reference ID
-      {
-        login_streak: loginStreak,
-        reward_type: 'daily_login'
-      }
-    );
+    const dailyReferenceId = `daily_login_${new Date().toISOString().split('T')[0]}`; // Date-based reference ID
+    
+    // Pre-check for existing daily grant to avoid DB constraint errors
+    const existingDailyGrant = await creditService.getCreditHistory(userId, 1, 100)
+      .then(history => history?.transactions.find(t => 
+        t.referenceId === dailyReferenceId && t.type === 'grant'
+      ));
+    
+    let dailyBonusResult;
+    if (existingDailyGrant) {
+      // Already granted today, return success without error
+      dailyBonusResult = {
+        success: true,
+        credits: existingDailyGrant.balanceAfter,
+        message: 'Daily bonus already granted'
+      };
+      logger.info("Daily bonus already granted for user", { userId, date: new Date().toISOString().split('T')[0] });
+    } else {
+      // Grant new daily bonus
+      dailyBonusResult = await creditService.addCredits(
+        userId,
+        dailyBonusAmount,
+        'Daily login bonus',
+        'grant',
+        dailyReferenceId,
+        {
+          login_streak: loginStreak,
+          reward_type: 'daily_login'
+        }
+      );
+    }
 
     if (dailyBonusResult.success) {
       logger.info("Daily login bonus granted", {

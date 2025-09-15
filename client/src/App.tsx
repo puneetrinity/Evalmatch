@@ -24,6 +24,7 @@ const TermsOfService = lazy(() => import("./pages/terms-of-service"));
 const Feedback = lazy(() => import("./pages/feedback"));
 const MyResumesPage = lazy(() => import("./pages/my-resumes"));
 const MyAnalysesPage = lazy(() => import("./pages/my-analyses"));
+const ProfilePage = lazy(() => import("./pages/profile"));
 
 // Lazy load onboarding components
 const Welcome = lazy(() => import("@/components/onboarding").then(m => ({ default: m.Welcome })));

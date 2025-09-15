@@ -28,9 +28,15 @@ router.get(
       const result = await creditService.getUserCredits(userId);
       
       if (result.success) {
+        // Get totals from credit history (lightweight query)
+        const historyResult = await creditService.getCreditHistory(userId, 1, 1);
+        
         res.json({
           status: "success",
           credits: result.credits,
+          totalPurchased: historyResult?.totalPurchased || 0,
+          totalUsed: historyResult?.totalUsed || 0,
+          tier: req.user!.tier || 'testing',
           timestamp: new Date().toISOString(),
         });
       } else {
@@ -226,32 +232,46 @@ router.get(
         });
       }
 
+      // Indian market pricing in INR (paise for Razorpay compatibility)
       const packages = [
         {
-          id: 'basic',
-          name: 'Basic Package',
+          id: 'starter-in',
+          name: 'Starter Pack',
           credits: 100,
-          price: 999, // cents
-          priceDisplay: '$9.99',
-          popular: false
-        },
-        {
-          id: 'standard',
-          name: 'Standard Package',
-          credits: 250,
-          price: 1999, // cents
-          priceDisplay: '$19.99',
-          popular: true,
-          savings: '16%'
-        },
-        {
-          id: 'premium',
-          name: 'Premium Package',
-          credits: 500,
-          price: 3499, // cents
-          priceDisplay: '$34.99',
+          price: 99900, // paise (₹999)
+          priceDisplay: '₹999',
+          currency: 'INR',
+          pricePerCredit: 9.99,
           popular: false,
-          savings: '30%'
+          description: 'Perfect for trying out the platform'
+        },
+        {
+          id: 'professional-in',
+          name: 'Professional Pack',
+          credits: 500,
+          price: 399900, // paise (₹3999)
+          priceDisplay: '₹3999',
+          currency: 'INR',
+          pricePerCredit: 7.99,
+          popular: true,
+          bonus: 50,
+          bonusDisplay: '+50 bonus credits',
+          savings: '20%',
+          description: 'Most popular choice for active recruiters'
+        },
+        {
+          id: 'enterprise-in',
+          name: 'Enterprise Pack',
+          credits: 1000,
+          price: 699900, // paise (₹6999)
+          priceDisplay: '₹6999',
+          currency: 'INR',
+          pricePerCredit: 6.99,
+          popular: false,
+          bonus: 200,
+          bonusDisplay: '+200 bonus credits',
+          savings: '30%',
+          description: 'Best value for high-volume recruiting'
         }
       ];
       

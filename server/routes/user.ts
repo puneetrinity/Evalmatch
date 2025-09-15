@@ -10,6 +10,71 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 
+// User profile endpoint - Get user's profile information
+router.get(
+  "/profile",
+  authenticateUser,
+  async (req: Request, res: Response) => {
+    try {
+      const user = req.user!;
+      const { config } = await import("../config/unified-config");
+      
+      // Build profile response
+      const profile = {
+        uid: user.uid,
+        displayName: user.displayName || user.email?.split('@')[0] || 'User',
+        email: user.email || '',
+        photoURL: user.photoURL || null,
+        emailVerified: user.emailVerified || false,
+        // Firebase metadata
+        createdAt: user.metadata?.creationTime || null,
+        lastLoginAt: user.metadata?.lastSignInTime || null,
+        // Application-specific
+        tier: user.tier || 'testing',
+        country: 'IN', // Default to India for payment gateway
+        currency: 'INR', // Default currency
+        // Placeholder fields for future expansion
+        company: null as string | null,
+        title: null as string | null,
+        phone: null as string | null,
+      };
+      
+      // Include credit information if enabled
+      if (config.features.enableCreditSystem) {
+        try {
+          const { creditService } = await import("../services/credit-service");
+          const creditResult = await creditService.getUserCredits(user.uid);
+          const historyResult = await creditService.getCreditHistory(user.uid, 1, 1);
+          
+          if (creditResult.success && historyResult) {
+            profile['creditSummary'] = {
+              balance: creditResult.credits || 0,
+              totalPurchased: historyResult.totalPurchased || 0,
+              totalUsed: historyResult.totalUsed || 0,
+            };
+          }
+        } catch (creditError) {
+          logger.warn("Failed to get credit information for profile:", creditError);
+          // Continue without credit info - not critical
+        }
+      }
+      
+      res.json({
+        success: true,
+        profile
+      });
+      
+    } catch (error) {
+      logger.error("Profile fetch failed:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get user profile",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
 // User tier endpoint - Get user's subscription tier and limits
 router.get(
   "/user-tier",
