@@ -19,6 +19,7 @@ import { monitoringRouter } from "./monitoring";
 import { tokensRouter } from "./tokens";
 import creditsRoutes from "./credits";
 import authTrackingRoutes from "./auth-tracking";
+import webhooksRoutes from "./webhooks";
 
 /**
  * Register all modular routes with the Express app
@@ -55,6 +56,9 @@ function registerV1Routes(app: Express): void {
 
   // Auth tracking routes
   app.use("/api/v1", authTrackingRoutes);
+
+  // Webhook routes
+  app.use("/api/v1/webhooks", webhooksRoutes);
 
   // Resume management routes
   app.use("/api/v1/resumes", resumeRoutes);
@@ -100,6 +104,9 @@ function registerLegacyRoutes(app: Express): void {
 
   // Auth tracking routes (legacy)
   app.use("/api", authTrackingRoutes);
+
+  // Webhook routes (legacy)
+  app.use("/api/webhooks", webhooksRoutes);
 
   // Resume management routes
   app.use("/api/resumes", resumeRoutes);
