@@ -124,11 +124,6 @@ app.use('/api', cors(corsOptions));
 // Add API versioning middleware
 app.use('/api', apiVersioningMiddleware);
 
-// Use raw body parsing for webhook endpoints (for signature validation)
-app.use('/api/webhooks', express.raw({ type: 'application/json' }));
-app.use('/api/v1/webhooks', express.raw({ type: 'application/json' }));
-
-// Use JSON parsing for all other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
