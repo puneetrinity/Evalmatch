@@ -40,7 +40,7 @@ export default function UploadPageWithTooltips() {
               <h3 className="text-lg font-semibold mb-2">Upload Resumes</h3>
               <p className="text-gray-500 mb-4">Drag and drop files here or click to browse</p>
               <Button className="mb-2">Select Files</Button>
-              <p className="text-xs text-gray-400">Maximum 100 files, 5MB each</p>
+              <p className="text-xs text-gray-400">Maximum 10 files, 5MB each</p>
             </CardContent>
           </Card>
         </FeatureTooltip>

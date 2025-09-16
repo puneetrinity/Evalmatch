@@ -230,7 +230,7 @@ export function HelpCenter({ triggerButton }: { triggerButton?: React.ReactNode 
                 <AccordionItem value="faq-1">
                   <AccordionTrigger>How many resumes can I upload at once?</AccordionTrigger>
                   <AccordionContent>
-                    You can upload up to 100 resumes in a single session.
+                    You can upload up to 10 resumes in a single session.
                   </AccordionContent>
                 </AccordionItem>
                 
