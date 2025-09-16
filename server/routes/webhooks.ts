@@ -60,14 +60,23 @@ router.post("/mautic", async (req: Request, res: Response) => {
     if (process.env.MAUTIC_WEBHOOK_SECRET) {
       const signature = req.headers['x-mautic-signature'] || req.headers['x-hub-signature'];
       
+      // Use raw body for signature validation (req.body is already parsed JSON)
+      const rawBody = (req as any).rawBody || JSON.stringify(payload);
+      
       logger.info("Webhook signature validation", {
         hasSecret: !!process.env.MAUTIC_WEBHOOK_SECRET,
         hasSignature: !!signature,
-        signatureHeader: signature ? 'present' : 'missing'
+        signatureHeader: signature ? 'present' : 'missing',
+        bodyLength: rawBody.length
       });
       
-      if (!validateMauticSignature(JSON.stringify(payload), signature as string)) {
-        logger.warn("Invalid Mautic webhook signature", { ip: req.ip, signature });
+      if (!validateMauticSignature(rawBody, signature as string)) {
+        logger.warn("Invalid Mautic webhook signature", { 
+          ip: req.ip, 
+          signature,
+          bodyLength: rawBody.length,
+          bodyPreview: rawBody.substring(0, 100) + "..."
+        });
         return res.status(401).json({ error: "Invalid signature" });
       }
     } else {
