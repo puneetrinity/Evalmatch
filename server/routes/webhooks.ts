@@ -46,7 +46,10 @@ interface ContactSyncData {
  */
 router.post("/mautic", async (req: Request, res: Response) => {
   try {
-    const payload: MauticWebhookPayload = req.body;
+    // req.body is a Buffer when using express.raw()
+    const rawBody = req.body as Buffer;
+    const rawBodyString = rawBody.toString('utf8');
+    const payload: MauticWebhookPayload = JSON.parse(rawBodyString);
     
     logger.info("Received Mautic webhook", {
       event: payload.event,
@@ -61,28 +64,20 @@ router.post("/mautic", async (req: Request, res: Response) => {
     if (process.env.MAUTIC_WEBHOOK_SECRET) {
       const signature = req.headers['webhook-signature'];
       
-      // Use raw body for signature validation (captured before JSON parsing)
-      const rawBody = (req as any).rawBody;
-      
-      if (!rawBody) {
-        logger.error("Raw body not available for signature validation");
-        return res.status(500).json({ error: "Server configuration error" });
-      }
-      
       logger.info("Webhook signature validation", {
         hasSecret: !!process.env.MAUTIC_WEBHOOK_SECRET,
         hasSignature: !!signature,
         signatureHeader: signature ? 'present' : 'missing',
-        rawBodyLength: rawBody.length,
+        rawBodyLength: rawBodyString.length,
         parsedBodyLength: JSON.stringify(payload).length
       });
       
-      if (!validateMauticSignature(rawBody, signature as string)) {
+      if (!validateMauticSignature(rawBodyString, signature as string)) {
         logger.warn("Invalid Mautic webhook signature", { 
           ip: req.ip, 
           signature,
-          bodyLength: rawBody.length,
-          bodyPreview: rawBody.substring(0, 100) + "..."
+          bodyLength: rawBodyString.length,
+          bodyPreview: rawBodyString.substring(0, 100) + "..."
         });
         return res.status(401).json({ error: "Invalid signature" });
       }
