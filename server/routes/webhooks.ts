@@ -56,10 +56,9 @@ router.post("/mautic", async (req: Request, res: Response) => {
       ip: req.ip
     });
 
-    // Temporarily disable signature validation for testing
-    // TODO: Re-enable signature validation once Mautic webhook format is confirmed
-    if (false && process.env.MAUTIC_WEBHOOK_SECRET) {
-      const signature = req.headers['x-mautic-signature'] || req.headers['x-hub-signature'];
+    // Validate webhook authenticity if secret is configured
+    if (process.env.MAUTIC_WEBHOOK_SECRET) {
+      const signature = req.headers['webhook-signature'];
       
       // Use raw body for signature validation (req.body is already parsed JSON)
       const rawBody = (req as any).rawBody || JSON.stringify(payload);
@@ -359,23 +358,23 @@ function validateMauticSignature(payload: string, signature: string): boolean {
   
   try {
     const crypto = require('crypto');
+    
+    // Mautic uses base64-encoded HMAC-SHA256 (not hex like GitHub)
     const expectedSignature = crypto
       .createHmac('sha256', process.env.MAUTIC_WEBHOOK_SECRET)
       .update(payload)
-      .digest('hex');
+      .digest('base64');
     
-    // Support both GitHub-style (sha256=) and raw hex formats
-    const providedSignature = signature.startsWith('sha256=') 
-      ? signature.slice(7) 
-      : signature;
-    
+    // Mautic sends raw base64 signature in Webhook-Signature header
     return crypto.timingSafeEqual(
-      Buffer.from(expectedSignature, 'hex'),
-      Buffer.from(providedSignature, 'hex')
+      Buffer.from(expectedSignature, 'base64'),
+      Buffer.from(signature, 'base64')
     );
   } catch (error) {
     logger.error("Signature validation error", {
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
+      signature,
+      signatureLength: signature?.length
     });
     return false;
   }
