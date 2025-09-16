@@ -79,7 +79,7 @@ router.post("/mautic", async (req: Request, res: Response) => {
         return res.status(401).json({ error: "Invalid signature" });
       }
     } else {
-      logger.info("Webhook signature validation skipped - no secret configured");
+      logger.info("Webhook signature validation temporarily disabled for testing");
     }
 
     // Extract contact data (Mautic uses either 'contact' or 'lead')
