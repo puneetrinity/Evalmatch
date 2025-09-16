@@ -31,12 +31,15 @@ router.get(
         // Get totals from credit history (lightweight query)
         const historyResult = await creditService.getCreditHistory(userId, 1, 1);
         
+        // Determine tier based on credits
+        const tier = (result.credits && result.credits > 0) ? 'premium' : 'freemium';
+        
         res.json({
           status: "success",
           credits: result.credits,
           totalPurchased: historyResult?.totalPurchased || 0,
           totalUsed: historyResult?.totalUsed || 0,
-          tier: 'testing', // req.user!.tier || 'testing',
+          tier: tier,
           timestamp: new Date().toISOString(),
         });
       } else {

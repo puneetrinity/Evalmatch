@@ -332,7 +332,7 @@ export class ResumeService {
       
       // Perform analysis if requested
       if (autoAnalyze && extractedText.trim().length > 0) {
-        const userTierInfo = getUserTierInfo(userId);
+        const userTierInfo = await getUserTierInfo(userId);
         const analysisResult = await analyzeResumeWithCache(extractedText, userTierInfo);
         
         if (isSuccess(analysisResult)) {
@@ -701,7 +701,7 @@ export class ResumeService {
       return failure(AppValidationError.requiredField('content'));
     }
 
-    const userTierInfo = getUserTierInfo(userId);
+    const userTierInfo = await getUserTierInfo(userId);
     const analysisResult = await analyzeResumeWithCache(resume.content, userTierInfo);
     
     if (isFailure(analysisResult)) {

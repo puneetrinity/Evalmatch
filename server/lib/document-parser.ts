@@ -589,6 +589,11 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
+    // Additional safety check: Prevent processing extremely large files
+    if (buffer.length > 50 * 1024 * 1024) { // 50MB limit
+      throw new Error(`PDF file too large for processing: ${Math.round(buffer.length / 1024 / 1024)}MB (max: 50MB)`);
+    }
+
     // Save the PDF buffer to a temporary file
     const pdfPath = path.join(tempDir, `${fileId}.pdf`);
     const txtPath = path.join(tempDir, `${fileId}.txt`);
@@ -656,7 +661,13 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
 
           // First try pdftotext which preserves layout better
           try {
-            await execAsync(`pdftotext -layout "${pdfPath}" "${txtPath}"`);
+            // Add timeout to prevent hanging on corrupted PDFs
+            const pdfTextPromise = execAsync(`pdftotext -layout "${pdfPath}" "${txtPath}"`);
+            const timeoutPromise = new Promise<never>((_, reject) => {
+              setTimeout(() => reject(new Error("pdftotext timeout (15s)")), 15000);
+            });
+            
+            await Promise.race([pdfTextPromise, timeoutPromise]);
             const pdftotextOutput = fs.readFileSync(txtPath, "utf8");
 
             if (pdftotextOutput.length > 50) {
@@ -682,9 +693,15 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
               method: 'strings',
               reason: 'pdftotext not available' 
             });
-            const { stdout: _stdout } = await execAsync(
-              `strings -n 3 "${pdfPath}" | grep -v '^[[:space:]]*$' > "${txtPath}"`,
+            // Add timeout to strings command to prevent hanging
+            const stringsPromise = execAsync(
+              `strings -n 3 "${pdfPath}" | grep -v '^[[:space:]]*$' > "${txtPath}"`
             );
+            const stringsTimeoutPromise = new Promise<never>((_, reject) => {
+              setTimeout(() => reject(new Error("strings command timeout (10s)")), 10000);
+            });
+            
+            const { stdout: _stdout } = await Promise.race([stringsPromise, stringsTimeoutPromise]);
             const stringOutput = fs.readFileSync(txtPath, "utf8");
 
             const sampleText =

@@ -18,6 +18,16 @@ router.get(
     try {
       const user = req.user!;
       const { config } = await import("../config/unified-config");
+      const { getUserTierInfo } = await import("../lib/user-tiers");
+      
+      // Get user's tier based on credits if credit system is enabled
+      let userTier = 'testing';
+      try {
+        const tierInfo = await getUserTierInfo(user.uid);
+        userTier = tierInfo.tier;
+      } catch (error) {
+        logger.warn("Failed to get user tier, defaulting to 'testing':", error);
+      }
       
       // Build profile response
       const profile = {
@@ -30,7 +40,7 @@ router.get(
         createdAt: null, // user.metadata?.creationTime || null,
         lastLoginAt: null, // user.metadata?.lastSignInTime || null,
         // Application-specific
-        tier: 'testing', // user.tier || 'testing',
+        tier: userTier,
         country: 'IN', // Default to India for payment gateway
         currency: 'INR', // Default currency
         // Placeholder fields for future expansion
@@ -83,7 +93,7 @@ router.get(
     try {
       const { getUserTierInfo } = await import("../lib/user-tiers");
       const { config } = await import("../config/unified-config");
-      const userTier = getUserTierInfo(req.user!.uid);
+      const userTier = await getUserTierInfo(req.user!.uid);
 
       // Include credit information if credit system is enabled
       let creditInfo = null;

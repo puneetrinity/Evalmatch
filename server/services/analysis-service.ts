@@ -289,7 +289,7 @@ export class AnalysisService {
     logger.info(`Found ${resumes.length} resumes to analyze against job ${jobId}`);
 
     // Get user tier for AI provider selection
-    const userTierInfo = getUserTierInfo(userId);
+    const userTierInfo = await getUserTierInfo(userId);
 
     // Credit system: Check and deduct credits if enabled
     if (config.features.enableCreditSystem && !config.features.betaMode) {
@@ -676,7 +676,7 @@ export class AnalysisService {
     }
 
     // Perform new analysis (similar to batch logic)
-    const _userTierInfo = getUserTierInfo(userId);
+    const _userTierInfo = await getUserTierInfo(userId);
     
     // This would use the same analysis logic as the batch method
     // For brevity, returning a placeholder - in practice, extract common analysis logic
@@ -866,7 +866,7 @@ export class AnalysisService {
 
     try {
       // Get user tier info
-      const userTierInfo = getUserTierInfo(userId);
+      const userTierInfo = await getUserTierInfo(userId);
 
       // Get or ensure analysis data
       let resumeAnalysis = resume.analyzedData;
@@ -1012,7 +1012,7 @@ export class AnalysisService {
 
     try {
       // Get user tier info
-      const userTierInfo = getUserTierInfo(userId);
+      const userTierInfo = await getUserTierInfo(userId);
 
       // Perform bias analysis using the working AI provider implementation
       const { analyzeBias } = await import("../lib/tiered-ai-provider");
