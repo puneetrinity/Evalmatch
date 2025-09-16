@@ -8,6 +8,7 @@ import { logger } from "../lib/logger";
 import { config } from "../config/unified-config";
 import { creditService } from "../services/credit-service";
 import { createUserService } from "../services/user-service";
+import crypto from "crypto";
 
 const router = Router();
 
@@ -357,13 +358,18 @@ function validateMauticSignature(payload: string, signature: string): boolean {
   if (!signature || !process.env.MAUTIC_WEBHOOK_SECRET) return false;
   
   try {
-    const crypto = require('crypto');
-    
     // Mautic uses base64-encoded HMAC-SHA256 (not hex like GitHub)
     const expectedSignature = crypto
       .createHmac('sha256', process.env.MAUTIC_WEBHOOK_SECRET)
       .update(payload)
       .digest('base64');
+    
+    logger.info("Signature validation debug", {
+      expectedSignature,
+      providedSignature: signature,
+      payloadLength: payload.length,
+      payloadPreview: payload.substring(0, 100) + "..."
+    });
     
     // Mautic sends raw base64 signature in Webhook-Signature header
     return crypto.timingSafeEqual(
