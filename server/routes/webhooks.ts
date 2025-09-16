@@ -59,10 +59,19 @@ router.post("/mautic", async (req: Request, res: Response) => {
     // Validate webhook authenticity if secret is configured
     if (process.env.MAUTIC_WEBHOOK_SECRET) {
       const signature = req.headers['x-mautic-signature'] || req.headers['x-hub-signature'];
+      
+      logger.info("Webhook signature validation", {
+        hasSecret: !!process.env.MAUTIC_WEBHOOK_SECRET,
+        hasSignature: !!signature,
+        signatureHeader: signature ? 'present' : 'missing'
+      });
+      
       if (!validateMauticSignature(JSON.stringify(payload), signature as string)) {
-        logger.warn("Invalid Mautic webhook signature", { ip: req.ip });
+        logger.warn("Invalid Mautic webhook signature", { ip: req.ip, signature });
         return res.status(401).json({ error: "Invalid signature" });
       }
+    } else {
+      logger.info("Webhook signature validation skipped - no secret configured");
     }
 
     // Extract contact data (Mautic uses either 'contact' or 'lead')
