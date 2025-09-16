@@ -124,7 +124,15 @@ app.use('/api', cors(corsOptions));
 // Add API versioning middleware
 app.use('/api', apiVersioningMiddleware);
 
-app.use(express.json());
+// Capture raw body for webhook signature validation
+app.use(express.json({
+  verify: (req, res, buf, encoding) => {
+    // Store raw body for webhook endpoints
+    if (req.url && (req.url.includes('/webhooks') || req.url.includes('/webhook'))) {
+      (req as any).rawBody = buf.toString(encoding as BufferEncoding || 'utf8');
+    }
+  }
+}));
 app.use(express.urlencoded({ extended: false }));
 
 // PHASE 1: Fixed rate limiting with single Redis store (after body parsing)

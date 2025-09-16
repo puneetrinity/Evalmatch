@@ -57,29 +57,37 @@ router.post("/mautic", async (req: Request, res: Response) => {
       ip: req.ip
     });
 
-    // Temporarily disable signature validation to test core webhook functionality
-    // TODO: Re-enable once raw body parsing is working properly
-    if (false && process.env.MAUTIC_WEBHOOK_SECRET) {
+    // Validate webhook authenticity if secret is configured
+    if (process.env.MAUTIC_WEBHOOK_SECRET) {
       const signature = req.headers['webhook-signature'];
+      
+      // Get raw body for signature validation
+      const rawBody = (req as any).rawBody;
+      
+      if (!rawBody) {
+        logger.error("Raw body not captured for webhook signature validation");
+        return res.status(500).json({ error: "Server configuration error" });
+      }
       
       logger.info("Webhook signature validation", {
         hasSecret: !!process.env.MAUTIC_WEBHOOK_SECRET,
         hasSignature: !!signature,
         signatureHeader: signature ? 'present' : 'missing',
+        rawBodyLength: rawBody.length,
         parsedBodyLength: JSON.stringify(payload).length
       });
       
-      if (!validateMauticSignature(JSON.stringify(payload), signature as string)) {
+      if (!validateMauticSignature(rawBody, signature as string)) {
         logger.warn("Invalid Mautic webhook signature", { 
           ip: req.ip, 
           signature,
-          bodyLength: JSON.stringify(payload).length,
-          bodyPreview: JSON.stringify(payload).substring(0, 100) + "..."
+          bodyLength: rawBody.length,
+          bodyPreview: rawBody.substring(0, 100) + "..."
         });
         return res.status(401).json({ error: "Invalid signature" });
       }
     } else {
-      logger.info("Webhook signature validation temporarily disabled for testing");
+      logger.info("Webhook signature validation skipped - no secret configured");
     }
 
     // Extract contact data (Mautic uses either 'contact' or 'lead')
