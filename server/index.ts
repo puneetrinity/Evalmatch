@@ -124,6 +124,28 @@ app.use('/api', cors(corsOptions));
 // Add API versioning middleware
 app.use('/api', apiVersioningMiddleware);
 
+// Capture raw body for webhook signature validation before JSON parsing
+app.use('/api/webhooks', (req, res, next) => {
+  let rawBody = '';
+  req.on('data', (chunk) => {
+    rawBody += chunk.toString();
+  });
+  req.on('end', () => {
+    (req as any).rawBody = rawBody;
+    next();
+  });
+});
+app.use('/api/v1/webhooks', (req, res, next) => {
+  let rawBody = '';
+  req.on('data', (chunk) => {
+    rawBody += chunk.toString();
+  });
+  req.on('end', () => {
+    (req as any).rawBody = rawBody;
+    next();
+  });
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 

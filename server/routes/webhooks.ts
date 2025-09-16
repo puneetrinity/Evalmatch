@@ -61,14 +61,20 @@ router.post("/mautic", async (req: Request, res: Response) => {
     if (process.env.MAUTIC_WEBHOOK_SECRET) {
       const signature = req.headers['webhook-signature'];
       
-      // Use raw body for signature validation (req.body is already parsed JSON)
-      const rawBody = (req as any).rawBody || JSON.stringify(payload);
+      // Use raw body for signature validation (captured before JSON parsing)
+      const rawBody = (req as any).rawBody;
+      
+      if (!rawBody) {
+        logger.error("Raw body not available for signature validation");
+        return res.status(500).json({ error: "Server configuration error" });
+      }
       
       logger.info("Webhook signature validation", {
         hasSecret: !!process.env.MAUTIC_WEBHOOK_SECRET,
         hasSignature: !!signature,
         signatureHeader: signature ? 'present' : 'missing',
-        bodyLength: rawBody.length
+        rawBodyLength: rawBody.length,
+        parsedBodyLength: JSON.stringify(payload).length
       });
       
       if (!validateMauticSignature(rawBody, signature as string)) {
