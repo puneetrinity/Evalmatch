@@ -1110,6 +1110,68 @@ router.get(
   }
 );
 
+// Circuit breaker reset endpoint for emergency recovery
+router.post(
+  "/circuit-breakers/reset",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { provider } = req.body;
+      
+      if (provider && typeof provider === 'string') {
+        // Reset specific provider
+        const { getBreaker } = await import("../lib/circuit-breakers");
+        const breaker = getBreaker(provider as 'groq' | 'openai' | 'anthropic');
+        breaker.forceClose();
+        
+        logger.info(`Circuit breaker reset for provider: ${provider}`, {
+          admin: req.user?.uid || 'unknown',
+          timestamp: new Date().toISOString()
+        });
+        
+        res.json({
+          message: `Circuit breaker reset successfully for ${provider}`,
+          provider,
+          status: breaker.status(),
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        // Reset all circuit breakers
+        const { listBreakers } = await import("../lib/circuit-breakers");
+        const breakers = listBreakers();
+        const resetResults = [];
+        
+        for (const [name, breaker] of breakers) {
+          breaker.forceClose();
+          resetResults.push({
+            provider: name,
+            status: breaker.status()
+          });
+        }
+        
+        logger.info("All circuit breakers reset", {
+          admin: req.user?.uid || 'unknown',
+          resetCount: resetResults.length,
+          timestamp: new Date().toISOString()
+        });
+        
+        res.json({
+          message: `Successfully reset ${resetResults.length} circuit breakers`,
+          breakers: resetResults,
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      logger.error("Failed to reset circuit breakers:", error);
+      res.status(500).json({
+        error: "Failed to reset circuit breakers",
+        message: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+);
+
 // Mount foreign key check routes
 router.use(foreignKeyCheckRouter);
 
