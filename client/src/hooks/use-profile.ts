@@ -31,6 +31,7 @@ interface UserProfile {
 interface ProfileResponse {
   success: boolean;
   profile: UserProfile;
+  error?: string;
 }
 
 const fetchProfile = async (token: string): Promise<UserProfile> => {
@@ -56,18 +57,18 @@ const fetchProfile = async (token: string): Promise<UserProfile> => {
 };
 
 export const useProfile = () => {
-  const { user, getToken } = useAuth();
+  const { user, getAuthToken } = useAuth();
   
   return useQuery({
     queryKey: ['profile', user?.uid],
     queryFn: async () => {
-      const token = await getToken();
+      const token = await getAuthToken();
       if (!token) throw new Error('No authentication token');
       return fetchProfile(token);
     },
     enabled: !!user,
     staleTime: 10 * 60 * 1000, // 10 minutes - profile data changes infrequently
-    cacheTime: 30 * 60 * 1000, // 30 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes (formerly cacheTime)
     retry: 2,
     refetchOnWindowFocus: false,
   });
@@ -78,7 +79,7 @@ export const useInvalidateProfile = () => {
   const { user } = useAuth();
   
   return () => {
-    queryClient.invalidateQueries(['profile', user?.uid]);
+    queryClient.invalidateQueries({ queryKey: ['profile', user?.uid] });
   };
 };
 

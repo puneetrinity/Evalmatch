@@ -131,67 +131,67 @@ const grantBetaCredits = async (token: string): Promise<{ status: string; messag
 };
 
 export const useCredits = () => {
-  const { user, getToken } = useAuth();
+  const { user, getAuthToken } = useAuth();
   
   return useQuery({
     queryKey: ['credits', 'balance', user?.uid],
     queryFn: async () => {
-      const token = await getToken();
+      const token = await getAuthToken();
       if (!token) throw new Error('No authentication token');
       return fetchCreditBalance(token);
     },
     enabled: !!user,
     staleTime: 30 * 1000, // 30 seconds - credit balance may change frequently
-    cacheTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes (formerly cacheTime)
     retry: 2,
     refetchOnWindowFocus: true, // Refresh on focus to get latest balance
   });
 };
 
 export const useCreditHistory = (page: number = 1, limit: number = 50) => {
-  const { user, getToken } = useAuth();
+  const { user, getAuthToken } = useAuth();
   
   return useQuery({
     queryKey: ['credits', 'history', user?.uid, page, limit],
     queryFn: async () => {
-      const token = await getToken();
+      const token = await getAuthToken();
       if (!token) throw new Error('No authentication token');
       return fetchCreditHistory(token, page, limit);
     },
     enabled: !!user,
     staleTime: 2 * 60 * 1000, // 2 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
     retry: 2,
-    keepPreviousData: true, // For pagination
+    placeholderData: (previousData) => previousData, // For pagination (formerly keepPreviousData)
   });
 };
 
 export const useCreditPackages = () => {
-  const { user, getToken } = useAuth();
+  const { user, getAuthToken } = useAuth();
   
   return useQuery({
     queryKey: ['credits', 'packages'],
     queryFn: async () => {
-      const token = await getToken();
+      const token = await getAuthToken();
       if (!token) throw new Error('No authentication token');
       return fetchCreditPackages(token);
     },
     enabled: !!user,
     staleTime: 15 * 60 * 1000, // 15 minutes - packages rarely change
-    cacheTime: 60 * 60 * 1000, // 1 hour
+    gcTime: 60 * 60 * 1000, // 1 hour (formerly cacheTime)
     retry: 2,
     refetchOnWindowFocus: false,
   });
 };
 
 export const useGrantBetaCredits = () => {
-  const { user, getToken } = useAuth();
+  const { user, getAuthToken } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async () => {
-      const token = await getToken();
+      const token = await getAuthToken();
       if (!token) throw new Error('No authentication token');
       return grantBetaCredits(token);
     },
@@ -201,9 +201,9 @@ export const useGrantBetaCredits = () => {
         description: data.message,
       });
       // Invalidate credit queries to refresh balance
-      queryClient.invalidateQueries(['credits', 'balance', user?.uid]);
-      queryClient.invalidateQueries(['credits', 'history', user?.uid]);
-      queryClient.invalidateQueries(['profile', user?.uid]);
+      queryClient.invalidateQueries({ queryKey: ['credits', 'balance', user?.uid] });
+      queryClient.invalidateQueries({ queryKey: ['credits', 'history', user?.uid] });
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.uid] });
     },
     onError: (error: Error) => {
       toast({
@@ -220,9 +220,9 @@ export const useInvalidateCredits = () => {
   const { user } = useAuth();
   
   return () => {
-    queryClient.invalidateQueries(['credits', 'balance', user?.uid]);
-    queryClient.invalidateQueries(['credits', 'history', user?.uid]);
-    queryClient.invalidateQueries(['profile', user?.uid]); // Profile includes credit summary
+    queryClient.invalidateQueries({ queryKey: ['credits', 'balance', user?.uid] });
+    queryClient.invalidateQueries({ queryKey: ['credits', 'history', user?.uid] });
+    queryClient.invalidateQueries({ queryKey: ['profile', user?.uid] }); // Profile includes credit summary
   };
 };
 

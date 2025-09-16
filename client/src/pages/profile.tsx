@@ -199,9 +199,9 @@ export default function ProfilePage() {
                   <div key={i} className="animate-pulse bg-muted rounded h-16"></div>
                 ))}
               </div>
-            ) : history?.transactions?.length > 0 ? (
+            ) : (history as any)?.transactions?.length > 0 ? (
               <div className="space-y-3">
-                {history.transactions.slice(0, 5).map((transaction: any) => (
+                {(history as any).transactions.slice(0, 5).map((transaction: any) => (
                   <div key={transaction.id} className="flex items-center justify-between p-3 bg-muted/30 rounded">
                     <div>
                       <p className="font-medium">{transaction.description}</p>
@@ -243,7 +243,7 @@ export default function ProfilePage() {
                   <div key={i} className="animate-pulse bg-muted rounded h-20"></div>
                 ))}
               </div>
-            ) : packagesData?.packages?.length > 0 ? (
+            ) : packagesData?.packages && packagesData.packages.length > 0 ? (
               <div className="space-y-3">
                 {packagesData.packages.slice(0, 3).map((pkg: CreditPackage) => (
                   <div key={pkg.id} className={`

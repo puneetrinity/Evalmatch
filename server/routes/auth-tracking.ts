@@ -9,6 +9,7 @@ import { validators } from "../middleware/input-validation";
 import { logger } from "../lib/logger";
 import { config } from "../config/unified-config";
 import { creditService } from "../services/credit-service";
+import { userService } from "../services/enhanced-user-service";
 
 const router = Router();
 
@@ -59,6 +60,8 @@ router.post("/track-login",
 
       const userId = req.user!.uid;
       const userEmail = req.user!.email;
+      const displayName = req.user!.displayName;
+      const photoURL = req.user!.photoURL;
 
       logger.info("Processing login tracking", {
         userId,
@@ -66,6 +69,29 @@ router.post("/track-login",
         isNewUser,
         loginStreak
       });
+
+      // Sync user with database (creates or updates user record)
+      const userResult = await userService.createOrUpdateUserFromFirebase({
+        uid: userId,
+        email: userEmail,
+        displayName,
+        photoURL,
+        provider: method
+      });
+
+      if (!userResult.success) {
+        logger.error("Failed to sync user with database", {
+          userId,
+          error: userResult.error
+        });
+        // Continue processing even if user sync fails
+      } else {
+        logger.info("User synced with database", {
+          userId,
+          databaseUserId: userResult.data?.id,
+          username: userResult.data?.username
+        });
+      }
 
       // Handle credit rewards for login (non-blocking)
       const loginReward = await processLoginRewards(userId, isNewUser, loginStreak);
@@ -180,7 +206,7 @@ async function processLoginRewards(
     // Pre-check for existing daily grant to avoid DB constraint errors
     const existingDailyGrant = await creditService.getCreditHistory(userId, 1, 100)
       .then(history => history?.transactions.find(t => 
-        t.referenceId === dailyReferenceId && t.type === 'grant'
+        t.referenceId === dailyReferenceId && t.transactionType === 'grant'
       ));
     
     let dailyBonusResult;
@@ -338,9 +364,13 @@ async function sendLoginToMautic(loginEvent: MauticLoginEvent): Promise<void> {
       
       // Custom fields for advanced campaigns
       customFields: {
+        firebase_uid: loginEvent.uid,  // Add Firebase UID as custom field
+        evalmatch_user_id: loginEvent.uid,  // Also store as evalmatch_user_id
         last_login_timestamp: loginEvent.loginTime,
         login_method_preference: loginEvent.method,
-        credit_system_enabled: config.features.enableCreditSystem
+        credit_system_enabled: config.features.enableCreditSystem,
+        credit_balance: loginEvent.creditBalance || 0,
+        total_credits_used: loginEvent.totalCreditsUsed || 0
       }
     };
 

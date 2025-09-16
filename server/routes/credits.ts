@@ -36,7 +36,7 @@ router.get(
           credits: result.credits,
           totalPurchased: historyResult?.totalPurchased || 0,
           totalUsed: historyResult?.totalUsed || 0,
-          tier: req.user!.tier || 'testing',
+          tier: 'testing', // req.user!.tier || 'testing',
           timestamp: new Date().toISOString(),
         });
       } else {

@@ -7,7 +7,7 @@ import { Router, Request, Response } from "express";
 import { logger } from "../lib/logger";
 import { config } from "../config/unified-config";
 import { creditService } from "../services/credit-service";
-import { createUserService } from "../services/user-service";
+import { userService } from "../services/enhanced-user-service";
 import crypto from "crypto";
 
 const router = Router();
@@ -22,6 +22,9 @@ interface MauticContact {
   dateAdded?: string;
   dateModified?: string;
   lastActive?: string;
+  // Custom fields from our auth-tracking integration
+  firebase_uid?: string;
+  evalmatch_user_id?: string;
 }
 
 interface MauticWebhookPayload {
@@ -147,7 +150,7 @@ async function processMauticContact(contact: MauticContact, event?: string): Pro
 
     // Handle tag-based rewards if credit system is enabled
     if (config.features.enableCreditSystem && syncData.tags) {
-      await processTagBasedRewards(contact.email, syncData.tags, event);
+      await processTagBasedRewards(contact.email, syncData.tags, event, contact);
     }
 
   } catch (error) {
@@ -214,14 +217,11 @@ async function handleMauticEvent(payload: MauticWebhookPayload): Promise<void> {
 }
 
 /**
- * Sync contact data with EvalMatch user profile
- * Note: Limited sync due to basic user schema - mainly logs the contact for future reference
+ * Sync contact data with EvalMatch user profile using Firebase UID
  */
 async function syncMauticContact(email: string, syncData: ContactSyncData): Promise<void> {
   try {
-    const userService = createUserService();
-    
-    // Find user by email (if email exists in users table)
+    // Find user by email in our database
     const userResult = await userService.findUserByEmail(email);
     
     if (userResult.success && userResult.data) {
@@ -230,15 +230,31 @@ async function syncMauticContact(email: string, syncData: ContactSyncData): Prom
         username: userResult.data.username,
         email,
         mauticId: syncData.mauticId,
-        tags: syncData.tags
+        tags: syncData.tags,
+        firebaseUid: userResult.data.firebaseUid
       });
       
-      // TODO: When user schema is extended, update user profile with Mautic data
-      // For now, we just log the sync event for tracking
+      // Link Mautic contact ID if we have Firebase UID and no existing Mautic link
+      if (userResult.data.firebaseUid && syncData.mauticId && !userResult.data.mauticContactId) {
+        const linkResult = await userService.linkMauticContact(userResult.data.firebaseUid, syncData.mauticId);
+        if (linkResult.success) {
+          logger.info("Successfully linked Mautic contact to user", {
+            firebaseUid: userResult.data.firebaseUid,
+            mauticId: syncData.mauticId
+          });
+        } else {
+          logger.warn("Failed to link Mautic contact", {
+            firebaseUid: userResult.data.firebaseUid,
+            mauticId: syncData.mauticId,
+            error: linkResult.error
+          });
+        }
+      }
+      
     } else {
       logger.debug("User not found for Mautic contact sync", { 
         email,
-        note: "User may exist in Firebase but not in local users table"
+        note: "User may exist in Firebase but not yet synced to database"
       });
     }
     
@@ -251,49 +267,203 @@ async function syncMauticContact(email: string, syncData: ContactSyncData): Prom
 }
 
 /**
- * Process tag-based credit rewards
+ * Process tag-based credit rewards using Firebase UID mapping
  */
-async function processTagBasedRewards(email: string, tags: string[], event?: string): Promise<void> {
+async function processTagBasedRewards(email: string, tags: string[], event?: string, contact?: MauticContact): Promise<void> {
   try {
-    const userService = createUserService();
-    const userResult = await userService.findUserByEmail(email);
-    
-    if (!userResult.success || !userResult.data) {
-      logger.debug("User not found for tag-based rewards", { email });
+    // Skip if credit system is not enabled
+    if (!config.features.enableCreditSystem) {
+      logger.debug("Credit system disabled, skipping tag-based rewards", { email });
       return;
     }
+
+    // Try to get Firebase UID from contact custom fields first
+    let firebaseUid: string | undefined;
+    if (contact) {
+      // Check direct properties first (from custom fields)
+      firebaseUid = contact.firebase_uid || contact.evalmatch_user_id;
+      
+      // Check nested fields object if available
+      if (!firebaseUid && contact.fields) {
+        firebaseUid = contact.fields.firebase_uid || 
+                     contact.fields.evalmatch_user_id || 
+                     contact.fields.customFields?.firebase_uid;
+      }
+    }
+
+    let userResult;
+    if (firebaseUid) {
+      // Primary method: Use Firebase UID lookup
+      userResult = await userService.findUserByFirebaseUid(firebaseUid);
+      logger.info("Looking up user by Firebase UID", {
+        firebaseUid,
+        found: userResult.success && !!userResult.data
+      });
+    } else {
+      // Fallback: Use email lookup
+      userResult = await userService.findUserByEmail(email);
+      logger.info("Fallback to email lookup (no Firebase UID found)", {
+        email,
+        found: userResult.success && !!userResult.data
+      });
+    }
     
-    // Log the reward event but don't process credits yet
-    // TODO: Process credits when proper Firebase UID -> username mapping is implemented
-    logger.info("Tag-based reward opportunity identified", {
-      email,
-      username: userIdentifier,
-      tags,
-      event,
-      note: "Credit processing disabled until proper user mapping is implemented"
-    });
+    if (!userResult.success || !userResult.data) {
+      logger.debug("User not found for tag-based rewards", { 
+        email, 
+        firebaseUid,
+        method: firebaseUid ? 'firebase_uid' : 'email'
+      });
+      return;
+    }
+
+    const user = userResult.data;
     
-    // Define tag-based rewards for future implementation
-    const tagRewards: Record<string, { credits: number; description: string }> = {
-      'newsletter_subscriber': { credits: 5, description: 'Newsletter subscription bonus' },
-      'webinar_attendee': { credits: 10, description: 'Webinar attendance reward' },
-      'survey_completed': { credits: 3, description: 'Survey completion bonus' },
-      'referral_successful': { credits: 25, description: 'Successful referral reward' },
-      'premium_interest': { credits: 5, description: 'Premium feature interest bonus' }
+    // Define tag-based rewards
+    const tagRewards: Record<string, { credits: number; description: string; referencePrefix: string }> = {
+      'newsletter_subscriber': { 
+        credits: 5, 
+        description: 'Newsletter subscription bonus',
+        referencePrefix: 'newsletter_sub'
+      },
+      'webinar_attendee': { 
+        credits: 10, 
+        description: 'Webinar attendance reward',
+        referencePrefix: 'webinar_attend'
+      },
+      'survey_completed': { 
+        credits: 3, 
+        description: 'Survey completion bonus',
+        referencePrefix: 'survey_complete'
+      },
+      'referral_successful': { 
+        credits: 25, 
+        description: 'Successful referral reward',
+        referencePrefix: 'referral_success'
+      },
+      'premium_interest': { 
+        credits: 5, 
+        description: 'Premium feature interest bonus',
+        referencePrefix: 'premium_interest'
+      },
+      'profile_complete': { 
+        credits: 8, 
+        description: 'Profile completion reward',
+        referencePrefix: 'profile_complete'
+      },
+      'first_analysis': { 
+        credits: 15, 
+        description: 'First resume analysis bonus',
+        referencePrefix: 'first_analysis'
+      },
+      'email_engagement': { 
+        credits: 2, 
+        description: 'Email engagement reward',
+        referencePrefix: 'email_engage'
+      }
     };
     
-    // Log potential rewards for tracking
+    // Process rewards for matching tags
+    const processedRewards = [];
     for (const tag of tags) {
       const reward = tagRewards[tag];
-      if (reward) {
-        logger.info("Potential tag-based reward", {
+      if (reward && user.firebaseUid) {
+        // Create unique reference ID for idempotency
+        const referenceId = `${reward.referencePrefix}_${user.firebaseUid}_${new Date().toISOString().split('T')[0]}`;
+        
+        logger.info("Processing tag-based reward", {
           email,
-          username: userIdentifier,
+          firebaseUid: user.firebaseUid,
+          username: user.username,
           tag,
-          potentialCredits: reward.credits,
-          description: reward.description
+          credits: reward.credits,
+          description: reward.description,
+          referenceId,
+          event
+        });
+
+        try {
+          const creditResult = await creditService.addCredits(
+            user.firebaseUid,
+            reward.credits,
+            `${reward.description} (Tag: ${tag})`,
+            'grant',
+            referenceId,
+            {
+              source: 'mautic_webhook',
+              tag,
+              event,
+              mautic_contact_id: contact?.id,
+              reward_type: 'tag_based'
+            }
+          );
+
+          if (creditResult.success) {
+            logger.info("Tag-based reward granted successfully", {
+              email,
+              firebaseUid: user.firebaseUid,
+              username: user.username,
+              tag,
+              credits: reward.credits,
+              newBalance: creditResult.credits,
+              referenceId
+            });
+            
+            processedRewards.push({
+              tag,
+              credits: reward.credits,
+              success: true,
+              newBalance: creditResult.credits
+            });
+          } else {
+            logger.warn("Failed to grant tag-based reward", {
+              email,
+              firebaseUid: user.firebaseUid,
+              tag,
+              credits: reward.credits,
+              error: creditResult.error,
+              referenceId
+            });
+            
+            processedRewards.push({
+              tag,
+              credits: reward.credits,
+              success: false,
+              error: creditResult.error
+            });
+          }
+        } catch (creditError) {
+          logger.error("Exception during credit granting", {
+            email,
+            firebaseUid: user.firebaseUid,
+            tag,
+            error: creditError instanceof Error ? creditError.message : 'Unknown error',
+            referenceId
+          });
+        }
+      } else if (reward) {
+        logger.warn("Cannot grant reward - missing Firebase UID", {
+          email,
+          username: user.username,
+          tag,
+          hasFirebaseUid: !!user.firebaseUid
         });
       }
+    }
+    
+    // Log summary of processed rewards
+    if (processedRewards.length > 0) {
+      logger.info("Tag-based reward processing completed", {
+        email,
+        firebaseUid: user.firebaseUid,
+        username: user.username,
+        totalRewards: processedRewards.length,
+        successfulRewards: processedRewards.filter(r => r.success).length,
+        totalCreditsGranted: processedRewards
+          .filter(r => r.success)
+          .reduce((sum, r) => sum + r.credits, 0),
+        rewards: processedRewards
+      });
     }
     
   } catch (error) {
@@ -346,7 +516,11 @@ async function handleEmailClicked(contact: MauticContact, payload: MauticWebhook
     emailId: payload.email_id || payload.emailId,
     url: payload.url
   });
-  // High engagement - could trigger bonus credits
+  
+  // Grant engagement credits for email clicks
+  if (config.features.enableCreditSystem) {
+    await processTagBasedRewards(contact.email, ['email_engagement'], 'email.clicked', contact);
+  }
 }
 
 async function handleFormSubmission(contact: MauticContact, payload: MauticWebhookPayload): Promise<void> {

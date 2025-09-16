@@ -136,11 +136,30 @@ export interface MatchAnalysisResult {
   };
 }
 
-// Users table
+// Users table - extended with Firebase and Mautic integration
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: varchar("username", { length: 100 }).notNull().unique(),
   email: varchar("email", { length: 255 }),
+  firebaseUid: varchar("firebase_uid", { length: 128 }).unique(),
+  mauticContactId: varchar("mautic_contact_id", { length: 50 }),
+  displayName: varchar("display_name", { length: 255 }),
+  photoUrl: text("photo_url"),
+  lastMauticSync: timestamp("last_mautic_sync"),
+  lastLogin: timestamp("last_login"),
+  loginCount: integer("login_count").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User identity mapping table
+export const userIdentityMapping = pgTable("user_identity_mapping", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }),
+  firebaseUid: varchar("firebase_uid", { length: 128 }).unique().notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  provider: varchar("provider", { length: 50 }), // 'google', 'email', etc.
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -277,6 +296,8 @@ export interface InterviewQuestionData {
 // Type inference
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+export type UserIdentityMapping = typeof userIdentityMapping.$inferSelect;
+export type InsertUserIdentityMapping = typeof userIdentityMapping.$inferInsert;
 
 export type Resume = typeof resumes.$inferSelect;
 export type InsertResume = typeof resumes.$inferInsert;

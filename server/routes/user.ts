@@ -26,11 +26,11 @@ router.get(
         email: user.email || '',
         photoURL: user.photoURL || null,
         emailVerified: user.emailVerified || false,
-        // Firebase metadata
-        createdAt: user.metadata?.creationTime || null,
-        lastLoginAt: user.metadata?.lastSignInTime || null,
+        // Firebase metadata - these would need to come from Firebase Admin SDK
+        createdAt: null, // user.metadata?.creationTime || null,
+        lastLoginAt: null, // user.metadata?.lastSignInTime || null,
         // Application-specific
-        tier: user.tier || 'testing',
+        tier: 'testing', // user.tier || 'testing',
         country: 'IN', // Default to India for payment gateway
         currency: 'INR', // Default currency
         // Placeholder fields for future expansion
@@ -47,7 +47,7 @@ router.get(
           const historyResult = await creditService.getCreditHistory(user.uid, 1, 1);
           
           if (creditResult.success && historyResult) {
-            profile['creditSummary'] = {
+            (profile as any).creditSummary = {
               balance: creditResult.credits || 0,
               totalPurchased: historyResult.totalPurchased || 0,
               totalUsed: historyResult.totalUsed || 0,

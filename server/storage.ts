@@ -440,6 +440,14 @@ export class MemStorage implements IStorage {
       ...insertUser, 
       id,
       email: insertUser.email ?? null,
+      displayName: insertUser.displayName ?? null,
+      firebaseUid: insertUser.firebaseUid ?? null,
+      mauticContactId: insertUser.mauticContactId ?? null,
+      photoUrl: insertUser.photoUrl ?? null,
+      lastMauticSync: insertUser.lastMauticSync ?? null,
+      lastLogin: insertUser.lastLogin ?? null,
+      loginCount: insertUser.loginCount ?? null,
+      isActive: insertUser.isActive ?? null,
       createdAt: insertUser.createdAt ?? null,
       updatedAt: insertUser.updatedAt ?? null
     };

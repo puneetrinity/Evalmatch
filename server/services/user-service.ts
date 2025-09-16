@@ -18,8 +18,8 @@ export interface UserProfile {
 }
 
 export interface UserService {
-  findUserByEmail(email: string): Promise<Result<UserProfile | null, Error>>;
-  findUserByUsername(username: string): Promise<Result<UserProfile | null, Error>>;
+  findUserByEmail(_email: string): Promise<Result<UserProfile | null, Error>>;
+  findUserByUsername(_username: string): Promise<Result<UserProfile | null, Error>>;
 }
 
 /**
