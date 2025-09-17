@@ -87,10 +87,11 @@ export default function ProfilePage() {
     .toUpperCase()
     .slice(0, 2);
 
-  // Use semantic available flag instead of null checks
+  // Use semantic available flag with resilient fallback
   const creditSummary = profile?.creditSummary;
   const creditError = (profile as any)?.creditSummaryError;
-  const creditsAvailable = creditSummary?.available ?? false;
+  // If creditSummary exists and no error, assume available even if field is missing (backwards compatibility)
+  const creditsAvailable = creditSummary ? (creditSummary.available ?? true) : false;
   const creditBalance = creditSummary?.balance ?? 0;
   const totalUsed = creditSummary?.totalUsed ?? 0;
   const totalPurchased = creditSummary?.totalPurchased ?? 0;
