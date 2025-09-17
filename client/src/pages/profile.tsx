@@ -275,7 +275,7 @@ export default function ProfilePage() {
                 ))}
                 <Button className="w-full" variant="outline">
                   <ArrowRight className="h-4 w-4 mr-2" />
-                  Start Earning Credits Today
+                  Want More Credits? Connect With Us
                 </Button>
               </div>
             ) : (
