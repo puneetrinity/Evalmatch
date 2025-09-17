@@ -66,7 +66,8 @@ interface PackagesResponse {
 }
 
 const fetchCreditBalance = async (token: string): Promise<CreditBalance> => {
-  const response = await fetch('/api/v1/credits/balance', {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  const response = await fetch(`${apiBaseUrl}/api/v1/credits/balance`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
@@ -82,7 +83,8 @@ const fetchCreditBalance = async (token: string): Promise<CreditBalance> => {
 };
 
 const fetchCreditHistory = async (token: string, page: number = 1, limit: number = 50): Promise<CreditHistory> => {
-  const response = await fetch(`/api/v1/credits/history?page=${page}&limit=${limit}`, {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  const response = await fetch(`${apiBaseUrl}/api/v1/credits/history?page=${page}&limit=${limit}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
@@ -98,7 +100,8 @@ const fetchCreditHistory = async (token: string, page: number = 1, limit: number
 };
 
 const fetchCreditPackages = async (token: string): Promise<PackagesResponse> => {
-  const response = await fetch('/api/v1/credits/packages', {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  const response = await fetch(`${apiBaseUrl}/api/v1/credits/packages`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
@@ -114,7 +117,8 @@ const fetchCreditPackages = async (token: string): Promise<PackagesResponse> => 
 };
 
 const grantBetaCredits = async (token: string): Promise<{ status: string; message: string; credits: number }> => {
-  const response = await fetch('/api/v1/credits/grant-beta', {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  const response = await fetch(`${apiBaseUrl}/api/v1/credits/grant-beta`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,

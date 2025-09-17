@@ -45,7 +45,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const provider = user.providerData?.[0]?.providerId || 'password';
       const loginMethod = provider === 'google.com' ? 'google' : 'email';
       
-      const response = await fetch('/api/track-login', {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(`${apiBaseUrl}/api/track-login`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
