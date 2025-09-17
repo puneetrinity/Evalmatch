@@ -35,6 +35,58 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lastProcessedUser, setLastProcessedUser] = useState<string | null>(null);
+
+  // Track login and grant credits to new users
+  const trackUserLogin = async (user: User, isNewUser: boolean = false) => {
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/track-login', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          method: 'firebase',
+          timestamp: new Date().toISOString(),
+          isNewUser,
+          loginStreak: 1
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        authLogger.info('Login tracked successfully', {
+          operation: 'track_login',
+          uid: user.uid,
+          reward: result.reward,
+          credits: result.credits
+        });
+
+        // Show user notification if they received credits
+        if (result.reward && result.reward.credits > 0) {
+          authLogger.info('User received login reward', {
+            operation: 'credit_reward',
+            uid: user.uid,
+            credits: result.reward.credits,
+            message: result.reward.message
+          });
+        }
+      } else {
+        authLogger.warn('Login tracking failed', {
+          operation: 'track_login',
+          uid: user.uid,
+          status: response.status
+        });
+      }
+    } catch (error) {
+      authLogger.error('Login tracking error', error, {
+        operation: 'track_login',
+        uid: user.uid
+      });
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -71,7 +123,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     initializeAuth();
 
     // Set up auth state listener
-    const unsubscribe = authService.onAuthStateChanged((user) => {
+    const unsubscribe = authService.onAuthStateChanged(async (user) => {
       if (mounted) {
         setUser(user);
         // Only set loading to false after initial load, not on every auth change
@@ -87,11 +139,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
             email: user.email || undefined,
             success: true
           });
+
+          // Track login and grant credits (avoid duplicate processing)
+          if (user.uid !== lastProcessedUser) {
+            setLastProcessedUser(user.uid);
+            
+            // Detect new user based on creation time (created within last 5 minutes)
+            const isNewUser = user.metadata.creationTime && 
+              (Date.now() - new Date(user.metadata.creationTime).getTime()) < 5 * 60 * 1000;
+            
+            // Track login asynchronously (don't block auth flow)
+            trackUserLogin(user, isNewUser).catch(error => {
+              authLogger.warn('Background login tracking failed', {
+                operation: 'track_login_async',
+                uid: user.uid,
+                error: error.message
+              });
+            });
+          }
         } else {
           authLogger.debug('User signed out', {
             operation: 'auth_state_change',
             success: false
           });
+          
+          // Reset processed user tracking on sign out
+          setLastProcessedUser(null);
         }
       }
     });
@@ -116,6 +189,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setLoading(true);
     try {
       const user = await authService.registerWithEmail(email, password, displayName);
+      
+      // Immediately track new user registration for credit granting
+      // This ensures credits are granted even if onAuthStateChanged doesn't detect newUser correctly
+      setLastProcessedUser(user.uid);
+      trackUserLogin(user, true).catch(error => {
+        authLogger.warn('New user login tracking failed during signup', {
+          operation: 'signup_track_login',
+          uid: user.uid,
+          error: error.message
+        });
+      });
+      
       return user;
     } finally {
       setLoading(false);
