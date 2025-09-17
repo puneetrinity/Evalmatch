@@ -235,46 +235,55 @@ router.get(
         });
       }
 
-      // Indian market pricing in INR (paise for Razorpay compatibility)
+      // Ways to earn credits - showcasing earning methods instead of purchase packages
       const packages = [
         {
-          id: 'starter-in',
-          name: 'Starter Pack',
+          id: 'welcome-bonus',
+          name: 'Welcome Bonus',
           credits: 100,
-          price: 99900, // paise (₹999)
-          priceDisplay: '₹999',
+          price: 0,
+          priceDisplay: 'FREE',
           currency: 'INR',
-          pricePerCredit: 9.99,
-          popular: false,
-          description: 'Perfect for trying out the platform'
-        },
-        {
-          id: 'professional-in',
-          name: 'Professional Pack',
-          credits: 500,
-          price: 399900, // paise (₹3999)
-          priceDisplay: '₹3999',
-          currency: 'INR',
-          pricePerCredit: 7.99,
+          pricePerCredit: 0,
           popular: true,
-          bonus: 50,
-          bonusDisplay: '+50 bonus credits',
-          savings: '20%',
-          description: 'Most popular choice for active recruiters'
+          bonus: 0,
+          bonusDisplay: 'One-time reward',
+          savings: '100%',
+          description: 'Sign up and get instant credits to start analyzing',
+          earnMethod: 'automatic',
+          requirement: 'Create account or sign in for the first time'
         },
         {
-          id: 'enterprise-in',
-          name: 'Enterprise Pack',
-          credits: 1000,
-          price: 699900, // paise (₹6999)
-          priceDisplay: '₹6999',
+          id: 'daily-login',
+          name: 'Daily Login Bonus',
+          credits: 2,
+          price: 0,
+          priceDisplay: 'FREE',
           currency: 'INR',
-          pricePerCredit: 6.99,
+          pricePerCredit: 0,
           popular: false,
-          bonus: 200,
-          bonusDisplay: '+200 bonus credits',
-          savings: '30%',
-          description: 'Best value for high-volume recruiting'
+          bonus: 0,
+          bonusDisplay: 'Every day',
+          savings: '100%',
+          description: 'Log in daily to earn credits automatically',
+          earnMethod: 'daily',
+          requirement: 'Simply log in once per day to earn'
+        },
+        {
+          id: 'referral-program',
+          name: 'Referral Rewards',
+          credits: 50,
+          price: 0,
+          priceDisplay: 'FREE',
+          currency: 'INR',
+          pricePerCredit: 0,
+          popular: false,
+          bonus: 25,
+          bonusDisplay: '+25 per referral',
+          savings: '100%',
+          description: 'Invite friends and earn credits for each signup',
+          earnMethod: 'referral',
+          requirement: 'Share your referral link with colleagues'
         }
       ];
       

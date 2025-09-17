@@ -225,15 +225,15 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* Credit Packages */}
+        {/* Ways to Earn Credits */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" />
-              Credit Packages
+              Ways to Earn Credits
             </CardTitle>
             <CardDescription>
-              Available credit packages for purchase
+              Free methods to earn credits and power your recruitment
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -259,7 +259,12 @@ export default function ProfilePage() {
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground">{pkg.description}</p>
-                        <p className="text-lg font-bold text-primary">{pkg.priceDisplay}</p>
+                        <p className="text-lg font-bold text-green-600">{pkg.priceDisplay}</p>
+                        {(pkg as any).requirement && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            📋 {(pkg as any).requirement}
+                          </p>
+                        )}
                       </div>
                       <div className="text-right">
                         <div className="text-xl font-bold">{pkg.credits}</div>
@@ -268,15 +273,16 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 ))}
-                <Button className="w-full" variant="outline" disabled>
+                <Button className="w-full" variant="outline">
                   <ArrowRight className="h-4 w-4 mr-2" />
-                  Coming Soon - Payment Integration
+                  Start Earning Credits Today
                 </Button>
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No packages available</p>
+                <p>No earning methods available</p>
+                <p className="text-sm">Check back later for ways to earn free credits</p>
               </div>
             )}
           </CardContent>
