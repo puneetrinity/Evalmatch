@@ -87,9 +87,12 @@ export default function ProfilePage() {
     .toUpperCase()
     .slice(0, 2);
 
-  const creditBalance = profile?.creditSummary?.balance || 0;
-  const totalUsed = profile?.creditSummary?.totalUsed || 0;
-  const totalPurchased = profile?.creditSummary?.totalPurchased || 0;
+  // Don't default to 0 - distinguish between "0 credits" and "credits unavailable"
+  const creditSummary = profile?.creditSummary;
+  const creditError = (profile as any)?.creditSummaryError;
+  const creditBalance = creditSummary?.balance ?? null;
+  const totalUsed = creditSummary?.totalUsed ?? null;
+  const totalPurchased = creditSummary?.totalPurchased ?? null;
 
   const getTierBadgeColor = (tier: string) => {
     switch (tier) {
@@ -100,7 +103,8 @@ export default function ProfilePage() {
     }
   };
 
-  const getCreditStatusColor = (balance: number) => {
+  const getCreditStatusColor = (balance: number | null) => {
+    if (balance === null) return 'text-gray-600 bg-gray-50 border-gray-200';
     if (balance === 0) return 'text-red-600 bg-red-50 border-red-200';
     if (balance < 10) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
     return 'text-green-600 bg-green-50 border-green-200';
@@ -149,22 +153,41 @@ export default function ProfilePage() {
                 <span className="text-sm font-medium">Credit Balance</span>
                 <CreditCard className="h-5 w-5" />
               </div>
-              <div className="text-3xl font-bold">{creditBalance}</div>
-              <p className="text-sm mt-1">
-                {creditBalance === 0 ? 'No credits remaining' : 
-                 creditBalance < 10 ? 'Low balance' : 
-                 'Available for analysis'}
-              </p>
+              {creditError ? (
+                <>
+                  <div className="text-3xl font-bold">—</div>
+                  <p className="text-sm mt-1 text-red-600">Credits unavailable</p>
+                  <p className="text-xs mt-1 text-gray-500">Please refresh page</p>
+                </>
+              ) : creditBalance === null ? (
+                <>
+                  <div className="text-3xl font-bold">—</div>
+                  <p className="text-sm mt-1">Loading credits...</p>
+                </>
+              ) : (
+                <>
+                  <div className="text-3xl font-bold">{creditBalance}</div>
+                  <p className="text-sm mt-1">
+                    {creditBalance === 0 ? 'No credits remaining' : 
+                     creditBalance < 10 ? 'Low balance' : 
+                     'Available for analysis'}
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Quick Stats */}
             <div className="space-y-3">
               <div className="text-center">
-                <div className="text-2xl font-bold text-foreground">{totalUsed}</div>
+                <div className="text-2xl font-bold text-foreground">
+                  {totalUsed !== null ? totalUsed : '—'}
+                </div>
                 <div className="text-sm text-muted-foreground">Analyses Completed</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-foreground">{totalPurchased}</div>
+                <div className="text-2xl font-bold text-foreground">
+                  {totalPurchased !== null ? totalPurchased : '—'}
+                </div>
                 <div className="text-sm text-muted-foreground">Credits Purchased</div>
               </div>
               {profile?.createdAt && (
@@ -199,9 +222,9 @@ export default function ProfilePage() {
                   <div key={i} className="animate-pulse bg-muted rounded h-16"></div>
                 ))}
               </div>
-            ) : (history as any)?.transactions?.length > 0 ? (
+            ) : (history as any)?.data?.transactions?.length > 0 ? (
               <div className="space-y-3">
-                {(history as any).transactions.slice(0, 5).map((transaction: any) => (
+                {(history as any).data.transactions.slice(0, 5).map((transaction: any) => (
                   <div key={transaction.id} className="flex items-center justify-between p-3 bg-muted/30 rounded">
                     <div>
                       <p className="font-medium">{transaction.description}</p>

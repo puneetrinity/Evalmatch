@@ -52,6 +52,35 @@ export class CreditService {
   }
 
   /**
+   * Get user's credit balance for read-only contexts (doesn't create records)
+   */
+  async getUserCreditsReadOnly(userId: string): Promise<CreditOperationResult> {
+    try {
+      logger.info(`Getting credits (read-only) for user: ${userId}`);
+      
+      const [userCredit] = await this.db.select().from(userCredits).where(eq(userCredits.userId, userId)).limit(1);
+
+      if (!userCredit) {
+        return {
+          success: false,
+          error: 'No credit record found for user'
+        };
+      }
+
+      return {
+        success: true,
+        credits: userCredit.credits
+      };
+    } catch (error) {
+      logger.error('Failed to get user credits (read-only):', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
    * Get user's credit balance, creating user record if needed
    */
   async getUserCredits(userId: string, createIfNotExists: boolean = true): Promise<CreditOperationResult> {

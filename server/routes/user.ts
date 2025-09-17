@@ -53,7 +53,8 @@ router.get(
       if (config.features.enableCreditSystem) {
         try {
           const { creditService } = await import("../services/credit-service");
-          const creditResult = await creditService.getUserCredits(user.uid);
+          // Use read-only method for profile display to avoid creating records
+          const creditResult = await creditService.getUserCreditsReadOnly(user.uid);
           const historyResult = await creditService.getCreditHistory(user.uid, 1, 1);
           
           logger.info("Profile credit fetch", {
@@ -62,7 +63,11 @@ router.get(
             credits: creditResult.credits,
             historyFound: !!historyResult,
             totalPurchased: historyResult?.totalPurchased,
-            totalUsed: historyResult?.totalUsed
+            totalUsed: historyResult?.totalUsed,
+            // Environment debugging info
+            railwayProject: process.env.RAILWAY_PROJECT_NAME,
+            railwayEnvironment: process.env.RAILWAY_ENVIRONMENT_NAME,
+            databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing'
           });
           
           if (creditResult.success) {
@@ -70,17 +75,24 @@ router.get(
               balance: creditResult.credits || 0,
               totalPurchased: historyResult?.totalPurchased || 0,
               totalUsed: historyResult?.totalUsed || 0,
+              available: true
             };
           } else {
-            // Even if credit fetch fails, include empty credit summary
-            logger.warn("Credit fetch failed, using defaults", {
+            // Don't mask failures with fake zeros - report the actual error
+            logger.warn("Credit fetch failed - not masking as zeros", {
               uid: user.uid,
               error: creditResult.error
             });
-            (profile as any).creditSummary = {
-              balance: 0,
-              totalPurchased: 0,
-              totalUsed: 0,
+            (profile as any).creditSummaryError = creditResult.error;
+            // Don't include creditSummary with fake zeros!
+          }
+          
+          // Add environment debugging info to profile (only in development)
+          if (process.env.NODE_ENV === 'development') {
+            (profile as any).debugInfo = {
+              railwayProject: process.env.RAILWAY_PROJECT_NAME,
+              environment: process.env.RAILWAY_ENVIRONMENT_NAME,
+              creditSystemEnabled: config.features.enableCreditSystem
             };
           }
         } catch (creditError) {
