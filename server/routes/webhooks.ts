@@ -337,7 +337,7 @@ async function processTagBasedRewards(email: string, tags: string[], event?: str
         referencePrefix: 'survey_complete'
       },
       'referral_successful': { 
-        credits: 25, 
+        credits: 100, 
         description: 'Successful referral reward',
         referencePrefix: 'referral_success'
       },

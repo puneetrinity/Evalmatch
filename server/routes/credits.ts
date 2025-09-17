@@ -235,7 +235,7 @@ router.get(
         });
       }
 
-      // Ways to earn credits - showcasing earning methods instead of purchase packages
+      // Generous credit earning system - showcasing earning methods instead of purchase packages
       const packages = [
         {
           id: 'welcome-bonus',
@@ -256,34 +256,50 @@ router.get(
         {
           id: 'daily-login',
           name: 'Daily Login Bonus',
-          credits: 2,
+          credits: 20,
           price: 0,
           priceDisplay: 'FREE',
           currency: 'INR',
           pricePerCredit: 0,
-          popular: false,
+          popular: true,
           bonus: 0,
           bonusDisplay: 'Every day',
           savings: '100%',
-          description: 'Log in daily to earn credits automatically',
+          description: 'Log in daily to earn generous credit rewards',
           earnMethod: 'daily',
-          requirement: 'Simply log in once per day to earn'
+          requirement: 'Simply log in once per day to earn 20 credits'
         },
         {
-          id: 'referral-program',
-          name: 'Referral Rewards',
+          id: 'weekly-streak',
+          name: 'Weekly Streak Bonus',
           credits: 50,
           price: 0,
           priceDisplay: 'FREE',
           currency: 'INR',
           pricePerCredit: 0,
           popular: false,
-          bonus: 25,
-          bonusDisplay: '+25 per referral',
+          bonus: 140,
+          bonusDisplay: '+140 weekly total',
           savings: '100%',
-          description: 'Invite friends and earn credits for each signup',
+          description: 'Login 7 days in a row for massive bonus rewards',
+          earnMethod: 'streak',
+          requirement: 'Maintain 7-day consecutive login streak'
+        },
+        {
+          id: 'referral-program',
+          name: 'Successful Referrals',
+          credits: 100,
+          price: 0,
+          priceDisplay: 'FREE',
+          currency: 'INR',
+          pricePerCredit: 0,
+          popular: false,
+          bonus: 0,
+          bonusDisplay: 'Per successful referral',
+          savings: '100%',
+          description: 'Invite colleagues who complete onboarding',
           earnMethod: 'referral',
-          requirement: 'Share your referral link with colleagues'
+          requirement: 'Friend signs up and completes first analysis'
         }
       ];
       

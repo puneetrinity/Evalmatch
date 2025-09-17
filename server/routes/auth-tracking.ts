@@ -199,8 +199,8 @@ async function processLoginRewards(
       }
     }
 
-    // Daily login bonus (2 credits) with idempotency check
-    const dailyBonusAmount = 2;
+    // Daily login bonus (20 credits) with idempotency check
+    const dailyBonusAmount = 20;
     const dailyReferenceId = `daily_login_${new Date().toISOString().split('T')[0]}`; // Date-based reference ID
     
     // Pre-check for existing daily grant to avoid DB constraint errors
@@ -241,33 +241,35 @@ async function processLoginRewards(
         totalCredits: dailyBonusResult.credits
       });
 
-      // Streak bonus for consecutive logins (every 7 days)
+      // Weekly streak bonus for consecutive logins (every 7 days)
       if (loginStreak > 0 && loginStreak % 7 === 0) {
-        const streakBonusAmount = Math.min(loginStreak, 20); // Cap at 20 credits
+        const streakBonusAmount = 50; // Generous 50 credit weekly streak bonus
         const streakBonusResult = await creditService.addCredits(
           userId,
           streakBonusAmount,
-          `${loginStreak}-day login streak bonus`,
+          `Weekly streak bonus (${loginStreak} days)`,
           'grant',
-          `streak_bonus_${loginStreak}_${new Date().toISOString().split('T')[0]}`,
+          `weekly_streak_${Math.floor(loginStreak / 7)}_${new Date().toISOString().split('T')[0]}`,
           {
             login_streak: loginStreak,
-            reward_type: 'streak_bonus'
+            streak_week: Math.floor(loginStreak / 7),
+            reward_type: 'weekly_streak_bonus'
           }
         );
 
         if (streakBonusResult.success) {
-          logger.info("Login streak bonus granted", {
+          logger.info("Weekly streak bonus granted", {
             userId,
             credits: streakBonusAmount,
             streak: loginStreak,
+            weekNumber: Math.floor(loginStreak / 7),
             totalCredits: streakBonusResult.credits
           });
 
           return {
-            type: 'streak_bonus',
+            type: 'weekly_streak_bonus',
             credits: dailyBonusAmount + streakBonusAmount,
-            message: `Great job! ${loginStreak} day streak earned you ${dailyBonusAmount + streakBonusAmount} credits.`
+            message: `🔥 Amazing! ${loginStreak} day streak earned you ${dailyBonusAmount + streakBonusAmount} credits (${streakBonusAmount} streak bonus)!`
           };
         }
       }
