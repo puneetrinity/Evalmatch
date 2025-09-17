@@ -97,8 +97,12 @@ router.get(
           }
         } catch (creditError) {
           logger.warn("Failed to get credit information for profile:", creditError);
-          // Continue without credit info - not critical
+          // Set explicit error so UI shows "Credits unavailable" instead of loading forever
+          (profile as any).creditSummaryError = 'Failed to fetch credits';
         }
+      } else {
+        // Credit system disabled - set explicit error so UI shows "Credits unavailable"
+        (profile as any).creditSummaryError = 'Credit system disabled';
       }
       
       res.json({
