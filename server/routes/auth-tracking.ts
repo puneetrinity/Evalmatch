@@ -14,7 +14,7 @@ import { userService } from "../services/enhanced-user-service";
 const router = Router();
 
 interface LoginTrackingPayload {
-  method: 'email' | 'google';
+  method: 'email' | 'google' | 'firebase';
   timestamp: string;
   isNewUser?: boolean;
   loginStreak?: number;
@@ -57,6 +57,9 @@ router.post("/track-login",
           message: "method and timestamp are required"
         });
       }
+      
+      // Handle legacy 'firebase' method value for backward compatibility
+      const loginMethod = method === 'firebase' ? 'email' : method;
 
       const userId = req.user!.uid;
       const userEmail = req.user!.email;
@@ -65,7 +68,7 @@ router.post("/track-login",
 
       logger.info("Processing login tracking", {
         userId,
-        method,
+        method: loginMethod,
         isNewUser,
         loginStreak
       });
@@ -76,7 +79,7 @@ router.post("/track-login",
         email: userEmail,
         displayName,
         photoURL,
-        provider: method
+        provider: loginMethod
       });
 
       if (!userResult.success) {
@@ -122,7 +125,7 @@ router.post("/track-login",
       const loginEvent: MauticLoginEvent = {
         uid: userId,
         email: userEmail,
-        method,
+        method: loginMethod,
         loginTime: timestamp,
         userAgent: req.headers['user-agent'],
         ipAddress: req.ip,
@@ -137,7 +140,7 @@ router.post("/track-login",
       sendLoginToMautic(loginEvent).catch(error => {
         logger.warn("Mautic webhook failed", {
           userId,
-          method,
+          method: loginMethod,
           error: error instanceof Error ? error.message : 'Unknown error'
         });
       });

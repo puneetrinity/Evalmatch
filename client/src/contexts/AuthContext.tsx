@@ -41,6 +41,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const trackUserLogin = async (user: User, isNewUser: boolean = false) => {
     try {
       const token = await user.getIdToken();
+      // Determine the actual login method from provider data
+      const provider = user.providerData?.[0]?.providerId || 'password';
+      const loginMethod = provider === 'google.com' ? 'google' : 'email';
+      
       const response = await fetch('/api/track-login', {
         method: 'POST',
         headers: {
@@ -48,7 +52,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          method: 'firebase',
+          method: loginMethod,
           timestamp: new Date().toISOString(),
           isNewUser,
           loginStreak: 1
