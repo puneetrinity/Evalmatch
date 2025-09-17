@@ -153,7 +153,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               (Date.now() - new Date(user.metadata.creationTime).getTime()) < 5 * 60 * 1000;
             
             // Track login asynchronously (don't block auth flow)
-            trackUserLogin(user, isNewUser).catch(error => {
+            trackUserLogin(user, Boolean(isNewUser)).catch(error => {
               authLogger.warn('Background login tracking failed', {
                 operation: 'track_login_async',
                 uid: user.uid,

@@ -25,7 +25,7 @@ router.get(
       
       logger.info(`Getting credit balance for user ${userId}`);
       
-      const result = await creditService.getUserCredits(userId);
+      const result = await creditService.getUserCreditsReadOnly(userId);
       
       if (result.success) {
         // Get totals from credit history (lightweight query)

@@ -18,6 +18,11 @@ interface LogContext {
   provider?: string;
   success?: boolean;
   errorCode?: string;
+  status?: number;
+  error?: string;
+  reward?: any;
+  credits?: number;
+  message?: string;
 }
 
 class AuthLogger {
@@ -63,6 +68,16 @@ class AuthLogger {
   }
 
   /**
+   * Log informational messages (development only)
+   */
+  info(message: string, context?: LogContext): void {
+    if (!isDevelopment) return;
+    
+    const sanitizedContext = this.sanitizeContext(context);
+    console.log(`${this.prefix} ${message}`, sanitizedContext || '');
+  }
+
+  /**
    * Log successful operations (development only)
    */
   success(message: string, context?: LogContext): void {
@@ -84,7 +99,12 @@ class AuthLogger {
       email: context.email ? this.maskEmail(context.email) : undefined,
       provider: context.provider,
       success: context.success,
-      errorCode: context.errorCode
+      errorCode: context.errorCode,
+      status: context.status,
+      error: context.error,
+      reward: context.reward,
+      credits: context.credits,
+      message: context.message
     };
   }
 

@@ -11,6 +11,7 @@ import { logger } from "../lib/logger";
 export interface CreditOperationResult {
   success: boolean;
   credits?: number;
+  available?: boolean;
   message?: string;
   error?: string;
 }
@@ -63,18 +64,21 @@ export class CreditService {
       if (!userCredit) {
         return {
           success: false,
+          available: false,
           error: 'No credit record found for user'
         };
       }
 
       return {
         success: true,
+        available: true,
         credits: userCredit.credits
       };
     } catch (error) {
       logger.error('Failed to get user credits (read-only):', error);
       return {
         success: false,
+        available: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
@@ -115,18 +119,21 @@ export class CreditService {
       if (!userCredit) {
         return {
           success: false,
+          available: false,
           error: 'User not found and creation disabled'
         };
       }
 
       return {
         success: true,
+        available: true,
         credits: userCredit.credits
       };
     } catch (error) {
       logger.error('Failed to get user credits:', error);
       return {
         success: false,
+        available: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       };
     }

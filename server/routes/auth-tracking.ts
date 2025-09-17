@@ -270,7 +270,7 @@ async function processLoginRewards(
           });
 
           return {
-            type: 'weekly_streak_bonus',
+            type: 'streak_bonus',
             credits: dailyBonusAmount + streakBonusAmount,
             message: `🔥 Amazing! ${loginStreak} day streak earned you ${dailyBonusAmount + streakBonusAmount} credits (${streakBonusAmount} streak bonus)!`
           };

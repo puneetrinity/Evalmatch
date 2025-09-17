@@ -25,6 +25,7 @@ interface UserProfile {
     balance: number;
     totalPurchased: number;
     totalUsed: number;
+    available: boolean;
   };
 }
 

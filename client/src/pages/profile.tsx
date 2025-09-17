@@ -87,12 +87,13 @@ export default function ProfilePage() {
     .toUpperCase()
     .slice(0, 2);
 
-  // Don't default to 0 - distinguish between "0 credits" and "credits unavailable"
+  // Use semantic available flag instead of null checks
   const creditSummary = profile?.creditSummary;
   const creditError = (profile as any)?.creditSummaryError;
-  const creditBalance = creditSummary?.balance ?? null;
-  const totalUsed = creditSummary?.totalUsed ?? null;
-  const totalPurchased = creditSummary?.totalPurchased ?? null;
+  const creditsAvailable = creditSummary?.available ?? false;
+  const creditBalance = creditSummary?.balance ?? 0;
+  const totalUsed = creditSummary?.totalUsed ?? 0;
+  const totalPurchased = creditSummary?.totalPurchased ?? 0;
 
   const getTierBadgeColor = (tier: string) => {
     switch (tier) {
@@ -103,8 +104,8 @@ export default function ProfilePage() {
     }
   };
 
-  const getCreditStatusColor = (balance: number | null) => {
-    if (balance === null) return 'text-gray-600 bg-gray-50 border-gray-200';
+  const getCreditStatusColor = (available: boolean, balance: number) => {
+    if (!available) return 'text-gray-600 bg-gray-50 border-gray-200';
     if (balance === 0) return 'text-red-600 bg-red-50 border-red-200';
     if (balance < 10) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
     return 'text-green-600 bg-green-50 border-green-200';
@@ -148,7 +149,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Credit Balance Highlight */}
-            <div className={`rounded-lg p-4 border ${getCreditStatusColor(creditBalance)}`}>
+            <div className={`rounded-lg p-4 border ${getCreditStatusColor(creditsAvailable, creditBalance)}`}>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium">Credit Balance</span>
                 <CreditCard className="h-5 w-5" />
@@ -159,7 +160,7 @@ export default function ProfilePage() {
                   <p className="text-sm mt-1 text-red-600">Credits unavailable</p>
                   <p className="text-xs mt-1 text-gray-500">Please refresh page</p>
                 </>
-              ) : creditBalance === null ? (
+              ) : !creditsAvailable ? (
                 <>
                   <div className="text-3xl font-bold">—</div>
                   <p className="text-sm mt-1">Loading credits...</p>
@@ -180,13 +181,13 @@ export default function ProfilePage() {
             <div className="space-y-3">
               <div className="text-center">
                 <div className="text-2xl font-bold text-foreground">
-                  {totalUsed !== null ? totalUsed : '—'}
+                  {creditsAvailable ? totalUsed : '—'}
                 </div>
                 <div className="text-sm text-muted-foreground">Analyses Completed</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-foreground">
-                  {totalPurchased !== null ? totalPurchased : '—'}
+                  {creditsAvailable ? totalPurchased : '—'}
                 </div>
                 <div className="text-sm text-muted-foreground">Credits Purchased</div>
               </div>
