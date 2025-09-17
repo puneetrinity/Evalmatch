@@ -320,6 +320,155 @@ router.get(
 );
 
 /**
+ * POST /api/credits/reconcile-batch
+ * Run batch reconciliation to fix all users with inconsistent credit records
+ * Admin endpoint - should be rate limited and potentially require admin auth
+ */
+router.post(
+  "/reconcile-batch",
+  authenticateUser,
+  validators.rateLimitStrict,
+  async (req: Request, res: Response) => {
+    try {
+      if (!config.features.enableCreditSystem) {
+        return res.status(404).json({
+          status: "error",
+          message: "Credit system not enabled"
+        });
+      }
+
+      logger.info(`Batch reconciliation triggered by user ${req.user!.uid}`);
+      
+      const result = await creditService.batchReconcileAllUsers();
+      
+      res.json({
+        status: result.success ? "success" : "partial_success",
+        reconciliation: {
+          processed: result.processed,
+          reconciled: result.reconciled,
+          errors: result.errors.length,
+          details: result.details.slice(0, 10), // Limit details in response
+          hasMoreDetails: result.details.length > 10
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error("Batch reconciliation endpoint error:", error);
+      res.status(500).json({
+        status: "error",
+        message: "Batch reconciliation failed",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/credits/discrepancies
+ * Check for balance discrepancies across all users
+ * Admin endpoint for monitoring data integrity
+ */
+router.get(
+  "/discrepancies",
+  authenticateUser,
+  validators.rateLimitStrict,
+  async (req: Request, res: Response) => {
+    try {
+      if (!config.features.enableCreditSystem) {
+        return res.status(404).json({
+          status: "error",
+          message: "Credit system not enabled"
+        });
+      }
+
+      logger.info(`Balance discrepancy check triggered by user ${req.user!.uid}`);
+      
+      const result = await creditService.detectBalanceDiscrepancies();
+      
+      res.json({
+        status: result.success ? "success" : "error",
+        monitoring: {
+          totalUsers: result.totalUsers,
+          discrepancies: result.discrepancies.length,
+          discrepancyRate: result.totalUsers > 0 ? 
+            `${(result.discrepancies.length / result.totalUsers * 100).toFixed(2)}%` : '0%',
+          issues: result.discrepancies.slice(0, 20), // Limit response size
+          hasMoreIssues: result.discrepancies.length > 20
+        },
+        error: result.error,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error("Balance discrepancy check endpoint error:", error);
+      res.status(500).json({
+        status: "error",
+        message: "Balance discrepancy check failed",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/credits/fix-discrepancies
+ * Auto-fix users with balance discrepancies
+ * Admin endpoint - should be used carefully
+ */
+router.post(
+  "/fix-discrepancies",
+  authenticateUser,
+  validators.rateLimitStrict,
+  async (req: Request, res: Response) => {
+    try {
+      if (!config.features.enableCreditSystem) {
+        return res.status(404).json({
+          status: "error",
+          message: "Credit system not enabled"
+        });
+      }
+
+      const { userIds } = req.body;
+      
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({
+          status: "error",
+          message: "userIds array is required and must not be empty"
+        });
+      }
+
+      if (userIds.length > 50) {
+        return res.status(400).json({
+          status: "error", 
+          message: "Cannot fix more than 50 users at once"
+        });
+      }
+
+      logger.info(`Auto-fix discrepancies triggered by user ${req.user!.uid} for ${userIds.length} users`);
+      
+      const result = await creditService.autoReconcileDiscrepancies(userIds);
+      
+      res.json({
+        status: result.success ? "success" : "partial_success",
+        reconciliation: {
+          processed: result.processed,
+          fixed: result.fixed,
+          errors: result.errors.length,
+          errorDetails: result.errors.slice(0, 10) // Limit error details
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error("Fix discrepancies endpoint error:", error);
+      res.status(500).json({
+        status: "error",
+        message: "Fix discrepancies failed",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  }
+);
+
+/**
  * GET /api/credits/status
  * Get credit system status and configuration
  */

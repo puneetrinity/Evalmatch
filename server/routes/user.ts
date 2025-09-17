@@ -75,7 +75,7 @@ router.get(
               balance: creditResult.credits || 0,
               totalPurchased: historyResult?.totalPurchased || 0,
               totalUsed: historyResult?.totalUsed || 0,
-              available: creditResult.available || true
+              available: !!creditResult.available
             };
           } else {
             // Don't mask failures with fake zeros - report the actual error
