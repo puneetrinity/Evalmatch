@@ -56,11 +56,31 @@ router.get(
           const creditResult = await creditService.getUserCredits(user.uid);
           const historyResult = await creditService.getCreditHistory(user.uid, 1, 1);
           
-          if (creditResult.success && historyResult) {
+          logger.info("Profile credit fetch", {
+            uid: user.uid,
+            creditSuccess: creditResult.success,
+            credits: creditResult.credits,
+            historyFound: !!historyResult,
+            totalPurchased: historyResult?.totalPurchased,
+            totalUsed: historyResult?.totalUsed
+          });
+          
+          if (creditResult.success) {
             (profile as any).creditSummary = {
               balance: creditResult.credits || 0,
-              totalPurchased: historyResult.totalPurchased || 0,
-              totalUsed: historyResult.totalUsed || 0,
+              totalPurchased: historyResult?.totalPurchased || 0,
+              totalUsed: historyResult?.totalUsed || 0,
+            };
+          } else {
+            // Even if credit fetch fails, include empty credit summary
+            logger.warn("Credit fetch failed, using defaults", {
+              uid: user.uid,
+              error: creditResult.error
+            });
+            (profile as any).creditSummary = {
+              balance: 0,
+              totalPurchased: 0,
+              totalUsed: 0,
             };
           }
         } catch (creditError) {
