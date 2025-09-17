@@ -37,7 +37,7 @@ interface ProfileResponse {
 
 const fetchProfile = async (token: string): Promise<UserProfile> => {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
-  const response = await fetch(`${apiBaseUrl}/api/v1/user/profile`, {
+  const response = await fetch(`${apiBaseUrl}/api/v1/profile`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
