@@ -195,6 +195,49 @@ export type JobIdParam = number;
  */
 export type ResumeIdParam = number;
 
+export type GetAnalysisMyAnalysesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/analysis/my-analyses';
+};
+
+export type GetAnalysisMyAnalysesErrors = {
+    /**
+     * Authentication required
+     */
+    401: ApiError;
+    /**
+     * Internal server error
+     */
+    500: ApiError;
+};
+
+export type GetAnalysisMyAnalysesError = GetAnalysisMyAnalysesErrors[keyof GetAnalysisMyAnalysesErrors];
+
+export type GetAnalysisMyAnalysesResponses = {
+    /**
+     * User analyses retrieved successfully
+     */
+    200: ApiResponse & {
+        analyses?: Array<{
+            jobId?: number;
+            jobTitle?: string;
+            jobDescription?: string;
+            status?: 'completed' | 'processing' | 'failed';
+            resumeCount?: number;
+            totalResumes?: number;
+            createdAt?: string;
+            updatedAt?: string;
+            topMatchScore?: number;
+            averageScore?: number;
+            results?: Array<AnalysisResult>;
+        }>;
+    };
+};
+
+export type GetAnalysisMyAnalysesResponse = GetAnalysisMyAnalysesResponses[keyof GetAnalysisMyAnalysesResponses];
+
 export type PostAnalysisAnalyzeByJobIdData = {
     body?: AnalysisRequest;
     path: {
@@ -284,6 +327,235 @@ export type PostAnalysisAnalyzeBiasByJobIdResponses = {
 };
 
 export type PostAnalysisAnalyzeBiasByJobIdResponse = PostAnalysisAnalyzeBiasByJobIdResponses[keyof PostAnalysisAnalyzeBiasByJobIdResponses];
+
+export type GetCreditsBalanceData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/credits/balance';
+};
+
+export type GetCreditsBalanceErrors = {
+    /**
+     * Authentication required
+     */
+    401: ApiError;
+    /**
+     * Internal server error
+     */
+    500: ApiError;
+};
+
+export type GetCreditsBalanceError = GetCreditsBalanceErrors[keyof GetCreditsBalanceErrors];
+
+export type GetCreditsBalanceResponses = {
+    /**
+     * Credit balance retrieved successfully
+     */
+    200: ApiResponse & {
+        /**
+         * Current available credits
+         */
+        credits?: number;
+        /**
+         * Total credits purchased (lifetime)
+         */
+        totalPurchased?: number;
+        /**
+         * Total credits used (lifetime)
+         */
+        totalUsed?: number;
+        /**
+         * User's current tier based on credits
+         */
+        tier?: 'freemium' | 'premium';
+    };
+};
+
+export type GetCreditsBalanceResponse = GetCreditsBalanceResponses[keyof GetCreditsBalanceResponses];
+
+export type GetCreditsHistoryData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Page number for pagination
+         */
+        page?: number;
+        /**
+         * Number of transactions per page (max 100)
+         */
+        limit?: number;
+    };
+    url: '/credits/history';
+};
+
+export type GetCreditsHistoryErrors = {
+    /**
+     * Authentication required
+     */
+    401: ApiError;
+    /**
+     * Internal server error
+     */
+    500: ApiError;
+};
+
+export type GetCreditsHistoryError = GetCreditsHistoryErrors[keyof GetCreditsHistoryErrors];
+
+export type GetCreditsHistoryResponses = {
+    /**
+     * Credit history retrieved successfully
+     */
+    200: ApiResponse & {
+        data?: {
+            transactions?: Array<{
+                id?: number;
+                type?: 'grant' | 'purchase' | 'usage';
+                amount?: number;
+                description?: string;
+                createdAt?: string;
+            }>;
+            currentBalance?: number;
+            totalPurchased?: number;
+            totalUsed?: number;
+            pagination?: {
+                page?: number;
+                limit?: number;
+                total?: number;
+                totalPages?: number;
+            };
+        };
+    };
+};
+
+export type GetCreditsHistoryResponse = GetCreditsHistoryResponses[keyof GetCreditsHistoryResponses];
+
+export type PostCreditsGrantBetaData = {
+    body?: {
+        /**
+         * Number of credits to grant (defaults to 100)
+         */
+        amount?: number;
+    };
+    path?: never;
+    query?: never;
+    url: '/credits/grant-beta';
+};
+
+export type PostCreditsGrantBetaErrors = {
+    /**
+     * Authentication required
+     */
+    401: ApiError;
+    /**
+     * Credit system not enabled
+     */
+    404: ApiError;
+    /**
+     * Internal server error
+     */
+    500: ApiError;
+};
+
+export type PostCreditsGrantBetaError = PostCreditsGrantBetaErrors[keyof PostCreditsGrantBetaErrors];
+
+export type PostCreditsGrantBetaResponses = {
+    /**
+     * Beta credits granted successfully
+     */
+    200: ApiResponse & {
+        message?: string;
+        /**
+         * User's new total credit balance
+         */
+        credits?: number;
+    };
+};
+
+export type PostCreditsGrantBetaResponse = PostCreditsGrantBetaResponses[keyof PostCreditsGrantBetaResponses];
+
+export type GetCreditsPackagesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/credits/packages';
+};
+
+export type GetCreditsPackagesErrors = {
+    /**
+     * Authentication required
+     */
+    401: ApiError;
+    /**
+     * Credit system not enabled
+     */
+    404: ApiError;
+    /**
+     * Internal server error
+     */
+    500: ApiError;
+};
+
+export type GetCreditsPackagesError = GetCreditsPackagesErrors[keyof GetCreditsPackagesErrors];
+
+export type GetCreditsPackagesResponses = {
+    /**
+     * Credit packages retrieved successfully
+     */
+    200: ApiResponse & {
+        packages?: Array<{
+            id?: string;
+            name?: string;
+            credits?: number;
+            price?: number;
+            priceDisplay?: string;
+            currency?: string;
+            popular?: boolean;
+            description?: string;
+            earnMethod?: 'automatic' | 'daily' | 'streak' | 'referral';
+            requirement?: string;
+        }>;
+    };
+};
+
+export type GetCreditsPackagesResponse = GetCreditsPackagesResponses[keyof GetCreditsPackagesResponses];
+
+export type GetHealthData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/health';
+};
+
+export type GetHealthErrors = {
+    /**
+     * Service is unhealthy
+     */
+    503: {
+        status?: string;
+        error?: string;
+    };
+};
+
+export type GetHealthError = GetHealthErrors[keyof GetHealthErrors];
+
+export type GetHealthResponses = {
+    /**
+     * Service is healthy
+     */
+    200: {
+        status?: 'healthy' | 'degraded' | 'unhealthy';
+        timestamp?: string;
+        /**
+         * Server uptime in seconds
+         */
+        uptime?: number;
+        version?: string;
+    };
+};
+
+export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
 
 export type PostJobDescriptionsData = {
     body: JobDescriptionInput;
@@ -509,6 +781,102 @@ export type GetResumesByIdResponses = {
 };
 
 export type GetResumesByIdResponse = GetResumesByIdResponses[keyof GetResumesByIdResponses];
+
+export type GetSystemHealthData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/system-health';
+};
+
+export type GetSystemHealthErrors = {
+    /**
+     * Service is unhealthy
+     */
+    503: {
+        status?: string;
+        timestamp?: string;
+        service?: string;
+        error?: string;
+    };
+};
+
+export type GetSystemHealthError = GetSystemHealthErrors[keyof GetSystemHealthErrors];
+
+export type GetSystemHealthResponses = {
+    /**
+     * Service is healthy
+     */
+    200: {
+        status?: string;
+        timestamp?: string;
+        service?: string;
+        version?: string;
+        health?: {
+            /**
+             * Overall health score
+             */
+            score?: number;
+            status?: 'healthy' | 'degraded' | 'unhealthy';
+            /**
+             * Health status of individual components
+             */
+            components?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type GetSystemHealthResponse = GetSystemHealthResponses[keyof GetSystemHealthResponses];
+
+export type GetUserProfileData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/user/profile';
+};
+
+export type GetUserProfileErrors = {
+    /**
+     * Authentication required
+     */
+    401: ApiError;
+    /**
+     * Internal server error
+     */
+    500: ApiError;
+};
+
+export type GetUserProfileError = GetUserProfileErrors[keyof GetUserProfileErrors];
+
+export type GetUserProfileResponses = {
+    /**
+     * User profile retrieved successfully
+     */
+    200: ApiResponse & {
+        data?: {
+            /**
+             * Firebase user ID
+             */
+            uid?: string;
+            displayName?: string;
+            email?: string;
+            photoURL?: string | null;
+            emailVerified?: boolean;
+            tier?: 'freemium' | 'premium' | 'testing';
+            country?: string;
+            currency?: string;
+            createdAt?: string | null;
+            lastLoginAt?: string | null;
+            company?: string | null;
+            title?: string | null;
+            phone?: string | null;
+        };
+    };
+};
+
+export type GetUserProfileResponse = GetUserProfileResponses[keyof GetUserProfileResponses];
 
 export type ClientOptions = {
     baseURL: 'https://evalmatch.app/api' | 'https://recruitment-corner.scholavar.com/api' | 'http://localhost:3000/api' | (string & {});
