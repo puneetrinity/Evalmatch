@@ -191,7 +191,7 @@ export const buildUrl: Client['buildUrl'] = (options) => {
       typeof options.querySerializer === 'function' &&
       options.querySerializer.length === 1
         ? (options.querySerializer as QuerySerializer)
-        : createQuerySerializer(options.querySerializer),
+        : createQuerySerializer(options.querySerializer as QuerySerializerOptions),
     url: options.url,
   });
   return url;

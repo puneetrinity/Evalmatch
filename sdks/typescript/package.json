@@ -2,13 +2,14 @@
   "name": "@evalmatch/sdk",
   "version": "1.0.0",
   "description": "TypeScript SDK for EvalMatch API - AI-powered recruitment platform",
+  "sideEffects": false,
   "main": "dist/index.js",
-  "module": "dist/index.esm.js",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.esm.js",
+      "import": "./dist/index.mjs",
       "require": "./dist/index.js"
     }
   },
@@ -48,8 +49,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "axios": "^1.7.7",
-    "firebase-admin": "^13.4.0"
+    "axios": "^1.7.7"
   },
   "peerDependencies": {
     "firebase": ">=10.0.0"
@@ -63,6 +63,7 @@
     "@vitest/ui": "^3.2.4",
     "eslint": "^8.0.0",
     "jsdom": "^26.1.0",
+    "firebase-admin": "^13.4.0",
     "msw": "^2.10.5",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0",

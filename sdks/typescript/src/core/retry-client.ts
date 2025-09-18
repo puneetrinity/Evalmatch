@@ -208,16 +208,24 @@ export class RetryableHTTPClient {
           throw this.enrichError(error, attempt + 1)
         }
 
-        // Calculate delay with exponential backoff
-        const delay = Math.min(
-          this.retryConfig.baseDelay * Math.pow(this.retryConfig.backoffFactor, attempt),
-          this.retryConfig.maxDelay
-        )
+        // Respect Retry-After header for 429 if present
+        let delayMs: number | undefined
+        if (axios.isAxiosError(error) && error.response?.status === 429) {
+          const retryAfter = error.response.headers?.['retry-after']
+          const seconds = retryAfter ? parseInt(String(retryAfter), 10) : NaN
+          if (!Number.isNaN(seconds) && seconds > 0) {
+            delayMs = Math.min(seconds * 1000, this.retryConfig.maxDelay)
+          }
+        }
 
-        // Add jitter to prevent thundering herd
-        const jitteredDelay = delay + Math.random() * 100
+        // Fallback to exponential backoff with jitter
+        if (typeof delayMs !== 'number') {
+          const base = this.retryConfig.baseDelay * Math.pow(this.retryConfig.backoffFactor, attempt)
+          const capped = Math.min(base, this.retryConfig.maxDelay)
+          delayMs = capped + Math.random() * 100
+        }
 
-        await this.sleep(jitteredDelay)
+        await this.sleep(delayMs)
       }
     }
 

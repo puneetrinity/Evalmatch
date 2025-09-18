@@ -1,56 +1,18 @@
 /**
  * Main EvalMatch SDK Client
- * Provides a convenient wrapper around the generated API client with advanced error handling
+ * Provides a convenient wrapper around the API with retry + circuit breaker
  */
-interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  timestamp: string;
-}
 
-interface Resume {
-  id: number;
-  filename: string;
-  status: string;
-  skills?: string[];
-  uploadedAt: string;
-}
-
-interface JobDescription {
-  id: number;
-  title: string;
-  description: string;
-  requirements: string[];
-  createdAt: string;
-}
-
-interface AnalysisResult {
-  overallScore: number;
-  skillsMatch: {
-    matched: string[];
-    missing: string[];
-  };
-  recommendations: string[];
-}
-
-interface BiasAnalysisResult {
-  biasScore: number;
-  riskLevel: string;
-  issues: string[];
-  suggestions: string[];
-}
-
-import {
-  postAnalysisAnalyzeByJobId,
-  postAnalysisAnalyzeBiasByJobId,
-  postJobDescriptions,
-  getResumes,
-  postResumes,
-  getResumesById
-} from './generated/sdk.gen';
+// Note: Using manual HTTP client with generated types for better control over retry logic
 
 import type { AuthProvider, EvalMatchConfig, ClientOptions } from './types';
-import { RetryableHTTPClient, RetryConfig, CircuitBreakerConfig } from './core/retry-client';
+import type {
+  Resume,
+  JobDescription,
+  PostAnalysisAnalyzeByJobIdResponses,
+  PostAnalysisAnalyzeBiasByJobIdResponses
+} from './generated/types.gen';
+import { RetryableHTTPClient, RetryConfig, CircuitBreakerConfig, CircuitBreakerState } from './core/retry-client';
 import { ErrorFactory, EvalMatchError, CircuitBreakerError } from './core/errors';
 import { createDefaultInterceptors } from './core/interceptors';
 
@@ -147,7 +109,7 @@ export class EvalMatchClient {
    */
   private handleError(error: any, requestConfig?: any): never {
     // Check if circuit breaker is open
-    if (this.httpClient.circuitBreakerState === 'open') {
+    if (this.httpClient.circuitBreakerState === CircuitBreakerState.OPEN) {
       throw ErrorFactory.createCircuitBreakerError({
         circuitBreakerState: this.httpClient.circuitBreakerState,
         endpoint: requestConfig?.url,
@@ -164,15 +126,61 @@ export class EvalMatchClient {
   }
 
   /**
-   * Enhanced request method with retry logic
+   * Enhanced request method with retry logic and configurable error handling
    */
-  private async request<T>(config: any): Promise<T> {
+  private async request<T>(config: any, options?: ClientOptions): Promise<T> {
+    const throwOnError = options?.throwOnError !== false; // Default to true
+    
+    // Apply per-request options
+    if (options?.signal) {
+      config.signal = options.signal;
+    }
+    if (options?.timeout) {
+      config.timeout = options.timeout;
+    }
+    
     try {
-      const response = await this.httpClient.request(config);
+      const response = await this.httpClient.request<T>(config);
       return response.data as T;
     } catch (error) {
+      if (!throwOnError) {
+        // Return error envelope instead of throwing
+        const evalMatchError = this.createError(error, config);
+        return {
+          success: false,
+          error: {
+            code: evalMatchError.code,
+            message: evalMatchError.message,
+            context: evalMatchError.context,
+            recoveryActions: evalMatchError.recoveryActions,
+            isRetryable: evalMatchError.isRetryable
+          }
+        } as any; // Cast needed for return type flexibility
+      }
+      
       this.handleError(error, config);
     }
+  }
+
+  /**
+   * Create EvalMatchError without throwing (for error envelopes)
+   */
+  private createError(error: any, requestConfig?: any): EvalMatchError {
+    // Check if circuit breaker is open
+    if (this.httpClient.circuitBreakerState === CircuitBreakerState.OPEN) {
+      return ErrorFactory.createCircuitBreakerError({
+        circuitBreakerState: this.httpClient.circuitBreakerState,
+        endpoint: requestConfig?.url,
+        method: requestConfig?.method?.toUpperCase()
+      });
+    }
+
+    // Use error factory for consistent error handling
+    return ErrorFactory.createFromHttpError(error, {
+      circuitBreakerState: this.httpClient.circuitBreakerState,
+      endpoint: requestConfig?.url,
+      method: requestConfig?.method?.toUpperCase()
+    });
   }
 
   /**
@@ -189,44 +197,42 @@ export class EvalMatchClient {
     /**
      * List user's resumes
      */
-    list: async (options: ClientOptions = {}): Promise<ApiResponse<Resume[]>> => {
+    list: async (options: ClientOptions = {}): Promise<Resume[]> => {
       const headers = await this.getAuthHeaders();
-      return this.request({
+      return this.request<Resume[]>({
         method: 'GET',
         url: '/resumes',
         headers
-      });
+      }, options);
     },
 
     /**
      * Upload a new resume
      */
-    upload: async (file: File | Blob, options: ClientOptions = {}): Promise<ApiResponse<Resume>> => {
+    upload: async (file: File | Blob, options: ClientOptions = {}): Promise<Resume> => {
       const headers = await this.getAuthHeaders();
       const formData = new FormData();
       formData.append('file', file);
       
-      return this.request({
+      return this.request<Resume>({
         method: 'POST',
         url: '/resumes',
         data: formData,
-        headers: {
-          ...headers,
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+        // Let Axios set content-type with boundary for multipart
+        headers
+      }, options);
     },
 
     /**
      * Get specific resume by ID
      */
-    get: async (id: number, options: ClientOptions = {}): Promise<ApiResponse<Resume>> => {
+    get: async (id: number, options: ClientOptions = {}): Promise<Resume> => {
       const headers = await this.getAuthHeaders();
-      return this.request({
+      return this.request<Resume>({
         method: 'GET',
         url: `/resumes/${id}`,
         headers
-      });
+      }, options);
     }
   };
 
@@ -237,14 +243,14 @@ export class EvalMatchClient {
     /**
      * Create a new job description
      */
-    create: async (data: { title: string; description: string; requirements?: string[] }, options: ClientOptions = {}): Promise<ApiResponse<JobDescription>> => {
+    create: async (data: { title: string; description: string; requirements?: string[] }, options: ClientOptions = {}): Promise<JobDescription> => {
       const headers = await this.getAuthHeaders();
-      return this.request({
+      return this.request<JobDescription>({
         method: 'POST',
         url: '/job-descriptions',
         data,
         headers
-      });
+      }, options);
     }
   };
 
@@ -255,27 +261,27 @@ export class EvalMatchClient {
     /**
      * Analyze resumes against a job description
      */
-    analyze: async (jobId: number, resumeIds?: number[], options: ClientOptions = {}): Promise<ApiResponse<AnalysisResult>> => {
+    analyze: async (jobId: number, resumeIds?: number[], options: ClientOptions = {}): Promise<PostAnalysisAnalyzeByJobIdResponses[200]> => {
       const headers = await this.getAuthHeaders();
-      return this.request({
+      return this.request<PostAnalysisAnalyzeByJobIdResponses[200]>({
         method: 'POST',
         url: `/analysis/analyze/${jobId}`,
         data: resumeIds ? { resumeIds } : {},
         headers
-      });
+      }, options);
     },
 
     /**
      * Analyze job description for bias
      */
-    analyzeBias: async (jobId: number, options: ClientOptions = {}): Promise<ApiResponse<BiasAnalysisResult>> => {
+    analyzeBias: async (jobId: number, options: ClientOptions = {}): Promise<PostAnalysisAnalyzeBiasByJobIdResponses[200]> => {
       const headers = await this.getAuthHeaders();
-      return this.request({
+      return this.request<PostAnalysisAnalyzeBiasByJobIdResponses[200]>({
         method: 'POST',
         url: `/analysis/analyze-bias/${jobId}`,
         data: {},
         headers
-      });
+      }, options);
     }
   };
 

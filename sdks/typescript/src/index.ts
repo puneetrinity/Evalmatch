@@ -14,6 +14,9 @@ export type { AuthProvider, EvalMatchConfig } from './types';
 // Export error classes
 export { EvalMatchError, ValidationError, RateLimitError, AuthenticationError } from './errors';
 
+// Export core utilities
+export { CircuitBreakerState } from './core/retry-client';
+
 // Re-export commonly used types for convenience
 export type {
   ApiResponse,

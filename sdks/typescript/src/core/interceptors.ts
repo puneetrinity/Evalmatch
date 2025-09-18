@@ -55,7 +55,8 @@ export class BuiltInInterceptors {
   static userAgent(version: string = '1.0.0'): RequestInterceptor {
     return (config) => {
       config.headers = config.headers || {}
-      config.headers['User-Agent'] = `EvalMatch-SDK/${version} (TypeScript)`
+      // Avoid forbidden User-Agent header in browsers; use a custom header instead
+      config.headers['X-EvalMatch-Client'] = `EvalMatch-SDK/${version} (TypeScript)`
       return config
     }
   }
@@ -131,20 +132,21 @@ export class BuiltInInterceptors {
   }
 
   /**
-   * Rate limit retry interceptor - handles 429 responses
+   * Rate limit interceptor - logs 429 responses and passes metadata to retry client
    */
-  static rateLimitRetry(maxRetries = 3): ErrorInterceptor {
+  static rateLimitLogging(): ErrorInterceptor {
     return async (error, context) => {
       if (error.response?.status === 429) {
         const retryAfter = error.response.headers['retry-after']
         const retryCount = context.metadata?.retryCount || 0
         
-        if (retryCount < maxRetries && retryAfter) {
-          const delay = parseInt(retryAfter) * 1000
-          await new Promise(resolve => setTimeout(resolve, delay))
-          
-          // Retry logic would be handled by the retry client
-          console.log(`Rate limited. Retrying after ${retryAfter}s (attempt ${retryCount + 1}/${maxRetries})`)
+        // Log rate limit event (retry client will handle the actual retry delay)
+        console.log(`Rate limited. Server requested ${retryAfter}s delay (attempt ${retryCount + 1})`)
+        
+        // Pass retry metadata to help retry client make better decisions
+        if (context.metadata) {
+          context.metadata.rateLimited = true
+          context.metadata.retryAfter = retryAfter
         }
       }
       
@@ -287,7 +289,7 @@ export function createDefaultInterceptors(
     ],
     errorInterceptors: [
       BuiltInInterceptors.errorLogging(debug),
-      BuiltInInterceptors.rateLimitRetry()
+      BuiltInInterceptors.rateLimitLogging()
     ]
   }
 }

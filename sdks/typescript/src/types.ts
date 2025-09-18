@@ -76,6 +76,16 @@ export interface ClientOptions {
   throwOnError?: boolean;
   
   /**
+   * AbortSignal for request cancellation
+   */
+  signal?: AbortSignal;
+  
+  /**
+   * Request timeout in milliseconds (overrides client default)
+   */
+  timeout?: number;
+  
+  /**
    * Custom request metadata
    */
   meta?: Record<string, unknown>;
