@@ -259,7 +259,7 @@ function selectProviderForTier(
 
   if (config.features.betaMode) {
     // BETA MODE: Ignore circuit breakers and prioritize Groq first
-    if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
+    if (isGroqConfigured && groq.getGroqServiceStatusSync().isAvailable) {
       return {
         provider: "groq",
         reason: `Beta mode - Groq priority (bypassing circuit breakers, tier: ${userTier.tier})`,
@@ -313,7 +313,7 @@ function selectProviderForTier(
     if (
       allowedProviders.includes("groq") &&
       isGroqConfigured &&
-      groq.getGroqServiceStatus().isAvailable &&
+      groq.getGroqServiceStatusSync().isAvailable &&
       breakers.groq.status().state !== 'open'
     ) {
       return {
@@ -328,7 +328,7 @@ function selectProviderForTier(
     if (
       allowedProviders.includes("groq") &&
       isGroqConfigured &&
-      groq.getGroqServiceStatus().isAvailable &&
+      groq.getGroqServiceStatusSync().isAvailable &&
       breakers.groq.status().state !== 'open'
     ) {
       return {
@@ -346,7 +346,7 @@ function selectProviderForTier(
   }
 
   // Fallback to any available provider
-  if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
+  if (isGroqConfigured && groq.getGroqServiceStatusSync().isAvailable) {
     return { provider: "groq", reason: "Emergency fallback - Groq available" };
   }
   if (isOpenAIConfigured && openai.getOpenAIServiceStatus().isAvailable) {
@@ -1187,7 +1187,7 @@ export function getTierAwareServiceStatus(userTier: UserTierInfo) {
     availableProviders: allowedProviders.filter((provider) => {
       switch (provider) {
         case "groq":
-          return isGroqConfigured && groq.getGroqServiceStatus().isAvailable;
+          return isGroqConfigured && groq.getGroqServiceStatusSync().isAvailable;
         case "openai":
           return (
             isOpenAIConfigured && openai.getOpenAIServiceStatus().isAvailable

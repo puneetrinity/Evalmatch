@@ -20,6 +20,7 @@ import { tokensRouter } from "./tokens";
 import creditsRoutes from "./credits";
 import authTrackingRoutes from "./auth-tracking";
 import webhooksRoutes from "./webhooks";
+import embeddingsRoutes from "./embeddings";
 import { config } from "../config/unified-config";
 import { createDeprecationMiddleware, DEPRECATION_CONFIGS } from "../lib/deprecation-headers";
 import { logger } from "../lib/logger";
@@ -79,6 +80,9 @@ function registerV1Routes(app: Express): void {
 
   // Analysis and matching routes
   app.use("/api/v1/analysis", analysisRoutes);
+
+  // Embeddings service routes
+  app.use("/api/v1/embeddings", embeddingsRoutes);
 
   // Admin routes
   app.use("/api/v1/admin", adminRoutes);

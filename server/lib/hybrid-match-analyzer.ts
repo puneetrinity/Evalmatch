@@ -864,7 +864,7 @@ export class HybridMatchAnalyzer {
     jobText?: string,
   ): Promise<LLMAnalysisResult> {
     // Try providers in order of preference
-    if (this.isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
+    if (this.isGroqConfigured && groq.getGroqServiceStatusSync().isAvailable) {
       return await this.callGroqAnalysis(resumeAnalysis, jobAnalysis, resumeText, jobText);
     }
     
@@ -1331,7 +1331,7 @@ export class HybridMatchAnalyzer {
    */
   private isAIProviderAvailable(): boolean {
     return (
-      (this.isGroqConfigured && groq.getGroqServiceStatus().isAvailable) ||
+      (this.isGroqConfigured && groq.getGroqServiceStatusSync().isAvailable) ||
       openai.getOpenAIServiceStatus().isAvailable ||
       (this.isAnthropicConfigured && anthropic.getAnthropicServiceStatus().isAvailable)
     );

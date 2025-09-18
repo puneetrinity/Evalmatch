@@ -42,7 +42,13 @@ export class ProductionEmbeddingService {
   private readonly maxCacheSize = 10000;
   private readonly defaultTTL = 3600000; // 1 hour
   private readonly workerPath = path.join(__dirname, '../workers/embedding-worker.js');
-  private readonly defaultModel = 'Xenova/all-MiniLM-L12-v2';
+  private readonly defaultModel = this.getEmbeddingConfig().model;
+  
+  // Get embedding config helper method
+  private getEmbeddingConfig() {
+    const { EMBEDDING_CONFIG } = require("../config/unified-config");
+    return EMBEDDING_CONFIG;
+  }
   
   // ✅ RAILWAY-SPECIFIC: Model preloading and readiness tracking
   private isModelReady = false;
@@ -305,6 +311,10 @@ export class ProductionEmbeddingService {
       throw new Error('Embedding worker not available');
     }
 
+    // Get expected dimensions for the model
+    const { getExpectedDimensions } = require("../config/unified-config");
+    const expectedDims = getExpectedDimensions(model);
+
     const startTime = Date.now();
     const requestId = crypto.randomUUID();
 
@@ -329,8 +339,9 @@ export class ProductionEmbeddingService {
             return;
           }
 
-          if (response.dimensions !== 384) {
-            reject(new Error(`Invalid embedding dimensions: expected 384, got ${response.dimensions}`));
+          // Validate dimensions
+          if (response.dimensions !== expectedDims) {
+            reject(new Error(`Invalid embedding dimensions: expected ${expectedDims}, got ${response.dimensions}`));
             return;
           }
 
@@ -361,11 +372,12 @@ export class ProductionEmbeddingService {
       };
 
       this.worker!.on('message', messageHandler);
+      // Provide expected dimensions hint to worker (optional, worker also infers from model)
       this.worker!.postMessage({
         id: requestId,
         text,
         modelName: model,
-        options
+        options: { ...options, expectedDimensions: expectedDims }
       });
     });
   }

@@ -8,17 +8,33 @@ import type { HttpHandler } from 'msw'
 
 // Mock API responses
 export const handlers: HttpHandler[] = [
-  // Health endpoint
+  // Health endpoints - return plain objects per spec
   http.get('https://api.test.evalmatch.com/health', ({ request }) => {
     console.log('MSW intercepted:', request.method, request.url)
     return HttpResponse.json({
-      success: true,
-      data: {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: 12345,
+      version: '1.0.0'
+    })
+  }),
+
+  http.get('https://api.test.evalmatch.com/system-health', ({ request }) => {
+    console.log('MSW intercepted:', request.method, request.url)
+    return HttpResponse.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      service: 'EvalMatch API',
+      version: '2.1.0',
+      health: {
+        score: 95,
         status: 'healthy',
-        uptime: 12345,
-        version: '1.0.0'
-      },
-      timestamp: new Date().toISOString()
+        components: {
+          database: 'healthy',
+          ai_services: 'healthy',
+          cache: 'healthy'
+        }
+      }
     })
   }),
 
@@ -325,6 +341,102 @@ export const handlers: HttpHandler[] = [
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization'
       } 
+    })
+  }),
+
+  // Credits endpoints - return ApiResponse envelopes per spec
+  http.get('https://api.test.evalmatch.com/credits/balance', ({ request }) => {
+    console.log('MSW intercepted:', request.method, request.url)
+    return HttpResponse.json({
+      success: true,
+      credits: 150,
+      totalPurchased: 200,
+      totalUsed: 50,
+      tier: 'premium',
+      timestamp: new Date().toISOString()
+    })
+  }),
+
+  http.get('https://api.test.evalmatch.com/credits/history', ({ request }) => {
+    console.log('MSW intercepted:', request.method, request.url)
+    const url = new URL(request.url)
+    const page = parseInt(url.searchParams.get('page') || '1')
+    const limit = parseInt(url.searchParams.get('limit') || '10')
+    
+    return HttpResponse.json({
+      success: true,
+      data: {
+        transactions: [
+          {
+            id: 1,
+            type: 'purchase',
+            amount: 100,
+            description: 'Premium plan credits',
+            createdAt: '2024-01-15T10:00:00Z'
+          },
+          {
+            id: 2, 
+            type: 'usage',
+            amount: -5,
+            description: 'Resume analysis',
+            createdAt: '2024-01-15T11:00:00Z'
+          }
+        ],
+        currentBalance: 150,
+        totalPurchased: 200,
+        totalUsed: 50,
+        pagination: {
+          page,
+          limit,
+          total: 25,
+          totalPages: 3
+        }
+      },
+      timestamp: new Date().toISOString()
+    })
+  }),
+
+  http.get('https://api.test.evalmatch.com/credits/packages', ({ request }) => {
+    console.log('MSW intercepted:', request.method, request.url)
+    return HttpResponse.json({
+      success: true,
+      packages: [
+        {
+          id: 'starter',
+          name: 'Starter Package',
+          credits: 50,
+          price: 10,
+          priceDisplay: '$10.00',
+          currency: 'USD',
+          popular: false,
+          description: 'Perfect for getting started',
+          earnMethod: 'automatic',
+          requirement: 'Sign up only'
+        },
+        {
+          id: 'professional',
+          name: 'Professional Package', 
+          credits: 200,
+          price: 30,
+          priceDisplay: '$30.00',
+          currency: 'USD',
+          popular: true,
+          description: 'Most popular choice for professionals',
+          earnMethod: 'daily',
+          requirement: 'Complete daily tasks'
+        }
+      ],
+      timestamp: new Date().toISOString()
+    })
+  }),
+
+  http.post('https://api.test.evalmatch.com/credits/grant-beta', ({ request }) => {
+    console.log('MSW intercepted:', request.method, request.url)
+    return HttpResponse.json({
+      success: true,
+      message: 'Beta credits granted successfully',
+      credits: 50,
+      timestamp: new Date().toISOString()
     })
   }),
 

@@ -68,26 +68,39 @@ describe('SDK Spec Completeness', () => {
     expect(typeof optionsTest).toBe('function');
   });
 
-  describe('Missing Public Endpoints (TODO)', () => {
-    it('should eventually have user profile endpoint', () => {
-      // TODO: Add when user profile is documented and generated
-      // expect(typeof client.user.profile).toBe('function');
-      expect(true).toBe(true); // Placeholder
+  describe('Credits Endpoints', () => {
+    it('should have credits balance method', () => {
+      expect(typeof client.credits.balance).toBe('function');
     });
 
-    it('should eventually have credits endpoints', () => {
-      // TODO: Add when credits endpoints are documented and generated
-      // expect(typeof client.credits.balance).toBe('function');
-      // expect(typeof client.credits.history).toBe('function');
-      // expect(typeof client.credits.packages).toBe('function');
-      // expect(typeof client.credits.grantBeta).toBe('function');
-      expect(true).toBe(true); // Placeholder
+    it('should have credits history method', () => {
+      expect(typeof client.credits.history).toBe('function');
     });
 
-    it('should eventually have health status endpoint', () => {
-      // TODO: Add when health endpoints are documented and generated
-      // expect(typeof client.health.status).toBe('function');
-      expect(true).toBe(true); // Placeholder
+    it('should have credits packages method', () => {
+      expect(typeof client.credits.packages).toBe('function');
+    });
+
+    it('should have credits grant-beta method', () => {
+      expect(typeof client.credits.grantBeta).toBe('function');
+    });
+  });
+
+  describe('Health Endpoints', () => {
+    it('should have health status method', () => {
+      expect(typeof client.health.status).toBe('function');
+    });
+
+    it('should have system health method', () => {
+      expect(typeof client.health.systemHealth).toBe('function');
+    });
+  });
+
+  describe('User Profile Endpoint (Future)', () => {
+    it('should eventually have user profile endpoint when implemented', () => {
+      // Note: User profile endpoint exists in OpenAPI spec but not yet wired to manual client
+      // This is a placeholder for future implementation
+      expect(true).toBe(true);
     });
   });
 

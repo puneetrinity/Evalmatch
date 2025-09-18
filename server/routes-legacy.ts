@@ -82,28 +82,14 @@ import {
   analyzeBias,
   getTierAwareServiceStatus,
 } from "./lib/tiered-ai-provider";
-import { createDefaultUserTier as _createDefaultUserTier, UserTierInfo } from "@shared/user-tiers";
-
-// FOR TESTING: Override tier to premium to bypass limits
-function createTestUserTier(userId: string): UserTierInfo {
-  return {
-    userId,
-    tier: 'premium',
-    usageCount: {
-      resumeAnalysis: 0,
-      jobAnalysis: 0, 
-      matchAnalysis: 0,
-      biasAnalysis: 0,
-      interviewQuestions: 0,
-      interviewScript: 0
-    },
-    lastReset: new Date(),
-    isActive: true
-  };
-}
+import { createDefaultUserTier, UserTierInfo } from "@shared/user-tiers";
 import { generateSessionId, registerSession } from "./lib/session-utils";
 import { apiRateLimiter, uploadRateLimiter } from "./middleware/rate-limiter";
 import { secureUpload, validateUploadedFile } from "./lib/secure-upload";
+// Migration imports for Phase 2 - Legacy Service Routing
+import { createAnalysisService } from "./services/analysis-service";
+import { toLegacyBiasResponse, toLegacyErrorResponse, logLegacyServiceUsage } from "./lib/analysis-legacy-transformer";
+import { isFailure } from "@shared/result-types";
 
 // Helper function to get user tier information
 async function getUserTierInfo(userId: string): Promise<UserTierInfo> {
@@ -117,8 +103,8 @@ async function getUserTierInfo(userId: string): Promise<UserTierInfo> {
     logger.warn('Could not retrieve user tier info, using default:', error);
   }
   
-  // Create default freemium tier for new users
-  const defaultTier = createTestUserTier('default-user'); // Use premium tier for testing
+  // Create default premium tier for new users (testing override)
+  const defaultTier = createDefaultUserTier('premium');
   
   try {
     // Save default tier to storage
@@ -564,6 +550,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           logger.error("Failed to analyze resume:", err);
           
           // BETA MODE: Provide user-friendly error messages without tier restrictions
+          const errorMessage = _getErrorMessage(err);
+          const isUsageLimitError = errorMessage.includes('usage limit') || errorMessage.includes('tier limit');
           
           res.status(201).json({
             id: resume.id,
@@ -684,6 +672,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         // BETA MODE: Provide user-friendly error messages without tier restrictions
+        const errorMessage = _getErrorMessage(err);
+        const isUsageLimitError = errorMessage.includes('usage limit') || errorMessage.includes('tier limit');
         
         res.status(201).json({
           id: jobDescription.id,
@@ -777,6 +767,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/analyze/:jobDescriptionId",
     authenticateUser,
     async (req: Request, res: Response) => {
+      const startTime = Date.now();
+      const userId = req.user!.uid;
+      
       try {
         const jobDescriptionId = parseInt(req.params.jobDescriptionId);
         if (isNaN(jobDescriptionId)) {
@@ -784,7 +777,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Get session ID if provided (for filtering resumes from a specific upload session)
-        const { sessionId } = req.body;
+        const { sessionId, resumeIds } = req.body;
+
+        // Check if we should use the new AnalysisService (migration feature flag)
+        // Support runtime override for testing via environment variable
+        const useLegacyServiceRouting = config.features.legacyServiceRouting || 
+                                       process.env.LEGACY_SERVICE_ROUTING === 'true';
+        
+        if (useLegacyServiceRouting) {
+          logger.debug('Using AnalysisService for batch analysis (migration enabled)', { 
+            userId, 
+            jobId: jobDescriptionId,
+            sessionId,
+            resumeIds: resumeIds?.length || 'all'
+          });
+          
+          // Create AnalysisService instance
+          const analysisService = createAnalysisService(getStorage());
+          
+          // Use AnalysisService for batch analysis
+          const serviceResult = await analysisService.analyzeResumesBatch({
+            userId,
+            jobId: jobDescriptionId,
+            sessionId,
+            resumeIds
+          });
+          
+          const processingTime = Date.now() - startTime;
+          
+          // Log legacy service usage for monitoring
+          logLegacyServiceUsage(
+            '/api/analyze/:jobDescriptionId',
+            userId,
+            useLegacyServiceRouting, // runtime migration decision
+            processingTime,
+            !isFailure(serviceResult)
+          );
+          
+          if (isFailure(serviceResult)) {
+            const legacyError = toLegacyErrorResponse(serviceResult, {
+              operation: 'batch_analysis',
+              userId,
+              jobId: jobDescriptionId
+            });
+            return res.status(500).json({
+              message: "Failed to analyze resumes. Please try again.",
+              error: legacyError.error,
+              code: legacyError.code
+            });
+          }
+          
+          // Transform AnalysisService result to legacy format
+          const legacyResponse = toLegacyBatchResponse(serviceResult, serviceResult.data.jobTitle || 'Job Analysis');
+          
+          // Add deprecation headers for client awareness (RFC-8594 + custom)
+          res.setHeader('Deprecation', 'true');
+          res.setHeader('Sunset', new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toUTCString()); // 90 days from now
+          res.setHeader('Link', '</analysis/analyze/:jobId>; rel="successor-version"');
+          res.setHeader('X-API-Deprecation-Notice', 'This endpoint will be migrated to /analysis/analyze/:jobId');
+          res.setHeader('X-Migration-Available', 'Use /analysis/analyze/:jobId for the modern API');
+          
+          return res.json(legacyResponse);
+        }
+
+        // LEGACY PATH: Continue using existing logic when feature flag is disabled
+        logger.debug('Using legacy batch analysis implementation', { userId, jobId: jobDescriptionId });
         
         // Get the job description
         const jobDescription = await getStorage().getJobDescription(jobDescriptionId);
@@ -861,6 +918,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Save updated user tier info (usage count incremented)
         await saveUserTierInfo(req.user!.uid, userTier);
+
+        const processingTime = Date.now() - startTime;
+        
+        // Log legacy service usage for monitoring
+        logLegacyServiceUsage(
+          '/api/analyze/:jobDescriptionId',
+          userId,
+          useLegacyServiceRouting, // runtime migration decision (false in this path)
+          processingTime,
+          true
+        );
         
         res.json({
           jobDescriptionId,
@@ -868,6 +936,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           results: analysisResults,
         });
       } catch (error) {
+        const processingTime = Date.now() - startTime;
+        
+        // Log legacy service usage for monitoring (failure case)
+        const useLegacyServiceRouting = config.features.legacyServiceRouting || 
+                                       process.env.LEGACY_SERVICE_ROUTING === 'true';
+        logLegacyServiceUsage(
+          '/api/analyze/:jobDescriptionId',
+          userId,
+          useLegacyServiceRouting, // runtime migration decision
+          processingTime,
+          false
+        );
+        
         logger.error("Error analyzing resumes:", error);
         res.status(500).json({
           message: error instanceof Error ? error.message : "Unknown error",
@@ -1245,7 +1326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Get user tier info
-        const userTier = createTestUserTier(req.user!.uid); // Use premium tier for testing
+        const userTier = await getUserTierInfo(req.user!.uid);
         
         // Get the resume and job description
         const resume = await getStorage().getResume(resumeId);
@@ -1688,12 +1769,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/analyze-bias/:jobId",
     authenticateUser,
     async (req: Request, res: Response) => {
+      const startTime = Date.now();
+      const userId = req.user!.uid;
+      
       try {
         // Validate job ID
         const jobId = parseInt(req.params.jobId);
         if (isNaN(jobId)) {
           return res.status(400).json({ message: "Invalid job ID" });
         }
+
+        // Check if we should use the new AnalysisService (migration feature flag)
+        // Support runtime override for testing via environment variable
+        const useLegacyServiceRouting = config.features.legacyServiceRouting || 
+                                       process.env.LEGACY_SERVICE_ROUTING === 'true';
+        
+        if (useLegacyServiceRouting) {
+          logger.debug('Using AnalysisService for bias analysis (migration enabled)', { userId, jobId });
+          
+          // Create AnalysisService instance
+          const analysisService = createAnalysisService(getStorage());
+          
+          // Use AnalysisService for bias analysis
+          const serviceResult = await analysisService.analyzeBias({
+            userId,
+            jobId
+          });
+          
+          const processingTime = Date.now() - startTime;
+          
+          // Log legacy service usage for monitoring
+          logLegacyServiceUsage(
+            '/api/analyze-bias/:jobId',
+            userId,
+            useLegacyServiceRouting, // runtime migration decision
+            processingTime,
+            !isFailure(serviceResult)
+          );
+          
+          if (isFailure(serviceResult)) {
+            const legacyError = toLegacyErrorResponse(serviceResult, {
+              operation: 'bias_analysis',
+              userId,
+              jobId
+            });
+            return res.status(500).json({
+              message: "Failed to analyze bias in job description. Please try again.",
+              error: legacyError.error,
+              code: legacyError.code
+            });
+          }
+          
+          // Transform AnalysisService result to legacy format
+          const legacyResponse = toLegacyBiasResponse(serviceResult);
+          
+          // Add deprecation headers for client awareness (RFC-8594 + custom)
+          res.setHeader('Deprecation', 'true');
+          res.setHeader('Sunset', new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toUTCString()); // 90 days from now
+          res.setHeader('Link', '</analysis/analyze-bias/:jobId>; rel="successor-version"');
+          res.setHeader('X-API-Deprecation-Notice', 'This endpoint will be migrated to /analysis/analyze-bias/:jobId');
+          res.setHeader('X-Migration-Available', 'Use /analysis/analyze-bias/:jobId for the modern API');
+          
+          return res.json(legacyResponse);
+        }
+
+        // LEGACY PATH: Continue using existing logic when feature flag is disabled
+        logger.debug('Using legacy bias analysis implementation', { userId, jobId });
 
         // Retrieve the job description
         const jobDescription = await getStorage().getJobDescription(jobId);
@@ -1732,12 +1873,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Log successful completion
         logger.info(`Completed bias analysis for job ID ${jobId}`);
 
+        const processingTime = Date.now() - startTime;
+        
+        // Log legacy service usage for monitoring
+        logLegacyServiceUsage(
+          '/api/analyze-bias/:jobId',
+          userId,
+          useLegacyServiceRouting, // runtime migration decision (false in this path)
+          processingTime,
+          true
+        );
+
         // Return the result
         return res.json({
           jobId,
           biasAnalysis
         });
       } catch (error) {
+        const processingTime = Date.now() - startTime;
+        
+        // Log legacy service usage for monitoring (failure case)
+        const useLegacyServiceRouting = config.features.legacyServiceRouting || 
+                                       process.env.LEGACY_SERVICE_ROUTING === 'true';
+        logLegacyServiceUsage(
+          '/api/analyze-bias/:jobId',
+          userId,
+          useLegacyServiceRouting, // runtime migration decision
+          processingTime,
+          false
+        );
+        
         // Log the detailed error
         logger.error("Error analyzing bias:", error);
         
@@ -1993,6 +2158,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Basic analyze endpoint - requires auth, returns proper JSON response
   app.post("/api/analyze", authenticateUser, async (req: Request, res: Response) => {
+    const startTime = Date.now();
+    const userId = req.user!.uid;
+    
     try {
       const { resumeText, jobDescriptionText } = req.body;
       
@@ -2002,6 +2170,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: 'Both resumeText and jobDescriptionText are required'
         });
       }
+
+      // Check if we should use the new AnalysisService (migration feature flag)
+      // Support runtime override for testing via environment variable
+      const useLegacyServiceRouting = config.features.legacyServiceRouting || 
+                                     process.env.LEGACY_SERVICE_ROUTING === 'true';
+      
+      if (useLegacyServiceRouting) {
+        logger.debug('Using AnalysisService for direct text analysis (migration enabled)', { 
+          userId,
+          resumeTextLength: resumeText.length,
+          jobTextLength: jobDescriptionText.length
+        });
+        
+        // For direct text analysis, we'll use the legacy implementation internally
+        // since AnalysisService doesn't have a direct text analysis method yet
+        // But we'll add the migration pattern and observability
+        
+        try {
+          // Get user tier for analysis limits
+          const userTier = await getUserTierInfo(req.user!.uid);
+          
+          // Perform basic match analysis using tiered provider
+          const matchAnalysis = await analyzeMatchTiered(
+            { content: resumeText },
+            { description: jobDescriptionText },
+            resumeText,
+            userTier
+          );
+          
+          // Save updated user tier info (usage count incremented)
+          await saveUserTierInfo(req.user!.uid, userTier);
+          
+          const processingTime = Date.now() - startTime;
+          
+          // Log legacy service usage for monitoring
+          logLegacyServiceUsage(
+            '/api/analyze',
+            userId,
+            useLegacyServiceRouting, // runtime migration decision
+            processingTime,
+            true
+          );
+          
+          // Add deprecation headers for client awareness (RFC-8594 + custom)
+          res.setHeader('Deprecation', 'true');
+          res.setHeader('Sunset', new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toUTCString()); // 90 days from now
+          res.setHeader('Link', '</analysis/analyze-text>; rel="successor-version"');
+          res.setHeader('X-API-Deprecation-Notice', 'This endpoint will be migrated to /analysis/analyze-text');
+          res.setHeader('X-Migration-Available', 'Use /analysis/analyze-text for the modern API');
+          
+          return res.json(matchAnalysis);
+        } catch (serviceError) {
+          const processingTime = Date.now() - startTime;
+          
+          // Log legacy service usage for monitoring (failure case)
+          logLegacyServiceUsage(
+            '/api/analyze',
+            userId,
+            useLegacyServiceRouting,
+            processingTime,
+            false
+          );
+          
+          throw serviceError; // Re-throw to handle in main catch block
+        }
+      }
+
+      // LEGACY PATH: Continue using existing logic when feature flag is disabled
+      logger.debug('Using legacy direct text analysis implementation', { userId });
       
       // Get user tier for analysis limits
       const userTier = await getUserTierInfo(req.user!.uid);
@@ -2016,9 +2253,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Save updated user tier info (usage count incremented)
       await saveUserTierInfo(req.user!.uid, userTier);
+
+      const processingTime = Date.now() - startTime;
+      
+      // Log legacy service usage for monitoring
+      logLegacyServiceUsage(
+        '/api/analyze',
+        userId,
+        useLegacyServiceRouting, // runtime migration decision (false in this path)
+        processingTime,
+        true
+      );
       
       res.json(matchAnalysis);
     } catch (error) {
+      const processingTime = Date.now() - startTime;
+      
+      // Log legacy service usage for monitoring (failure case)
+      const useLegacyServiceRouting = config.features.legacyServiceRouting || 
+                                     process.env.LEGACY_SERVICE_ROUTING === 'true';
+      logLegacyServiceUsage(
+        '/api/analyze',
+        userId,
+        useLegacyServiceRouting, // runtime migration decision
+        processingTime,
+        false
+      );
+      
       logger.error("Error in /api/analyze:", error);
       
       // BETA MODE: Provide user-friendly error messages without tier restrictions

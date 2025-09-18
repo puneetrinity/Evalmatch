@@ -191,15 +191,18 @@ export const getResumeStatusColor = (status: string) => {
   }
 };
 
-export const getResumeStatusIcon = (status: string) => {
+import type { LucideIcon } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle, File as FileIcon } from 'lucide-react';
+
+export const getResumeStatusIcon = (status: string): LucideIcon => {
   switch (status) {
-    case "analyzed":
-      return "check-circle";
-    case "processing":
-      return "clock";
-    case "error":
-      return "exclamation-circle";
+    case 'analyzed':
+      return CheckCircle;
+    case 'processing':
+      return Clock;
+    case 'error':
+      return AlertCircle;
     default:
-      return "file";
+      return FileIcon;
   }
 };

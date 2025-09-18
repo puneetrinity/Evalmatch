@@ -14,9 +14,9 @@ async function initializeEmbeddingPipeline(): Promise<FeatureExtractionPipeline>
     try {
       logger.info("Initializing sentence-transformers embedding pipeline");
 
-      // With 8GB RAM, we can use better models
-      const modelName =
-        process.env.EMBEDDING_MODEL || "Xenova/all-MiniLM-L12-v2"; // 134MB, better accuracy
+      // Use unified embedding configuration
+      const { EMBEDDING_CONFIG } = await import("../config/unified-config");
+      const modelName = EMBEDDING_CONFIG.model;
 
       embeddingPipeline = (await pipeline("feature-extraction", modelName, {
         progress_callback: (progress: { status?: string; file?: string; progress?: number }) => {
@@ -219,8 +219,8 @@ export async function generateBatchEmbeddings(
           });
           // Don't push empty embeddings - they cause downstream calculation issues
           // Instead, generate a zero vector with the expected dimensionality
-          const _pipeline = embeddingPipeline || await initializeEmbeddingPipeline();
-          const expectedDim = 384; // Default dimension for sentence-transformers/all-MiniLM-L6-v2
+          const { getExpectedDimensions, EMBEDDING_CONFIG } = await import("../config/unified-config");
+          const expectedDim = getExpectedDimensions(EMBEDDING_CONFIG.model);
           const zeroVector = new Array(expectedDim).fill(0);
           embeddings.push(zeroVector);
         }

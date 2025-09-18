@@ -139,6 +139,10 @@ app.use(express.urlencoded({ extended: false }));
 import { userLimiter, analysisLimiter, adminLimiter } from './middleware/limiters';
 app.use('/api', userLimiter);
 app.use('/api/analysis', analysisLimiter); 
+// Apply same analysis rate limiting to legacy analyze endpoints for parity
+app.use('/api/analyze', analysisLimiter);
+app.use('/api/analyze-match', analysisLimiter);
+app.use('/api/analyze-bias', analysisLimiter);
 app.use('/api/admin', adminLimiter);
 
 // CRITICAL FIX: Apply route timeouts to prevent null responses under load

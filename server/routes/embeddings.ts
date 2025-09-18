@@ -7,6 +7,7 @@
 import { Router } from 'express';
 import { getEmbeddingService } from '../services/embedding-service';
 import { logger } from '../lib/logger';
+import { EMBEDDING_CONFIG } from '../config/unified-config';
 
 const router = Router();
 
@@ -160,7 +161,7 @@ router.post('/test', async (req, res) => {
     
     const result = await embeddingService.getEmbedding({
       text: safeText,
-      model: 'Xenova/all-MiniLM-L12-v2'
+      model: EMBEDDING_CONFIG.model
     });
     
     const responseTime = Date.now() - startTime;

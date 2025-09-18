@@ -434,7 +434,7 @@ router.get("/service-status", async (req: Request, res: Response) => {
     // Check Groq service
     try {
       const groq = await import("../lib/groq");
-      const groqStatus = groq.getGroqServiceStatus();
+      const groqStatus = await groq.getGroqServiceStatus();
       services.groq = {
         available: groqStatus.isAvailable,
         configured: groqStatus.isConfigured,

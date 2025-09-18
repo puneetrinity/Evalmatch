@@ -92,6 +92,14 @@ export interface AppConfig {
     hasAnyProvider: boolean;
   };
 
+  // Embedding Configuration
+  embedding: {
+    model: string;
+    maxConcurrent: number;
+    fallbackProvider: string;
+    dimensionPolicy: 'static' | 'learned';
+  };
+
   // Security
   security: {
     sessionSecret: string;
@@ -107,6 +115,7 @@ export interface AppConfig {
     enableCreditSystem: boolean;
     enableMauticTracking: boolean;
     enableLegacyRoutes: boolean;
+    legacyServiceRouting: boolean;
   };
 
   // Hybrid Analyzer Configuration (aligned to existing thresholds)
@@ -281,6 +290,7 @@ export function loadUnifiedConfig(): AppConfig {
     enableCreditSystem: process.env.ENABLE_CREDIT_SYSTEM === "true", // Default false - enable explicitly
     enableMauticTracking: process.env.ENABLE_MAUTIC_TRACKING === "true", // Default false - enable explicitly
     enableLegacyRoutes: process.env.ENABLE_LEGACY_ROUTES !== "false", // Default true for backwards compatibility
+    legacyServiceRouting: process.env.LEGACY_SERVICE_ROUTING === "true", // Default false - use legacy service internally
   };
 
   // Hybrid Analyzer Configuration (aligned to unified-scoring-config.ts thresholds)
@@ -374,6 +384,12 @@ export function loadUnifiedConfig(): AppConfig {
       primary: primaryProvider,
       providers: aiProviders,
       hasAnyProvider,
+    },
+    embedding: {
+      model: process.env.EMBEDDING_MODEL || 'Xenova/all-MiniLM-L12-v2',
+      maxConcurrent: parseInt(process.env.MAX_CONCURRENT_EMBEDDINGS || '3', 10),
+      fallbackProvider: 'openai',
+      dimensionPolicy: 'static' as const,
     },
     security: {
       sessionSecret,
@@ -505,3 +521,26 @@ export function validateConfigurationOrExit(_config: AppConfig): void {
 // Export singleton configuration
 // Note: Environment validation is now performed in server/index.ts before config loading
 export const config = loadUnifiedConfig();
+
+// Convenient embedding configuration export
+export const EMBEDDING_CONFIG = config.embedding;
+
+// Dimension mapping for different embedding models
+export const EMBEDDING_DIMENSIONS = {
+  'Xenova/all-MiniLM-L6-v2': 384,
+  'Xenova/all-MiniLM-L12-v2': 384,
+  'text-embedding-3-small': 1536,
+  'text-embedding-3-large': 3072,
+  'text-embedding-ada-002': 1536,
+} as const;
+
+// Get expected dimensions for a model
+export function getExpectedDimensions(modelName: string): number {
+  return EMBEDDING_DIMENSIONS[modelName as keyof typeof EMBEDDING_DIMENSIONS] || 384;
+}
+
+// Validate embedding dimensions
+export function validateEmbeddingDimensions(embedding: number[], expectedModel: string): boolean {
+  const expectedDims = getExpectedDimensions(expectedModel);
+  return embedding.length === expectedDims;
+}

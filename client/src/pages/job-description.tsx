@@ -7,6 +7,7 @@ import Footer from "@/components/layout/footer";
 import StepProgress from "@/components/step-progress";
 import { useSteps } from "@/hooks/use-steps";
 import { Button } from "@/components/ui/button";
+import { X, Info, Loader2 } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { JobCreateRequest } from "@shared/api-contracts";
@@ -176,7 +177,7 @@ export default function JobDescriptionPage() {
                           onClick={() => removeRequirement(index)}
                           className="text-red-500 hover:text-red-700 text-sm ml-2"
                         >
-                          <i className="fas fa-times"></i>
+                          <X className="h-4 w-4" />
                         </button>
                       </div>
                     ))}
@@ -184,7 +185,7 @@ export default function JobDescriptionPage() {
                 )}
                 
                 <div className="flex items-center text-sm text-gray-500 mt-2">
-                  <i className="fas fa-info-circle mr-2"></i>
+                  <Info className="h-4 w-4 mr-2" />
                   <span>Our AI will extract additional skills and requirements automatically from the description</span>
                 </div>
               </div>
@@ -205,7 +206,7 @@ export default function JobDescriptionPage() {
               >
                 {createJobMutation.isPending ? (
                   <>
-                    <i className="fas fa-spinner animate-spin mr-2"></i>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Analyzing...
                   </>
                 ) : (

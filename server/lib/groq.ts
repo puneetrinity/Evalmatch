@@ -548,12 +548,81 @@ async function _callGroqAPIWithResult(
   }
 }
 
-// Get service status
-export function getGroqServiceStatus() {
+// Health check cache for real availability testing
+interface HealthCheckCache {
+  result: boolean;
+  timestamp: number;
+  error?: string;
+}
+
+let groqHealthCache: HealthCheckCache = { result: false, timestamp: 0 };
+const HEALTH_CACHE_TTL = 60000; // 60 seconds
+
+// Real health check using models.list() API call
+async function checkGroqHealth(): Promise<boolean> {
+  const now = Date.now();
+  
+  // Return cached result if still valid
+  if (now - groqHealthCache.timestamp < HEALTH_CACHE_TTL) {
+    return groqHealthCache.result;
+  }
+  
+  if (!groq) {
+    groqHealthCache = { result: false, timestamp: now, error: "Client not initialized" };
+    return false;
+  }
+  
+  try {
+    // Test with actual API call to verify connectivity
+    const models = await groq.models.list();
+    const isHealthy = models.data && models.data.length > 0;
+    groqHealthCache = { result: isHealthy, timestamp: now };
+    return isHealthy;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    groqHealthCache = { result: false, timestamp: now, error: errorMessage };
+    logger.warn('Groq health check failed', { error: errorMessage });
+    return false;
+  }
+}
+
+// Get service status with real availability check
+export async function getGroqServiceStatus() {
+  const isConfigured = !!process.env.GROQ_API_KEY;
+  const isAvailable = isConfigured ? await checkGroqHealth() : false;
+  
+  let statusMessage = "Groq API key not configured";
+  if (isConfigured && isAvailable) {
+    statusMessage = "Groq API is ready";
+  } else if (isConfigured && !isAvailable) {
+    statusMessage = `Groq API unavailable: ${groqHealthCache.error || 'Connection failed'}`;
+  }
+  
   return {
-    isAvailable: !!groq,
+    isAvailable,
+    isConfigured,
+    statusMessage,
+    provider: "Groq",
+    models: Object.values(MODELS),
+    usage: apiUsage,
+    healthCheck: {
+      cached: groqHealthCache.timestamp > 0,
+      cacheAge: Date.now() - groqHealthCache.timestamp,
+      lastError: groqHealthCache.error,
+    },
+    timestamp: new Date().toISOString(),
+  };
+}
+
+// Legacy synchronous version for backward compatibility
+export function getGroqServiceStatusSync() {
+  const now = Date.now();
+  const isCacheValid = now - groqHealthCache.timestamp < HEALTH_CACHE_TTL;
+  
+  return {
+    isAvailable: isCacheValid ? groqHealthCache.result : !!groq,
     isConfigured: !!process.env.GROQ_API_KEY,
-    statusMessage: groq ? "Groq API is ready" : "Groq API key not configured",
+    statusMessage: groq ? "Groq API is ready (sync check)" : "Groq API key not configured",
     provider: "Groq",
     models: Object.values(MODELS),
     usage: apiUsage,

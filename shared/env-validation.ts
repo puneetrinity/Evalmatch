@@ -69,7 +69,7 @@ export const AIProviderConfigSchema = z.object({
 
   // Groq Configuration
   GROQ_API_KEY: z.string().min(1, 'Groq API key is required').optional(),
-  GROQ_MODEL: z.string().default('llama-3.1-70b-versatile'),
+  GROQ_MODEL: z.string().default('llama-3.3-70b-versatile'),
   GROQ_MAX_TOKENS: z.coerce.number().int().positive().default(2000),
   GROQ_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.7),
   GROQ_TIMEOUT: z.coerce.number().int().positive().default(30000),

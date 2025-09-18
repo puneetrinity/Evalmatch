@@ -70,7 +70,13 @@ The platform includes enterprise-grade optimizations for handling large datasets
    - Memory-efficient LRU cache with automatic cleanup
    - Smart cache key generation and invalidation
 
-2. **Parallel Processing**: Implemented in `server/lib/enhanced-scoring.ts`
+2. **Advanced Client-Side Prefetching**: Implemented in `client/public/js/performance.js`
+   - **Manifest-based chunk prefetching** using Vite build manifest
+   - **Adaptive network awareness** (4G = aggressive, 3G = conservative)
+   - **Intersection Observer** for viewport-triggered prefetch
+   - **Real-time performance metrics** via `window.__prefetchMetrics`
+
+3. **Parallel Processing**: Implemented in `server/lib/enhanced-scoring.ts`
    - **10x speed improvement** with parallel embedding generation
    - Batch processing of multiple resumes simultaneously
    - Controlled concurrency to prevent API rate limiting
@@ -144,6 +150,52 @@ npm run test:load     # Load testing
 - **Performance**: <15s response times under load
 - **Security**: Zero known vulnerabilities
 - **Reliability**: 99.9% uptime in production testing
+
+## Performance Monitoring
+
+### Real-Time Prefetch Metrics
+
+Monitor client-side performance optimization in real-time via browser console:
+
+```javascript
+// Access performance metrics
+window.__prefetchMetrics
+// Output:
+{
+  enabled: true,
+  manifestLoaded: true,
+  observedLinks: 15,
+  preloadedChunks: 8,
+  preloadedRoutes: 0,
+  errors: 0,
+  
+  // Performance intelligence
+  navigationHits: 12,        // Route changes (ROI measurement)
+  cacheHits: 6,             // JS cache utilization
+  connectionType: '4g',      // Network type detected
+  adaptiveMargin: '200px'    // Current prefetch sensitivity
+}
+```
+
+### Key Performance Indicators
+
+- **Prefetch Efficiency**: `cacheHits / preloadedChunks` (target: >60%)
+- **Network Adaptation**: Automatic 4G=aggressive, 3G=conservative prefetching
+- **Console Visibility**: Development-only logging on localhost/127.0.0.1
+
+### Performance Validation
+
+```bash
+# 1. Build and verify manifest generation
+npm run build
+ls -la build/public/vite.manifest.json
+
+# 2. Monitor prefetch in browser console
+window.__prefetchMetrics
+
+# 3. Verify modulepreload injection
+document.querySelectorAll('link[rel="modulepreload"]').length
+```
 
 ## Getting Started
 

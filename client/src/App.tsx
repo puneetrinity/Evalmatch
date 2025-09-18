@@ -5,7 +5,7 @@ import { queryClient } from "./lib/queryClient";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { RequireAuth } from "@/hooks/use-auth-simple";
+import { RequireAuth } from "@/contexts/AuthContext";
 import NotFound from "@/pages/not-found";
 
 // Core pages - loaded immediately for faster initial render

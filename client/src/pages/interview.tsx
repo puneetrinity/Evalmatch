@@ -189,7 +189,7 @@ export default function InterviewPage() {
           ) : error ? (
             <div className="bg-white rounded-lg shadow-sm p-12 text-center">
               <div className="mb-4 mx-auto">
-                <i className="fas fa-exclamation-circle text-4xl text-red-500"></i>
+                <svg className="h-10 w-10 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
               </div>
               <h3 className="text-xl font-semibold mb-2">Service Temporarily Unavailable</h3>
               <p className="text-gray-600 mb-6">

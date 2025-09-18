@@ -20,7 +20,15 @@ export function formatFileSize(bytes: number): string {
  * @param fileType MIME type or file extension
  * @returns CSS class for the appropriate icon
  */
+/**
+ * @deprecated Use the React component FileTypeIcon instead.
+ * This function remains for backward compatibility in non-React usage.
+ */
 export function getFileIcon(fileType: string): string {
+  if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+    // eslint-disable-next-line no-console
+    console.warn('getFileIcon is deprecated. Use FileTypeIcon component instead.');
+  }
   if (fileType.includes('pdf')) {
     return 'fa-file-pdf text-red-500';
   } else if (fileType.includes('word') || fileType.includes('docx')) {

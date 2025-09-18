@@ -260,7 +260,7 @@ export default function MyJobDescriptionsPage() {
         ) : error ? (
           <div className="bg-white rounded-lg shadow-sm p-12 text-center">
             <div className="text-red-500 mb-4">
-              <i className="fas fa-exclamation-triangle text-4xl"></i>
+              <svg className="mx-auto h-12 w-12" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4m0 4h.01"/></svg>
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Job Descriptions</h3>
             <p className="text-gray-500 mb-4">There was a problem loading your job descriptions.</p>

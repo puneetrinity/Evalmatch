@@ -139,7 +139,7 @@ async function initializeEnhancements() {
  * Get combined service status for all AI providers
  */
 export function getAIServiceStatus() {
-  const groqStatus = groq.getGroqServiceStatus();
+  const groqStatus = groq.getGroqServiceStatusSync();
   const openaiStatus = openai.getOpenAIServiceStatus();
   let anthropicStatus = null;
 
@@ -191,7 +191,7 @@ export async function analyzeResume(
   await initializeEnhancements();
 
   // Check Groq availability first (primary provider)
-  if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
+  if (isGroqConfigured && groq.getGroqServiceStatusSync().isAvailable) {
     return await groq.analyzeResume(resumeText);
   }
 
@@ -227,7 +227,7 @@ export async function analyzeJobDescription(
   description: string,
 ): Promise<AnalyzeJobDescriptionResponse> {
   // Check Groq availability first (primary provider)
-  if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
+  if (isGroqConfigured && groq.getGroqServiceStatusSync().isAvailable) {
     return await groq.analyzeJobDescription(title, description);
   }
 
@@ -346,7 +346,7 @@ export async function analyzeMatch(
     // Fallback to traditional AI provider analysis
     let matchResult: SingleMatchResult;
 
-    if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
+    if (isGroqConfigured && groq.getGroqServiceStatusSync().isAvailable) {
       const response = await groq.analyzeMatch(
         resumeAnalysis,
         jobAnalysis,
@@ -418,7 +418,7 @@ export async function analyzeBias(
   description: string,
 ): Promise<BiasAnalysisResponse> {
   // Check Groq availability first (primary provider)
-  if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
+  if (isGroqConfigured && groq.getGroqServiceStatusSync().isAvailable) {
     return await groq.analyzeBias(title, description);
   }
 
@@ -464,7 +464,7 @@ export async function generateInterviewQuestions(
   );
 
   // Check Groq availability first (primary provider)
-  if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
+  if (isGroqConfigured && groq.getGroqServiceStatusSync().isAvailable) {
     return await groq.generateInterviewQuestions(
       resumeAnalysis,
       jobAnalysis,
@@ -519,7 +519,7 @@ export async function extractSkills(
   type: "resume" | "job",
 ): Promise<string[]> {
   // Check Groq availability first (primary provider)
-  if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
+  if (isGroqConfigured && groq.getGroqServiceStatusSync().isAvailable) {
     return await groq.extractSkills(text, type);
   }
 
@@ -561,7 +561,7 @@ export async function analyzeSkillGap(
   missingSkills: string[];
 }> {
   // Check Groq availability first (primary provider)
-  if (isGroqConfigured && groq.getGroqServiceStatus().isAvailable) {
+  if (isGroqConfigured && groq.getGroqServiceStatusSync().isAvailable) {
     return await groq.analyzeSkillGap(resumeText, jobDescText);
   }
 

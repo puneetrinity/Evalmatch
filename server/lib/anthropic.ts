@@ -199,7 +199,7 @@ async function trackTokenUsage(
     const { tokenUsageService } = await import('../services/token-usage');
     await tokenUsageService.trackAITokenUsage({
       provider: 'anthropic',
-      model: 'claude-3-5-sonnet-20241022', // Current model
+      model: MODEL, // Use the defined model constant
       operation,
       inputTokens,
       outputTokens,

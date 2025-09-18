@@ -53,24 +53,24 @@ export default function NotFound() {
                 <Button 
                   variant="outline" 
                   className="flex items-center gap-2 p-4 h-auto"
-                  onClick={() => setLocation("/analysis")}
+                  onClick={() => setLocation("/my-analyses")}
                 >
                   <Search className="h-5 w-5" />
                   <div className="text-left">
-                    <div className="font-medium">Analysis</div>
-                    <div className="text-sm text-gray-500">View candidate matches</div>
+                    <div className="font-medium">My Analyses</div>
+                    <div className="text-sm text-gray-500">View your candidate analyses</div>
                   </div>
                 </Button>
                 
                 <Button 
                   variant="outline" 
                   className="flex items-center gap-2 p-4 h-auto"
-                  onClick={() => setLocation("/bias-detection")}
+                  onClick={() => setLocation("/job-description")}
                 >
                   <FileText className="h-5 w-5" />
                   <div className="text-left">
-                    <div className="font-medium">Bias Detection</div>
-                    <div className="text-sm text-gray-500">Eliminate hiring bias</div>
+                    <div className="font-medium">Job Description</div>
+                    <div className="text-sm text-gray-500">Create job descriptions</div>
                   </div>
                 </Button>
               </div>

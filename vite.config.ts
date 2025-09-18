@@ -34,6 +34,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "build/public"),
     emptyOutDir: true,
+    manifest: 'vite.manifest.json',
     // PERFORMANCE: Optimize build settings
     cssCodeSplit: true,
     sourcemap: process.env.NODE_ENV === 'development',

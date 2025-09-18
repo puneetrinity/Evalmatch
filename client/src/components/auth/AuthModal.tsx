@@ -5,6 +5,7 @@
  */
 
 import React, { useState } from 'react';
+import { useLocation } from 'wouter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
@@ -17,6 +18,7 @@ interface AuthModalProps {
 
 export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalProps) {
   const [mode, setMode] = useState<'login' | 'register'>(defaultMode);
+  const [_, setLocation] = useLocation();
 
   const toggleMode = () => {
     setMode(prev => prev === 'login' ? 'register' : 'login');
@@ -24,8 +26,8 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
 
   const handleSuccess = () => {
     onClose();
-    // Redirect to upload page after successful authentication
-    window.location.href = '/upload';
+    // Use client-side navigation instead of hard redirect
+    setLocation('/upload');
   };
 
   return (

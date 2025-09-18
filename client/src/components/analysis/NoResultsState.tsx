@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Circle } from "lucide-react";
 
 interface NoResultsStateProps {
   isAnalyzing: boolean;
@@ -34,16 +35,16 @@ export default function NoResultsState({
         <div>
           <p className="text-gray-600 mb-6">This could be due to one of the following reasons:</p>
           <ul className="text-left max-w-md mx-auto mb-6">
-            <li className="mb-2 flex">
-              <i className="fas fa-circle text-xs text-gray-400 mt-2 mr-2"></i>
+            <li className="mb-2 flex items-start">
+              <Circle className="h-2 w-2 text-gray-400 mt-2 mr-3 fill-current" />
               <span>No resumes were uploaded</span>
             </li>
-            <li className="mb-2 flex">
-              <i className="fas fa-circle text-xs text-gray-400 mt-2 mr-2"></i>
+            <li className="mb-2 flex items-start">
+              <Circle className="h-2 w-2 text-gray-400 mt-2 mr-3 fill-current" />
               <span>The job description analysis is still in progress</span>
             </li>
-            <li className="flex">
-              <i className="fas fa-circle text-xs text-gray-400 mt-2 mr-2"></i>
+            <li className="flex items-start">
+              <Circle className="h-2 w-2 text-gray-400 mt-2 mr-3 fill-current" />
               <span>There was an error during the analysis</span>
             </li>
           </ul>

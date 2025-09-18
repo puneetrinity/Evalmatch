@@ -64,37 +64,69 @@ export default function SkillRadarChart({ matchedSkills, height = 300 }: SkillRa
     );
   }
   
+  // Create accessible description for screen readers
+  const chartDescription = useMemo(() => {
+    const skillList = chartData.map(item => 
+      `${item.skill}: ${item.value}% match`
+    ).join(', ');
+    return `Skill matching radar chart showing: ${skillList}`;
+  }, [chartData]);
+
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
-        <PolarGrid />
-        <PolarAngleAxis 
-          dataKey="skill" 
-          tick={{ fontSize: isMobile ? 10 : 12, fill: '#666', width: 100 }}
-          // Format skill names to be more readable
-          tickFormatter={(value) => {
-            // If skill name contains "Unknown Skill", replace with better label
-            if (value.includes("Unknown Skill")) {
-              return "Skill " + value.split(" ").pop();
-            }
-            
-            // If too long, truncate with ellipsis
-            if (value.length > 14) {
-              return `${value.substring(0, 14)}...`;
-            }
-            
-            return value;
-          }}
-        />
-        <PolarRadiusAxis angle={90} domain={[0, 100]} />
-        <Radar 
-          name="Skill Match" 
-          dataKey="value" 
-          stroke="#15803d" 
-          fill="#22c55e" 
-          fillOpacity={0.5} 
-        />
-      </RadarChart>
-    </ResponsiveContainer>
+    <div role="img" aria-label="Skill matching radar chart" aria-describedby="skill-chart-data">
+      <ResponsiveContainer width="100%" height={height}>
+        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
+          <PolarGrid />
+          <PolarAngleAxis 
+            dataKey="skill" 
+            tick={{ fontSize: isMobile ? 10 : 12, fill: '#666', width: 100 }}
+            // Format skill names to be more readable
+            tickFormatter={(value) => {
+              // If skill name contains "Unknown Skill", replace with better label
+              if (value.includes("Unknown Skill")) {
+                return "Skill " + value.split(" ").pop();
+              }
+              
+              // If too long, truncate with ellipsis
+              if (value.length > 14) {
+                return `${value.substring(0, 14)}...`;
+              }
+              
+              return value;
+            }}
+          />
+          <PolarRadiusAxis angle={90} domain={[0, 100]} />
+          <Radar 
+            name="Skill Match" 
+            dataKey="value" 
+            stroke="#15803d" 
+            fill="#22c55e" 
+            fillOpacity={0.5} 
+          />
+        </RadarChart>
+      </ResponsiveContainer>
+      
+      {/* Screen reader accessible data table */}
+      <div id="skill-chart-data" className="sr-only">
+        <p>{chartDescription}</p>
+        <table>
+          <caption>Skill match percentages</caption>
+          <thead>
+            <tr>
+              <th>Skill</th>
+              <th>Match Percentage</th>
+            </tr>
+          </thead>
+          <tbody>
+            {chartData.map((item, index) => (
+              <tr key={index}>
+                <td>{item.skill}</td>
+                <td>{item.value}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

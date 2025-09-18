@@ -361,7 +361,7 @@ export function generateCompleteAuditTrail(context: {
     versions: {
       esco: "complete_esco_2025-08-27",
       escoDatabaseChecksum: context.versionInfo.escoDatabaseChecksum || "unknown",
-      embeddings: "xenova/all-MiniLM-L12-v2",
+      embeddings: require("../config/unified-config").EMBEDDING_CONFIG.model,
       prompt: context.versionInfo.promptVersion || "v5",
       promptHash,
       provider: context.versionInfo.primaryProvider || "unknown",

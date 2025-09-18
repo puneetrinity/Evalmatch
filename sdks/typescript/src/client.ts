@@ -10,7 +10,16 @@ import type {
   Resume,
   JobDescription,
   PostAnalysisAnalyzeByJobIdResponses,
-  PostAnalysisAnalyzeBiasByJobIdResponses
+  PostAnalysisAnalyzeBiasByJobIdResponses,
+  GetCreditsBalanceData,
+  GetCreditsBalanceResponses,
+  GetCreditsHistoryData,
+  GetCreditsHistoryResponses,
+  GetCreditsPackagesResponses,
+  PostCreditsGrantBetaData,
+  PostCreditsGrantBetaResponses,
+  GetHealthResponses,
+  GetSystemHealthResponses
 } from './generated/types.gen';
 import { RetryableHTTPClient, RetryConfig, CircuitBreakerConfig, CircuitBreakerState } from './core/retry-client';
 import { ErrorFactory, EvalMatchError, CircuitBreakerError } from './core/errors';
@@ -281,6 +290,86 @@ export class EvalMatchClient {
         url: `/analysis/analyze-bias/${jobId}`,
         data: {},
         headers
+      }, options);
+    }
+  };
+
+  /**
+   * Credits management API
+   */
+  public credits = {
+    /**
+     * Get user's credit balance and tier information
+     */
+    balance: async (options?: ClientOptions): Promise<GetCreditsBalanceResponses[200]> => {
+      const headers = await this.getAuthHeaders();
+      return this.request<GetCreditsBalanceResponses[200]>({
+        method: 'GET',
+        url: '/credits/balance',
+        headers
+      }, options);
+    },
+
+    /**
+     * Get user's credit transaction history
+     */
+    history: async (params?: GetCreditsHistoryData['query'], options?: ClientOptions): Promise<GetCreditsHistoryResponses[200]> => {
+      const headers = await this.getAuthHeaders();
+      return this.request<GetCreditsHistoryResponses[200]>({
+        method: 'GET',
+        url: '/credits/history',
+        params,
+        headers
+      }, options);
+    },
+
+    /**
+     * Get available credit packages for purchase
+     */
+    packages: async (options?: ClientOptions): Promise<GetCreditsPackagesResponses[200]> => {
+      const headers = await this.getAuthHeaders();
+      return this.request<GetCreditsPackagesResponses[200]>({
+        method: 'GET',
+        url: '/credits/packages',
+        headers
+      }, options);
+    },
+
+    /**
+     * Grant beta credits to user (requires authentication)
+     */
+    grantBeta: async (body?: PostCreditsGrantBetaData['body'], options?: ClientOptions): Promise<PostCreditsGrantBetaResponses[200]> => {
+      const headers = await this.getAuthHeaders();
+      return this.request<PostCreditsGrantBetaResponses[200]>({
+        method: 'POST',
+        url: '/credits/grant-beta',
+        data: body || {},
+        headers
+      }, options);
+    }
+  };
+
+  /**
+   * Health and system status API
+   */
+  public health = {
+    /**
+     * Get basic service health status
+     */
+    status: async (options?: ClientOptions): Promise<GetHealthResponses[200]> => {
+      return this.request<GetHealthResponses[200]>({
+        method: 'GET',
+        url: '/health'
+      }, options);
+    },
+
+    /**
+     * Get detailed system health information
+     */
+    systemHealth: async (options?: ClientOptions): Promise<GetSystemHealthResponses[200]> => {
+      return this.request<GetSystemHealthResponses[200]>({
+        method: 'GET',
+        url: '/system-health'
       }, options);
     }
   };

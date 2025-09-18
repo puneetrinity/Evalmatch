@@ -1,0 +1,98 @@
+name: OpenAPI Sync & SDK Generation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/routes/**'
+      - 'server/config/swagger-config.ts'
+      - 'server/index.ts'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server/routes/**'
+      - 'server/config/swagger-config.ts'
+      - 'server/index.ts'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  openapi-sync:
+    name: OpenAPI Sync Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          
+      - name: Install dependencies (root)
+        run: npm ci
+        
+      - name: Install SDK dependencies
+        run: |
+          cd sdks/typescript
+          npm ci
+          
+      - name: Export OpenAPI spec
+        run: npm run openapi:export
+        
+      - name: Generate SDK types
+        run: npm run openapi:gen:types
+        
+      - name: Check for drift
+        run: |
+          if ! git diff --exit-code docs/api/ sdks/typescript/src/generated/; then
+            echo "❌ OpenAPI spec or generated types are out of sync!"
+            echo "Please run: npm run openapi:ci"
+            echo ""
+            echo "Changed files:"
+            git diff --name-only docs/api/ sdks/typescript/src/generated/
+            echo ""
+            echo "To fix, run locally:"
+            echo "  npm run openapi:export"
+            echo "  npm run openapi:gen:types"
+            echo "  git add docs/api/ sdks/typescript/src/generated/"
+            echo "  git commit -m 'Sync OpenAPI spec and generated types'"
+            exit 1
+          fi
+          echo "✅ OpenAPI spec and generated types are in sync"
+          
+      - name: Run SDK tests
+        run: |
+          cd sdks/typescript
+          npm run typecheck
+          npm run build
+          npm run test
+          
+      - name: Run root tests
+        run: npm run test:ci
+        
+      - name: Validate exported spec
+        run: |
+          # Basic spec validation
+          if ! jq empty docs/api/openapi.json; then
+            echo "❌ Generated OpenAPI JSON is invalid"
+            exit 1
+          fi
+          
+          # Check required endpoints exist
+          REQUIRED_ENDPOINTS=("/resumes" "/analysis/analyze/{jobId}" "/credits/balance" "/health")
+          for endpoint in "${REQUIRED_ENDPOINTS[@]}"; do
+            if ! jq -e ".paths[\"$endpoint\"]" docs/api/openapi.json > /dev/null; then
+              echo "❌ Missing required endpoint: $endpoint"
+              exit 1
+            fi
+          done
+          
+          echo "✅ OpenAPI spec validation passed"

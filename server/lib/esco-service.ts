@@ -232,6 +232,9 @@ export class ESCOService {
     const params = domain !== 'general' ? [query, domain, maxResults] : [query, maxResults];
     const results = await this.db.all(sql, params);
     
+    // Extract all BM25 scores for proper min-max normalization
+    const allBM25Scores = results.map(row => row.bm25_score);
+    
     return results.map(row => ({
       escoId: row.esco_id,
       skillTitle: row.skill_title,
@@ -239,7 +242,7 @@ export class ESCOService {
       description: row.description || '',
       category: row.category,
       domain: row.domain,
-      matchScore: this.convertBM25ToScore(row.bm25_score),
+      matchScore: this.convertBM25ToScore(row.bm25_score, allBM25Scores),
       matchType: this.determineMatchType(text, row.skill_title, row.alternative_label),
       highlightedText: row.highlighted_text
     }));
@@ -287,8 +290,16 @@ export class ESCOService {
     const contamination = { blocked: 0, flagged: 0, reasons: [] as string[] };
     const filteredSkills: ESCOSearchResult[] = [];
     
-    // Get contamination guards from database
-    const guards = await this.db.all('SELECT * FROM contamination_guards');
+    // Get contamination guards from database with error handling
+    let guards: any[] = [];
+    try {
+      guards = await this.db.all('SELECT * FROM contamination_guards');
+    } catch (error) {
+      logger.warn('Contamination guards table not found, using empty guards', { 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+      guards = []; // Fallback to empty guards array
+    }
     
     for (const skill of skills) {
       let isBlocked = false;
@@ -384,11 +395,28 @@ export class ESCOService {
   /**
    * Convert BM25 score to normalized 0-1 score
    */
-  private convertBM25ToScore(bm25Score: number): number {
+  private convertBM25ToScore(bm25Score: number, allScores?: number[]): number {
     // BM25 scores are typically negative, with higher (less negative) being better
-    // Convert to 0-1 scale where 1 is best match
-    const normalizedScore = Math.exp(bm25Score / 2); // Exponential scaling
-    return Math.min(1.0, Math.max(0.1, normalizedScore));
+    // Use min-max normalization to preserve rank separation
+    if (allScores && allScores.length > 1) {
+      const min = Math.min(...allScores);
+      const max = Math.max(...allScores);
+      const range = max - min;
+      
+      if (range === 0) {
+        // All scores are identical, return middle score
+        return 0.5;
+      }
+      
+      // Linear normalization preserving rank separation
+      const normalized = (bm25Score - min) / range;
+      return Math.max(0.1, Math.min(1.0, normalized));
+    } else {
+      // Fallback for single scores - improved exponential scaling
+      // Use gentler scaling to preserve more differentiation
+      const normalizedScore = Math.exp(bm25Score / 4); // Gentler scaling vs /2
+      return Math.min(1.0, Math.max(0.1, normalizedScore));
+    }
   }
 
   /**

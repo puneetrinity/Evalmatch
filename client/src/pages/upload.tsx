@@ -9,7 +9,9 @@ import Footer from "@/components/layout/footer";
 import StepProgress from "@/components/step-progress";
 import { useSteps } from "@/hooks/use-steps";
 import { Button } from "@/components/ui/button";
-import { formatFileSize, getFileIcon, isFileAllowed, isFileSizeValid } from "@/lib/file-utils";
+import { formatFileSize, isFileAllowed, isFileSizeValid } from "@/lib/file-utils";
+import FileTypeIcon from "@/components/icons/FileTypeIcon";
+import { UploadCloud, Loader2, X } from 'lucide-react';
 import type { 
   ResumeId, 
   SessionId, 
@@ -543,7 +545,7 @@ export default function UploadPage() {
             onDrop={handleDrop}
           >
             <div className="text-primary mb-4" aria-hidden="true">
-              <i className="fas fa-file-upload text-5xl"></i>
+              <UploadCloud className="h-12 w-12" />
             </div>
             <p className="text-lg font-medium text-gray-700 mb-2">Drag and drop your resumes here</p>
             <p className="text-sm text-gray-500 mb-4">or</p>
@@ -587,8 +589,8 @@ export default function UploadPage() {
             {/* Empty state */}
             {isLoading ? (
               <div className="py-8 text-center">
-                <div className="animate-spin mb-4 mx-auto" aria-hidden="true">
-                  <i className="fas fa-spinner text-3xl text-primary"></i>
+                <div className="mb-4 mx-auto" aria-hidden="true">
+                  <Loader2 className="h-8 w-8 text-primary animate-spin" />
                 </div>
                 <p className="text-gray-500">Loading resumes...</p>
               </div>
@@ -601,7 +603,7 @@ export default function UploadPage() {
                 {files.map((file, index) => (
                   <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
                     <div className="flex items-center">
-                      <i className={`fas ${getFileIcon(file.type)} mr-3`} aria-hidden="true"></i>
+                      <FileTypeIcon fileType={file.type} className="mr-3 h-5 w-5" />
                       <div>
                         <p className="font-medium text-gray-900">{file.name}</p>
                         <p className="text-sm text-gray-500">{formatFileSize(file.size)}</p>
@@ -619,7 +621,7 @@ export default function UploadPage() {
                         onClick={() => handleRemoveFile(file.name)}
                         aria-label={`Remove ${file.name}`}
                       >
-                        <i className="fas fa-times" aria-hidden="true"></i>
+                        <X className="h-4 w-4" aria-hidden="true" />
                       </button>
                     </div>
                   </div>

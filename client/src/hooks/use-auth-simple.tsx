@@ -111,9 +111,9 @@ export function RequireAuth({ children, fallback, redirectTo = '/auth' }: Requir
   const { user, loading, isAuthenticated } = useAuth();
 
   // Check if we're in test mode and should bypass authentication
-  const isTestMode = typeof window !== 'undefined' && 
-    (window.localStorage.getItem('test_authenticated') === 'true' || 
-     import.meta.env.MODE === 'test');
+  // SECURITY: Only allow test bypass in actual test environment, never in production
+  const isTestMode = import.meta.env.MODE === 'test' || 
+    (import.meta.env.DEV && import.meta.env.VITE_ENABLE_TEST_BYPASS === 'true');
 
   // Preserve current path for redirect after authentication - always calculate this
   const currentPath = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '';

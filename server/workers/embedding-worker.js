@@ -20,6 +20,19 @@ env.allowRemoteModels = true;
 let model = null;
 let isModelLoading = false;
 
+// Model dimension mapping
+const MODEL_DIMENSIONS = {
+  'Xenova/all-MiniLM-L6-v2': 384,
+  'Xenova/all-MiniLM-L12-v2': 384,
+  'text-embedding-3-small': 1536,
+  'text-embedding-3-large': 3072,
+  'text-embedding-ada-002': 1536,
+};
+
+function getExpectedDimensions(modelName) {
+  return MODEL_DIMENSIONS[modelName] || 384; // Default to 384 if model not in map
+}
+
 // ✅ CRITICAL: Proper error handling and model loading
 async function initializeModel(modelName) {
   if (isModelLoading) return;
@@ -96,7 +109,8 @@ parentPort.on('message', async ({ id, text, modelName, options: _options = {} })
     }
 
     // ✅ CRITICAL: Validate and normalize embedding
-    validateEmbedding(embedding, 384);
+    const expectedDims = getExpectedDimensions(modelName);
+    validateEmbedding(embedding, expectedDims);
     const normalizedEmbedding = l2Normalize(embedding);
     
     // Calculate L2 norm for verification

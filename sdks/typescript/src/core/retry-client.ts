@@ -212,9 +212,8 @@ export class RetryableHTTPClient {
         let delayMs: number | undefined
         if (axios.isAxiosError(error) && error.response?.status === 429) {
           const retryAfter = error.response.headers?.['retry-after']
-          const seconds = retryAfter ? parseInt(String(retryAfter), 10) : NaN
-          if (!Number.isNaN(seconds) && seconds > 0) {
-            delayMs = Math.min(seconds * 1000, this.retryConfig.maxDelay)
+          if (retryAfter) {
+            delayMs = this.parseRetryAfter(String(retryAfter))
           }
         }
 
@@ -250,6 +249,30 @@ export class RetryableHTTPClient {
     }
 
     return false
+  }
+
+  /**
+   * Parse Retry-After header value (RFC 7231)
+   * Supports both delay-seconds and HTTP-date formats
+   */
+  private parseRetryAfter(retryAfter: string): number | undefined {
+    // Try parsing as seconds first
+    const seconds = parseInt(retryAfter, 10)
+    if (!Number.isNaN(seconds) && seconds > 0) {
+      return Math.min(seconds * 1000, this.retryConfig.maxDelay)
+    }
+
+    // Try parsing as HTTP-date (RFC 7231 format)
+    const httpDate = new Date(retryAfter)
+    if (!Number.isNaN(httpDate.getTime())) {
+      const delayMs = httpDate.getTime() - Date.now()
+      if (delayMs > 0) {
+        return Math.min(delayMs, this.retryConfig.maxDelay)
+      }
+    }
+
+    // Invalid or past date - return undefined for fallback
+    return undefined
   }
 
   private enrichError(error: any, attempts = 1): Error {

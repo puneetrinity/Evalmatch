@@ -3,7 +3,8 @@ import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
-import { formatFileSize, getFileIcon } from "@/lib/file-utils";
+import { formatFileSize } from "@/lib/file-utils";
+import FileTypeIcon from "@/components/icons/FileTypeIcon";
 import { useResumes, getResumeStatusColor, getResumeStatusIcon } from "@/hooks/use-resumes";
 import type { ResumeItem } from "@shared/api-contracts";
 import { useLocation } from "wouter";
@@ -132,7 +133,7 @@ export default function MyResumesPage() {
             ) : error ? (
               <div className="text-center py-12">
                 <div className="text-red-500 mb-4">
-                  <i className="fas fa-exclamation-triangle text-4xl"></i>
+                  <svg className="mx-auto h-12 w-12" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4m0 4h.01"/></svg>
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Resumes</h3>
                 <p className="text-gray-500 mb-4">There was a problem loading your resumes.</p>
@@ -177,7 +178,7 @@ export default function MyResumesPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4 flex-1">
                           <div className="flex-shrink-0">
-                            <i className={`${getFileIcon(resume.mimeType || resume.fileType)} text-2xl text-blue-600`} aria-hidden="true"></i>
+                            <FileTypeIcon fileType={(resume.mimeType || resume.fileType)} className="h-6 w-6 text-blue-600" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <h4 className="text-lg font-medium text-gray-900 truncate">{resume.originalName || resume.filename}</h4>
@@ -195,7 +196,7 @@ export default function MyResumesPage() {
                         <div className="flex items-center space-x-3 flex-shrink-0">
                           {/* Status Badge */}
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getResumeStatusColor(resume.status || 'uploaded')}`}>
-                            <i className={`fas fa-${getResumeStatusIcon(resume.status || 'uploaded')} mr-1`} aria-hidden="true"></i>
+                            {(() => { const Icon = getResumeStatusIcon(resume.status || 'uploaded'); return <Icon className="mr-1 h-4 w-4" />; })()}
                             {(resume.status || 'uploaded').charAt(0).toUpperCase() + (resume.status || 'uploaded').slice(1)}
                           </span>
                           

@@ -29,6 +29,9 @@ export enum ErrorCode {
   INVALID_FILE_FORMAT = 'INVALID_FILE_FORMAT',
   FILE_TOO_LARGE = 'FILE_TOO_LARGE',
   INVALID_PARAMETERS = 'INVALID_PARAMETERS',
+  REQUEST_TIMEOUT = 'REQUEST_TIMEOUT',
+  CONFLICT = 'CONFLICT',
+  UNPROCESSABLE_ENTITY = 'UNPROCESSABLE_ENTITY',
   
   // Firebase specific
   FIREBASE_AUTH_ERROR = 'FIREBASE_AUTH_ERROR',
@@ -47,8 +50,19 @@ export interface ErrorContext {
   userAgent?: string
 }
 
+export type RecoveryActionType = 
+  | 'retry' 
+  | 'authenticate' 
+  | 'wait' 
+  | 'contact_support' 
+  | 'check_parameters'
+  | 'reduce_payload'
+  | 'refresh_and_retry'
+  | 'validate_input'
+  | 'check_documentation';
+
 export interface RecoveryAction {
-  type: 'retry' | 'authenticate' | 'wait' | 'contact_support' | 'check_parameters'
+  type: RecoveryActionType
   description: string
   waitTime?: number
   retryAfter?: number
@@ -267,8 +281,8 @@ export class ErrorFactory {
       statusCode: status,
       endpoint: context.endpoint || error.config?.url || error.request?.path || error.request?.url,
       method: context.method || error.config?.method?.toUpperCase(),
-      requestId: error.config?.metadata?.requestId || context.requestId,
-      duration: error.config?.metadata?.duration || context.duration
+      requestId: context.requestId || error.config?.metadata?.requestId,
+      duration: context.duration || error.config?.metadata?.duration
     }
 
     switch (status) {
@@ -298,14 +312,56 @@ export class ErrorFactory {
           error
         )
       
+      case 408:
+        return new EvalMatchError(
+          message,
+          ErrorCode.REQUEST_TIMEOUT,
+          enrichedContext,
+          [
+            { type: 'retry', description: 'Request timed out. Try again with a shorter timeout or check your connection' },
+            { type: 'reduce_payload', description: 'Consider reducing the request size if uploading large files' }
+          ],
+          true,
+          error
+        )
+      
+      case 409:
+        return new EvalMatchError(
+          message,
+          ErrorCode.CONFLICT,
+          enrichedContext,
+          [
+            { type: 'refresh_and_retry', description: 'Resource conflict detected. Refresh your data and try again' },
+            { type: 'check_parameters', description: 'Ensure you are not creating duplicate resources' }
+          ],
+          false,
+          error
+        )
+      
       case 413:
         return new ValidationError(message, ErrorCode.FILE_TOO_LARGE, enrichedContext, error)
       
       case 415:
         return new ValidationError(message, ErrorCode.INVALID_FILE_FORMAT, enrichedContext, error)
       
+      case 422:
+        return new EvalMatchError(
+          message,
+          ErrorCode.UNPROCESSABLE_ENTITY,
+          enrichedContext,
+          [
+            { type: 'validate_input', description: 'Check your input data format and required fields' },
+            { type: 'check_documentation', description: 'Review the API documentation for proper request format' }
+          ],
+          false,
+          error
+        )
+      
       case 429:
-        const retryAfter = data?.retryAfter || 60
+        // Read Retry-After from headers (standard) or fallback to body
+        const headers = error.response?.headers || error.headers
+        const headerRetryAfter = headers?.['retry-after'] || headers?.['Retry-After']
+        const retryAfter = headerRetryAfter ? parseInt(String(headerRetryAfter), 10) : (data?.retryAfter || 60)
         return new RateLimitError(message, retryAfter, enrichedContext, error)
       
       case 500:
