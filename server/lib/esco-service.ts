@@ -8,6 +8,7 @@
 import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
 import * as path from "path";
+import * as fs from "fs";
 import { logger } from './logger';
 import type { ESCOSearchResult } from './esco-migration';
 
@@ -46,7 +47,6 @@ export class ESCOService {
 
   constructor() {
     const cwd = process.cwd();
-    const fs = require('fs');
     
     // Try multiple possible paths for development and production
     const possiblePaths = [
