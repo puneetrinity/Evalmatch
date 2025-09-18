@@ -22,6 +22,12 @@ if (typeof global.fetch === 'undefined') {
   global.Response = Response;
 }
 
+// Polyfill setImmediate for Node.js compatibility
+if (typeof global.setImmediate === 'undefined') {
+  global.setImmediate = (fn, ...args) => setTimeout(fn, 0, ...args);
+  global.clearImmediate = (id) => clearTimeout(id);
+}
+
 // Mock console methods to reduce test noise
 const originalConsoleError = console.error;
 console.error = (...args) => {

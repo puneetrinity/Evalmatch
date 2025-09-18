@@ -391,6 +391,147 @@ export async function createFixedTestApp(): Promise<express.Application> {
     }
   });
 
+  // Batch resume upload endpoint for security testing
+  app.post('/api/resumes/batch', upload.array('files', 10), (req, res) => {
+    const files = req.files as Express.Multer.File[];
+    
+    if (!files || files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No files uploaded',
+        message: 'At least one file is required for batch upload'
+      });
+    }
+
+    if (files.length > 10) {
+      return res.status(400).json({
+        success: false,
+        error: 'Too many files',
+        message: 'Maximum 10 files allowed per batch'
+      });
+    }
+
+    // First pass: validate all files before processing any
+    const validationErrors: string[] = [];
+    
+    for (const file of files) {
+      const filename = file.originalname;
+      const fileBuffer = file.buffer;
+      const content = fileBuffer.toString();
+      const size = file.size;
+
+      try {
+        // Apply same security validation as single file upload
+        
+        // 1. Check file size limits (15MB max)
+        if (size > 15 * 1024 * 1024) {
+          validationErrors.push(`${filename}: File too large (max 15MB)`);
+          continue;
+        }
+
+        // 2. Check for malicious file content
+        const contentStr = content.toLowerCase();
+        const maliciousPatterns = [
+          '<script', 'javascript:', '<?php', 'eval(', 'drop table',
+          '../../../', '<iframe', 'document.cookie', 'window.location',
+          'alert(', '.exe', '.bat', '.cmd', '.scr', 'mz', '\x7felf'
+        ];
+
+        for (const pattern of maliciousPatterns) {
+          if (contentStr.includes(pattern)) {
+            validationErrors.push(`${filename}: Contains potentially malicious content`);
+            break;
+          }
+        }
+
+        // 3. Check magic numbers for file type validation
+        if (filename.endsWith('.pdf')) {
+          const header = fileBuffer.subarray(0, 4).toString();
+          if (header !== '%PDF') {
+            validationErrors.push(`${filename}: Invalid PDF file header`);
+            continue;
+          }
+        }
+
+        // 4. Check for executable files masquerading as documents
+        const executableHeaders = ['MZ', '\x7fELF', '\xfe\xed\xfa'];
+        const headerStr = fileBuffer.subarray(0, 4).toString('binary');
+        for (const execHeader of executableHeaders) {
+          if (headerStr.startsWith(execHeader)) {
+            validationErrors.push(`${filename}: Executable files are not allowed`);
+            break;
+          }
+        }
+
+        // 5. Validate file extensions
+        const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt', '.rtf'];
+        const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+        if (!allowedExtensions.includes(ext)) {
+          validationErrors.push(`${filename}: File type ${ext} is not allowed`);
+          continue;
+        }
+
+        // 6. Check for double extensions
+        const filenameWithoutExt = filename.substring(0, filename.lastIndexOf('.'));
+        if (filenameWithoutExt.includes('.')) {
+          validationErrors.push(`${filename}: Double file extensions are not allowed`);
+          continue;
+        }
+
+      } catch (error) {
+        validationErrors.push(`${filename}: File processing error`);
+      }
+    }
+
+    // If any files failed validation, reject the entire batch
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Batch validation failed',
+        message: 'One or more files in the batch failed security validation',
+        details: validationErrors.join('; ')
+      });
+    }
+
+    // All files passed validation - process them
+    const processedResumes = [];
+    
+    for (const file of files) {
+      const filename = file.originalname;
+      const content = file.buffer.toString();
+      
+      // Sanitize content
+      const sanitizedContent = content
+        .replace(/<script[^>]*>.*?<\/script>/gi, '')
+        .replace(/javascript:/gi, '')
+        .replace(/<?php/gi, '')
+        .replace(/eval\(/gi, '')
+        .replace(/drop\s+table/gi, '')
+        .replace(/\.\.\/\.\.\//gi, '')
+        .replace(/<iframe[^>]*>/gi, '');
+
+      const resume = {
+        id: nextId++,
+        filename,
+        content: sanitizedContent,
+        userId: MOCK_USER_ID,
+        createdAt: new Date().toISOString()
+      };
+      
+      testData.resumes.push(resume);
+      processedResumes.push(resume);
+    }
+    
+    res.json({
+      success: true,
+      status: 'success',
+      data: {
+        resumes: processedResumes,
+        count: processedResumes.length
+      }
+    });
+  });
+
   app.get('/api/resumes', (req, res) => {
     const userResumes = testData.resumes.filter(r => r.userId === MOCK_USER_ID);
     res.json({
