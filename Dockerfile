@@ -59,6 +59,12 @@ RUN npm prune --omit=dev --ignore-scripts && npm install vite
 
 # Copy SQL migration files (not bundled by esbuild)
 COPY server/migrations/ /app/build/migrations/
+
+# CRITICAL: Copy ESCO European skills database for production
+RUN mkdir -p /app/server/data
+COPY server/data/esco_skills.db /app/server/data/esco_skills.db
+RUN ls -la /app/server/data/ && echo "ESCO database copied successfully"
+
 RUN ls -la /app/build/ && echo "Build completed successfully"
 
 # Set runtime environment variables
