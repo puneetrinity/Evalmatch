@@ -88,7 +88,7 @@ import { apiRateLimiter, uploadRateLimiter } from "./middleware/rate-limiter";
 import { secureUpload, validateUploadedFile } from "./lib/secure-upload";
 // Migration imports for Phase 2 - Legacy Service Routing
 import { createAnalysisService } from "./services/analysis-service";
-import { toLegacyBiasResponse, toLegacyErrorResponse, logLegacyServiceUsage } from "./lib/analysis-legacy-transformer";
+import { toLegacyBiasResponse, toLegacyDirectResponse, toLegacyErrorResponse, logLegacyServiceUsage } from "./lib/analysis-legacy-transformer";
 import { isFailure } from "@shared/result-types";
 
 // Helper function to get user tier information
@@ -1813,6 +1813,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               userId,
               jobId
             });
+            
+            // Add deprecation headers even on error for consistent client signaling
+            res.setHeader('Deprecation', 'true');
+            res.setHeader('Sunset', new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toUTCString());
+            res.setHeader('Link', '</analysis/analyze-bias/:jobId>; rel="successor-version"');
+            
             return res.status(500).json({
               message: "Failed to analyze bias in job description. Please try again.",
               error: legacyError.error,
@@ -2183,58 +2189,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
           jobTextLength: jobDescriptionText.length
         });
         
-        // For direct text analysis, we'll use the legacy implementation internally
-        // since AnalysisService doesn't have a direct text analysis method yet
-        // But we'll add the migration pattern and observability
+        // Create AnalysisService instance
+        const analysisService = createAnalysisService(getStorage());
         
-        try {
-          // Get user tier for analysis limits
-          const userTier = await getUserTierInfo(req.user!.uid);
+        // Use the new analyzeText method
+        const serviceResult = await analysisService.analyzeText({
+          userId,
+          resumeText,
+          jobDescriptionText
+        });
+        
+        const processingTime = Date.now() - startTime;
+        
+        // Log legacy service usage for monitoring
+        logLegacyServiceUsage(
+          '/api/analyze',
+          userId,
+          useLegacyServiceRouting, // runtime migration decision
+          processingTime,
+          !isFailure(serviceResult)
+        );
+        
+        if (isFailure(serviceResult)) {
+          const legacyError = toLegacyErrorResponse(serviceResult, {
+            operation: 'direct_text_analysis',
+            userId
+          });
           
-          // Perform basic match analysis using tiered provider
-          const matchAnalysis = await analyzeMatchTiered(
-            { content: resumeText },
-            { description: jobDescriptionText },
-            resumeText,
-            userTier
-          );
-          
-          // Save updated user tier info (usage count incremented)
-          await saveUserTierInfo(req.user!.uid, userTier);
-          
-          const processingTime = Date.now() - startTime;
-          
-          // Log legacy service usage for monitoring
-          logLegacyServiceUsage(
-            '/api/analyze',
-            userId,
-            useLegacyServiceRouting, // runtime migration decision
-            processingTime,
-            true
-          );
-          
-          // Add deprecation headers for client awareness (RFC-8594 + custom)
+          // Add deprecation headers even on error
           res.setHeader('Deprecation', 'true');
-          res.setHeader('Sunset', new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toUTCString()); // 90 days from now
+          res.setHeader('Sunset', new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toUTCString());
           res.setHeader('Link', '</analysis/analyze-text>; rel="successor-version"');
-          res.setHeader('X-API-Deprecation-Notice', 'This endpoint will be migrated to /analysis/analyze-text');
-          res.setHeader('X-Migration-Available', 'Use /analysis/analyze-text for the modern API');
           
-          return res.json(matchAnalysis);
-        } catch (serviceError) {
-          const processingTime = Date.now() - startTime;
-          
-          // Log legacy service usage for monitoring (failure case)
-          logLegacyServiceUsage(
-            '/api/analyze',
-            userId,
-            useLegacyServiceRouting,
-            processingTime,
-            false
-          );
-          
-          throw serviceError; // Re-throw to handle in main catch block
+          return res.status(500).json({
+            error: legacyError.error,
+            code: legacyError.code,
+            message: 'Analysis service is temporarily unavailable. Please try again in a few minutes.',
+            tierLimitReached: false
+          });
         }
+        
+        // Transform AnalysisService result to legacy format
+        const legacyResponse = toLegacyDirectResponse(serviceResult);
+        
+        // Add deprecation headers for client awareness (RFC-8594 + custom)
+        res.setHeader('Deprecation', 'true');
+        res.setHeader('Sunset', new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toUTCString()); // 90 days from now
+        res.setHeader('Link', '</analysis/analyze-text>; rel="successor-version"');
+        res.setHeader('X-API-Deprecation-Notice', 'This endpoint will be migrated to /analysis/analyze-text');
+        res.setHeader('X-Migration-Available', 'Use /analysis/analyze-text for the modern API');
+        
+        return res.json(legacyResponse);
       }
 
       // LEGACY PATH: Continue using existing logic when feature flag is disabled

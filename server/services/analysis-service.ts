@@ -1182,6 +1182,133 @@ export class AnalysisService {
       );
     }
   }
+
+  /**
+   * Analyze direct text input (resume text vs job description text)
+   * This is for the legacy /api/analyze endpoint that takes raw text
+   * 
+   * @param params - Analysis parameters
+   * @returns Result containing match analysis or error
+   */
+  async analyzeText(params: {
+    userId: string;
+    resumeText: string;
+    jobDescriptionText: string;
+  }): Promise<MatchAnalysisResult<{
+    matchPercentage: number;
+    matchedSkills: SkillMatch[];
+    missingSkills: string[];
+    candidateStrengths: string[];
+    candidateWeaknesses: string[];
+    confidenceLevel: 'low' | 'medium' | 'high';
+    recommendations?: string[];
+  }>> {
+    const { userId, resumeText, jobDescriptionText } = params;
+    
+    try {
+      logger.info('Starting direct text analysis', { 
+        userId, 
+        resumeLength: resumeText.length,
+        jobLength: jobDescriptionText.length 
+      });
+
+      // Get user tier information for AI provider selection
+      const userTierInfo = await getUserTierInfo(userId);
+
+      // Analyze resume text
+      const resumeResult = await analyzeResumeWithCache(resumeText, userTierInfo);
+      if (isFailure(resumeResult)) {
+        logger.error('Failed to analyze resume text', { 
+          userId, 
+          error: resumeResult.error 
+        });
+        return failure(
+          new AppExternalServiceError(
+            'AI_PROVIDER_ERROR',
+            'resume-analyzer',
+            'Failed to analyze resume text',
+            undefined,
+            { userId }
+          )
+        );
+      }
+
+      // Analyze job description text (needs title and description)
+      const jobResult = await analyzeJobDescriptionWithCache('Direct Text Analysis', jobDescriptionText, userTierInfo);
+      if (isFailure(jobResult)) {
+        logger.error('Failed to analyze job description text', { 
+          userId, 
+          error: jobResult.error 
+        });
+        return failure(
+          new AppExternalServiceError(
+            'AI_PROVIDER_ERROR',
+            'job-analyzer',
+            'Failed to analyze job description text',
+            undefined,
+            { userId }
+          )
+        );
+      }
+
+      // Perform match analysis using hybrid analyzer
+      const matchResult = await analyzeMatchHybrid(
+        resumeResult.data,
+        jobResult.data,
+        userTierInfo,
+        resumeText,
+        jobDescriptionText
+      );
+
+      if (isFailure(matchResult)) {
+        logger.error('Failed to perform match analysis', { 
+          userId, 
+          error: matchResult.error 
+        });
+        return failure(
+          new AppExternalServiceError(
+            'AI_PROVIDER_ERROR',
+            'match-analyzer',
+            'Failed to perform match analysis',
+            undefined,
+            { userId }
+          )
+        );
+      }
+
+      const matchData = matchResult.data;
+
+      // Format response with proper typing
+      const analysisResult = {
+        matchPercentage: matchData.matchPercentage || 0,
+        matchedSkills: matchData.matchedSkills || [],
+        missingSkills: matchData.missingSkills || [],
+        candidateStrengths: matchData.candidateStrengths || [],
+        candidateWeaknesses: matchData.candidateWeaknesses || [],
+        confidenceLevel: matchData.confidenceLevel || 'medium' as 'low' | 'medium' | 'high',
+        recommendations: matchData.recommendations || []
+      };
+
+      logger.info('Direct text analysis completed successfully', {
+        userId,
+        matchPercentage: analysisResult.matchPercentage
+      });
+
+      return success(analysisResult);
+
+    } catch (error) {
+      logger.error('Unexpected error in analyzeText', { userId, error });
+      return failure(
+        new AppExternalServiceError(
+          'EXTERNAL_SERVICE_ERROR',
+          'text-analyzer',
+          error instanceof Error ? error.message : 'Failed to analyze text',
+          undefined,
+          { userId }
+        )
+      );
+    }
+  }
 }
 
 // ===== SERVICE FACTORY =====

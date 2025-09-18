@@ -198,6 +198,37 @@ export function toLegacyBiasResponse(
 }
 
 /**
+ * Transform direct text analysis result to legacy response format
+ * 
+ * @param serviceResult - AnalysisService text analysis result (success case)
+ * @returns Legacy-formatted direct analysis response (passthrough of match data)
+ */
+export function toLegacyDirectResponse(
+  serviceResult: Result<any, Error> & { success: true }
+): any {
+  const { data } = serviceResult;
+  
+  logger.debug('Transforming direct text AnalysisService result to legacy format', {
+    matchPercentage: data.matchPercentage,
+    skillCount: data.matchedSkills?.length || 0
+  });
+
+  // Direct text analysis response is already in the correct format
+  // Just return the data as-is since it matches the legacy structure
+  return {
+    matchPercentage: data.matchPercentage !== undefined ? data.matchPercentage : null,
+    matchedSkills: data.matchedSkills || [],
+    missingSkills: data.missingSkills || [],
+    candidateStrengths: data.candidateStrengths || [],
+    candidateWeaknesses: data.candidateWeaknesses || [],
+    confidenceLevel: data.confidenceLevel || 'medium',
+    recommendations: data.recommendations || [],
+    // Preserve any additional fields that might exist
+    ...(data.fairnessMetrics ? { fairnessMetrics: data.fairnessMetrics } : {})
+  };
+}
+
+/**
  * Transform error result to legacy error response
  * 
  * @param serviceResult - Failed AnalysisService result 
@@ -390,6 +421,13 @@ export function logDifferentialComparison(
   if (Math.random() > sampleRate) {
     return;
   }
+
+  logger.debug('Differential comparison sampling', {
+    sampleRate,
+    envSampleRate,
+    contextSampleRate: context.sampleRate,
+    endpoint
+  });
 
   logger.info('Legacy vs Service differential comparison', {
     endpoint,

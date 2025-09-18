@@ -10,6 +10,7 @@ import {
   toLegacyBatchResponse,
   toLegacySingleResponse,
   toLegacyBiasResponse,
+  toLegacyDirectResponse,
   toLegacyErrorResponse,
   compareResponses,
   logTransformationMetrics,
@@ -837,6 +838,153 @@ describe('Bias Analysis Legacy Transformation', () => {
       expect(result.biasAnalysis.biasTypes).toHaveLength(10);
       expect(result.biasAnalysis.suggestions).toHaveLength(20);
       expect(transformTime).toBeLessThan(10); // Should transform quickly
+    });
+  });
+
+  describe('toLegacyDirectResponse', () => {
+    it('should transform direct text analysis result to legacy format correctly', () => {
+      const serviceResult: Result<any, Error> & { success: true } = {
+        success: true,
+        data: {
+          matchPercentage: 82.3,
+          matchedSkills: [
+            { skill: 'JavaScript', category: 'Programming', confidence: 0.95 },
+            { skill: 'React', category: 'Frontend', confidence: 0.87 }
+          ],
+          missingSkills: ['TypeScript', 'Node.js'],
+          candidateStrengths: ['Strong frontend skills', 'Good problem-solving'],
+          candidateWeaknesses: ['Limited backend experience'],
+          confidenceLevel: 'high' as const,
+          recommendations: ['Consider TypeScript training', 'Backend development courses']
+        }
+      };
+
+      const result = toLegacyDirectResponse(serviceResult);
+
+      expect(result).toEqual({
+        matchPercentage: 82.3,
+        matchedSkills: [
+          { skill: 'JavaScript', category: 'Programming', confidence: 0.95 },
+          { skill: 'React', category: 'Frontend', confidence: 0.87 }
+        ],
+        missingSkills: ['TypeScript', 'Node.js'],
+        candidateStrengths: ['Strong frontend skills', 'Good problem-solving'],
+        candidateWeaknesses: ['Limited backend experience'],
+        confidenceLevel: 'high',
+        recommendations: ['Consider TypeScript training', 'Backend development courses']
+      });
+    });
+
+    it('should handle null and undefined values gracefully', () => {
+      const serviceResult: Result<any, Error> & { success: true } = {
+        success: true,
+        data: {
+          matchPercentage: null,
+          matchedSkills: undefined,
+          missingSkills: null,
+          candidateStrengths: undefined,
+          candidateWeaknesses: null,
+          confidenceLevel: undefined,
+          recommendations: null
+        }
+      };
+
+      const result = toLegacyDirectResponse(serviceResult);
+
+      expect(result).toEqual({
+        matchPercentage: null,
+        matchedSkills: [],
+        missingSkills: [],
+        candidateStrengths: [],
+        candidateWeaknesses: [],
+        confidenceLevel: 'medium',
+        recommendations: []
+      });
+    });
+
+    it('should preserve fairnessMetrics when present', () => {
+      const serviceResult: Result<any, Error> & { success: true } = {
+        success: true,
+        data: {
+          matchPercentage: 75.0,
+          matchedSkills: [],
+          missingSkills: [],
+          candidateStrengths: [],
+          candidateWeaknesses: [],
+          confidenceLevel: 'medium',
+          recommendations: [],
+          fairnessMetrics: {
+            biasScore: 0.12,
+            genderNeutral: true,
+            inclusiveLanguage: 0.95
+          }
+        }
+      };
+
+      const result = toLegacyDirectResponse(serviceResult);
+
+      expect(result.fairnessMetrics).toEqual({
+        biasScore: 0.12,
+        genderNeutral: true,
+        inclusiveLanguage: 0.95
+      });
+    });
+
+    it('should transform large skill sets efficiently', () => {
+      const largeSkillSet = Array.from({ length: 100 }, (_, i) => ({
+        skill: `Skill ${i + 1}`,
+        category: `Category ${(i % 10) + 1}`,
+        confidence: Math.random()
+      }));
+
+      const serviceResult: Result<any, Error> & { success: true } = {
+        success: true,
+        data: {
+          matchPercentage: 88.7,
+          matchedSkills: largeSkillSet,
+          missingSkills: Array.from({ length: 50 }, (_, i) => `Missing Skill ${i + 1}`),
+          candidateStrengths: Array.from({ length: 20 }, (_, i) => `Strength ${i + 1}`),
+          candidateWeaknesses: Array.from({ length: 15 }, (_, i) => `Weakness ${i + 1}`),
+          confidenceLevel: 'high' as const,
+          recommendations: Array.from({ length: 10 }, (_, i) => `Recommendation ${i + 1}`)
+        }
+      };
+
+      const startTime = Date.now();
+      const result = toLegacyDirectResponse(serviceResult);
+      const transformTime = Date.now() - startTime;
+
+      expect(result.matchedSkills).toHaveLength(100);
+      expect(result.missingSkills).toHaveLength(50);
+      expect(result.candidateStrengths).toHaveLength(20);
+      expect(result.candidateWeaknesses).toHaveLength(15);
+      expect(result.recommendations).toHaveLength(10);
+      expect(transformTime).toBeLessThan(10); // Should transform quickly
+    });
+
+    it('should handle empty arrays correctly', () => {
+      const serviceResult: Result<any, Error> & { success: true } = {
+        success: true,
+        data: {
+          matchPercentage: 0,
+          matchedSkills: [],
+          missingSkills: [],
+          candidateStrengths: [],
+          candidateWeaknesses: [],
+          confidenceLevel: 'low' as const,
+          recommendations: []
+        }
+      };
+
+      const result = toLegacyDirectResponse(serviceResult);
+
+      expect(result.matchPercentage).toBe(0);
+      expect(result.matchedSkills).toEqual([]);
+      expect(result.missingSkills).toEqual([]);
+      expect(result.candidateStrengths).toEqual([]);
+      expect(result.candidateWeaknesses).toEqual([]);
+      expect(result.confidenceLevel).toBe('low');
+      expect(result.recommendations).toEqual([]);
     });
   });
 });
