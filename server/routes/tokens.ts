@@ -8,6 +8,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { authenticateUser } from '../middleware/auth';
+import { requireApiToken } from '../middleware/token-auth';
 import { tokenUsageService } from '../services/token-usage';
 import { logger } from '../config/logger';
 import type { 
@@ -307,6 +308,70 @@ router.get('/status', authenticateUser, async (req: Request, res: Response) => {
       error: 'Status retrieval failed',
       message: 'An error occurred while retrieving status',
       code: 'STATUS_RETRIEVAL_ERROR',
+    });
+  }
+});
+
+/**
+ * GET /api/tokens/status/by-token
+ * Get token status using API token authentication (for SDK/programmatic access)
+ */
+router.get('/status/by-token', requireApiToken, async (req: Request, res: Response) => {
+  try {
+    // req.tokenUser is populated by requireApiToken middleware
+    if (!req.tokenUser) {
+      return res.status(401).json({
+        error: 'Invalid token',
+        message: 'API token authentication failed',
+        code: 'TOKEN_AUTH_FAILED',
+      });
+    }
+
+    // Initialize/get user limits using the token's associated user ID
+    const userLimits = await tokenUsageService.initializeUserLimits(req.tokenUser.userId);
+
+    res.json({
+      message: 'Token status retrieved successfully',
+      data: {
+        token: {
+          tokenId: req.tokenUser.tokenId,
+          userId: req.tokenUser.userId,
+          isValid: true,
+          remainingCalls: req.tokenUser.remainingCalls,
+        },
+        limits: {
+          tier: userLimits.tier,
+          maxCalls: userLimits.maxCalls,
+          usedCalls: userLimits.usedCalls,
+          remainingCalls: userLimits.maxCalls - userLimits.usedCalls,
+          resetPeriod: userLimits.resetPeriod,
+          lastReset: userLimits.lastReset,
+        },
+        usage: {
+          current: userLimits.usedCalls,
+          limit: userLimits.maxCalls,
+          percentage: Math.round((userLimits.usedCalls / userLimits.maxCalls) * 100),
+        },
+      },
+    });
+
+    logger.info('API token status check successful', {
+      tokenId: req.tokenUser.tokenId,
+      userId: req.tokenUser.userId,
+      remainingCalls: req.tokenUser.remainingCalls,
+    });
+
+  } catch (error) {
+    logger.error('API token status retrieval failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      tokenId: req.tokenUser?.tokenId,
+      userId: req.tokenUser?.userId,
+    });
+
+    res.status(500).json({
+      error: 'Token status retrieval failed',
+      message: 'An error occurred while retrieving token status',
+      code: 'TOKEN_STATUS_ERROR',
     });
   }
 });
