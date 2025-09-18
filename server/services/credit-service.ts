@@ -330,7 +330,7 @@ export class CreditService {
 
         let currentBalance = 0;
         let totalPurchased = 0;
-        let totalUsed = 0;
+        const _totalUsed = 0; // This will be used in future versions
 
         if (!userCredit) {
           // Create new user record (no lock needed since it doesn't exist yet)
@@ -343,11 +343,11 @@ export class CreditService {
           
           currentBalance = 0;
           totalPurchased = 0;
-          totalUsed = 0;
+          const _totalUsed = 0;
         } else {
           currentBalance = userCredit.credits;
           totalPurchased = userCredit.totalCreditsPurchased;
-          totalUsed = userCredit.totalCreditsUsed;
+          const _totalUsed = userCredit.totalCreditsUsed;
         }
 
         const newBalance = currentBalance + amount;

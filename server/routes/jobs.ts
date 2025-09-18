@@ -186,7 +186,7 @@ router.post("/", authenticateUser, validators.createJob, async (req: Request, re
       userId,
       title: jobDescData.title,
       description: jobDescData.description,
-      requirements: jobDescData.requirements || [],
+      requirements: (jobDescData.requirements as string[]) || [],
       analyzeImmediately: true,
       includeBiasAnalysis: false
     });

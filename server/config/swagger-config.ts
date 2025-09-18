@@ -573,6 +573,10 @@ export const swaggerOptions: swaggerJsdoc.Options = {
         description: 'User authentication and profile management'
       },
       {
+        name: 'User Management',
+        description: 'User profile and account management'
+      },
+      {
         name: 'Resumes',
         description: 'Resume upload and management'
       },
@@ -591,6 +595,15 @@ export const swaggerOptions: swaggerJsdoc.Options = {
       {
         name: 'Interview Questions',
         description: 'AI-generated interview questions'
+      },
+      {
+        name: 'Credits',
+        description: 'Credit balance and transaction management'
+      },
+      {
+        name: 'Admin',
+        description: 'Administrative operations (Internal use only)',
+        'x-internal': true
       }
     ]
   },

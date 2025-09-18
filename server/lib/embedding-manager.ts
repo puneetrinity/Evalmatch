@@ -1,5 +1,5 @@
 import { logger } from "./logger";
-import crypto from "crypto";
+import * as crypto from "crypto";
 
 /**
  * PERFORMANCE: Embedding manager with memory leak prevention

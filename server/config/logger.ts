@@ -79,8 +79,12 @@ export const httpLoggerConfig = {
   logger,
 
   // Auto-generate request IDs for tracing requests through logs
-  genReqId: (req: Request) =>
-    String(req.id || req.headers["x-request-id"] || pino.stdSerializers.req(req).id || "unknown"),
+  genReqId: (req: Request) => {
+    const headerId = req.headers["x-request-id"] as string | undefined;
+    const serializerId = (pino.stdSerializers.req(req) as any)?.id as string | undefined;
+    const fallback = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    return String(headerId || serializerId || fallback);
+  },
 
   // Custom serializers for request/response objects
   serializers: {
@@ -110,10 +114,12 @@ export const httpLoggerConfig = {
   },
 
   // Add custom request properties
-  customProps: (req: Request, res: Response) => {
+  customProps: (_req: Request, res: Response) => {
+    const rt = res.getHeader?.("X-Response-Time");
+    const responseTime = typeof rt === "string" ? Number(rt) : Array.isArray(rt) ? Number(rt[0]) : (rt as number | undefined);
     return {
       environment: process.env.NODE_ENV,
-      responseTime: res.responseTime,
+      ...(responseTime != null ? { responseTime } : {}),
     };
   },
 };

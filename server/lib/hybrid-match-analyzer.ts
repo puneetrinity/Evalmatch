@@ -990,45 +990,95 @@ export class HybridMatchAnalyzer {
    * ✅ CRITICAL: Normalize ensemble weights to ensure they always sum to 1.0
    */
   private normalizeEnsembleWeights(mlWeight: number, llmWeight: number): {ml: number, llm: number, wasNormalized: boolean} {
-    // Clamp to valid ranges first (using centralized thresholds)
-    const clampedML = Math.max(0, Math.min(getMLWeightCap(), mlWeight));
-    const clampedLLM = Math.max(0, Math.min(getLLMWeightCap(), llmWeight));
-    
-    // Calculate sum and check if normalization needed
-    const sum = clampedML + clampedLLM;
-    const wasNormalized = Math.abs(sum - 1.0) > 1e-6;
-    
-    // Prevent division by zero
-    if (sum === 0) {
+    // Clamp raw inputs to non-negative
+    const rawML = Math.max(0, mlWeight);
+    const rawLLM = Math.max(0, llmWeight);
+
+    const mlCap = getMLWeightCap();
+    const llmCap = getLLMWeightCap();
+
+    // If both zero, fallback to defaults
+    if (rawML === 0 && rawLLM === 0) {
       logger.warn("Both ensemble weights are zero - using default fallback");
       return { ml: 0.3, llm: 0.7, wasNormalized: true };
     }
-    
-    // Normalize to ensure exact 1.0 sum
-    const normalizedML = clampedML / sum;
-    const normalizedLLM = clampedLLM / sum;
-    
-    // Validate normalization worked
-    const finalSum = normalizedML + normalizedLLM;
+
+    // First pass: normalize proportions to sum=1
+    const baseSum = rawML + rawLLM;
+    let ml = rawML / baseSum;
+    let llm = rawLLM / baseSum;
+
+    const wasNormalized = true; // we always normalize to proportions
+
+    // Enforce caps on final weights. If a side exceeds its cap, clamp and assign remainder to the other side (up to its cap).
+    if (ml > mlCap) {
+      ml = mlCap;
+      llm = Math.min(llmCap, 1 - ml);
+    } else if (llm > llmCap) {
+      llm = llmCap;
+      ml = Math.min(mlCap, 1 - llm);
+    }
+
+    // If numeric drift leads to tiny sum error, fix it by nudging toward the side with headroom
+    let finalSum = ml + llm;
     if (Math.abs(finalSum - 1.0) > 1e-10) {
-      logger.error("Weight normalization failed", { 
-        normalizedML, 
-        normalizedLLM, 
-        finalSum,
-        originalML: mlWeight,
-        originalLLM: llmWeight
-      });
-      throw new Error(`Weight normalization failed: sum=${finalSum}, expected=1.0`);
+      const deficit = 1.0 - finalSum; // could be positive (needs add) or negative (needs subtract)
+      if (deficit > 0) {
+        // Try to add deficit to the side with headroom
+        const mlHeadroom = mlCap - ml;
+        const llmHeadroom = llmCap - llm;
+        if (llmHeadroom >= mlHeadroom && llmHeadroom > 0) {
+          llm += Math.min(deficit, llmHeadroom);
+        } else if (mlHeadroom > 0) {
+          ml += Math.min(deficit, mlHeadroom);
+        }
+      } else {
+        // Remove excess from the larger side first
+        if (llm >= ml && llm > 0) {
+          llm = Math.max(0, llm + deficit);
+        } else {
+          ml = Math.max(0, ml + deficit);
+        }
+      }
+      finalSum = ml + llm;
     }
-    
-    if (wasNormalized) {
-      logger.debug("Ensemble weights renormalized", {
-        original: { ml: clampedML, llm: clampedLLM, sum },
-        normalized: { ml: normalizedML, llm: normalizedLLM, sum: finalSum }
-      });
+
+    // Final validation
+    if (ml > mlCap + 1e-9 || llm > llmCap + 1e-9) {
+      logger.error("Weight normalization exceeded caps", { ml, llm, mlCap, llmCap });
+      // Clamp hard to caps and renormalize remainder to the other side (guaranteed feasible since mlCap+llmCap>=1)
+      ml = Math.min(ml, mlCap);
+      llm = Math.min(llm, llmCap);
+      const rem = 1 - (ml + llm);
+      if (rem > 0) {
+        const llmHeadroom = llmCap - llm;
+        const addToLLM = Math.min(rem, Math.max(0, llmHeadroom));
+        llm += addToLLM;
+        const addToML = rem - addToLLM;
+        if (addToML > 0) ml = Math.min(mlCap, ml + addToML);
+      }
     }
-    
-    return { ml: normalizedML, llm: normalizedLLM, wasNormalized };
+
+    // Ensure exact sum (tiny nudge to preferred LLM side if safe)
+    let sumCheck = ml + llm;
+    if (Math.abs(sumCheck - 1.0) > 1e-6) {
+      const delta = 1.0 - sumCheck;
+      if (delta > 0 && llm + delta <= llmCap + 1e-9) {
+        llm += delta;
+      } else if (delta > 0 && ml + delta <= mlCap + 1e-9) {
+        ml += delta;
+      } else if (delta < 0) {
+        // trim from the larger one
+        if (llm >= ml) llm += delta; else ml += delta;
+      }
+      sumCheck = ml + llm;
+    }
+
+    if (Math.abs(sumCheck - 1.0) > 1e-6) {
+      logger.error("Weight normalization failed to produce sum=1 within tolerance", { ml, llm, sumCheck, mlCap, llmCap });
+    }
+
+    return { ml, llm, wasNormalized };
   }
 
   /**

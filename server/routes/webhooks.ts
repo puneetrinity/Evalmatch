@@ -8,7 +8,7 @@ import { logger } from "../lib/logger";
 import { config } from "../config/unified-config";
 import { creditService } from "../services/credit-service";
 import { userService } from "../services/enhanced-user-service";
-import crypto from "crypto";
+import * as crypto from "crypto";
 
 const router = Router();
 

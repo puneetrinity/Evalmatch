@@ -1,6 +1,6 @@
 import { redis } from "../core/redis";
 import { logger } from "./logger";
-import crypto from "crypto";
+import * as crypto from "crypto";
 
 /**
  * PERFORMANCE: Redis caching layer for 50% API reduction

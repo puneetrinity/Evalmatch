@@ -40,6 +40,8 @@ export default {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
+  globalSetup: '<rootDir>/tests/global-setup.mjs',
+  globalTeardown: '<rootDir>/tests/global-teardown.mjs',
   setupFilesAfterEnv: ['<rootDir>/tests/setup-node.ts'],
   testTimeout: 30000, // 30 seconds for integration tests
   maxWorkers: 1, // Run tests sequentially to avoid database conflicts

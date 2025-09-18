@@ -1,8 +1,8 @@
 import { getDatabase } from "../database";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
-import fs from "fs";
-import path from "path";
+import * as fs from "fs";
+import * as path from "path";
 
 // ES modules equivalent of __dirname - handle both CommonJS and ES modules
 let currentDirPath: string;

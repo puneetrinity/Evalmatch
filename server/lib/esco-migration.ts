@@ -7,8 +7,8 @@
 
 import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
-import path from 'path';
-import fs from 'fs/promises';
+import * as path from "path";
+import * as fs from "fs/promises";
 import { logger } from './logger';
 
 // ESCO Skills Data - Production Subset (15,383 skills)

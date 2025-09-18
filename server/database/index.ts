@@ -11,8 +11,8 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "@shared/schema";
 import { config } from "../config/unified-config";
 import { logger } from "../config/logger";
-import fs from "fs";
-import path from "path";
+import * as fs from "fs";
+import * as path from "path";
 
 // ES modules equivalent of __dirname - handle both CommonJS and ES modules
 let currentDirPath: string;

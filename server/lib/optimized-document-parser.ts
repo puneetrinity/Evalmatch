@@ -13,7 +13,7 @@ import { Worker } from 'worker_threads';
 import { createReadStream } from 'fs';
 import { logger } from './logger';
 import { cacheManager } from './redis-cache';
-import crypto from 'crypto';
+import * as crypto from "crypto";
 
 interface DocumentParseResult {
   text: string;

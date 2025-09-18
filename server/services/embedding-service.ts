@@ -6,8 +6,8 @@
  */
 
 import { Worker } from 'worker_threads';
-import crypto from 'crypto';
-import path from 'path';
+import * as crypto from "crypto";
+import * as path from "path";
 import { logger } from '../lib/logger';
 
 interface EmbeddingRequest {

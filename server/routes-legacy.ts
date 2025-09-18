@@ -25,7 +25,7 @@ import { createServer, type Server } from "http";
 import { getStorage } from "./storage";
 import multer from "multer";
 import { z } from "zod";
-import fs from 'fs';
+import * as fs from "fs";
 import { logger } from './lib/logger';
 import { authenticateUser } from './middleware/auth';
 import {

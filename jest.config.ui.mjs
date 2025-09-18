@@ -7,9 +7,12 @@ export default {
   testEnvironment: 'jsdom',
   extensionsToTreatAsEsm: ['.ts', '.tsx'],
   moduleNameMapper: {
+    // Path aliases
     '^@shared/(.*)$': '<rootDir>/shared/$1',
     '^@/(.*)$': '<rootDir>/client/src/$1',
     '^@server/(.*)$': '<rootDir>/server/$1',
+    
+    // Hook and library mocks
     '^@/hooks/useBatchManager$': '<rootDir>/tests/__mocks__/useBatchManager.ts',
     '^@/lib/firebase$': '<rootDir>/tests/__mocks__/firebase.ts',
     '^firebase/auth$': '<rootDir>/tests/__mocks__/firebase-auth.ts',
@@ -17,6 +20,12 @@ export default {
     '^firebase/(.*)$': '<rootDir>/tests/__mocks__/firebase-auth.ts',
     '^react-hot-toast$': '<rootDir>/tests/__mocks__/react-hot-toast.ts',
     '^recharts$': '<rootDir>/tests/__mocks__/recharts.tsx',
+    
+    // CSS and asset file mapping
+    '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    '\\.(png|jpe?g|gif|svg|webp|ico)$': '<rootDir>/tests/__mocks__/fileMock.ts',
+    
+    // ES module extensions
     '^(\\.{1,2}/.*)\\.js$': '$1'
   },
   transform: {

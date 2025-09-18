@@ -22,7 +22,7 @@ import {
   AppExternalServiceError,
   toAppError as _toAppError
 } from "@shared/errors";
-import crypto from "crypto";
+import * as crypto from "crypto";
 import {
   generateMatchAnalysisKey,
   generateInflightLockKey,

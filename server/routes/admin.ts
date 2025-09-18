@@ -5,7 +5,7 @@
 
 import { Router, Request, Response, NextFunction } from "express";
 import { logger } from "../lib/logger";
-import crypto from "crypto";
+import * as crypto from "crypto";
 import { createAdminService } from "../services/admin-service";
 import { handleRouteResult } from "../lib/route-error-handler";
 import { queueManager } from "../lib/queue-manager";
@@ -42,7 +42,7 @@ export function cleanupAdminTimer(): void {
 }
 
 // ENHANCED: Timing-safe admin authentication with rate limiting
-const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
+export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
   const clientKey = req.ip || 'unknown';
   const now = Date.now();
   

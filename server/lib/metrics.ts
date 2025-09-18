@@ -1,5 +1,5 @@
 import { appendFile } from 'fs/promises';
-import path from 'path';
+import * as path from "path";
 
 const METRICS_LOG_FILE = path.join(process.cwd(), 'metrics.log');
 

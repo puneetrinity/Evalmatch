@@ -106,6 +106,7 @@ export interface AppConfig {
     betaMode: boolean;
     enableCreditSystem: boolean;
     enableMauticTracking: boolean;
+    enableLegacyRoutes: boolean;
   };
 
   // Hybrid Analyzer Configuration (aligned to existing thresholds)
@@ -279,6 +280,7 @@ export function loadUnifiedConfig(): AppConfig {
     betaMode: process.env.BETA_MODE === "true" || env === Environment.Development, // Enable beta mode via env var or in development
     enableCreditSystem: process.env.ENABLE_CREDIT_SYSTEM === "true", // Default false - enable explicitly
     enableMauticTracking: process.env.ENABLE_MAUTIC_TRACKING === "true", // Default false - enable explicitly
+    enableLegacyRoutes: process.env.ENABLE_LEGACY_ROUTES !== "false", // Default true for backwards compatibility
   };
 
   // Hybrid Analyzer Configuration (aligned to unified-scoring-config.ts thresholds)

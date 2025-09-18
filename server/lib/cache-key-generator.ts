@@ -2,7 +2,7 @@
  * Phase 1.2: Enhanced cache key generation with canonicalization and versioning
  * Addresses cache key drift and provides built-in invalidation
  */
-import crypto from "crypto";
+import * as crypto from "crypto";
 
 export type CacheKeyParts = {
   resumeData: unknown;

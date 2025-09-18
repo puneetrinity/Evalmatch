@@ -8,7 +8,7 @@
 
 import { logger } from "./logger";
 import { cacheManager } from "./redis-cache";
-import crypto from "crypto";
+import * as crypto from "crypto";
 
 export interface AIProviderConfig {
   name: string;

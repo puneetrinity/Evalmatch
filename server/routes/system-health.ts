@@ -11,8 +11,68 @@ import { logger } from "../lib/logger";
 const router = express.Router();
 
 /**
- * GET /api/health - Quick health check endpoint
- * Returns basic health status for load balancers and monitoring
+ * @swagger
+ * /system-health:
+ *   get:
+ *     tags: [Health]
+ *     summary: System health with metrics
+ *     description: |
+ *       Comprehensive health check endpoint for integrators and monitoring systems.
+ *       Returns service status with performance metrics and health score.
+ *       Use this endpoint for integration health monitoring.
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "ok"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 service:
+ *                   type: string
+ *                   example: "evalmatch-api"
+ *                 version:
+ *                   type: string
+ *                   example: "1.0.0"
+ *                 health:
+ *                   type: object
+ *                   properties:
+ *                     score:
+ *                       type: number
+ *                       minimum: 0
+ *                       maximum: 100
+ *                       description: Overall health score
+ *                       example: 85
+ *                     status:
+ *                       type: string
+ *                       enum: [healthy, degraded, unhealthy]
+ *                     components:
+ *                       type: object
+ *                       description: Health status of individual components
+ *       503:
+ *         description: Service is unhealthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 service:
+ *                   type: string
+ *                   example: "evalmatch-api"
+ *                 error:
+ *                   type: string
  */
 router.get("/", async (req, res) => {
   try {

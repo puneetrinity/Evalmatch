@@ -20,17 +20,25 @@ import { tokensRouter } from "./tokens";
 import creditsRoutes from "./credits";
 import authTrackingRoutes from "./auth-tracking";
 import webhooksRoutes from "./webhooks";
+import { config } from "../config/unified-config";
+import { createDeprecationMiddleware, DEPRECATION_CONFIGS } from "../lib/deprecation-headers";
+import { logger } from "../lib/logger";
 
 /**
  * Register all modular routes with the Express app
  * Supports both legacy (/api) and versioned (/api/v1) routes
  */
 export function registerModularRoutes(app: Express): void {
-  // Register versioned routes (v1)
+  // Always register versioned routes (v1)
   registerV1Routes(app);
   
-  // Register legacy routes for backward compatibility
-  registerLegacyRoutes(app);
+  // Conditionally register legacy routes based on feature flag
+  if (config.features.enableLegacyRoutes) {
+    logger.info('🔄 Legacy routes enabled via feature flag');
+    registerLegacyRoutes(app);
+  } else {
+    logger.info('⚠️  Legacy routes disabled via feature flag - clients must use /api/v1/*');
+  }
 }
 
 /**
@@ -85,6 +93,17 @@ function registerV1Routes(app: Express): void {
  * @deprecated Use /api/v1/* routes instead
  */
 function registerLegacyRoutes(app: Express): void {
+  // Create deprecation middleware for all legacy routes
+  const legacyDeprecationMiddleware = createDeprecationMiddleware({
+    deprecatedDate: '2024-01-15T00:00:00Z',
+    sunsetDate: '2024-06-01T00:00:00Z',
+    migrationUrl: 'https://docs.evalmatch.com/api/migration/v2',
+    message: 'Legacy API routes are deprecated. Use /api/v1/* endpoints for improved performance and features.'
+  });
+
+  // Apply deprecation headers to all legacy routes
+  app.use("/api", legacyDeprecationMiddleware);
+
   // API version information routes (also available on legacy)
   app.use("/api", versionRoutes);
 
@@ -117,8 +136,11 @@ function registerLegacyRoutes(app: Express): void {
   // Job description management routes
   app.use("/api/job-descriptions", jobRoutes);
 
-  // Analysis and matching routes
-  app.use("/api/analysis", analysisRoutes);
+  // Analysis and matching routes (high priority for migration)
+  app.use("/api/analysis", 
+    createDeprecationMiddleware(DEPRECATION_CONFIGS.LEGACY_ANALYZE_TIERED),
+    analysisRoutes
+  );
 
   // Admin routes
   app.use("/api/admin", adminRoutes);
@@ -138,9 +160,12 @@ export function getRoutesSummary(): {
   versioning: {
     v1Routes: number;
     legacyRoutes: number;
+    legacyEnabled: boolean;
     deprecationNotice: string;
   };
 } {
+  const legacyEnabled = config.features.enableLegacyRoutes;
+  
   return {
     totalModules: 10,
     modules: [
@@ -155,11 +180,14 @@ export function getRoutesSummary(): {
       "admin (5 routes)",
       "debug (6 routes)",
     ],
-    estimatedRoutes: 102, // Double routes for v1 + legacy support
+    estimatedRoutes: legacyEnabled ? 102 : 51, // Conditional route count
     versioning: {
       v1Routes: 51,
-      legacyRoutes: 51,
-      deprecationNotice: "Legacy /api/* routes are deprecated. Use /api/v1/* instead."
+      legacyRoutes: legacyEnabled ? 51 : 0,
+      legacyEnabled,
+      deprecationNotice: legacyEnabled 
+        ? "Legacy /api/* routes are deprecated. Use /api/v1/* instead."
+        : "Legacy routes disabled. Use /api/v1/* endpoints only."
     }
   };
 }

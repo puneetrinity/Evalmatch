@@ -11,7 +11,7 @@
 import { Pool, PoolClient } from 'pg';
 import { logger } from './logger';
 import { cacheManager } from './redis-cache';
-import crypto from 'crypto';
+import * as crypto from "crypto";
 
 interface QueryCacheOptions {
   ttl: number;

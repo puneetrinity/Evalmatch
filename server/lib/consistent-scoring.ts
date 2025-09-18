@@ -5,7 +5,7 @@
  * consistent results across multiple runs for the same resume/job combination.
  */
 
-import crypto from "crypto";
+import * as crypto from "crypto";
 import { logger } from "./logger";
 import {
   UNIFIED_SCORING_WEIGHTS,

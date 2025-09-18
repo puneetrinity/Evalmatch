@@ -5,9 +5,9 @@
  * Stores version info, weights, scores, and quality gates.
  */
 
-import fs from 'fs/promises';
-import crypto from 'crypto';
-import path from 'path';
+import * as fs from "fs/promises";
+import * as crypto from "crypto";
+import * as path from "path";
 import { logger } from './logger';
 
 type Weights = {

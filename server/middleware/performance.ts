@@ -6,7 +6,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '../lib/logger';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 
 interface PerformanceMetrics {
   requestId: string;

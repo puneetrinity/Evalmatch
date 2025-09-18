@@ -10,6 +10,82 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 
+/**
+ * @swagger
+ * /user/profile:
+ *   get:
+ *     tags: [User Management]
+ *     summary: Get user profile information
+ *     description: |
+ *       Retrieve the authenticated user's profile including tier, display name, 
+ *       email, and metadata. Used by frontend applications to display user info
+ *       and determine feature access levels.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         uid:
+ *                           type: string
+ *                           description: Firebase user ID
+ *                           example: "abc123xyz"
+ *                         displayName:
+ *                           type: string
+ *                           example: "John Doe"
+ *                         email:
+ *                           type: string
+ *                           format: email
+ *                           example: "john@example.com"
+ *                         photoURL:
+ *                           type: string
+ *                           format: uri
+ *                           nullable: true
+ *                           example: "https://example.com/photo.jpg"
+ *                         emailVerified:
+ *                           type: boolean
+ *                           example: true
+ *                         tier:
+ *                           type: string
+ *                           enum: [freemium, premium, testing]
+ *                           example: "premium"
+ *                         country:
+ *                           type: string
+ *                           example: "IN"
+ *                         currency:
+ *                           type: string
+ *                           example: "INR"
+ *                         createdAt:
+ *                           type: string
+ *                           format: date-time
+ *                           nullable: true
+ *                         lastLoginAt:
+ *                           type: string
+ *                           format: date-time
+ *                           nullable: true
+ *                         company:
+ *                           type: string
+ *                           nullable: true
+ *                         title:
+ *                           type: string
+ *                           nullable: true
+ *                         phone:
+ *                           type: string
+ *                           nullable: true
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 // User profile endpoint - Get user's profile information
 router.get(
   "/profile",

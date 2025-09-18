@@ -237,10 +237,12 @@
   },
   "resolutions": {
     "canvas": "^2.11.2",
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "tough-cookie": "^5.1.2"
   },
   "overrides": {
     "canvas": "^2.11.2",
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "tough-cookie": "^5.1.2"
   }
 }

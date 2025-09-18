@@ -571,61 +571,25 @@ export const interviewQuestionDataSchema = z.object({
 
 // Enhanced Zod schemas with validation - NOW all dependencies are defined above
 export const insertUserSchema = createInsertSchema(users, {
-  username: z.string().min(3).max(50),
-  email: z.string().email().optional(),
+  username: (schema) => schema.min(3).max(50),
 });
 export const selectUserSchema = createSelectSchema(users);
 
 export const insertResumeSchema = createInsertSchema(resumes, {
-  userId: z.string().min(1).optional(),
-  sessionId: z.string().min(1).optional(),
-  filename: z.string().min(1),
-  fileSize: z.number().positive().optional(),
-  fileType: z.string().min(1).optional(),
-  content: z.string().min(1).optional(),
-  skills: z.array(z.string()).optional(),
-  experience: z.string().optional(),
-  education: z.array(z.string()).optional(),
-  analyzedData: analyzedResumeDataSchema.optional(),
+  filename: (schema) => schema.min(1),
 });
 export const selectResumeSchema = createSelectSchema(resumes);
 
 export const insertJobDescriptionSchema = createInsertSchema(jobDescriptions, {
-  userId: z.string().min(1).optional(),
-  title: z.string().min(1),
-  description: z.string().min(10),
-  requirements: z.array(z.string()).optional(),
-  skills: z.array(z.string()).optional(),
-  experience: z.string().optional(),
-  analyzedData: analyzedJobDataSchema.optional(),
+  title: (schema) => schema.min(1),
+  description: (schema) => schema.min(10),
 });
 export const selectJobDescriptionSchema = createSelectSchema(jobDescriptions);
 
-export const insertAnalysisResultSchema = createInsertSchema(analysisResults, {
-  userId: z.string().min(1).optional(),
-  resumeId: z.number().positive().optional(),
-  jobDescriptionId: z.number().positive().optional(),
-  matchPercentage: z.number().min(0).max(100).optional(),
-  matchedSkills: z.array(skillMatchSchema).optional(),
-  missingSkills: z.array(z.string()).optional(),
-  candidateStrengths: z.array(z.string()).optional(),
-  candidateWeaknesses: z.array(z.string()).optional(),
-  recommendations: z.array(z.string()).optional(),
-  confidenceLevel: z.enum(['low', 'medium', 'high']).optional(),
-  scoringDimensions: scoringDimensionsSchema.optional(),
-  fairnessMetrics: fairnessMetricsSchema.optional(),
-  processingTime: z.number().positive().optional(),
-  aiProvider: z.string().optional(),
-  modelVersion: z.string().optional(),
-});
+export const insertAnalysisResultSchema = createInsertSchema(analysisResults);
 export const selectAnalysisResultSchema = createSelectSchema(analysisResults);
 
-export const insertInterviewQuestionsSchema = createInsertSchema(interviewQuestions, {
-  userId: z.string().min(1).optional(),
-  resumeId: z.number().positive().optional(),
-  jobDescriptionId: z.number().positive().optional(),
-  questions: z.array(interviewQuestionDataSchema).optional(),
-});
+export const insertInterviewQuestionsSchema = createInsertSchema(interviewQuestions);
 export const selectInterviewQuestionsSchema = createSelectSchema(interviewQuestions);
 
 // Enhanced API Response types

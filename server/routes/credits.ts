@@ -8,13 +8,54 @@ import { authenticateUser } from "../middleware/auth";
 import { validators } from "../middleware/input-validation";
 import { logger } from "../lib/logger";
 import { creditService } from "../services/credit-service";
+import { requireAdmin } from "./admin";
 import { config } from "../config/unified-config";
 
 const router = Router();
 
 /**
- * GET /api/credits/balance
- * Get user's current credit balance
+ * @swagger
+ * /credits/balance:
+ *   get:
+ *     tags: [Credits]
+ *     summary: Get user's current credit balance
+ *     description: |
+ *       Retrieve the authenticated user's current credit balance, tier status,
+ *       and usage statistics. Essential for frontend applications to display
+ *       available credits and determine feature access.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Credit balance retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     credits:
+ *                       type: number
+ *                       description: Current available credits
+ *                       example: 150
+ *                     totalPurchased:
+ *                       type: number
+ *                       description: Total credits purchased (lifetime)
+ *                       example: 500
+ *                     totalUsed:
+ *                       type: number
+ *                       description: Total credits used (lifetime)
+ *                       example: 350
+ *                     tier:
+ *                       type: string
+ *                       enum: [freemium, premium]
+ *                       description: User's current tier based on credits
+ *                       example: "premium"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 router.get(
   "/balance",
@@ -31,8 +72,11 @@ router.get(
         // Get totals from credit history (lightweight query)
         const historyResult = await creditService.getCreditHistory(userId, 1, 1);
         
-        // Determine tier based on credits
-        const tier = (result.credits && result.credits > 0) ? 'premium' : 'freemium';
+        // Determine tier for display
+        // In beta mode, all users are treated as premium for feature access
+        const tier = config.features.betaMode
+          ? 'premium'
+          : ((result.credits && result.credits > 0) ? 'premium' : 'freemium');
         
         res.json({
           status: "success",
@@ -62,8 +106,85 @@ router.get(
 );
 
 /**
- * GET /api/credits/history
- * Get user's credit transaction history with pagination
+ * @swagger
+ * /credits/history:
+ *   get:
+ *     tags: [Credits]
+ *     summary: Get user's credit transaction history
+ *     description: |
+ *       Retrieve paginated credit transaction history for the authenticated user.
+ *       Shows all credit purchases, grants, and usage with detailed context.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         description: Page number for pagination
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *           example: 1
+ *       - name: limit
+ *         in: query
+ *         description: Number of transactions per page (max 100)
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 50
+ *           example: 20
+ *     responses:
+ *       200:
+ *         description: Credit history retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         transactions:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: integer
+ *                               type:
+ *                                 type: string
+ *                                 enum: [grant, purchase, usage]
+ *                               amount:
+ *                                 type: number
+ *                               description:
+ *                                 type: string
+ *                               createdAt:
+ *                                 type: string
+ *                                 format: date-time
+ *                         currentBalance:
+ *                           type: number
+ *                         totalPurchased:
+ *                           type: number
+ *                         totalUsed:
+ *                           type: number
+ *                         pagination:
+ *                           type: object
+ *                           properties:
+ *                             page:
+ *                               type: integer
+ *                             limit:
+ *                               type: integer
+ *                             total:
+ *                               type: integer
+ *                             totalPages:
+ *                               type: integer
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 router.get(
   "/history",
@@ -108,9 +229,56 @@ router.get(
 );
 
 /**
- * POST /api/credits/grant-beta
- * Grant beta credits to a user (idempotent)
- * Only available when credit system is enabled
+ * @swagger
+ * /credits/grant-beta:
+ *   post:
+ *     tags: [Credits]
+ *     summary: Grant beta credits to user
+ *     description: |
+ *       Grant beta testing credits to the authenticated user. This operation 
+ *       is idempotent and can be safely called multiple times. Used during 
+ *       beta testing periods to provide credits for platform evaluation.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               amount:
+ *                 type: number
+ *                 description: Number of credits to grant (defaults to 100)
+ *                 minimum: 1
+ *                 maximum: 1000
+ *                 example: 100
+ *     responses:
+ *       200:
+ *         description: Beta credits granted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: "100 beta credits granted successfully"
+ *                     credits:
+ *                       type: number
+ *                       description: User's new total credit balance
+ *                       example: 250
+ *       404:
+ *         description: Credit system not enabled
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 router.post(
   "/grant-beta",
@@ -220,8 +388,69 @@ router.post(
 );
 
 /**
- * GET /api/credits/packages
- * Get available credit packages for purchase
+ * @swagger
+ * /credits/packages:
+ *   get:
+ *     tags: [Credits]
+ *     summary: Get available credit earning methods
+ *     description: |
+ *       Retrieve available methods for earning credits including welcome bonus,
+ *       daily login rewards, streak bonuses, and referral programs. 
+ *       Part of the generous credit earning system.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Credit packages retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     packages:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             example: "welcome-bonus"
+ *                           name:
+ *                             type: string
+ *                             example: "Welcome Bonus"
+ *                           credits:
+ *                             type: number
+ *                             example: 100
+ *                           price:
+ *                             type: number
+ *                             example: 0
+ *                           priceDisplay:
+ *                             type: string
+ *                             example: "FREE"
+ *                           currency:
+ *                             type: string
+ *                             example: "INR"
+ *                           popular:
+ *                             type: boolean
+ *                           description:
+ *                             type: string
+ *                           earnMethod:
+ *                             type: string
+ *                             enum: [automatic, daily, streak, referral]
+ *                           requirement:
+ *                             type: string
+ *       404:
+ *         description: Credit system not enabled
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 router.get(
   "/packages",
@@ -327,6 +556,7 @@ router.get(
 router.post(
   "/reconcile-batch",
   authenticateUser,
+  requireAdmin,
   validators.rateLimitStrict,
   async (req: Request, res: Response) => {
     try {
@@ -337,7 +567,12 @@ router.post(
         });
       }
 
-      logger.info(`Batch reconciliation triggered by user ${req.user!.uid}`);
+      logger.info(`Batch reconciliation triggered by admin`, {
+        userId: req.user?.uid || 'unknown',
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+        eventType: 'ADMIN_CREDIT_RECONCILE_BATCH'
+      });
       
       const result = await creditService.batchReconcileAllUsers();
       
@@ -371,6 +606,7 @@ router.post(
 router.get(
   "/discrepancies",
   authenticateUser,
+  requireAdmin,
   validators.rateLimitStrict,
   async (req: Request, res: Response) => {
     try {
@@ -381,7 +617,12 @@ router.get(
         });
       }
 
-      logger.info(`Balance discrepancy check triggered by user ${req.user!.uid}`);
+      logger.info(`Balance discrepancy check triggered by admin`, {
+        userId: req.user?.uid || 'unknown',
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+        eventType: 'ADMIN_CREDIT_DISCREPANCY_CHECK'
+      });
       
       const result = await creditService.detectBalanceDiscrepancies();
       
@@ -417,6 +658,7 @@ router.get(
 router.post(
   "/fix-discrepancies",
   authenticateUser,
+  requireAdmin,
   validators.rateLimitStrict,
   async (req: Request, res: Response) => {
     try {
@@ -443,7 +685,13 @@ router.post(
         });
       }
 
-      logger.info(`Auto-fix discrepancies triggered by user ${req.user!.uid} for ${userIds.length} users`);
+      logger.info(`Auto-fix discrepancies triggered by admin`, {
+        userId: req.user?.uid || 'unknown',
+        affectedUsers: userIds.length,
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+        eventType: 'ADMIN_CREDIT_FIX_DISCREPANCIES'
+      });
       
       const result = await creditService.autoReconcileDiscrepancies(userIds);
       

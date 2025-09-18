@@ -1,5 +1,5 @@
 import Groq from "groq-sdk";
-import crypto from "crypto";
+import * as crypto from "crypto";
 import { logger } from "./logger";
 import {
   generateConsistentScoringPrompt,

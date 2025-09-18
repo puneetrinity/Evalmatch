@@ -15,6 +15,51 @@ import {
 
 const router = Router();
 
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     tags: [Health]
+ *     summary: Basic health check
+ *     description: |
+ *       Fast health check endpoint for load balancers and monitoring systems.
+ *       Returns basic service status without expensive checks. Optimized for
+ *       Railway deployment environments.
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   enum: [healthy, degraded, unhealthy]
+ *                   example: "healthy"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 uptime:
+ *                   type: number
+ *                   description: Server uptime in seconds
+ *                   example: 3600
+ *                 version:
+ *                   type: string
+ *                   example: "1.0.0"
+ *       503:
+ *         description: Service is unhealthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "unhealthy"
+ *                 error:
+ *                   type: string
+ */
 // Basic health check endpoint - Fast response for load balancers
 // Enhanced for Railway compatibility
 router.get("/health", (req: Request, res: Response) => {

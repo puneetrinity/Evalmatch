@@ -1,5 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
-import path from "path";
+import * as path from "path";
 import { registerRoutes } from "./routes";
 import { logger } from "./config/logger";
 

@@ -1,7 +1,7 @@
 import multer from "multer";
-import path from "path";
-import fs from "fs/promises";
-import crypto from "crypto";
+import * as path from "path";
+import * as fs from "fs/promises";
+import * as crypto from "crypto";
 import { Request, Response, NextFunction } from "express";
 import { logger } from "./logger";
 import { SecurityValidator } from "@shared/security-validation";
