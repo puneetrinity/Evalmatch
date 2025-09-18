@@ -45,7 +45,27 @@ export class ESCOService {
   private cacheTimestamps = new Map<string, number>();
 
   constructor() {
-    this.dbPath = path.resolve(process.cwd(), 'server/data/esco_skills.db');
+    const cwd = process.cwd();
+    const fs = require('fs');
+    
+    // Try multiple possible paths for development and production
+    const possiblePaths = [
+      path.resolve(cwd, 'server/data/esco_skills.db'),           // Development
+      path.resolve(cwd, 'build/server/data/esco_skills.db'),     // Local build
+      path.resolve(cwd, '../server/data/esco_skills.db'),        // Production alternative 1
+      path.resolve('/app/server/data/esco_skills.db'),           // Production alternative 2
+      path.resolve('/app/build/server/data/esco_skills.db'),     // Production alternative 3
+    ];
+    
+    // Find the first path that exists
+    this.dbPath = possiblePaths.find(p => fs.existsSync(p)) || possiblePaths[0];
+    
+    logger.info(`ESCO database path resolution:`, {
+      cwd,
+      selectedPath: this.dbPath,
+      pathExists: fs.existsSync(this.dbPath),
+      testedPaths: possiblePaths.map(p => ({ path: p, exists: fs.existsSync(p) }))
+    });
   }
 
   static getInstance(): ESCOService {
