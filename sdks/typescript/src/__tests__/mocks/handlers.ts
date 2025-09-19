@@ -6,6 +6,44 @@
 import { http, HttpResponse } from 'msw'
 import type { HttpHandler } from 'msw'
 
+// Helper function to check authentication
+function checkAuth(request: Request): { isAuthenticated: boolean; authType: 'firebase' | 'token' | 'none' } {
+  const authHeader = request.headers.get('Authorization')
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { isAuthenticated: false, authType: 'none' }
+  }
+  
+  const token = authHeader.replace('Bearer ', '')
+  
+  // Simulate invalid tokens
+  if (token === 'invalid-token-12345' || token === null || token === '') {
+    return { isAuthenticated: false, authType: 'none' }
+  }
+  
+  // Detect auth type
+  if (token.startsWith('evalmatch-api-token-')) {
+    return { isAuthenticated: true, authType: 'token' }
+  } else if (token === 'firebase-jwt-token') {
+    return { isAuthenticated: true, authType: 'firebase' }
+  } else {
+    return { isAuthenticated: true, authType: 'firebase' } // Default to firebase for other valid tokens
+  }
+}
+
+// Helper function to return 401 error
+function unauthorizedResponse() {
+  return HttpResponse.json(
+    {
+      success: false,
+      error: 'UNAUTHORIZED',
+      message: 'Authentication required',
+      timestamp: new Date().toISOString()
+    },
+    { status: 401 }
+  )
+}
+
 // Mock API responses
 export const handlers: HttpHandler[] = [
   // Health endpoints - return plain objects per spec
@@ -41,6 +79,12 @@ export const handlers: HttpHandler[] = [
   // Resumes endpoints
   http.get('https://api.test.evalmatch.com/resumes', ({ request }) => {
     console.log('MSW intercepted:', request.method, request.url)
+    
+    const auth = checkAuth(request)
+    if (!auth.isAuthenticated) {
+      return unauthorizedResponse()
+    }
+    
     return HttpResponse.json({
       success: true,
       data: [
@@ -71,6 +115,12 @@ export const handlers: HttpHandler[] = [
 
   http.get('https://api.test.evalmatch.com/resumes/:id', ({ request, params }) => {
     console.log('MSW intercepted:', request.method, request.url)
+    
+    const auth = checkAuth(request)
+    if (!auth.isAuthenticated) {
+      return unauthorizedResponse()
+    }
+    
     const id = Number(params.id)
     
     // Return 404 for specific test case
@@ -97,6 +147,12 @@ export const handlers: HttpHandler[] = [
   // Job descriptions endpoints
   http.post('https://api.test.evalmatch.com/job-descriptions', ({ request }) => {
     console.log('MSW intercepted:', request.method, request.url)
+    
+    const auth = checkAuth(request)
+    if (!auth.isAuthenticated) {
+      return unauthorizedResponse()
+    }
+    
     return HttpResponse.json({
       success: true,
       data: {
@@ -436,6 +492,228 @@ export const handlers: HttpHandler[] = [
       success: true,
       message: 'Beta credits granted successfully',
       credits: 50,
+      timestamp: new Date().toISOString()
+    })
+  }),
+
+  // Job descriptions CRUD endpoints
+  http.get('https://api.test.evalmatch.com/job-descriptions', ({ request }) => {
+    console.log('MSW intercepted:', request.method, request.url)
+    
+    const auth = checkAuth(request)
+    if (!auth.isAuthenticated) {
+      return unauthorizedResponse()
+    }
+    
+    return HttpResponse.json({
+      success: true,
+      data: [
+        {
+          id: 1,
+          title: 'Senior Frontend Developer',
+          description: 'We are looking for a senior frontend developer...',
+          requirements: ['React', 'TypeScript', '5+ years experience'],
+          createdAt: '2024-01-01T00:00:00Z'
+        },
+        {
+          id: 2,
+          title: 'Backend Engineer',
+          description: 'Join our backend team...',
+          requirements: ['Node.js', 'PostgreSQL', 'Docker'],
+          createdAt: '2024-01-02T00:00:00Z'
+        }
+      ],
+      timestamp: new Date().toISOString()
+    })
+  }),
+
+  http.get('https://api.test.evalmatch.com/job-descriptions/:id', ({ request, params }) => {
+    console.log('MSW intercepted:', request.method, request.url)
+    
+    const auth = checkAuth(request)
+    if (!auth.isAuthenticated) {
+      return unauthorizedResponse()
+    }
+    
+    const id = Number(params.id)
+    
+    // Return 404 for specific test case
+    if (id === 999) {
+      return HttpResponse.json(
+        { error: 'Job description not found' },
+        { status: 404 }
+      )
+    }
+    
+    return HttpResponse.json({
+      success: true,
+      data: {
+        id: id,
+        title: `Job Title ${id}`,
+        description: `Job description for position ${id}`,
+        requirements: ['React', 'TypeScript'],
+        skills: ['JavaScript', 'React', 'Node.js'],
+        createdAt: '2024-01-01T00:00:00Z'
+      },
+      timestamp: new Date().toISOString()
+    })
+  }),
+
+  http.patch('https://api.test.evalmatch.com/job-descriptions/:id', async ({ request, params }) => {
+    console.log('MSW intercepted:', request.method, request.url)
+    
+    const auth = checkAuth(request)
+    if (!auth.isAuthenticated) {
+      return unauthorizedResponse()
+    }
+    
+    const id = Number(params.id)
+    const body = await request.json() as {
+      title?: string;
+      description?: string;
+      requirements?: string[];
+    }
+    
+    return HttpResponse.json({
+      success: true,
+      data: {
+        id: id,
+        title: body.title || `Updated Job ${id}`,
+        description: body.description || `Updated description for ${id}`,
+        requirements: body.requirements || ['Updated requirement'],
+        updatedAt: new Date().toISOString()
+      },
+      timestamp: new Date().toISOString()
+    })
+  }),
+
+  http.delete('https://api.test.evalmatch.com/job-descriptions/:id', ({ request, params }) => {
+    console.log('MSW intercepted:', request.method, request.url)
+    
+    const auth = checkAuth(request)
+    if (!auth.isAuthenticated) {
+      return unauthorizedResponse()
+    }
+    
+    const id = Number(params.id)
+    
+    // Return 404 for specific test case
+    if (id === 999) {
+      return HttpResponse.json(
+        { error: 'Job description not found' },
+        { status: 404 }
+      )
+    }
+    
+    return HttpResponse.json({
+      success: true,
+      timestamp: new Date().toISOString()
+    })
+  }),
+
+  // Resumes batch upload endpoint
+  http.post('https://api.test.evalmatch.com/resumes/batch', ({ request }) => {
+    console.log('MSW intercepted:', request.method, request.url)
+    return HttpResponse.json({
+      success: true,
+      data: {
+        batchId: 'batch_123',
+        message: 'Processed 2 files: 2 successful, 0 failed',
+        results: {
+          successful: [
+            {
+              filename: 'batch-resume-1.pdf',
+              resumeId: 201,
+              fileSize: 245760,
+              processingTime: 1250,
+              hasAnalysis: true
+            },
+            {
+              filename: 'batch-resume-2.pdf',
+              resumeId: 202,
+              fileSize: 189032,
+              processingTime: 1100,
+              hasAnalysis: true
+            }
+          ],
+          failed: []
+        },
+        summary: {
+          totalFiles: 2,
+          successfulUploads: 2,
+          failedUploads: 0,
+          totalSize: 434792,
+          processingTime: 2350
+        }
+      },
+      timestamp: new Date().toISOString()
+    })
+  }),
+
+  // Analysis text endpoint
+  http.post('https://api.test.evalmatch.com/analysis/analyze-text', async ({ request }) => {
+    console.log('MSW intercepted:', request.method, request.url)
+    
+    const auth = checkAuth(request)
+    if (!auth.isAuthenticated) {
+      return unauthorizedResponse()
+    }
+    const body = await request.json() as {
+      resumeText: string;
+      jobDescriptionText: string;
+    }
+    
+    return HttpResponse.json({
+      success: true,
+      data: {
+        matchPercentage: 87.5,
+        matchedSkills: ['React', 'JavaScript', 'Node.js'],
+        missingSkills: ['TypeScript', 'GraphQL'],
+        candidateStrengths: ['Strong React skills', 'Good JavaScript foundation'],
+        candidateWeaknesses: ['Limited TypeScript experience', 'No GraphQL background'],
+        confidenceLevel: 'high',
+        recommendations: ['Learn TypeScript fundamentals', 'Practice GraphQL queries']
+      },
+      timestamp: new Date().toISOString()
+    })
+  }),
+
+  // Tokens status by token endpoint
+  http.get('https://api.test.evalmatch.com/v1/tokens/status/by-token', ({ request }) => {
+    console.log('MSW intercepted:', request.method, request.url)
+    
+    const auth = checkAuth(request)
+    if (!auth.isAuthenticated || auth.authType !== 'token') {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: 'FORBIDDEN',
+          message: 'This endpoint requires API token authentication',
+          timestamp: new Date().toISOString()
+        },
+        { status: 403 }
+      )
+    }
+    
+    return HttpResponse.json({
+      success: true,
+      data: {
+        token: {
+          id: 'token_123',
+          name: 'Test API Token',
+          partial: 'em_123_***',
+          status: 'active',
+          permissions: ['read', 'write'],
+          createdAt: '2024-01-01T00:00:00Z',
+          expiresAt: null,
+          lastUsedAt: new Date().toISOString()
+        },
+        usage: {
+          requestsToday: 15,
+          requestsThisMonth: 450,
+          totalRequests: 1250
+        }
+      },
       timestamp: new Date().toISOString()
     })
   }),

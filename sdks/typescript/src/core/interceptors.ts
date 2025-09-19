@@ -99,6 +99,20 @@ export class BuiltInInterceptors {
   }
 
   /**
+   * Data extraction interceptor - extracts data from API response envelope
+   */
+  static dataExtraction(): ResponseInterceptor {
+    return (response, context) => {
+      // Extract data from envelope if present
+      if (response.data && typeof response.data === 'object' && 'success' in response.data && 'data' in response.data) {
+        // This is an API envelope response, extract the data
+        response.data = response.data.data
+      }
+      return response
+    }
+  }
+
+  /**
    * Response timing interceptor - logs response times
    */
   static responseTiming(): ResponseInterceptor {
@@ -285,6 +299,7 @@ export function createDefaultInterceptors(
       BuiltInInterceptors.contentType()
     ],
     responseInterceptors: [
+      BuiltInInterceptors.dataExtraction(),
       BuiltInInterceptors.responseTiming()
     ],
     errorInterceptors: [

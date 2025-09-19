@@ -83,10 +83,10 @@ const router = Router();
 // Get all analyses for the current user
 router.get(
   "/my-analyses",
-  authenticateUser,
+  eitherAuth,
   async (req: Request, res: Response) => {
     try {
-      const userId = req.user!.uid;
+      const userId = (req as any).auth.userId;
       
       // Get storage instance
       const storage = getStorage();
@@ -454,12 +454,12 @@ router.post(
 // Get analysis results for a job
 router.get(
   "/analyze/:jobId",
-  authenticateUser,
+  eitherAuth,
   validators.getAnalysis,
   async (req: Request, res: Response) => {
     try {
       const jobId = parseInt(req.params.jobId);
-      const userId = req.user!.uid;
+      const userId = (req as any).auth.userId;
       const sessionId = req.query.sessionId as string;
       const batchId = req.query.batchId as string;
 
@@ -540,13 +540,13 @@ router.get(
 // Get specific analysis result
 router.get(
   "/analyze/:jobId/:resumeId",
-  authenticateUser,
+  eitherAuth,
   validators.rateLimitModerate,
   async (req: Request, res: Response) => {
     try {
       const jobId = parseInt(req.params.jobId);
       const resumeId = parseInt(req.params.resumeId);
-      const userId = req.user!.uid;
+      const userId = (req as any).auth.userId;
 
       if (isNaN(jobId) || isNaN(resumeId)) {
         return res.status(400).json({
@@ -605,13 +605,13 @@ router.get(
 // Generate interview questions
 router.post(
   "/interview-questions/:resumeId/:jobId",
-  authenticateUser,
+  eitherAuth,
   validators.generateQuestions,
   async (req: Request, res: Response) => {
     try {
       const resumeId = parseInt(req.params.resumeId);
       const jobId = parseInt(req.params.jobId);
-      const userId = req.user!.uid;
+      const userId = (req as any).auth.userId;
       const sessionId = req.body.sessionId || (req.query.sessionId as string);
 
       if (isNaN(resumeId) || isNaN(jobId)) {

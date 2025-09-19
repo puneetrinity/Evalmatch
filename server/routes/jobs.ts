@@ -6,6 +6,7 @@
 
 import { Router, Request, Response } from "express";
 import { authenticateUser } from "../middleware/auth";
+import { eitherAuth } from "../middleware/either-auth";
 import { validateRequest } from "../middleware/validation";
 import { validators } from "../middleware/input-validation";
 import { insertJobDescriptionSchema } from "@shared/schema";
@@ -75,6 +76,7 @@ const router = Router();
  *       analyzed to enable efficient candidate matching.
  *     security:
  *       - bearerAuth: []
+ *       - ApiTokenAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -171,11 +173,11 @@ const router = Router();
  *         $ref: '#/components/responses/ServerError'
  */
 // Create new job description
-router.post("/", authenticateUser, validators.createJob, async (req: Request, res: Response) => {
+router.post("/", eitherAuth, validators.createJob, async (req: Request, res: Response) => {
   try {
     // Validate request body
     const jobDescData = validateRequest(insertJobDescriptionSchema, req.body);
-    const userId = req.user!.uid;
+    const userId = (req as any).auth.userId;
 
     // Create JobService instance with current storage
     const storage = getStorage();
@@ -241,9 +243,9 @@ router.post("/", authenticateUser, validators.createJob, async (req: Request, re
 });
 
 // Get all job descriptions for the authenticated user
-router.get("/", authenticateUser, validators.getJobDescriptions, async (req: Request, res: Response) => {
+router.get("/", eitherAuth, validators.getJobDescriptions, async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.uid;
+    const userId = (req as any).auth.userId;
     const limit = parseInt(req.query.limit as string) || 20;
     const page = parseInt(req.query.page as string) || 1;
     const searchQuery = req.query.search as string;
@@ -299,10 +301,10 @@ router.get("/", authenticateUser, validators.getJobDescriptions, async (req: Req
 });
 
 // Get specific job description by ID
-router.get("/:id", authenticateUser, validators.getJobDescription, async (req: Request, res: Response) => {
+router.get("/:id", eitherAuth, validators.getJobDescription, async (req: Request, res: Response) => {
   try {
     const jobId = parseInt(req.params.id);
-    const userId = req.user!.uid;
+    const userId = (req as any).auth.userId;
 
     if (isNaN(jobId)) {
       return res.status(400).json({
@@ -351,10 +353,10 @@ router.get("/:id", authenticateUser, validators.getJobDescription, async (req: R
 });
 
 // Update job description
-router.patch("/:id", authenticateUser, validators.updateJob, async (req: Request, res: Response) => {
+router.patch("/:id", eitherAuth, validators.updateJob, async (req: Request, res: Response) => {
   try {
     const jobId = parseInt(req.params.id);
-    const userId = req.user!.uid;
+    const userId = (req as any).auth.userId;
 
     if (isNaN(jobId)) {
       return res.status(400).json({
@@ -410,10 +412,10 @@ router.patch("/:id", authenticateUser, validators.updateJob, async (req: Request
 });
 
 // Delete job description
-router.delete("/:id", authenticateUser, validators.getJobDescription, async (req: Request, res: Response) => {
+router.delete("/:id", eitherAuth, validators.getJobDescription, async (req: Request, res: Response) => {
   try {
     const jobId = parseInt(req.params.id);
-    const userId = req.user!.uid;
+    const userId = (req as any).auth.userId;
 
     if (isNaN(jobId)) {
       return res.status(400).json({

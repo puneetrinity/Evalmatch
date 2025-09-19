@@ -328,6 +328,56 @@ export type PostAnalysisAnalyzeBiasByJobIdResponses = {
 
 export type PostAnalysisAnalyzeBiasByJobIdResponse = PostAnalysisAnalyzeBiasByJobIdResponses[keyof PostAnalysisAnalyzeBiasByJobIdResponses];
 
+export type PostAnalysisAnalyzeTextData = {
+    body: {
+        /**
+         * Raw resume text content
+         */
+        resumeText: string;
+        /**
+         * Raw job description text content
+         */
+        jobDescriptionText: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/analysis/analyze-text';
+};
+
+export type PostAnalysisAnalyzeTextErrors = {
+    /**
+     * Validation error
+     */
+    400: ApiError;
+    /**
+     * Authentication required
+     */
+    401: ApiError;
+    /**
+     * Internal server error
+     */
+    500: ApiError;
+};
+
+export type PostAnalysisAnalyzeTextError = PostAnalysisAnalyzeTextErrors[keyof PostAnalysisAnalyzeTextErrors];
+
+export type PostAnalysisAnalyzeTextResponses = {
+    /**
+     * Text analysis completed successfully
+     */
+    200: ApiResponse & {
+        data?: {
+            matchPercentage?: number;
+            matchedSkills?: Array<string>;
+            missingSkills?: Array<string>;
+            confidenceLevel?: string;
+            processingTime?: number;
+        };
+    };
+};
+
+export type PostAnalysisAnalyzeTextResponse = PostAnalysisAnalyzeTextResponses[keyof PostAnalysisAnalyzeTextResponses];
+
 export type GetCreditsBalanceData = {
     body?: never;
     path?: never;

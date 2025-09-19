@@ -85,11 +85,31 @@ export interface AppConfig {
   ai: {
     primary: "groq" | "openai" | "anthropic" | null;
     providers: {
-      groq: { apiKey: string | null; enabled: boolean };
-      openai: { apiKey: string | null; enabled: boolean };
-      anthropic: { apiKey: string | null; enabled: boolean };
+      groq: { apiKey: string | null; enabled: boolean; timeout: number };
+      openai: { apiKey: string | null; enabled: boolean; timeout: number };
+      anthropic: { apiKey: string | null; enabled: boolean; timeout: number };
     };
     hasAnyProvider: boolean;
+    providerPriority: string[];
+    circuitBreaker: {
+      failureThreshold: number;
+      resetTimeout: number;
+      monitorWindow: number;
+    };
+    router: {
+      interactive: {
+        maxRetries: number;
+        deadlineMs: number;
+      };
+      batch: {
+        maxRetries: number;
+        deadlineMs: number;
+      };
+      jitter: {
+        minMs: number;
+        maxMs: number;
+      };
+    };
   };
 
   // Embedding Configuration
@@ -116,7 +136,9 @@ export interface AppConfig {
     enableMauticTracking: boolean;
     enableLegacyRoutes: boolean;
     legacyServiceRouting: boolean;
+    enableProviderFailover: boolean;
   };
+
 
   // Hybrid Analyzer Configuration (aligned to existing thresholds)
   hybridAnalyzer: {
@@ -261,10 +283,48 @@ export function loadUnifiedConfig(): AppConfig {
   const openaiApiKey = process.env.OPENAI_API_KEY || null;
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY || null;
 
+  // Provider priority configuration (Groq -> OpenAI -> Claude for speed/cost -> reliability -> quality)
+  const providerPriority = (process.env.PROVIDER_PRIORITY || 'groq,openai,anthropic').split(',');
+
   const aiProviders = {
-    groq: { apiKey: groqApiKey, enabled: !!groqApiKey },
-    openai: { apiKey: openaiApiKey, enabled: !!openaiApiKey },
-    anthropic: { apiKey: anthropicApiKey, enabled: !!anthropicApiKey },
+    groq: { 
+      apiKey: groqApiKey, 
+      enabled: !!groqApiKey,
+      timeout: parseInt(process.env.GROQ_TIMEOUT || '30000', 10)
+    },
+    openai: { 
+      apiKey: openaiApiKey, 
+      enabled: !!openaiApiKey,
+      timeout: parseInt(process.env.OPENAI_TIMEOUT || '45000', 10)
+    },
+    anthropic: { 
+      apiKey: anthropicApiKey, 
+      enabled: !!anthropicApiKey,
+      timeout: parseInt(process.env.ANTHROPIC_TIMEOUT || '60000', 10)
+    },
+  };
+
+  // Circuit breaker configuration for provider failover
+  const aiCircuitBreaker = {
+    failureThreshold: parseInt(process.env.AI_CB_FAILURE_THRESHOLD || '5', 10),
+    resetTimeout: parseInt(process.env.AI_CB_RESET_TIMEOUT || '60000', 10),
+    monitorWindow: parseInt(process.env.AI_CB_MONITOR_WINDOW || '10000', 10),
+  };
+
+  // Route-aware retry configuration for provider failover
+  const aiRouter = {
+    interactive: {
+      maxRetries: parseInt(process.env.AI_ROUTER_MAX_RETRIES_INTERACTIVE || '3', 10),
+      deadlineMs: parseInt(process.env.AI_ROUTER_DEADLINE_INTERACTIVE_MS || '4000', 10),
+    },
+    batch: {
+      maxRetries: parseInt(process.env.AI_ROUTER_MAX_RETRIES_BATCH || '4', 10),
+      deadlineMs: parseInt(process.env.AI_ROUTER_DEADLINE_BATCH_MS || '8000', 10),
+    },
+    jitter: {
+      minMs: parseInt(process.env.AI_ROUTER_MIN_JITTER_MS || '50', 10),
+      maxMs: parseInt(process.env.AI_ROUTER_MAX_JITTER_MS || '100', 10),
+    },
   };
 
   const hasAnyProvider = !!(groqApiKey || openaiApiKey || anthropicApiKey);
@@ -291,6 +351,7 @@ export function loadUnifiedConfig(): AppConfig {
     enableMauticTracking: process.env.ENABLE_MAUTIC_TRACKING === "true", // Default false - enable explicitly
     enableLegacyRoutes: process.env.ENABLE_LEGACY_ROUTES !== "false", // Default true for backwards compatibility
     legacyServiceRouting: process.env.LEGACY_SERVICE_ROUTING === "true", // Default false - use legacy service internally
+    enableProviderFailover: process.env.ENABLE_PROVIDER_FAILOVER === "true", // Default false - enable for enhanced resilience
   };
 
   // Hybrid Analyzer Configuration (aligned to unified-scoring-config.ts thresholds)
@@ -384,6 +445,9 @@ export function loadUnifiedConfig(): AppConfig {
       primary: primaryProvider,
       providers: aiProviders,
       hasAnyProvider,
+      providerPriority,
+      circuitBreaker: aiCircuitBreaker,
+      router: aiRouter,
     },
     embedding: {
       model: process.env.EMBEDDING_MODEL || 'Xenova/all-MiniLM-L12-v2',

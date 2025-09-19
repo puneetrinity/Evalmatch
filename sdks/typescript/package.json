@@ -50,7 +50,8 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "axios": "^1.7.7"
+    "axios": "^1.7.7",
+    "form-data": "^4.0.4"
   },
   "peerDependencies": {
     "firebase": ">=10.0.0"

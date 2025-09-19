@@ -3,7 +3,7 @@
   "info": {
     "title": "EvalMatch API",
     "version": "2.1.0",
-    "description": "\n        AI-powered recruitment platform API for intelligent resume analysis and bias-free hiring.\n        \n        ## Features\n        - Multi-format resume processing (PDF, DOCX, TXT)\n        - AI-powered candidate matching with 85% accuracy\n        - Bias detection in job descriptions\n        - Interview question generation\n        - Enterprise-grade security and validation\n        \n        ## Authentication\n        All protected endpoints require Firebase JWT authentication.\n        Include the token in the Authorization header: `Bearer <jwt-token>`\n        \n        ## Rate Limiting\n        - Resume uploads: 50 requests per 15 minutes\n        - Analysis endpoints: 20 requests per 15 minutes\n        - General endpoints: 100 requests per 15 minutes\n      ",
+    "description": "\n        AI-powered recruitment platform API for intelligent resume analysis and bias-free hiring.\n        \n        ## Features\n        - Multi-format resume processing (PDF, DOCX, TXT)\n        - AI-powered candidate matching with 85% accuracy\n        - Bias detection in job descriptions\n        - Interview question generation\n        - Enterprise-grade security and validation\n        \n        ## Authentication\n        Protected endpoints support dual authentication methods:\n        \n        **Firebase JWT (Web Applications)**\n        - Include Firebase ID token: `Authorization: Bearer <firebase-jwt>`\n        - Obtain via Firebase Auth SDK in web/mobile applications\n        \n        **API Token (Server-to-Server)**\n        - Include EvalMatch API token: `Authorization: Bearer <api-token>`\n        - Generate via `POST /api/v1/tokens/generate` (requires Firebase auth)\n        - Format: `em_<id>_<secret>` for programmatic access\n        \n        Most endpoints accept either authentication method for maximum flexibility.\n        \n        ## Rate Limiting\n        - Resume uploads: 50 requests per 15 minutes\n        - Analysis endpoints: 20 requests per 15 minutes\n        - General endpoints: 100 requests per 15 minutes\n      ",
     "contact": {
       "name": "EvalMatch API Support",
       "url": "https://evalmatch.app/docs/api",
@@ -36,6 +36,12 @@
         "scheme": "bearer",
         "bearerFormat": "JWT",
         "description": "Firebase JWT token. Get it from Firebase Auth SDK."
+      },
+      "ApiTokenAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Token",
+        "description": "EvalMatch API token (em_<id>_<secret>). Generate from /api/v1/tokens/generate"
       }
     },
     "schemas": {
@@ -794,6 +800,9 @@
   "security": [
     {
       "bearerAuth": []
+    },
+    {
+      "ApiTokenAuth": []
     }
   ],
   "tags": [
@@ -1197,6 +1206,135 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/analysis/analyze-text": {
+      "post": {
+        "tags": [
+          "Analysis"
+        ],
+        "summary": "Analyze resume text directly against job description text",
+        "description": "Perform AI-powered analysis of raw resume text against job description text.\nReturns matching scores, skill matches, and insights without requiring \nuploaded files or job records. Ideal for quick text-based evaluations.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "ApiTokenAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "resumeText": {
+                    "type": "string",
+                    "description": "Raw resume text content",
+                    "example": "John Doe\nSoftware Engineer\n5 years React experience..."
+                  },
+                  "jobDescriptionText": {
+                    "type": "string",
+                    "description": "Raw job description text content",
+                    "example": "We are seeking a React developer with 3+ years experience..."
+                  }
+                },
+                "required": [
+                  "resumeText",
+                  "jobDescriptionText"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Text analysis completed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "matchPercentage": {
+                              "type": "number",
+                              "example": 87.5
+                            },
+                            "matchedSkills": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "example": [
+                                "React",
+                                "JavaScript",
+                                "Node.js"
+                              ]
+                            },
+                            "missingSkills": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "example": [
+                                "TypeScript",
+                                "GraphQL"
+                              ]
+                            },
+                            "confidenceLevel": {
+                              "type": "string",
+                              "example": "high"
+                            },
+                            "processingTime": {
+                              "type": "number",
+                              "example": 1250
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "matchPercentage": 87.5,
+                    "matchedSkills": [
+                      "React",
+                      "JavaScript",
+                      "Node.js"
+                    ],
+                    "missingSkills": [
+                      "TypeScript",
+                      "GraphQL"
+                    ],
+                    "confidenceLevel": "high",
+                    "processingTime": 1250
+                  },
+                  "timestamp": "2025-01-14T10:40:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
           },
           "500": {
             "$ref": "#/components/responses/ServerError"
@@ -1648,6 +1786,9 @@
         "security": [
           {
             "bearerAuth": []
+          },
+          {
+            "ApiTokenAuth": []
           }
         ],
         "requestBody": {

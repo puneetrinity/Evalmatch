@@ -24,9 +24,29 @@ info:
 
     \        ## Authentication
 
-    \        All protected endpoints require Firebase JWT authentication.
+    \        Protected endpoints support dual authentication methods:
 
-    \        Include the token in the Authorization header: `Bearer <jwt-token>`
+    \       \ 
+
+    \        **Firebase JWT (Web Applications)**
+
+    \        - Include Firebase ID token: `Authorization: Bearer <firebase-jwt>`
+
+    \        - Obtain via Firebase Auth SDK in web/mobile applications
+
+    \       \ 
+
+    \        **API Token (Server-to-Server)**
+
+    \        - Include EvalMatch API token: `Authorization: Bearer <api-token>`
+
+    \        - Generate via `POST /api/v1/tokens/generate` (requires Firebase auth)
+
+    \        - Format: `em_<id>_<secret>` for programmatic access
+
+    \       \ 
+
+    \        Most endpoints accept either authentication method for maximum flexibility.
 
     \       \ 
 
@@ -61,6 +81,11 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Firebase JWT token. Get it from Firebase Auth SDK.
+    ApiTokenAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Token
+      description: EvalMatch API token (em_<id>_<secret>). Generate from /api/v1/tokens/generate
   schemas:
     ApiResponse:
       type: object
@@ -603,6 +628,7 @@ components:
         example: 123
 security:
   - bearerAuth: []
+  - ApiTokenAuth: []
 tags:
   - name: Health
     description: System health and status endpoints
@@ -860,6 +886,96 @@ paths:
                   code: JOB_NOT_FOUND
                   message: Job description not found or access denied
                 timestamp: 2025-01-14T10:50:00.000Z
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /analysis/analyze-text:
+    post:
+      tags:
+        - Analysis
+      summary: Analyze resume text directly against job description text
+      description: |
+        Perform AI-powered analysis of raw resume text against job description text.
+        Returns matching scores, skill matches, and insights without requiring 
+        uploaded files or job records. Ideal for quick text-based evaluations.
+      security:
+        - bearerAuth: []
+        - ApiTokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resumeText:
+                  type: string
+                  description: Raw resume text content
+                  example: |-
+                    John Doe
+                    Software Engineer
+                    5 years React experience...
+                jobDescriptionText:
+                  type: string
+                  description: Raw job description text content
+                  example: We are seeking a React developer with 3+ years experience...
+              required:
+                - resumeText
+                - jobDescriptionText
+      responses:
+        "200":
+          description: Text analysis completed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          matchPercentage:
+                            type: number
+                            example: 87.5
+                          matchedSkills:
+                            type: array
+                            items:
+                              type: string
+                            example:
+                              - React
+                              - JavaScript
+                              - Node.js
+                          missingSkills:
+                            type: array
+                            items:
+                              type: string
+                            example:
+                              - TypeScript
+                              - GraphQL
+                          confidenceLevel:
+                            type: string
+                            example: high
+                          processingTime:
+                            type: number
+                            example: 1250
+              example:
+                success: true
+                data:
+                  matchPercentage: 87.5
+                  matchedSkills:
+                    - React
+                    - JavaScript
+                    - Node.js
+                  missingSkills:
+                    - TypeScript
+                    - GraphQL
+                  confidenceLevel: high
+                  processingTime: 1250
+                timestamp: 2025-01-14T10:40:00.000Z
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
         "500":
           $ref: "#/components/responses/ServerError"
   /credits/balance:
@@ -1162,6 +1278,7 @@ paths:
         analyzed to enable efficient candidate matching.
       security:
         - bearerAuth: []
+        - ApiTokenAuth: []
       requestBody:
         required: true
         content:

@@ -66,25 +66,122 @@ async function analyzeResume() {
 }
 ```
 
-### Custom Authentication
+### API Token Authentication (Server-to-Server)
+
+For backend services and automation, use EvalMatch API tokens:
 
 ```typescript
 import { EvalMatchClient } from '@evalmatch/sdk';
 
-// Implement custom auth provider
-class CustomAuthProvider {
+// Simple auth provider using API token
+class ApiTokenAuthProvider {
+  constructor(private apiToken: string) {}
+  
   async getToken() {
-    return localStorage.getItem('jwt-token');
+    return this.apiToken; // Returns API token (em_<id>_<secret>)
   }
   
   async isAuthenticated() {
-    return !!localStorage.getItem('jwt-token');
+    return !!this.apiToken;
   }
 }
 
 const client = new EvalMatchClient({
-  authProvider: new CustomAuthProvider()
+  authProvider: new ApiTokenAuthProvider(process.env.EVALMATCH_API_TOKEN!)
 });
+
+// Now you can use all SDK features without Firebase
+await client.jobs.list();
+await client.tokens.statusByToken(); // Check token usage
+```
+
+### Complete Dual-Auth Example
+
+```typescript
+import { EvalMatchClient, FirebaseAuthProvider } from '@evalmatch/sdk';
+import { getAuth } from 'firebase/auth';
+
+// End-to-end recruitment workflow example
+async function completeRecruitmentWorkflow() {
+  // 1. Setup client (use Firebase for web apps, API tokens for servers)
+  const isServer = typeof window === 'undefined';
+  const client = new EvalMatchClient({
+    authProvider: isServer 
+      ? new ApiTokenAuthProvider(process.env.EVALMATCH_API_TOKEN!)
+      : new FirebaseAuthProvider(getAuth())
+  });
+
+  // 2. Upload multiple resumes in batch
+  const resumeFiles = [resume1, resume2, resume3]; // File objects
+  const batchResult = await client.resumes.uploadBatch(resumeFiles);
+  console.log(`Uploaded ${batchResult.summary.successful} resumes`);
+
+  // 3. Create and manage job descriptions
+  const job = await client.jobs.create({
+    title: 'Senior Frontend Developer',
+    description: 'React expert with TypeScript experience...',
+    requirements: ['React', 'TypeScript', '5+ years experience']
+  });
+
+  // 4. Analyze bias in job description
+  const biasAnalysis = await client.analysis.analyzeBias(job.id);
+  if (biasAnalysis.data.riskLevel === 'high') {
+    console.warn('Job description may contain bias:', biasAnalysis.data.issues);
+  }
+
+  // 5. Run text-based analysis for quick screening
+  const quickAnalysis = await client.analysis.analyzeText({
+    resumeText: 'John Doe, Senior React Developer with 6 years...',
+    jobDescriptionText: job.description
+  });
+  console.log(`Quick match: ${quickAnalysis.matchPercentage}%`);
+
+  // 6. Full analysis with ranking
+  const resumeIds = batchResult.uploaded.map(r => r.id);
+  const fullAnalysis = await client.analysis.analyze(job.id, resumeIds);
+  
+  // Rank candidates by match percentage
+  const rankedCandidates = fullAnalysis.data.results
+    .sort((a, b) => b.matchPercentage - a.matchPercentage);
+  
+  console.log('Top candidates:', rankedCandidates.slice(0, 3));
+
+  // 7. Manage job descriptions
+  const allJobs = await client.jobs.list();
+  const updatedJob = await client.jobs.update(job.id, {
+    requirements: [...job.requirements, 'GraphQL'] // Add new requirement
+  });
+  
+  // 8. Check API usage (for API token users)
+  if (isServer) {
+    const tokenStatus = await client.tokens.statusByToken();
+    console.log(`API calls today: ${tokenStatus.usage.requestsToday}`);
+  }
+}
+```
+
+### Node.js Specific Examples
+
+For Node.js applications, you can upload files using Buffers or Streams:
+
+```typescript
+import fs from 'fs';
+import { EvalMatchClient } from '@evalmatch/sdk';
+
+const client = new EvalMatchClient({
+  authProvider: new ApiTokenAuthProvider(process.env.EVALMATCH_API_TOKEN!)
+});
+
+// Upload from Buffer
+const pdfBuffer = fs.readFileSync('./resume.pdf');
+const resume = await client.resumes.upload(pdfBuffer);
+
+// Upload multiple files as streams
+const streams = ['resume1.pdf', 'resume2.pdf'].map(file => 
+  fs.createReadStream(file)
+);
+const batchResult = await client.resumes.uploadBatch(streams);
+console.log(`Batch upload: ${batchResult.summary.successful} successful`);
 ```
 
 ## API Reference
@@ -97,14 +194,17 @@ const client = new EvalMatchClient({
 // List user's resumes
 const resumes = await client.resumes.list();
 
-// Upload a resume file
+// Upload a single resume file
 const resume = await client.resumes.upload(file);
+
+// Upload multiple resumes in batch
+const batchResult = await client.resumes.uploadBatch([file1, file2, file3]);
 
 // Get specific resume
 const resume = await client.resumes.get(resumeId);
 ```
 
-#### Job Descriptions
+#### Job Descriptions (Full CRUD)
 
 ```typescript
 // Create job description
@@ -113,6 +213,21 @@ const job = await client.jobs.create({
   description: 'Join our team...',
   requirements: ['JavaScript', 'React']
 });
+
+// List all job descriptions
+const jobs = await client.jobs.list();
+
+// Get specific job description
+const job = await client.jobs.get(jobId);
+
+// Update job description
+const updatedJob = await client.jobs.update(jobId, {
+  title: 'Senior Software Engineer',
+  requirements: ['JavaScript', 'React', 'TypeScript']
+});
+
+// Delete job description
+const result = await client.jobs.delete(jobId);
 ```
 
 #### AI Analysis
@@ -123,6 +238,40 @@ const analysis = await client.analysis.analyze(jobId, [resumeId1, resumeId2]);
 
 // Check job description for bias
 const biasAnalysis = await client.analysis.analyzeBias(jobId);
+
+// Quick text-based analysis (no file upload required)
+const textAnalysis = await client.analysis.analyzeText({
+  resumeText: 'John Doe, Software Engineer...',
+  jobDescriptionText: 'We are looking for a developer...'
+});
+
+console.log('Match percentage:', textAnalysis.matchPercentage);
+console.log('Matched skills:', textAnalysis.matchedSkills);
+console.log('Missing skills:', textAnalysis.missingSkills);
+```
+
+#### Token Management (API Token Users)
+
+```typescript
+// Get current token status and usage
+const tokenStatus = await client.tokens.statusByToken();
+
+console.log('Token status:', tokenStatus.token.status);
+console.log('Requests today:', tokenStatus.usage.requestsToday);
+console.log('Requests this month:', tokenStatus.usage.requestsThisMonth);
+```
+
+#### Credits and User Management
+
+```typescript
+// Check credit balance
+const balance = await client.credits.balance();
+
+// View credit history
+const history = await client.credits.history();
+
+// Get user profile
+const profile = await client.user.profile();
 ```
 
 ### Error Handling

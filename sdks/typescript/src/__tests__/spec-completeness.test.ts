@@ -22,13 +22,22 @@ describe('SDK Spec Completeness', () => {
     expect(typeof client.resumes.list).toBe('function');
     expect(typeof client.resumes.upload).toBe('function'); 
     expect(typeof client.resumes.get).toBe('function');
+    expect(typeof client.resumes.uploadBatch).toBe('function');
 
     // Job description endpoints
     expect(typeof client.jobs.create).toBe('function');
+    expect(typeof client.jobs.list).toBe('function');
+    expect(typeof client.jobs.get).toBe('function');
+    expect(typeof client.jobs.update).toBe('function');
+    expect(typeof client.jobs.delete).toBe('function');
 
     // Analysis endpoints  
     expect(typeof client.analysis.analyze).toBe('function');
     expect(typeof client.analysis.analyzeBias).toBe('function');
+    expect(typeof client.analysis.analyzeText).toBe('function');
+
+    // Token endpoints
+    expect(typeof client.tokens.statusByToken).toBe('function');
 
     // Utility methods
     expect(typeof client.isAuthenticated).toBe('function');
@@ -49,6 +58,21 @@ describe('SDK Spec Completeness', () => {
     expect(analysisAnalyze).toContain('jobId');
     expect(analysisAnalyze).toContain('resumeIds');
     expect(analysisAnalyze).toContain('options');
+
+    const jobsList = client.jobs.list.toString();
+    expect(jobsList).toContain('options');
+
+    const jobsUpdate = client.jobs.update.toString();
+    expect(jobsUpdate).toContain('id');
+    expect(jobsUpdate).toContain('data');
+
+    const resumesBatch = client.resumes.uploadBatch.toString();
+    expect(resumesBatch).toContain('files');
+    expect(resumesBatch).toContain('options');
+
+    const analyzeText = client.analysis.analyzeText.toString();
+    expect(analyzeText).toContain('data');
+    expect(analyzeText).toContain('options');
   });
 
   it('should support new ClientOptions features', () => {
@@ -96,11 +120,50 @@ describe('SDK Spec Completeness', () => {
     });
   });
 
-  describe('User Profile Endpoint (Future)', () => {
-    it('should eventually have user profile endpoint when implemented', () => {
-      // Note: User profile endpoint exists in OpenAPI spec but not yet wired to manual client
-      // This is a placeholder for future implementation
-      expect(true).toBe(true);
+  describe('Jobs Endpoints', () => {
+    it('should have jobs list method', () => {
+      expect(typeof client.jobs.list).toBe('function');
+    });
+
+    it('should have jobs get method', () => {
+      expect(typeof client.jobs.get).toBe('function');
+    });
+
+    it('should have jobs update method', () => {
+      expect(typeof client.jobs.update).toBe('function');
+    });
+
+    it('should have jobs delete method', () => {
+      expect(typeof client.jobs.delete).toBe('function');
+    });
+  });
+
+  describe('Batch Upload', () => {
+    it('should have resumes batch upload method', () => {
+      expect(typeof client.resumes.uploadBatch).toBe('function');
+    });
+  });
+
+  describe('Tokens', () => {
+    it('should have tokens status by token method', () => {
+      expect(typeof client.tokens.statusByToken).toBe('function');
+    });
+  });
+
+  describe('Analysis Text', () => {
+    it('should have analyze text method with proper typing', () => {
+      expect(typeof client.analysis.analyzeText).toBe('function');
+      
+      // Test that method signature accepts correct parameters
+      const analyzeTextMethod = client.analysis.analyzeText.toString();
+      expect(analyzeTextMethod).toContain('data');
+      expect(analyzeTextMethod).toContain('options');
+    });
+  });
+
+  describe('User Profile Endpoint', () => {
+    it('should have user profile method', () => {
+      expect(typeof client.user.profile).toBe('function');
     });
   });
 

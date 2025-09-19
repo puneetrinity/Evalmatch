@@ -27,6 +27,78 @@ import type {
   GetSystemHealthResponses,
   GetUserProfileResponses
 } from './generated/types.gen';
+
+// Define typed response for analyzeText endpoint
+export interface AnalyzeTextResponse {
+  success: boolean;
+  data: {
+    matchPercentage: number;
+    matchedSkills: string[];
+    missingSkills: string[];
+    candidateStrengths: string[];
+    candidateWeaknesses: string[];
+    confidenceLevel: string;
+    recommendations: string[];
+  };
+  timestamp: string;
+}
+
+// Define types for jobs input
+export interface JobDescriptionInput {
+  title: string;
+  description: string;
+  requirements?: string[];
+}
+
+// Define types for batch upload
+export interface BatchUploadResponse {
+  batchId: string;
+  message: string;
+  results: {
+    successful: Array<{
+      filename: string;
+      resumeId: number;
+      fileSize: number;
+      processingTime: number;
+      hasAnalysis: boolean;
+    }>;
+    failed: Array<{
+      filename: string;
+      error: string;
+      reason: string;
+    }>;
+  };
+  summary: {
+    totalFiles: number;
+    successfulUploads: number;
+    failedUploads: number;
+    totalSize: number;
+    processingTime: number;
+  };
+}
+
+// Define types for token status
+export interface TokenStatusResponse {
+  success: boolean;
+  data: {
+    token: {
+      id: string;
+      name: string;
+      partial: string;
+      status: 'active' | 'expired' | 'revoked';
+      permissions: string[];
+      createdAt: string;
+      expiresAt: string | null;
+      lastUsedAt: string | null;
+    };
+    usage: {
+      requestsToday: number;
+      requestsThisMonth: number;
+      totalRequests: number;
+    };
+  };
+  timestamp: string;
+}
 import { RetryableHTTPClient, RetryConfig, CircuitBreakerConfig, CircuitBreakerState } from './core/retry-client';
 import { ErrorFactory, EvalMatchError, CircuitBreakerError } from './core/errors';
 import { createDefaultInterceptors } from './core/interceptors';
@@ -282,6 +354,69 @@ export class EvalMatchClient {
         url: `/resumes/${id}`,
         headers
       }, options);
+    },
+
+    /**
+     * Upload multiple resumes in batch
+     * Supports File/Blob arrays in browser, Buffer/Readable arrays in Node.js
+     */
+    uploadBatch: async (files: (File | Blob | Buffer | any)[], options: ClientOptions = {}): Promise<BatchUploadResponse> => {
+      const headers = await this.getAuthHeaders();
+      
+      // Browser environment
+      if (typeof window !== 'undefined' && typeof FormData !== 'undefined') {
+        const formData = new FormData();
+        files.forEach((file, index) => {
+          if (file instanceof Blob || file instanceof File) {
+            formData.append('files', file);
+          } else {
+            throw new Error(`File at index ${index} is not a valid Blob or File`);
+          }
+        });
+        
+        const response = await this.request<{ success: boolean; data: BatchUploadResponse; timestamp: string }>({
+          method: 'POST',
+          url: '/resumes/batch',
+          data: formData,
+          headers
+        }, options);
+        
+        return response.data;
+      }
+      
+      // Node.js environment - use form-data polyfill
+      try {
+        const FormDataPolyfill = (await import('form-data')).default;
+        const formData = new FormDataPolyfill();
+        
+        files.forEach((file, index) => {
+          if (Buffer.isBuffer(file)) {
+            formData.append('files', file, { filename: `resume_${index}.pdf` });
+          } else if (file && typeof file.pipe === 'function') {
+            // Readable stream
+            formData.append('files', file, { filename: `resume_${index}.pdf` });
+          } else {
+            throw new Error(`File at index ${index} is not a valid Buffer or Readable stream`);
+          }
+        });
+        
+        // Merge form headers (including boundary) with auth headers
+        const nodeHeaders = { ...headers, ...formData.getHeaders() };
+        
+        const response = await this.request<{ success: boolean; data: BatchUploadResponse; timestamp: string }>({
+          method: 'POST',
+          url: '/resumes/batch',
+          data: formData,
+          headers: nodeHeaders
+        }, options);
+        
+        return response.data;
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('form-data')) {
+          throw new Error('form-data package required for Node.js batch uploads. Install with: npm install form-data');
+        }
+        throw error;
+      }
     }
   };
 
@@ -292,12 +427,61 @@ export class EvalMatchClient {
     /**
      * Create a new job description
      */
-    create: async (data: { title: string; description: string; requirements?: string[] }, options: ClientOptions = {}): Promise<JobDescription> => {
+    create: async (data: JobDescriptionInput, options: ClientOptions = {}): Promise<JobDescription> => {
       const headers = await this.getAuthHeaders();
       return this.request<JobDescription>({
         method: 'POST',
         url: '/job-descriptions',
         data,
+        headers
+      }, options);
+    },
+
+    /**
+     * List user's job descriptions
+     */
+    list: async (options: ClientOptions = {}): Promise<JobDescription[]> => {
+      const headers = await this.getAuthHeaders();
+      return this.request<JobDescription[]>({
+        method: 'GET',
+        url: '/job-descriptions',
+        headers
+      }, options);
+    },
+
+    /**
+     * Get specific job description by ID
+     */
+    get: async (id: number, options: ClientOptions = {}): Promise<JobDescription> => {
+      const headers = await this.getAuthHeaders();
+      return this.request<JobDescription>({
+        method: 'GET',
+        url: `/job-descriptions/${id}`,
+        headers
+      }, options);
+    },
+
+    /**
+     * Update job description
+     */
+    update: async (id: number, data: Partial<JobDescriptionInput>, options: ClientOptions = {}): Promise<JobDescription> => {
+      const headers = await this.getAuthHeaders();
+      return this.request<JobDescription>({
+        method: 'PATCH',
+        url: `/job-descriptions/${id}`,
+        data,
+        headers
+      }, options);
+    },
+
+    /**
+     * Delete job description
+     */
+    delete: async (id: number, options: ClientOptions = {}): Promise<{ success: boolean }> => {
+      const headers = await this.getAuthHeaders();
+      return this.request<{ success: boolean }>({
+        method: 'DELETE',
+        url: `/job-descriptions/${id}`,
         headers
       }, options);
     }
@@ -335,13 +519,13 @@ export class EvalMatchClient {
 
     /**
      * Analyze resume text directly against job description text
-     * Uses v1 endpoint for consistent API responses
+     * Returns typed response with match percentage and skill analysis
      */
-    analyzeText: async (data: { resumeText: string; jobDescriptionText: string }, options: ClientOptions = {}): Promise<any> => {
+    analyzeText: async (data: { resumeText: string; jobDescriptionText: string }, options: ClientOptions = {}): Promise<AnalyzeTextResponse> => {
       const headers = await this.getAuthHeaders();
-      return this.request<any>({
+      return this.request<AnalyzeTextResponse>({
         method: 'POST',
-        url: '/analysis/analyze-text', // v1 endpoint
+        url: '/analysis/analyze-text',
         data,
         headers
       }, options);
@@ -415,6 +599,24 @@ export class EvalMatchClient {
       return this.request<GetUserProfileResponses[200]>({
         method: 'GET',
         url: '/user/profile',
+        headers
+      }, options);
+    }
+  };
+
+  /**
+   * Token management API
+   */
+  public tokens = {
+    /**
+     * Get status information for the current API token
+     * Requires API token authentication (not Firebase JWT)
+     */
+    statusByToken: async (options: ClientOptions = {}): Promise<TokenStatusResponse> => {
+      const headers = await this.getAuthHeaders();
+      return this.request<TokenStatusResponse>({
+        method: 'GET',
+        url: '/v1/tokens/status/by-token',
         headers
       }, options);
     }

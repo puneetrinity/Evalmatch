@@ -38,6 +38,9 @@ import { creditService } from './credit-service';
 import { config } from '../config/unified-config';
 import { createHash } from 'crypto';
 
+// Provider failover imports (only used when feature flag is enabled)
+import { providerRouter } from '../ai/provider-router';
+
 // Prefix unused import to silence warnings
 const _matchAnalysisWithCache = matchAnalysisWithCache;
 import {
@@ -1014,13 +1017,49 @@ export class AnalysisService {
       // Get user tier info
       const userTierInfo = await getUserTierInfo(userId);
 
-      // Perform bias analysis using the working AI provider implementation
-      const { analyzeBias } = await import("../lib/tiered-ai-provider");
-      const biasResult = await analyzeBias(
-        jobDescription.title,
-        jobDescription.description,
-        userTierInfo
-      );
+      let biasResult: any;
+
+      // Use provider failover if enabled, otherwise use legacy tiered provider
+      if (config.features.enableProviderFailover) {
+        logger.info('Using provider failover for bias analysis', { userId, jobId });
+        
+        const biasRouterResult = await providerRouter.routeAnalyzeBias(
+          jobDescription.title,
+          jobDescription.description,
+          { operation: 'analyzeBias', mode: 'interactive', userId }
+        );
+
+        if (!biasRouterResult.success) {
+          logger.error('Provider failover failed for bias analysis', { 
+            userId, 
+            jobId,
+            metadata: biasRouterResult.metadata 
+          });
+          throw new Error(`Bias analysis failed with provider failover: ${biasRouterResult.error?.message || 'Unknown error'}`);
+        }
+
+        biasResult = biasRouterResult.data;
+
+        // Log failover metadata for observability
+        logger.info('Bias analysis completed with provider failover', {
+          userId,
+          jobId,
+          providerUsed: biasRouterResult.metadata.providerUsed,
+          failoverCount: biasRouterResult.metadata.failoverCount,
+          mode: biasRouterResult.metadata.mode
+        });
+
+      } else {
+        // Legacy path using tiered AI provider
+        logger.info('Using legacy tiered AI provider for bias analysis', { userId, jobId });
+        
+        const { analyzeBias } = await import("../lib/tiered-ai-provider");
+        biasResult = await analyzeBias(
+          jobDescription.title,
+          jobDescription.description,
+          userTierInfo
+        );
+      }
 
       // Store bias analysis in job description
       try {
@@ -1215,40 +1254,108 @@ export class AnalysisService {
       // Get user tier information for AI provider selection
       const userTierInfo = await getUserTierInfo(userId);
 
-      // Analyze resume text
-      const resumeResult = await analyzeResumeWithCache(resumeText, userTierInfo);
-      if (isFailure(resumeResult)) {
-        logger.error('Failed to analyze resume text', { 
-          userId, 
-          error: resumeResult.error 
-        });
-        return failure(
-          new AppExternalServiceError(
-            'AI_PROVIDER_ERROR',
-            'resume-analyzer',
-            'Failed to analyze resume text',
-            undefined,
-            { userId }
-          )
-        );
-      }
+      let resumeResult: any;
+      let jobResult: any;
 
-      // Analyze job description text (needs title and description)
-      const jobResult = await analyzeJobDescriptionWithCache('Direct Text Analysis', jobDescriptionText, userTierInfo);
-      if (isFailure(jobResult)) {
-        logger.error('Failed to analyze job description text', { 
-          userId, 
-          error: jobResult.error 
+      // Use provider failover if enabled, otherwise use legacy path
+      if (config.features.enableProviderFailover) {
+        logger.info('Using provider failover for text analysis', { userId });
+        
+        // Use provider router for resume analysis
+        const resumeRouterResult = await providerRouter.routeAnalyzeResume(resumeText, {
+          operation: 'analyzeResume',
+          mode: 'interactive',
+          userId
         });
-        return failure(
-          new AppExternalServiceError(
-            'AI_PROVIDER_ERROR',
-            'job-analyzer',
-            'Failed to analyze job description text',
-            undefined,
-            { userId }
-          )
+
+        if (!resumeRouterResult.success) {
+          logger.error('Provider failover failed for resume analysis', { 
+            userId, 
+            metadata: resumeRouterResult.metadata 
+          });
+          return failure(
+            new AppExternalServiceError(
+              'AI_PROVIDER_ERROR',
+              'resume-analyzer',
+              'Failed to analyze resume text with provider failover',
+              resumeRouterResult.error,
+              { 
+                userId,
+                failoverMetadata: resumeRouterResult.metadata
+              }
+            )
+          );
+        }
+
+        resumeResult = success(resumeRouterResult.data);
+
+        // Use provider router for job description analysis
+        const jobRouterResult = await providerRouter.routeAnalyzeJobDescription(
+          'Direct Text Analysis', 
+          jobDescriptionText, 
+          { operation: 'analyzeJobDescription', mode: 'interactive', userId }
         );
+
+        if (!jobRouterResult.success) {
+          logger.error('Provider failover failed for job analysis', { 
+            userId, 
+            metadata: jobRouterResult.metadata 
+          });
+          return failure(
+            new AppExternalServiceError(
+              'AI_PROVIDER_ERROR',
+              'job-analyzer',
+              'Failed to analyze job description text with provider failover',
+              jobRouterResult.error,
+              { 
+                userId,
+                failoverMetadata: jobRouterResult.metadata
+              }
+            )
+          );
+        }
+
+        jobResult = success(jobRouterResult.data);
+
+      } else {
+        // Legacy path without failover
+        logger.info('Using legacy AI provider path', { userId });
+        
+        // Analyze resume text
+        resumeResult = await analyzeResumeWithCache(resumeText, userTierInfo);
+        if (isFailure(resumeResult)) {
+          logger.error('Failed to analyze resume text', { 
+            userId, 
+            error: resumeResult.error 
+          });
+          return failure(
+            new AppExternalServiceError(
+              'AI_PROVIDER_ERROR',
+              'resume-analyzer',
+              'Failed to analyze resume text',
+              undefined,
+              { userId }
+            )
+          );
+        }
+
+        // Analyze job description text (needs title and description)
+        jobResult = await analyzeJobDescriptionWithCache('Direct Text Analysis', jobDescriptionText, userTierInfo);
+        if (isFailure(jobResult)) {
+          logger.error('Failed to analyze job description text', { 
+            userId, 
+            error: jobResult.error 
+          });
+          return failure(
+            new AppExternalServiceError(
+              'AI_PROVIDER_ERROR',
+              'job-analyzer',
+              'Failed to analyze job description text',
+              undefined,
+              { userId }
+            )
+          );
+        }
       }
 
       // Perform match analysis using hybrid analyzer
