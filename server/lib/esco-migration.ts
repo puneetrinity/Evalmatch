@@ -389,15 +389,22 @@ export class ESCOMigration {
     // Create triggers to keep FTS in sync
     await this.db!.exec(`
       CREATE TRIGGER IF NOT EXISTS esco_skills_ai AFTER INSERT ON esco_skills BEGIN
-        INSERT INTO esco_skills_fts(esco_id, skill_title, alternative_label, description, category, domain)
-        VALUES (new.esco_id, new.skill_title, new.alternative_label, new.description, new.category, new.domain);
+        INSERT INTO esco_skills_fts(rowid, esco_id, skill_title, alternative_label, description, category, domain)
+        VALUES (new.id, new.esco_id, new.skill_title, new.alternative_label, new.description, new.category, new.domain);
       END;
     `);
     
     await this.db!.exec(`
       CREATE TRIGGER IF NOT EXISTS esco_skills_ad AFTER DELETE ON esco_skills BEGIN
-        INSERT INTO esco_skills_fts(esco_skills_fts, esco_id, skill_title, alternative_label, description, category, domain)
-        VALUES ('delete', old.esco_id, old.skill_title, old.alternative_label, old.description, old.category, old.domain);
+        INSERT INTO esco_skills_fts(esco_skills_fts, rowid) VALUES('delete', old.id);
+      END;
+    `);
+
+    await this.db!.exec(`
+      CREATE TRIGGER IF NOT EXISTS esco_skills_au AFTER UPDATE ON esco_skills BEGIN
+        INSERT INTO esco_skills_fts(esco_skills_fts, rowid) VALUES('delete', old.id);
+        INSERT INTO esco_skills_fts(rowid, esco_id, skill_title, alternative_label, description, category, domain)
+        VALUES (new.id, new.esco_id, new.skill_title, new.alternative_label, new.description, new.category, new.domain);
       END;
     `);
   }
@@ -588,9 +595,5 @@ export async function runESCOMigration(): Promise<void> {
 }
 
 // Run migration if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  runESCOMigration().catch(error => {
-    logger.error('Migration failed:', error);
-    process.exit(1);
-  });
-}
+// The import.meta.url check is removed to prevent Jest syntax errors.
+// This script is intended to be called via the run-esco-migration.js wrapper.
