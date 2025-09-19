@@ -1,4 +1,4 @@
-export type UserTier = 'freemium' | 'premium';
+export type UserTier = 'freemium' | 'credit' | 'premium';
 
 export interface UserTierInfo {
   tier: UserTier;
@@ -30,6 +30,20 @@ export const TIER_LIMITS = {
       prioritySupport: false,
       unlimitedUsage: false,
       premiumModels: false, // Still false, but BETA_MODE overrides this
+    }
+  },
+  credit: {
+    name: 'Credit User',
+    model: 'groq-llama3', // Keep on Groq for performance and cost efficiency
+    maxConcurrency: 5,
+    dailyAnalysisLimit: -1, // unlimited for credit users
+    allowedProviders: ['groq'], // Primary focus on Groq for credit users
+    features: {
+      basicAnalysis: true,
+      advancedAnalysis: true,
+      prioritySupport: true,
+      unlimitedUsage: true, // Credits control usage, not tier limits
+      premiumModels: false, // Keep using efficient Groq models
     }
   },
   premium: {

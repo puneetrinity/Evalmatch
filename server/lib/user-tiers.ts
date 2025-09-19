@@ -19,13 +19,13 @@ export async function getUserTierInfo(userId: string): Promise<UserTierInfo> {
   try {
     const creditResult = await creditService.getUserCredits(userId);
     
-    // If user has credits (> 0), treat as premium for analysis purposes
+    // If user has credits (> 0), treat as credit tier for analysis purposes
     if (creditResult.success && (creditResult.credits || 0) > 0) {
-      const premiumTier = createDefaultUserTier("premium");
+      const creditTier = createDefaultUserTier("credit");
       // Override usage count based on credits consumed today
       // This is a simplified approach - in production you'd track usage separately
-      premiumTier.usageCount = Math.max(0, 50 - (creditResult.credits || 0)); // Rough estimate
-      return premiumTier;
+      creditTier.usageCount = Math.max(0, 50 - (creditResult.credits || 0)); // Rough estimate
+      return creditTier;
     }
   } catch (error) {
     console.error('Error checking credits for user tier:', error);
