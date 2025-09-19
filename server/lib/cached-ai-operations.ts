@@ -282,10 +282,10 @@ export async function analyzeResumeWithCache(
     
     // Convert to appropriate error type
     if (error instanceof Error && error.message.includes('rate limit')) {
-      return failure(AppExternalServiceError.aiProviderFailure(userTier.tier, 'resume_analysis', error.message));
+      return failure(AppExternalServiceError.aiProviderFailure(primaryProvider, 'resume_analysis', error.message));
     }
     
-    return failure(AppExternalServiceError.aiProviderFailure(userTier.tier, 'resume_analysis', error instanceof Error ? error.message : 'Unknown error'));
+    return failure(AppExternalServiceError.aiProviderFailure(primaryProvider, 'resume_analysis', error instanceof Error ? error.message : 'Unknown error'));
   }
 }
 
@@ -347,10 +347,10 @@ export async function analyzeJobDescriptionWithCache(
     
     // Convert to appropriate error type
     if (error instanceof Error && error.message.includes('rate limit')) {
-      return failure(AppExternalServiceError.aiProviderFailure(userTier.tier, 'job_analysis', error.message));
+      return failure(AppExternalServiceError.aiProviderFailure(primaryProvider, 'job_analysis', error.message));
     }
     
-    return failure(AppExternalServiceError.aiProviderFailure(userTier.tier, 'job_analysis', error instanceof Error ? error.message : 'Unknown error'));
+    return failure(AppExternalServiceError.aiProviderFailure(primaryProvider, 'job_analysis', error instanceof Error ? error.message : 'Unknown error'));
   }
 }
 
@@ -492,10 +492,10 @@ export async function matchAnalysisWithCache(
     
     // Convert to appropriate error type
     if (error instanceof Error && error.message.includes('rate limit')) {
-      return failure(AppExternalServiceError.aiProviderFailure(userTier.tier, 'match_analysis', error.message));
+      return failure(AppExternalServiceError.aiProviderFailure(primaryProvider, 'match_analysis', error.message));
     }
     
-    return failure(AppExternalServiceError.aiProviderFailure(userTier.tier, 'match_analysis', error instanceof Error ? error.message : 'Unknown error'));
+    return failure(AppExternalServiceError.aiProviderFailure(primaryProvider, 'match_analysis', error instanceof Error ? error.message : 'Unknown error'));
     
   } finally {
     // Always release the in-flight lock
