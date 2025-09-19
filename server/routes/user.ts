@@ -5,6 +5,7 @@
 
 import { Router, Request, Response } from "express";
 import { authenticateUser } from "../middleware/auth";
+import { eitherAuth } from "../middleware/either-auth";
 import { validators } from "../middleware/input-validation";
 import { logger } from "../lib/logger";
 
@@ -89,17 +90,33 @@ const router = Router();
 // User profile endpoint - Get user's profile information
 router.get(
   "/profile",
-  authenticateUser,
+  eitherAuth,
   async (req: Request, res: Response) => {
     try {
-      const user = req.user!;
+      const userId = (req as any).auth?.userId || req.user?.uid;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: "AUTHENTICATION_REQUIRED",
+          message: "User ID not found in authentication context"
+        });
+      }
+      
+      // For API token auth, we need to construct a minimal user object
+      const user = req.user || { 
+        uid: userId, 
+        email: null, 
+        displayName: null, 
+        photoURL: null, 
+        emailVerified: false 
+      };
       const { config } = await import("../config/unified-config");
       const { getUserTierInfo } = await import("../lib/user-tiers");
       
       // Get user's tier based on credits if credit system is enabled
       let userTier = 'testing';
       try {
-        const tierInfo = await getUserTierInfo(user.uid);
+        const tierInfo = await getUserTierInfo(userId);
         userTier = tierInfo.tier;
       } catch (error) {
         logger.warn("Failed to get user tier, defaulting to 'testing':", error);
@@ -107,7 +124,7 @@ router.get(
       
       // Build profile response
       const profile = {
-        uid: user.uid,
+        uid: userId,
         displayName: user.displayName || user.email?.split('@')[0] || 'User',
         email: user.email || '',
         photoURL: user.photoURL || null,
@@ -130,11 +147,11 @@ router.get(
         try {
           const { creditService } = await import("../services/credit-service");
           // Use read-only method for profile display to avoid creating records
-          const creditResult = await creditService.getUserCreditsReadOnly(user.uid);
-          const historyResult = await creditService.getCreditHistory(user.uid, 1, 1);
+          const creditResult = await creditService.getUserCreditsReadOnly(userId);
+          const historyResult = await creditService.getCreditHistory(userId, 1, 1);
           
           logger.info("Profile credit fetch", {
-            uid: user.uid,
+            uid: userId,
             creditSuccess: creditResult.success,
             credits: creditResult.credits,
             historyFound: !!historyResult,
@@ -156,7 +173,7 @@ router.get(
           } else {
             // Don't mask failures with fake zeros - report the actual error
             logger.warn("Credit fetch failed - not masking as zeros", {
-              uid: user.uid,
+              uid: userId,
               error: creditResult.error
             });
             (profile as any).creditSummaryError = creditResult.error;
@@ -183,7 +200,8 @@ router.get(
       
       res.json({
         success: true,
-        profile
+        data: profile,
+        timestamp: new Date().toISOString()
       });
       
     } catch (error) {
@@ -200,19 +218,20 @@ router.get(
 // User tier endpoint - Get user's subscription tier and limits
 router.get(
   "/user-tier",
-  authenticateUser,
+  eitherAuth,
   async (req: Request, res: Response) => {
     try {
       const { getUserTierInfo } = await import("../lib/user-tiers");
       const { config } = await import("../config/unified-config");
-      const userTier = await getUserTierInfo(req.user!.uid);
+      const userId = (req as any).auth?.userId || req.user?.uid;
+      const userTier = await getUserTierInfo(userId);
 
       // Include credit information if credit system is enabled
       let creditInfo = null;
       if (config.features.enableCreditSystem) {
         try {
           const { creditService } = await import("../services/credit-service");
-          const creditResult = await creditService.getUserCredits(req.user!.uid);
+          const creditResult = await creditService.getUserCredits(userId);
           if (creditResult.success) {
             creditInfo = {
               credits: creditResult.credits,
