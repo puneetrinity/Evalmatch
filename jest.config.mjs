@@ -82,7 +82,7 @@ export default {
   
   // TypeScript and ES Module Transformation
   transform: {
-    '^.+\\.(ts|tsx|mts|cts)$': ['ts-jest', {
+    '^.+\\.(ts|tsx|mts|cts|mjs)$': ['ts-jest', {
       useESM: true,
       tsconfig: './tsconfig.test.json',
       // 2024/2025 ts-jest optimizations
@@ -101,7 +101,7 @@ export default {
   
   // Transform Ignore Patterns (2024/2025 updated for modern packages)
   transformIgnorePatterns: [
-    'node_modules/(?!(wouter|jose|jwks-rsa|@firebase|regexparam|@xenova|string-similarity|@anthropic-ai|groq-sdk|openai|isomorphic-dompurify)/)'
+    'node_modules/(?!(wouter|jose|jwks-rsa|@firebase|regexparam|@xenova|string-similarity|@anthropic-ai|groq-sdk|openai|isomorphic-dompurify|node-fetch)/)'
   ],
   
   // Module File Extensions
