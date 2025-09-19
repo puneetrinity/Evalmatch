@@ -147,7 +147,7 @@ export class ProviderRegistry {
     health.errorCount = Math.max(0, health.errorCount - 1); // Gradually reduce on success
     
     // Record success with circuit breaker
-    const breaker = getBreaker(providerName as any, {
+    const _breaker = getBreaker(providerName as any, {
       failureThreshold: config.ai.circuitBreaker.failureThreshold,
       halfOpenAfterMs: config.ai.circuitBreaker.resetTimeout,
       windowSize: 50

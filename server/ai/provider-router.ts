@@ -6,7 +6,7 @@
  */
 
 import { ProviderResult, ProviderOptions, ProviderAdapter } from './providers/base';
-import { ProviderSelection, providerRegistry } from './provider-registry';
+import { providerRegistry } from './provider-registry';
 import { AnalyzeResumeResponse, AnalyzeJobDescriptionResponse, MatchAnalysisResponse, BiasAnalysisResponse } from "@shared/schema";
 import { config } from '../config/unified-config';
 import { logger } from '../lib/logger';
@@ -112,7 +112,7 @@ export class ProviderRouter {
    */
   private async executeWithFailover<T>(
     context: AnalysisContext,
-    operation: (provider: ProviderAdapter, options: ProviderOptions) => Promise<ProviderResult<T>>,
+    operation: (_provider: ProviderAdapter, _options: ProviderOptions) => Promise<ProviderResult<T>>,
     degradedFallback: () => Promise<T>
   ): Promise<RouterResult<T>> {
     const startTime = Date.now();

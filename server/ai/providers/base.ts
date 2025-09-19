@@ -60,28 +60,28 @@ export interface ProviderAdapter {
    * Core analysis operations
    */
   analyzeResume(
-    resumeText: string, 
-    options?: ProviderOptions
+    _resumeText: string, 
+    _options?: ProviderOptions
   ): Promise<ProviderResult<AnalyzeResumeResponse>>;
   
   analyzeJobDescription(
-    title: string, 
-    description: string, 
-    options?: ProviderOptions
+    _title: string, 
+    _description: string, 
+    _options?: ProviderOptions
   ): Promise<ProviderResult<AnalyzeJobDescriptionResponse>>;
   
   analyzeMatch(
-    resumeAnalysis: AnalyzeResumeResponse,
-    jobAnalysis: AnalyzeJobDescriptionResponse,
-    resumeText?: string,
-    jobText?: string,
-    options?: ProviderOptions
+    _resumeAnalysis: AnalyzeResumeResponse,
+    _jobAnalysis: AnalyzeJobDescriptionResponse,
+    _resumeText?: string,
+    _jobText?: string,
+    _options?: ProviderOptions
   ): Promise<ProviderResult<MatchAnalysisResponse>>;
   
   analyzeBias(
-    title: string, 
-    description: string, 
-    options?: ProviderOptions
+    _title: string, 
+    _description: string, 
+    _options?: ProviderOptions
   ): Promise<ProviderResult<BiasAnalysisResponse>>;
   
   /**
@@ -101,7 +101,7 @@ export interface ProviderAdapter {
  */
 export function normalizeProviderError(error: unknown, provider: string): ProviderError {
   const errorMessage = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
-  const errorStack = error instanceof Error ? error.stack?.toLowerCase() || "" : "";
+  const _errorStack = error instanceof Error ? error.stack?.toLowerCase() || "" : "";
   
   // Extract status code if available
   let statusCode: number | undefined;

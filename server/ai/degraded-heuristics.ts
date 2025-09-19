@@ -6,7 +6,7 @@
  */
 
 import { AnalyzeResumeResponse, AnalyzeJobDescriptionResponse, MatchAnalysisResponse, BiasAnalysisResponse, SkillMatch, ScoringDimensions } from "@shared/schema";
-import { ResumeId, JobId, AnalysisId, createBrandedId } from "@shared/api-contracts";
+import { ResumeId, JobId, AnalysisId } from "@shared/api-contracts";
 import { logger } from "../lib/logger";
 
 /**
@@ -355,8 +355,8 @@ function extractResponsibilities(text: string): string[] {
   
   for (const line of lines) {
     const trimmed = line.trim();
-    if (trimmed.match(/^[•\-\*]\s+/) || trimmed.match(/^\d+\.?\s+/)) {
-      responsibilities.push(trimmed.replace(/^[•\-\*\d\.]+\s*/, ''));
+    if (trimmed.match(/^[•\-*]\s+/) || trimmed.match(/^\d+\.?\s+/)) {
+      responsibilities.push(trimmed.replace(/^[•\-*\d.]+\s*/, ''));
     }
   }
   
@@ -368,7 +368,7 @@ function calculateExperienceMatch(
   jobExperience: string
 ): number {
   // Simple experience level matching
-  const jobLevel = extractExperienceLevel(jobExperience);
+  const _jobLevel = extractExperienceLevel(jobExperience);
   
   // For degraded mode, assume moderate match
   return 70; // Conservative match percentage

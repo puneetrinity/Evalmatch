@@ -5,7 +5,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import { authenticateUser } from "../middleware/auth";
+// import { authenticateUser } from "../middleware/auth"; // TODO: Remove if not needed
 import { eitherAuth } from "../middleware/either-auth";
 import { validateRequest } from "../middleware/validation";
 import { validators } from "../middleware/input-validation";
