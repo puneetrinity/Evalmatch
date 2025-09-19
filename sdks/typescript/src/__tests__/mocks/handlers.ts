@@ -415,7 +415,7 @@ export const handlers: HttpHandler[] = [
       available: 150, // Also include 'available' for dual-auth tests
       totalPurchased: 200,
       totalUsed: 50,
-      tier: 'premium',
+      tier: 'credit',
       timestamp: new Date().toISOString()
     })
   }),

@@ -1,112 +1,143 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuites name="vitest tests" tests="14" failures="1" errors="0" time="2.282810512">
-    <testsuite name="src/__tests__/integration/new-features.test.ts" timestamp="2025-09-19T10:26:16.569Z" hostname="EWS" tests="14" failures="1" errors="0" skipped="1" time="2.282810512">
-        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Jobs CRUD Operations &gt; should list job descriptions" time="0.069154089">
+<testsuites name="vitest tests" tests="11" failures="3" errors="0" time="0.657516762">
+    <testsuite name="src/__tests__/integration/credits.test.ts" timestamp="2025-09-19T16:59:48.883Z" hostname="EWS" tests="11" failures="3" errors="0" skipped="0" time="0.657516762">
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits Balance &gt; should fetch user credit balance successfully" time="0.056862244">
             <system-out>
-MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
 
             </system-out>
         </testcase>
-        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Jobs CRUD Operations &gt; should get a specific job description" time="0.027586558">
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits Balance &gt; should handle balance request with throwOnError: false" time="0.020129967">
             <system-out>
-MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions/1
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
 
             </system-out>
         </testcase>
-        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Jobs CRUD Operations &gt; should create a new job description" time="0.012434067">
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits History &gt; should fetch credit transaction history" time="0.026900036">
             <system-out>
-MSW intercepted: POST https://api.test.evalmatch.com/job-descriptions
+MSW intercepted: GET https://api.test.evalmatch.com/credits/history
 
             </system-out>
-        </testcase>
-        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Jobs CRUD Operations &gt; should update a job description" time="0.024587977">
-            <system-out>
-MSW intercepted: PATCH https://api.test.evalmatch.com/job-descriptions/1
+            <failure message="expected { …(5) } to match object { success: true, data: { …(3) } }
+(9 matching properties omitted from actual)" type="AssertionError">
+AssertionError: expected { …(5) } to match object { success: true, data: { …(3) } }
+(9 matching properties omitted from actual)
 
-            </system-out>
-        </testcase>
-        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Jobs CRUD Operations &gt; should delete a job description" time="0.025722587">
-            <system-out>
-MSW intercepted: DELETE https://api.test.evalmatch.com/job-descriptions/1
+- Expected
++ Received
 
-            </system-out>
-        </testcase>
-        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Batch Upload &gt; should upload multiple resumes" time="0">
-            <skipped/>
-        </testcase>
-        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Batch Upload &gt; should handle empty file array" time="0.023282594">
-            <system-out>
-MSW intercepted: POST https://api.test.evalmatch.com/resumes/batch
+  {
+-   &quot;data&quot;: {
+-     &quot;currentBalance&quot;: Any&lt;Number&gt;,
+-     &quot;pagination&quot;: ObjectContaining {
+-       &quot;limit&quot;: Any&lt;Number&gt;,
+-       &quot;page&quot;: Any&lt;Number&gt;,
++   &quot;currentBalance&quot;: 150,
++   &quot;pagination&quot;: {
++     &quot;limit&quot;: 10,
++     &quot;page&quot;: 1,
++     &quot;total&quot;: 25,
++     &quot;totalPages&quot;: 3,
+    },
+-     &quot;transactions&quot;: ArrayContaining [
+-       ObjectContaining {
+-         &quot;amount&quot;: Any&lt;Number&gt;,
+-         &quot;createdAt&quot;: Any&lt;String&gt;,
+-         &quot;description&quot;: Any&lt;String&gt;,
+-         &quot;id&quot;: Any&lt;Number&gt;,
+-         &quot;type&quot;: StringMatching /purchase|usage|grant/,
++   &quot;totalPurchased&quot;: 200,
++   &quot;totalUsed&quot;: 50,
++   &quot;transactions&quot;: [
++     {
++       &quot;amount&quot;: 100,
++       &quot;createdAt&quot;: &quot;2024-01-15T10:00:00Z&quot;,
++       &quot;description&quot;: &quot;Premium plan credits&quot;,
++       &quot;id&quot;: 1,
++       &quot;type&quot;: &quot;purchase&quot;,
+      },
+-     ],
++     {
++       &quot;amount&quot;: -5,
++       &quot;createdAt&quot;: &quot;2024-01-15T11:00:00Z&quot;,
++       &quot;description&quot;: &quot;Resume analysis&quot;,
++       &quot;id&quot;: 2,
++       &quot;type&quot;: &quot;usage&quot;,
+      },
+-   &quot;success&quot;: true,
++   ],
+  }
 
-            </system-out>
-        </testcase>
-        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Analysis Text Endpoint &gt; should analyze resume text against job description" time="0.029169957">
-            <system-out>
-MSW intercepted: POST https://api.test.evalmatch.com/analysis/analyze-text
-
-            </system-out>
-        </testcase>
-        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Analysis Text Endpoint &gt; should handle empty text inputs" time="0.031762034">
-            <system-out>
-MSW intercepted: POST https://api.test.evalmatch.com/analysis/analyze-text
-
-            </system-out>
-        </testcase>
-        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Token Status &gt; should get token status information" time="0.429730991">
-            <system-out>
-MSW intercepted: GET https://api.test.evalmatch.com/v1/tokens/status/by-token
-
-MSW intercepted: GET https://api.test.evalmatch.com/v1/tokens/status/by-token
-
-MSW intercepted: GET https://api.test.evalmatch.com/v1/tokens/status/by-token
-
-            </system-out>
-            <failure message="This endpoint requires API token authentication" type="EvalMatchError">
-EvalMatchError: This endpoint requires API token authentication
- ❯ Function.createFromHttpError src/core/errors.ts:296:16
- ❯ EvalMatchClient.handleError src/client.ts:208:24
- ❯ EvalMatchClient.request src/client.ts:248:12
- ❯ src/__tests__/integration/new-features.test.ts:185:22
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-Serialized Error: { code: &apos;INSUFFICIENT_PERMISSIONS&apos;, context: { circuitBreakerState: &apos;closed&apos;, endpoint: &apos;/v1/tokens/status/by-token&apos;, method: &apos;GET&apos;, statusCode: 403, requestId: undefined, duration: undefined, timestamp: &apos;2025-09-19T10:26:14.925Z&apos; }, recoveryActions: [ { type: &apos;contact_support&apos;, description: &apos;Contact support for access permissions&apos; } ], isRetryable: false }
+ ❯ src/__tests__/integration/credits.test.ts:55:23
             </failure>
         </testcase>
-        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Error Handling with throwOnError: false &gt; should return error envelope for jobs.get with invalid ID" time="0.527984431">
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits History &gt; should handle pagination parameters" time="0.023044036">
             <system-out>
-MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions/999
+MSW intercepted: GET https://api.test.evalmatch.com/credits/history?page=2&amp;limit=5
 
-MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions/999
+            </system-out>
+            <failure message="expected undefined to be true // Object.is equality" type="AssertionError">
+AssertionError: expected undefined to be true // Object.is equality
 
-MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions/999
+- Expected: 
+true
+
++ Received: 
+undefined
+
+ ❯ src/__tests__/integration/credits.test.ts:82:31
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits Packages &gt; should fetch available credit packages" time="0.018940091">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/packages
 
             </system-out>
         </testcase>
-        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Error Handling with throwOnError: false &gt; should return error envelope for jobs.delete with invalid ID" time="0.506112497">
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Grant Beta Credits &gt; should grant beta credits successfully" time="0.018585521">
             <system-out>
-MSW intercepted: DELETE https://api.test.evalmatch.com/job-descriptions/999
-
-MSW intercepted: DELETE https://api.test.evalmatch.com/job-descriptions/999
-
-MSW intercepted: DELETE https://api.test.evalmatch.com/job-descriptions/999
+MSW intercepted: POST https://api.test.evalmatch.com/credits/grant-beta
 
             </system-out>
         </testcase>
-        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Type Safety Validation &gt; should enforce correct types for JobDescriptionInput" time="0.000284887">
-        </testcase>
-        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Type Safety Validation &gt; should enforce correct return types" time="0.570747601">
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Grant Beta Credits &gt; should accept optional request body" time="0.018549348">
             <system-out>
-MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions
+MSW intercepted: POST https://api.test.evalmatch.com/credits/grant-beta
 
-MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions/1
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Error Handling &gt; should handle authentication errors gracefully" time="0.440301132">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
 
-MSW intercepted: POST https://api.test.evalmatch.com/analysis/analyze-text
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
 
-MSW intercepted: GET https://api.test.evalmatch.com/v1/tokens/status/by-token
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
 
-MSW intercepted: GET https://api.test.evalmatch.com/v1/tokens/status/by-token
+            </system-out>
+            <failure message="Authentication required" type="EvalMatchError">
+EvalMatchError: Authentication required
+ ❯ new AuthenticationError src/core/errors.ts:145:5
+ ❯ Function.createFromHttpError src/core/errors.ts:293:16
+ ❯ EvalMatchClient.handleError src/client.ts:208:24
+ ❯ EvalMatchClient.request src/client.ts:248:12
+ ❯ src/__tests__/integration/credits.test.ts:149:22
 
-MSW intercepted: GET https://api.test.evalmatch.com/v1/tokens/status/by-token
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: &apos;INVALID_CREDENTIALS&apos;, context: { circuitBreakerState: &apos;closed&apos;, endpoint: &apos;/credits/balance&apos;, method: &apos;GET&apos;, statusCode: 401, requestId: undefined, duration: undefined, timestamp: &apos;2025-09-19T16:59:48.807Z&apos; }, recoveryActions: [ { type: &apos;authenticate&apos;, description: &apos;Re-authenticate with valid credentials&apos; }, { type: &apos;contact_support&apos;, description: &apos;Contact support if authentication continues to fail&apos; } ], isRetryable: false }
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Error Handling &gt; should handle network errors with proper error context" time="0.0003813">
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Client Options Support &gt; should support AbortSignal for request cancellation" time="0.015088228">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Client Options Support &gt; should support timeout option" time="0.015445437">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
 
             </system-out>
         </testcase>

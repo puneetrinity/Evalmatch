@@ -30,12 +30,12 @@ describe('Credits Integration', () => {
       expect(balance).toMatchObject({
         success: true,
         credits: expect.any(Number),
-        tier: expect.stringMatching(/freemium|premium/),
+        tier: expect.stringMatching(/freemium|credit|premium/),
         timestamp: expect.any(String)
       });
       
       expect(balance.credits).toBe(150);
-      expect(balance.tier).toBe('premium');
+      expect(balance.tier).toBe('credit');
     });
 
     it('should handle balance request with throwOnError: false', async () => {

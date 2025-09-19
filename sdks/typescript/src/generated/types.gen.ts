@@ -418,7 +418,7 @@ export type GetCreditsBalanceResponses = {
         /**
          * User's current tier based on credits
          */
-        tier?: 'freemium' | 'premium';
+        tier?: 'freemium' | 'credit' | 'premium';
     };
 };
 
@@ -914,7 +914,7 @@ export type GetUserProfileResponses = {
             email?: string;
             photoURL?: string | null;
             emailVerified?: boolean;
-            tier?: 'freemium' | 'premium' | 'testing';
+            tier?: 'freemium' | 'credit' | 'premium' | 'testing';
             country?: string;
             currency?: string;
             createdAt?: string | null;
