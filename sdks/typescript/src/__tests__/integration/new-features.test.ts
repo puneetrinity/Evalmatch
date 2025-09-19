@@ -182,7 +182,19 @@ describe('New SDK Features Integration', () => {
 
   describe('Token Status', () => {
     it('should get token status information', async () => {
-      const result = await client.tokens.statusByToken()
+      // Token status endpoint requires API token authentication
+      const tokenAuth = {
+        getToken: async () => 'evalmatch-api-token-abc123',
+        isAuthenticated: async () => true
+      }
+      
+      const tokenClient = new EvalMatchClient({
+        baseUrl: 'https://api.test.evalmatch.com',
+        authProvider: tokenAuth,
+        timeout: 5000
+      })
+      
+      const result = await tokenClient.tokens.statusByToken()
       
       expect(result).toHaveProperty('token')
       expect(result).toHaveProperty('usage')

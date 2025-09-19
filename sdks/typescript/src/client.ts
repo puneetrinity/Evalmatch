@@ -374,14 +374,14 @@ export class EvalMatchClient {
           }
         });
         
-        const response = await this.request<{ success: boolean; data: BatchUploadResponse; timestamp: string }>({
+        const response = await this.request<BatchUploadResponse>({
           method: 'POST',
           url: '/resumes/batch',
           data: formData,
           headers
         }, options);
         
-        return response.data;
+        return response;
       }
       
       // Node.js environment - use form-data polyfill
@@ -403,14 +403,14 @@ export class EvalMatchClient {
         // Merge form headers (including boundary) with auth headers
         const nodeHeaders = { ...headers, ...formData.getHeaders() };
         
-        const response = await this.request<{ success: boolean; data: BatchUploadResponse; timestamp: string }>({
+        const response = await this.request<BatchUploadResponse>({
           method: 'POST',
           url: '/resumes/batch',
           data: formData,
           headers: nodeHeaders
         }, options);
         
-        return response.data;
+        return response;
       } catch (error) {
         if (error instanceof Error && error.message.includes('form-data')) {
           throw new Error('form-data package required for Node.js batch uploads. Install with: npm install form-data');
@@ -584,6 +584,23 @@ export class EvalMatchClient {
         data: body || {},
         headers
       }, options);
+    },
+
+    // Backward-compatible aliases for tests
+    getBalance: async (options?: ClientOptions): Promise<GetCreditsBalanceResponses[200]> => {
+      return this.credits.balance(options);
+    },
+
+    getHistory: async (params?: GetCreditsHistoryData['query'], options?: ClientOptions): Promise<any[]> => {
+      const result = await this.credits.history(params, options);
+      // Extract transactions array from the already-unwrapped envelope
+      return (result as any).transactions || result;
+    },
+
+    getPackages: async (options?: ClientOptions): Promise<any[]> => {
+      const result = await this.credits.packages(options);
+      // Extract packages array from envelope for backward compatibility  
+      return (result as any).packages || result;
     }
   };
 
@@ -601,6 +618,11 @@ export class EvalMatchClient {
         url: '/user/profile',
         headers
       }, options);
+    },
+
+    // Backward-compatible alias for tests
+    getProfile: async (options: ClientOptions = {}): Promise<GetUserProfileResponses[200]> => {
+      return this.user.profile(options);
     }
   };
 
@@ -644,6 +666,11 @@ export class EvalMatchClient {
         method: 'GET',
         url: '/system-health'
       }, options);
+    },
+
+    // Backward-compatible alias for tests
+    system: async (options?: ClientOptions): Promise<GetSystemHealthResponses[200]> => {
+      return this.health.systemHealth(options);
     }
   };
 

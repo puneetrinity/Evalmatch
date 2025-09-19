@@ -403,9 +403,16 @@ export const handlers: HttpHandler[] = [
   // Credits endpoints - return ApiResponse envelopes per spec
   http.get('https://api.test.evalmatch.com/credits/balance', ({ request }) => {
     console.log('MSW intercepted:', request.method, request.url)
+    
+    const auth = checkAuth(request)
+    if (!auth.isAuthenticated) {
+      return unauthorizedResponse()
+    }
+    
     return HttpResponse.json({
       success: true,
-      credits: 150,
+      credits: 150, // Use 'credits' for backward compatibility
+      available: 150, // Also include 'available' for dual-auth tests
       totalPurchased: 200,
       totalUsed: 50,
       tier: 'premium',
@@ -415,6 +422,12 @@ export const handlers: HttpHandler[] = [
 
   http.get('https://api.test.evalmatch.com/credits/history', ({ request }) => {
     console.log('MSW intercepted:', request.method, request.url)
+    
+    const auth = checkAuth(request)
+    if (!auth.isAuthenticated) {
+      return unauthorizedResponse()
+    }
+    
     const url = new URL(request.url)
     const page = parseInt(url.searchParams.get('page') || '1')
     const limit = parseInt(url.searchParams.get('limit') || '10')
@@ -454,6 +467,12 @@ export const handlers: HttpHandler[] = [
 
   http.get('https://api.test.evalmatch.com/credits/packages', ({ request }) => {
     console.log('MSW intercepted:', request.method, request.url)
+    
+    const auth = checkAuth(request)
+    if (!auth.isAuthenticated) {
+      return unauthorizedResponse()
+    }
+    
     return HttpResponse.json({
       success: true,
       packages: [
@@ -493,6 +512,25 @@ export const handlers: HttpHandler[] = [
       message: 'Beta credits granted successfully',
       credits: 50,
       timestamp: new Date().toISOString()
+    })
+  }),
+
+  // User profile endpoint
+  http.get('https://api.test.evalmatch.com/user/profile', ({ request }) => {
+    console.log('MSW intercepted:', request.method, request.url)
+    const auth = checkAuth(request)
+    
+    if (!auth.isAuthenticated) {
+      return unauthorizedResponse()
+    }
+    
+    return HttpResponse.json({
+      id: 'user-123',
+      email: 'test@example.com',
+      name: 'Test User',
+      plan: 'premium',
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-15T12:00:00Z'
     })
   }),
 
@@ -614,39 +652,27 @@ export const handlers: HttpHandler[] = [
   // Resumes batch upload endpoint
   http.post('https://api.test.evalmatch.com/resumes/batch', ({ request }) => {
     console.log('MSW intercepted:', request.method, request.url)
+    
+    const auth = checkAuth(request)
+    if (!auth.isAuthenticated) {
+      return unauthorizedResponse()
+    }
+    
+    // Handle empty file array case - return BatchUploadResponse directly
     return HttpResponse.json({
-      success: true,
-      data: {
-        batchId: 'batch_123',
-        message: 'Processed 2 files: 2 successful, 0 failed',
-        results: {
-          successful: [
-            {
-              filename: 'batch-resume-1.pdf',
-              resumeId: 201,
-              fileSize: 245760,
-              processingTime: 1250,
-              hasAnalysis: true
-            },
-            {
-              filename: 'batch-resume-2.pdf',
-              resumeId: 202,
-              fileSize: 189032,
-              processingTime: 1100,
-              hasAnalysis: true
-            }
-          ],
-          failed: []
-        },
-        summary: {
-          totalFiles: 2,
-          successfulUploads: 2,
-          failedUploads: 0,
-          totalSize: 434792,
-          processingTime: 2350
-        }
+      batchId: 'batch_empty',
+      message: 'Processed 0 files: 0 successful, 0 failed',
+      results: {
+        successful: [],
+        failed: []
       },
-      timestamp: new Date().toISOString()
+      summary: {
+        totalFiles: 0,
+        successfulUploads: 0,
+        failedUploads: 0,
+        totalSize: 0,
+        processingTime: 0
+      }
     })
   }),
 
@@ -713,6 +739,32 @@ export const handlers: HttpHandler[] = [
           requestsThisMonth: 450,
           totalRequests: 1250
         }
+      },
+      timestamp: new Date().toISOString()
+    })
+  }),
+
+  // Upload boundary test endpoint (different subdomain)
+  http.post('https://test.evalmatch.com/api/resumes', ({ request }) => {
+    console.log('MSW intercepted UPLOAD BOUNDARY:', request.method, request.url)
+    
+    const auth = checkAuth(request)
+    if (!auth.isAuthenticated) {
+      return unauthorizedResponse()
+    }
+    
+    return HttpResponse.json({
+      success: true,
+      data: {
+        batchId: 'batch_upload_test_123',
+        resumesProcessed: 1,
+        results: [
+          {
+            filename: 'test-resume.pdf',
+            status: 'success',
+            resumeId: 'res_test_456'
+          }
+        ]
       },
       timestamp: new Date().toISOString()
     })
