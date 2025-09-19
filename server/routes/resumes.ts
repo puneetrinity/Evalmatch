@@ -4,7 +4,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import { authenticateUser } from "../middleware/auth";
+import { eitherAuth } from "../middleware/either-auth";
 import { secureUpload, validateUploadedFile, validateUploadedFiles } from "../middleware/upload";
 import { uploadRateLimiter } from "../middleware/rate-limiter";
 import { validators } from "../middleware/input-validation";
@@ -128,11 +128,11 @@ const router = Router();
  *         $ref: '#/components/responses/ServerError'
  */
 // Get all resumes for the authenticated user
-router.get("/", authenticateUser, validators.getResumes, async (req: Request, res: Response) => {
+router.get("/", eitherAuth, validators.getResumes, async (req: Request, res: Response) => {
   try {
     const sessionId = req.query.sessionId as string;
     const batchId = req.query.batchId as string;
-    const userId = req.user!.uid;
+    const userId = (req as any).auth?.userId || req.user?.uid;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const fileType = req.query.fileType as string;
@@ -248,10 +248,10 @@ router.get("/", authenticateUser, validators.getResumes, async (req: Request, re
  *         $ref: '#/components/responses/ServerError'
  */
 // Get specific resume by ID
-router.get("/:id", authenticateUser, validators.getResume, async (req: Request, res: Response) => {
+router.get("/:id", eitherAuth, validators.getResume, async (req: Request, res: Response) => {
   try {
     const resumeId = parseInt(req.params.id);
-    const userId = req.user!.uid;
+    const userId = (req as any).auth?.userId || req.user?.uid;
 
     if (isNaN(resumeId)) {
       return res.status(400).json({
@@ -420,14 +420,14 @@ router.get("/:id", authenticateUser, validators.getResume, async (req: Request, 
  */
 router.post(
   "/",
-  authenticateUser,
+  eitherAuth,
   uploadRateLimiter,
   secureUpload.single("file"),
   validateUploadedFile,
   validators.uploadResume,
   async (req: Request, res: Response) => {
     const file = req.file;
-    const userId = req.user!.uid;
+    const userId = (req as any).auth?.userId || req.user?.uid;
     const sessionId = req.body.sessionId || (req.headers["x-session-id"] as string);
     const batchId = req.body.batchId || (req.headers["x-batch-id"] as string);
     const autoAnalyze = req.body.autoAnalyze !== 'false'; // Default to true
@@ -566,14 +566,14 @@ router.post(
 // Batch upload endpoint for multiple resumes
 router.post(
   "/batch",
-  authenticateUser,
+  eitherAuth,
   uploadRateLimiter,
   secureUpload.array("files", 10), // Max 10 files
   validateUploadedFiles,
   validators.rateLimitModerate,
   async (req: Request, res: Response) => {
     const files = req.files as Express.Multer.File[];
-    const userId = req.user!.uid;
+    const userId = (req as any).auth?.userId || req.user?.uid;
     const sessionId = req.body.sessionId || (req.headers["x-session-id"] as string);
     const batchId = req.body.batchId || (req.headers["x-batch-id"] as string);
     const autoAnalyze = req.body.autoAnalyze !== 'false'; // Default to true

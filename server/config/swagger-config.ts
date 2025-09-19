@@ -62,6 +62,12 @@ export const swaggerOptions: swaggerJsdoc.Options = {
           scheme: 'bearer',
           bearerFormat: 'JWT',
           description: 'Firebase JWT token. Get it from Firebase Auth SDK.'
+        },
+        ApiTokenAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'Token',
+          description: 'EvalMatch API token (em_<id>_<secret>). Generate from /api/v1/tokens/generate'
         }
       },
       schemas: {
@@ -561,6 +567,9 @@ export const swaggerOptions: swaggerJsdoc.Options = {
     security: [
       {
         bearerAuth: []
+      },
+      {
+        ApiTokenAuth: []
       }
     ],
     tags: [

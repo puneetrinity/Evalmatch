@@ -6,6 +6,7 @@
 
 import { Router, Request, Response } from "express";
 import { authenticateUser } from "../middleware/auth";
+import { eitherAuth } from "../middleware/either-auth";
 import { logger } from "../lib/logger";
 import { getStorage } from "../storage";
 import { createAnalysisService } from "../services/analysis-service";
@@ -360,12 +361,12 @@ async function addAIResponseHeaders(res: Response, req: Request, provider?: stri
 // Analyze resumes against a job description
 router.post(
   "/analyze/:jobId",
-  authenticateUser,
+  eitherAuth,
   validators.analyzeResume,
   async (req: Request, res: Response) => {
     try {
       const jobId = parseInt(req.params.jobId);
-      const userId = req.user!.uid;
+      const userId = (req as any).auth?.userId || req.user?.uid;
       const sessionId = req.body.sessionId;
       const batchId = req.body.batchId;
       const resumeIds = req.body.resumeIds;
@@ -770,12 +771,12 @@ router.post(
 // Analyze bias in job description
 router.post(
   "/analyze-bias/:jobId",
-  authenticateUser,
+  eitherAuth,
   validators.rateLimitModerate,
   async (req: Request, res: Response) => {
     try {
       const jobId = parseInt(req.params.jobId);
-      const userId = req.user!.uid;
+      const userId = (req as any).auth?.userId || req.user?.uid;
 
       if (isNaN(jobId)) {
         return res.status(400).json({
@@ -840,5 +841,156 @@ router.post(
     }
   },
 );
+
+/**
+ * @swagger
+ * /analysis/analyze-text:
+ *   post:
+ *     tags: [Analysis]
+ *     summary: Analyze resume text directly against job description text
+ *     description: |
+ *       Perform AI-powered analysis of raw resume text against job description text.
+ *       Returns matching scores, skill matches, and insights without requiring 
+ *       uploaded files or job records. Ideal for quick text-based evaluations.
+ *     security:
+ *       - bearerAuth: []
+ *       - ApiTokenAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               resumeText:
+ *                 type: string
+ *                 description: Raw resume text content
+ *                 example: "John Doe\nSoftware Engineer\n5 years React experience..."
+ *               jobDescriptionText:
+ *                 type: string
+ *                 description: Raw job description text content
+ *                 example: "We are seeking a React developer with 3+ years experience..."
+ *             required:
+ *               - resumeText
+ *               - jobDescriptionText
+ *     responses:
+ *       200:
+ *         description: Text analysis completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         matchPercentage:
+ *                           type: number
+ *                           example: 87.5
+ *                         matchedSkills:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                           example: ["React", "JavaScript", "Node.js"]
+ *                         missingSkills:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                           example: ["TypeScript", "GraphQL"]
+ *                         confidenceLevel:
+ *                           type: string
+ *                           example: "high"
+ *                         processingTime:
+ *                           type: number
+ *                           example: 1250
+ *             example:
+ *               success: true
+ *               data:
+ *                 matchPercentage: 87.5
+ *                 matchedSkills: ["React", "JavaScript", "Node.js"]
+ *                 missingSkills: ["TypeScript", "GraphQL"]
+ *                 confidenceLevel: "high"
+ *                 processingTime: 1250
+ *               timestamp: "2025-01-14T10:40:00.000Z"
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+// Analyze text directly (v1 endpoint)
+router.post("/analyze-text", eitherAuth, validators.rateLimitModerate, async (req: Request, res: Response) => {
+  try {
+    const { resumeText, jobDescriptionText } = req.body;
+    const userId = (req as any).auth?.userId || req.user?.uid;
+
+    // Validate required fields
+    if (!resumeText || !jobDescriptionText) {
+      return res.status(400).json({
+        success: false,
+        error: "VALIDATION_ERROR",
+        message: "Both resumeText and jobDescriptionText are required",
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (typeof resumeText !== 'string' || typeof jobDescriptionText !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: "VALIDATION_ERROR", 
+        message: "resumeText and jobDescriptionText must be strings",
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Create AnalysisService instance with current storage
+    const storage = getStorage();
+    const analysisServiceInstance = createAnalysisService(storage);
+    
+    // Use the existing analyzeText service method
+    const result = await analysisServiceInstance.analyzeText({
+      resumeText: resumeText.trim(),
+      jobDescriptionText: jobDescriptionText.trim(),
+      userId
+    });
+
+    if (isFailure(result)) {
+      const statusCode = getErrorStatusCode(result.error, 500);
+      return res.status(statusCode).json({
+        success: false,
+        error: getErrorCode(result.error),
+        message: getErrorMessage(result.error),
+        timestamp: getErrorTimestamp(result.error)
+      });
+    }
+
+    // Return v1 format with top-level fields
+    res.json({
+      success: true,
+      data: {
+        matchPercentage: result.data.matchPercentage,
+        matchedSkills: result.data.matchedSkills || [],
+        missingSkills: result.data.missingSkills || [],
+        candidateStrengths: result.data.candidateStrengths || [],
+        candidateWeaknesses: result.data.candidateWeaknesses || [],
+        confidenceLevel: result.data.confidenceLevel || 'medium',
+        recommendations: result.data.recommendations || []
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error("Text analysis route failed:", error);
+    res.status(500).json({
+      success: false,
+      error: "ROUTE_ERROR",
+      message: "Failed to analyze text",
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 export default router;

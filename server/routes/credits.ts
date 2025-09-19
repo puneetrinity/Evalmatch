@@ -5,6 +5,7 @@
 
 import { Router, Request, Response } from "express";
 import { authenticateUser } from "../middleware/auth";
+import { eitherAuth } from "../middleware/either-auth";
 import { validators } from "../middleware/input-validation";
 import { logger } from "../lib/logger";
 import { creditService } from "../services/credit-service";
@@ -59,10 +60,10 @@ const router = Router();
  */
 router.get(
   "/balance",
-  authenticateUser,
+  eitherAuth,
   async (req: Request, res: Response) => {
     try {
-      const userId = req.user!.uid;
+      const userId = (req as any).auth?.userId || req.user?.uid;
       
       logger.info(`Getting credit balance for user ${userId}`);
       
@@ -188,10 +189,10 @@ router.get(
  */
 router.get(
   "/history",
-  authenticateUser,
+  eitherAuth,
   async (req: Request, res: Response) => {
     try {
-      const userId = req.user!.uid;
+      const userId = (req as any).auth?.userId || req.user?.uid;
       const page = parseInt(req.query.page as string) || 1;
       const limit = Math.min(parseInt(req.query.limit as string) || 50, 100); // Cap at 100
       
@@ -454,7 +455,7 @@ router.post(
  */
 router.get(
   "/packages",
-  authenticateUser,
+  eitherAuth,
   async (req: Request, res: Response) => {
     try {
       if (!config.features.enableCreditSystem) {

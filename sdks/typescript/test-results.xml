@@ -1,27 +1,1198 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuites name="vitest tests" tests="11" failures="0" errors="0" time="0.006452257">
-    <testsuite name="src/__tests__/spec-completeness.test.ts" timestamp="2025-09-18T14:05:29.283Z" hostname="EWS" tests="11" failures="0" errors="0" skipped="0" time="0.006452257">
-        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; should have methods for all documented public endpoints" time="0.001048971">
+<testsuites name="vitest tests" tests="149" failures="21" errors="0" time="9.406857265">
+    <testsuite name="src/__tests__/client-basic.test.ts" timestamp="2025-09-19T06:25:38.972Z" hostname="EWS" tests="12" failures="0" errors="0" skipped="0" time="0.123320966">
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Configuration &gt; should initialize with default configuration" time="0.002952944">
         </testcase>
-        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; should have proper method signatures for public endpoints" time="0.000357513">
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Configuration &gt; should use custom configuration" time="0.000427014">
         </testcase>
-        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; should support new ClientOptions features" time="0.000145425">
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Configuration &gt; should check authentication status" time="0.000359408">
         </testcase>
-        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Credits Endpoints &gt; should have credits balance method" time="0.000128577">
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; API Structure &gt; should have resume management methods" time="0.000537359">
         </testcase>
-        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Credits Endpoints &gt; should have credits history method" time="0.000080599">
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; API Structure &gt; should have job management methods" time="0.000268887">
         </testcase>
-        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Credits Endpoints &gt; should have credits packages method" time="0.000133957">
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; API Structure &gt; should have analysis methods" time="0.000237737">
         </testcase>
-        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Credits Endpoints &gt; should have credits grant-beta method" time="0.000080221">
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; API Structure &gt; should have utility methods" time="0.000161991">
         </testcase>
-        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Health Endpoints &gt; should have health status method" time="0.000132507">
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Mock Service Integration &gt; should successfully list resumes" time="0.049243342">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes
+
+            </system-out>
         </testcase>
-        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Health Endpoints &gt; should have system health method" time="0.000165262">
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Mock Service Integration &gt; should successfully get resume by ID" time="0.017855545">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes/123
+
+            </system-out>
         </testcase>
-        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; User Profile Endpoint (Future) &gt; should eventually have user profile endpoint when implemented" time="0.000084609">
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Mock Service Integration &gt; should successfully create job description" time="0.013286094">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/job-descriptions
+
+            </system-out>
         </testcase>
-        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Generated vs Manual Client Parity &gt; should ensure manual client methods align with generated types" time="0.000079603">
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Mock Service Integration &gt; should successfully analyze resumes" time="0.015088395">
+            <system-out>
+MSW intercepted ANALYZE 123: POST https://api.test.evalmatch.com/analysis/analyze/123
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Mock Service Integration &gt; should successfully analyze job bias" time="0.019163062">
+            <system-out>
+MSW intercepted BIAS 123: POST https://api.test.evalmatch.com/analysis/analyze-bias/123
+
+MSW BIAS 123 body: {}
+
+            </system-out>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/client.test.ts" timestamp="2025-09-19T06:25:38.977Z" hostname="EWS" tests="19" failures="0" errors="0" skipped="1" time="5.847159161">
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Configuration &gt; should initialize with default configuration" time="0.002126965">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Configuration &gt; should use custom configuration" time="0.000289295">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Configuration &gt; should check authentication status" time="0.000391125">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Resume Management &gt; should list resumes successfully" time="0.048396275">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Resume Management &gt; should get specific resume by ID" time="0.014336315">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes/123
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Resume Management &gt; should upload resume file" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Resume Management &gt; should handle resume not found error" time="0.420578486">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes/999
+
+MSW intercepted: GET https://api.test.evalmatch.com/resumes/999
+
+MSW intercepted: GET https://api.test.evalmatch.com/resumes/999
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Job Description Management &gt; should create job description successfully" time="0.01478182">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/job-descriptions
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Job Description Management &gt; should handle validation errors for job creation" time="0.888860869">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; AI Analysis &gt; should analyze resumes against job" time="0.009171727">
+            <system-out>
+MSW intercepted ANALYZE 123: POST https://api.test.evalmatch.com/analysis/analyze/123
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; AI Analysis &gt; should analyze job bias" time="0.015611074">
+            <system-out>
+MSW intercepted BIAS 123: POST https://api.test.evalmatch.com/analysis/analyze-bias/123
+
+MSW BIAS 123 body: {}
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; AI Analysis &gt; should handle analysis timeout" time="1.292843568">
+            <system-err>
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at TLSSocket.socketErrorListener (node:_http_client:518:5)
+    at TLSSocket.emit (node:events:518:28) [90mundefined[39m
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at TLSSocket.socketErrorListener (node:_http_client:518:5)
+    at TLSSocket.emit (node:events:518:28) [90mundefined[39m
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at TLSSocket.socketErrorListener (node:_http_client:518:5)
+    at TLSSocket.emit (node:events:518:28) [90mundefined[39m
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at TLSSocket.socketErrorListener (node:_http_client:518:5)
+    at TLSSocket.emit (node:events:518:28) [90mundefined[39m
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should handle authentication errors" time="0.772909449">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should handle rate limiting with retry after" time="0.777591607">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should handle server errors with retry" time="0.45335619">
+            <system-out>
+Retry test attempt 1
+
+Retry test attempt 2
+
+Retry test attempt 3
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should handle circuit breaker opening" time="0.680896108">
+            <system-err>
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-0
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-1
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-2
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-3
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-4
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-0
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-1
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-2
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-3
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-4
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at MockHttpSocket.socketErrorListener (node:_http_client:518:5)
+    at MockHttpSocket.emit (node:events:530:35) [90mundefined[39m
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at MockHttpSocket.socketErrorListener (node:_http_client:518:5)
+    at MockHttpSocket.emit (node:events:530:35) [90mundefined[39m
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at MockHttpSocket.socketErrorListener (node:_http_client:518:5)
+    at MockHttpSocket.emit (node:events:530:35) [90mundefined[39m
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at MockHttpSocket.socketErrorListener (node:_http_client:518:5)
+    at MockHttpSocket.emit (node:events:530:35) [90mundefined[39m
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at MockHttpSocket.socketErrorListener (node:_http_client:518:5)
+    at MockHttpSocket.emit (node:events:530:35) [90mundefined[39m
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-1
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-1
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-0
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-0
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-2
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-2
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at MockHttpSocket.socketErrorListener (node:_http_client:518:5)
+    at MockHttpSocket.emit (node:events:530:35) [90mundefined[39m
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at MockHttpSocket.socketErrorListener (node:_http_client:518:5)
+    at MockHttpSocket.emit (node:events:530:35) [90mundefined[39m
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-3
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-3
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at MockHttpSocket.socketErrorListener (node:_http_client:518:5)
+    at MockHttpSocket.emit (node:events:530:35) [90mundefined[39m
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at MockHttpSocket.socketErrorListener (node:_http_client:518:5)
+    at MockHttpSocket.emit (node:events:530:35) [90mundefined[39m
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-4
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-4
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at MockHttpSocket.socketErrorListener (node:_http_client:518:5)
+    at MockHttpSocket.emit (node:events:530:35) [90mundefined[39m
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-1
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-1
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-2
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-2
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-0
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-0
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-3
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at MockHttpSocket.socketErrorListener (node:_http_client:518:5)
+    at MockHttpSocket.emit (node:events:530:35) [90mundefined[39m
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at MockHttpSocket.socketErrorListener (node:_http_client:518:5)
+    at MockHttpSocket.emit (node:events:530:35) [90mundefined[39m
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-3
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET https://api.test.evalmatch.com/resumes-4
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • OPTIONS https://api.test.evalmatch.com/resumes-4
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at MockHttpSocket.socketErrorListener (node:_http_client:518:5)
+    at MockHttpSocket.emit (node:events:530:35) [90mundefined[39m
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at MockHttpSocket.socketErrorListener (node:_http_client:518:5)
+    at MockHttpSocket.emit (node:events:530:35) [90mundefined[39m
+
+Error: Error: getaddrinfo ENOTFOUND api.test.evalmatch.com
+    at Object.dispatchError (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:62:19)
+    at EventEmitter.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at EventEmitter.emit (node:events:530:35)
+    at Request.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:380:14)
+    at Request.emit (node:events:518:28)
+    at ClientRequest.&lt;anonymous&gt; (/home/ews/Evalmatch/sdks/typescript/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:518:28)
+    at emitErrorEvent (node:_http_client:104:11)
+    at MockHttpSocket.socketErrorListener (node:_http_client:518:5)
+    at MockHttpSocket.emit (node:events:530:35) [90mundefined[39m
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should enrich errors with request context" time="0.446220597">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Request Interceptors &gt; should add authentication headers automatically" time="0.002504895">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Request Interceptors &gt; should handle requests without authentication" time="0.00228165">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/error-factory.test.ts" timestamp="2025-09-19T06:25:38.986Z" hostname="EWS" tests="22" failures="0" errors="0" skipped="0" time="0.01322726">
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 400 to ValidationError with INVALID_REQUEST code" time="0.002821699">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 401 to AuthenticationError" time="0.000487033">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 403 to EvalMatchError with INSUFFICIENT_PERMISSIONS" time="0.000333008">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 404 to EvalMatchError with RESOURCE_NOT_FOUND" time="0.000241272">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 408 to EvalMatchError with REQUEST_TIMEOUT" time="0.000566547">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 409 to EvalMatchError with CONFLICT" time="0.000320077">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 413 to ValidationError with FILE_TOO_LARGE" time="0.000130344">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 415 to ValidationError with INVALID_FILE_FORMAT" time="0.000101272">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 422 to EvalMatchError with UNPROCESSABLE_ENTITY" time="0.000461142">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 429 to RateLimitError with retry information" time="0.000271994">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should use default retryAfter for 429 when not provided" time="0.000097267">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 5xx Server Errors &gt; should map 500 to ServerError with INTERNAL_SERVER_ERROR" time="0.000294644">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 5xx Server Errors &gt; should map 502/503/504 to ServerError with SERVICE_UNAVAILABLE" time="0.00041578">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Network Errors &gt; should map network errors (no status) to NetworkError" time="0.000192366">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Unknown Status Codes &gt; should map unknown 4xx codes to generic EvalMatchError (non-retryable)" time="0.000121703">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Unknown Status Codes &gt; should map unknown 5xx codes to generic EvalMatchError (retryable)" time="0.00022258">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Error Context Enrichment &gt; should enrich error context with request metadata" time="0.000127415">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Error Context Enrichment &gt; should prioritize provided context over error object data" time="0.000112774">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Recovery Actions Validation &gt; should provide appropriate recovery actions for each error type" time="0.0006706">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Error Envelope Integration &gt; should return error envelope with recovery actions when throwOnError: false" time="0.000309297">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Error Envelope Integration &gt; should handle 429 errors with header-based retry information" time="0.000140075">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Error Envelope Integration &gt; should fallback to body retryAfter when header is missing" time="0.000086974">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/retry-after.test.ts" timestamp="2025-09-19T06:25:38.995Z" hostname="EWS" tests="9" failures="9" errors="0" skipped="0" time="0.192573597">
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; Delay-Seconds Format &gt; should parse numeric Retry-After header (seconds)" time="0.060745752">
+            <system-out>
+MSW CATCH-ALL: GET http://localhost:3000/test
+
+            </system-out>
+            <failure message="HTTP 404 Error: Request failed with status code 404 (after 1 attempts)" type="HTTPError">
+HTTPError: HTTP 404 Error: Request failed with status code 404 (after 1 attempts)
+ ❯ RetryableHTTPClient.enrichError src/core/retry-client.ts:283:29
+ ❯ src/core/retry-client.ts:176:38
+ ❯ Axios.request node_modules/axios/lib/core/Axios.js:45:41
+ ❯ RetryableHTTPClient.retryWithBackoff src/core/retry-client.ts:197:16
+ ❯ CircuitBreaker.execute src/core/retry-client.ts:48:22
+ ❯ src/__tests__/retry-after.test.ts:48:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { status: 404, statusText: &apos;Not Found&apos;, data: { error: &apos;Endpoint not implemented in test mocks&apos; }, requestId: &apos;req_1758263131712_trn8gv8ce&apos;, duration: 49, attempts: 1, originalError: { message: &apos;Request failed with status code 404&apos;, name: &apos;AxiosError&apos;, description: undefined, number: undefined, fileName: undefined, lineNumber: undefined, columnNumber: undefined, stack: &apos;AxiosError: Request failed with status code 404\n    at settle (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/core/settle.js:19:12)\n    at XMLHttpRequest.onloadend (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/adapters/xhr.js:59:7)\n    at XMLHttpRequest.methodCall (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:207:20)\n    at Proxy.&lt;anonymous&gt; (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/utils/createProxy.ts:93:29)\n    at XMLHttpRequestController.trigger (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:631:16)\n    at finalizeResponse (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:421:12)\n    at readNextResponseBodyChunk (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:437:11)&apos;, config: { transitional: { silentJSONParsing: true, forcedJSONParsing: true, clarifyTimeoutError: false }, adapter: [ &apos;xhr&apos;, &apos;http&apos;, &apos;fetch&apos; ], transformRequest: [ &apos;Function&lt;transformRequest&gt;&apos; ], transformResponse: [ &apos;Function&lt;transformResponse&gt;&apos; ], timeout: +0, xsrfCookieName: &apos;XSRF-TOKEN&apos;, xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;, maxContentLength: -1, maxBodyLength: -1, env: { FormData: &apos;Function&lt;FormData&gt;&apos;, Blob: &apos;Function&lt;Blob&gt;&apos; }, validateStatus: &apos;Function&lt;validateStatus&gt;&apos;, headers: { Accept: &apos;application/json, text/plain, */*&apos; }, maxAttempts: 3, baseDelay: 100, maxDelay: 5000, backoffFactor: 2, url: &apos;/test&apos;, allowAbsoluteUrls: true, method: &apos;get&apos;, metadata: { requestId: &apos;req_1758263131712_trn8gv8ce&apos;, startTime: 1758263131712, duration: 49 } }, code: &apos;ERR_BAD_REQUEST&apos;, status: 404 }, circuitBreakerState: &apos;closed&apos; }
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; Delay-Seconds Format &gt; should cap delay to maxDelay for large Retry-After values" time="0.026011661">
+            <system-out>
+MSW CATCH-ALL: GET http://localhost:3000/test
+
+            </system-out>
+            <failure message="HTTP 404 Error: Request failed with status code 404 (after 1 attempts)" type="HTTPError">
+HTTPError: HTTP 404 Error: Request failed with status code 404 (after 1 attempts)
+ ❯ RetryableHTTPClient.enrichError src/core/retry-client.ts:283:29
+ ❯ src/core/retry-client.ts:176:38
+ ❯ Axios.request node_modules/axios/lib/core/Axios.js:45:41
+ ❯ RetryableHTTPClient.retryWithBackoff src/core/retry-client.ts:197:16
+ ❯ CircuitBreaker.execute src/core/retry-client.ts:48:22
+ ❯ src/__tests__/retry-after.test.ts:70:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { status: 404, statusText: &apos;Not Found&apos;, data: { error: &apos;Endpoint not implemented in test mocks&apos; }, requestId: &apos;req_1758263131770_orm7kg5we&apos;, duration: 23, attempts: 1, originalError: { message: &apos;Request failed with status code 404&apos;, name: &apos;AxiosError&apos;, description: undefined, number: undefined, fileName: undefined, lineNumber: undefined, columnNumber: undefined, stack: &apos;AxiosError: Request failed with status code 404\n    at settle (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/core/settle.js:19:12)\n    at XMLHttpRequest.onloadend (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/adapters/xhr.js:59:7)\n    at XMLHttpRequest.methodCall (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:207:20)\n    at Proxy.&lt;anonymous&gt; (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/utils/createProxy.ts:93:29)\n    at XMLHttpRequestController.trigger (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:631:16)\n    at finalizeResponse (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:421:12)\n    at readNextResponseBodyChunk (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:437:11)&apos;, config: { transitional: { silentJSONParsing: true, forcedJSONParsing: true, clarifyTimeoutError: false }, adapter: [ &apos;xhr&apos;, &apos;http&apos;, &apos;fetch&apos; ], transformRequest: [ &apos;Function&lt;transformRequest&gt;&apos; ], transformResponse: [ &apos;Function&lt;transformResponse&gt;&apos; ], timeout: +0, xsrfCookieName: &apos;XSRF-TOKEN&apos;, xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;, maxContentLength: -1, maxBodyLength: -1, env: { FormData: &apos;Function&lt;FormData&gt;&apos;, Blob: &apos;Function&lt;Blob&gt;&apos; }, validateStatus: &apos;Function&lt;validateStatus&gt;&apos;, headers: { Accept: &apos;application/json, text/plain, */*&apos; }, maxAttempts: 3, baseDelay: 100, maxDelay: 5000, backoffFactor: 2, url: &apos;/test&apos;, allowAbsoluteUrls: true, method: &apos;get&apos;, metadata: { requestId: &apos;req_1758263131770_orm7kg5we&apos;, startTime: 1758263131770, duration: 23 } }, code: &apos;ERR_BAD_REQUEST&apos;, status: 404 }, circuitBreakerState: &apos;closed&apos; }
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; Delay-Seconds Format &gt; should ignore zero or negative Retry-After values" time="0.016964127">
+            <system-out>
+MSW CATCH-ALL: GET http://localhost:3000/test
+
+            </system-out>
+            <failure message="HTTP 404 Error: Request failed with status code 404 (after 1 attempts)" type="HTTPError">
+HTTPError: HTTP 404 Error: Request failed with status code 404 (after 1 attempts)
+ ❯ RetryableHTTPClient.enrichError src/core/retry-client.ts:283:29
+ ❯ src/core/retry-client.ts:176:38
+ ❯ Axios.request node_modules/axios/lib/core/Axios.js:45:41
+ ❯ RetryableHTTPClient.retryWithBackoff src/core/retry-client.ts:197:16
+ ❯ CircuitBreaker.execute src/core/retry-client.ts:48:22
+ ❯ src/__tests__/retry-after.test.ts:92:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { status: 404, statusText: &apos;Not Found&apos;, data: { error: &apos;Endpoint not implemented in test mocks&apos; }, requestId: &apos;req_1758263131796_r6rjwp7pt&apos;, duration: 15, attempts: 1, originalError: { message: &apos;Request failed with status code 404&apos;, name: &apos;AxiosError&apos;, description: undefined, number: undefined, fileName: undefined, lineNumber: undefined, columnNumber: undefined, stack: &apos;AxiosError: Request failed with status code 404\n    at settle (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/core/settle.js:19:12)\n    at XMLHttpRequest.onloadend (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/adapters/xhr.js:59:7)\n    at XMLHttpRequest.methodCall (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:207:20)\n    at Proxy.&lt;anonymous&gt; (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/utils/createProxy.ts:93:29)\n    at XMLHttpRequestController.trigger (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:631:16)\n    at finalizeResponse (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:421:12)\n    at readNextResponseBodyChunk (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:437:11)&apos;, config: { transitional: { silentJSONParsing: true, forcedJSONParsing: true, clarifyTimeoutError: false }, adapter: [ &apos;xhr&apos;, &apos;http&apos;, &apos;fetch&apos; ], transformRequest: [ &apos;Function&lt;transformRequest&gt;&apos; ], transformResponse: [ &apos;Function&lt;transformResponse&gt;&apos; ], timeout: +0, xsrfCookieName: &apos;XSRF-TOKEN&apos;, xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;, maxContentLength: -1, maxBodyLength: -1, env: { FormData: &apos;Function&lt;FormData&gt;&apos;, Blob: &apos;Function&lt;Blob&gt;&apos; }, validateStatus: &apos;Function&lt;validateStatus&gt;&apos;, headers: { Accept: &apos;application/json, text/plain, */*&apos; }, maxAttempts: 3, baseDelay: 100, maxDelay: 5000, backoffFactor: 2, url: &apos;/test&apos;, allowAbsoluteUrls: true, method: &apos;get&apos;, metadata: { requestId: &apos;req_1758263131796_r6rjwp7pt&apos;, startTime: 1758263131796, duration: 15 } }, code: &apos;ERR_BAD_REQUEST&apos;, status: 404 }, circuitBreakerState: &apos;closed&apos; }
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; HTTP-Date Format &gt; should parse RFC 7231 HTTP-date Retry-After header" time="0.020634585">
+            <system-out>
+MSW CATCH-ALL: GET http://localhost:3000/test
+
+            </system-out>
+            <failure message="HTTP 404 Error: Request failed with status code 404 (after 1 attempts)" type="HTTPError">
+HTTPError: HTTP 404 Error: Request failed with status code 404 (after 1 attempts)
+ ❯ RetryableHTTPClient.enrichError src/core/retry-client.ts:283:29
+ ❯ src/core/retry-client.ts:176:38
+ ❯ Axios.request node_modules/axios/lib/core/Axios.js:45:41
+ ❯ RetryableHTTPClient.retryWithBackoff src/core/retry-client.ts:197:16
+ ❯ CircuitBreaker.execute src/core/retry-client.ts:48:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { status: 404, statusText: &apos;Not Found&apos;, data: { error: &apos;Endpoint not implemented in test mocks&apos; }, requestId: &apos;req_1705312801900_z3npv2bve&apos;, duration: +0, attempts: 1, originalError: { message: &apos;Request failed with status code 404&apos;, name: &apos;AxiosError&apos;, description: undefined, number: undefined, fileName: undefined, lineNumber: undefined, columnNumber: undefined, stack: &apos;AxiosError: Request failed with status code 404\n    at settle (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/core/settle.js:19:12)\n    at XMLHttpRequest.onloadend (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/adapters/xhr.js:59:7)\n    at XMLHttpRequest.methodCall (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:207:20)\n    at Proxy.&lt;anonymous&gt; (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/utils/createProxy.ts:93:29)\n    at XMLHttpRequestController.trigger (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:631:16)\n    at finalizeResponse (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:421:12)\n    at readNextResponseBodyChunk (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:437:11)&apos;, config: { transitional: { silentJSONParsing: true, forcedJSONParsing: true, clarifyTimeoutError: false }, adapter: [ &apos;xhr&apos;, &apos;http&apos;, &apos;fetch&apos; ], transformRequest: [ &apos;Function&lt;transformRequest&gt;&apos; ], transformResponse: [ &apos;Function&lt;transformResponse&gt;&apos; ], timeout: +0, xsrfCookieName: &apos;XSRF-TOKEN&apos;, xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;, maxContentLength: -1, maxBodyLength: -1, env: { FormData: &apos;Function&lt;FormData&gt;&apos;, Blob: &apos;Function&lt;Blob&gt;&apos; }, validateStatus: &apos;Function&lt;validateStatus&gt;&apos;, headers: { Accept: &apos;application/json, text/plain, */*&apos; }, maxAttempts: 3, baseDelay: 100, maxDelay: 5000, backoffFactor: 2, url: &apos;/test&apos;, allowAbsoluteUrls: true, method: &apos;get&apos;, metadata: { requestId: &apos;req_1705312801900_z3npv2bve&apos;, startTime: 1705312801900, duration: +0 } }, code: &apos;ERR_BAD_REQUEST&apos;, status: 404 }, circuitBreakerState: &apos;closed&apos; }
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; HTTP-Date Format &gt; should cap HTTP-date delay to maxDelay" time="0.010669692">
+            <system-out>
+MSW CATCH-ALL: GET http://localhost:3000/test
+
+            </system-out>
+            <failure message="HTTP 404 Error: Request failed with status code 404 (after 1 attempts)" type="HTTPError">
+HTTPError: HTTP 404 Error: Request failed with status code 404 (after 1 attempts)
+ ❯ RetryableHTTPClient.enrichError src/core/retry-client.ts:283:29
+ ❯ src/core/retry-client.ts:176:38
+ ❯ Axios.request node_modules/axios/lib/core/Axios.js:45:41
+ ❯ RetryableHTTPClient.retryWithBackoff src/core/retry-client.ts:197:16
+ ❯ CircuitBreaker.execute src/core/retry-client.ts:48:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { status: 404, statusText: &apos;Not Found&apos;, data: { error: &apos;Endpoint not implemented in test mocks&apos; }, requestId: &apos;req_1705312805000_5n7ki7rb5&apos;, duration: +0, attempts: 1, originalError: { message: &apos;Request failed with status code 404&apos;, name: &apos;AxiosError&apos;, description: undefined, number: undefined, fileName: undefined, lineNumber: undefined, columnNumber: undefined, stack: &apos;AxiosError: Request failed with status code 404\n    at settle (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/core/settle.js:19:12)\n    at XMLHttpRequest.onloadend (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/adapters/xhr.js:59:7)\n    at XMLHttpRequest.methodCall (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:207:20)\n    at Proxy.&lt;anonymous&gt; (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/utils/createProxy.ts:93:29)\n    at XMLHttpRequestController.trigger (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:631:16)\n    at finalizeResponse (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:421:12)\n    at readNextResponseBodyChunk (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:437:11)&apos;, config: { transitional: { silentJSONParsing: true, forcedJSONParsing: true, clarifyTimeoutError: false }, adapter: [ &apos;xhr&apos;, &apos;http&apos;, &apos;fetch&apos; ], transformRequest: [ &apos;Function&lt;transformRequest&gt;&apos; ], transformResponse: [ &apos;Function&lt;transformResponse&gt;&apos; ], timeout: +0, xsrfCookieName: &apos;XSRF-TOKEN&apos;, xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;, maxContentLength: -1, maxBodyLength: -1, env: { FormData: &apos;Function&lt;FormData&gt;&apos;, Blob: &apos;Function&lt;Blob&gt;&apos; }, validateStatus: &apos;Function&lt;validateStatus&gt;&apos;, headers: { Accept: &apos;application/json, text/plain, */*&apos; }, maxAttempts: 3, baseDelay: 100, maxDelay: 5000, backoffFactor: 2, url: &apos;/test&apos;, allowAbsoluteUrls: true, method: &apos;get&apos;, metadata: { requestId: &apos;req_1705312805000_5n7ki7rb5&apos;, startTime: 1705312805000, duration: +0 } }, code: &apos;ERR_BAD_REQUEST&apos;, status: 404 }, circuitBreakerState: &apos;closed&apos; }
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; HTTP-Date Format &gt; should ignore past HTTP-date values" time="0.014269478">
+            <system-out>
+MSW CATCH-ALL: GET http://localhost:3000/test
+
+            </system-out>
+            <failure message="HTTP 404 Error: Request failed with status code 404 (after 1 attempts)" type="HTTPError">
+HTTPError: HTTP 404 Error: Request failed with status code 404 (after 1 attempts)
+ ❯ RetryableHTTPClient.enrichError src/core/retry-client.ts:283:29
+ ❯ src/core/retry-client.ts:176:38
+ ❯ Axios.request node_modules/axios/lib/core/Axios.js:45:41
+ ❯ RetryableHTTPClient.retryWithBackoff src/core/retry-client.ts:197:16
+ ❯ CircuitBreaker.execute src/core/retry-client.ts:48:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { status: 404, statusText: &apos;Not Found&apos;, data: { error: &apos;Endpoint not implemented in test mocks&apos; }, requestId: &apos;req_1705312800200_27og3yq37&apos;, duration: +0, attempts: 1, originalError: { message: &apos;Request failed with status code 404&apos;, name: &apos;AxiosError&apos;, description: undefined, number: undefined, fileName: undefined, lineNumber: undefined, columnNumber: undefined, stack: &apos;AxiosError: Request failed with status code 404\n    at settle (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/core/settle.js:19:12)\n    at XMLHttpRequest.onloadend (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/adapters/xhr.js:59:7)\n    at XMLHttpRequest.methodCall (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:207:20)\n    at Proxy.&lt;anonymous&gt; (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/utils/createProxy.ts:93:29)\n    at XMLHttpRequestController.trigger (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:631:16)\n    at finalizeResponse (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:421:12)\n    at readNextResponseBodyChunk (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:437:11)&apos;, config: { transitional: { silentJSONParsing: true, forcedJSONParsing: true, clarifyTimeoutError: false }, adapter: [ &apos;xhr&apos;, &apos;http&apos;, &apos;fetch&apos; ], transformRequest: [ &apos;Function&lt;transformRequest&gt;&apos; ], transformResponse: [ &apos;Function&lt;transformResponse&gt;&apos; ], timeout: +0, xsrfCookieName: &apos;XSRF-TOKEN&apos;, xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;, maxContentLength: -1, maxBodyLength: -1, env: { FormData: &apos;Function&lt;FormData&gt;&apos;, Blob: &apos;Function&lt;Blob&gt;&apos; }, validateStatus: &apos;Function&lt;validateStatus&gt;&apos;, headers: { Accept: &apos;application/json, text/plain, */*&apos; }, maxAttempts: 3, baseDelay: 100, maxDelay: 5000, backoffFactor: 2, url: &apos;/test&apos;, allowAbsoluteUrls: true, method: &apos;get&apos;, metadata: { requestId: &apos;req_1705312800200_27og3yq37&apos;, startTime: 1705312800200, duration: +0 } }, code: &apos;ERR_BAD_REQUEST&apos;, status: 404 }, circuitBreakerState: &apos;closed&apos; }
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; Invalid Retry-After Values &gt; should fall back to exponential backoff for invalid values" time="0.012864573">
+            <system-out>
+MSW CATCH-ALL: GET http://localhost:3000/test
+
+            </system-out>
+            <failure message="HTTP 404 Error: Request failed with status code 404 (after 1 attempts)" type="HTTPError">
+HTTPError: HTTP 404 Error: Request failed with status code 404 (after 1 attempts)
+ ❯ RetryableHTTPClient.enrichError src/core/retry-client.ts:283:29
+ ❯ src/core/retry-client.ts:176:38
+ ❯ Axios.request node_modules/axios/lib/core/Axios.js:45:41
+ ❯ RetryableHTTPClient.retryWithBackoff src/core/retry-client.ts:197:16
+ ❯ CircuitBreaker.execute src/core/retry-client.ts:48:22
+ ❯ src/__tests__/retry-after.test.ts:228:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { status: 404, statusText: &apos;Not Found&apos;, data: { error: &apos;Endpoint not implemented in test mocks&apos; }, requestId: &apos;req_1758263131858_wlqlpsahy&apos;, duration: 12, attempts: 1, originalError: { message: &apos;Request failed with status code 404&apos;, name: &apos;AxiosError&apos;, description: undefined, number: undefined, fileName: undefined, lineNumber: undefined, columnNumber: undefined, stack: &apos;AxiosError: Request failed with status code 404\n    at settle (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/core/settle.js:19:12)\n    at XMLHttpRequest.onloadend (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/adapters/xhr.js:59:7)\n    at XMLHttpRequest.methodCall (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:207:20)\n    at Proxy.&lt;anonymous&gt; (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/utils/createProxy.ts:93:29)\n    at XMLHttpRequestController.trigger (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:631:16)\n    at finalizeResponse (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:421:12)\n    at readNextResponseBodyChunk (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:437:11)&apos;, config: { transitional: { silentJSONParsing: true, forcedJSONParsing: true, clarifyTimeoutError: false }, adapter: [ &apos;xhr&apos;, &apos;http&apos;, &apos;fetch&apos; ], transformRequest: [ &apos;Function&lt;transformRequest&gt;&apos; ], transformResponse: [ &apos;Function&lt;transformResponse&gt;&apos; ], timeout: +0, xsrfCookieName: &apos;XSRF-TOKEN&apos;, xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;, maxContentLength: -1, maxBodyLength: -1, env: { FormData: &apos;Function&lt;FormData&gt;&apos;, Blob: &apos;Function&lt;Blob&gt;&apos; }, validateStatus: &apos;Function&lt;validateStatus&gt;&apos;, headers: { Accept: &apos;application/json, text/plain, */*&apos; }, maxAttempts: 3, baseDelay: 100, maxDelay: 5000, backoffFactor: 2, url: &apos;/test&apos;, allowAbsoluteUrls: true, method: &apos;get&apos;, metadata: { requestId: &apos;req_1758263131858_wlqlpsahy&apos;, startTime: 1758263131858, duration: 12 } }, code: &apos;ERR_BAD_REQUEST&apos;, status: 404 }, circuitBreakerState: &apos;closed&apos; }
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; Invalid Retry-After Values &gt; should handle missing Retry-After header" time="0.010550223">
+            <system-out>
+MSW CATCH-ALL: GET http://localhost:3000/test
+
+            </system-out>
+            <failure message="HTTP 404 Error: Request failed with status code 404 (after 1 attempts)" type="HTTPError">
+HTTPError: HTTP 404 Error: Request failed with status code 404 (after 1 attempts)
+ ❯ RetryableHTTPClient.enrichError src/core/retry-client.ts:283:29
+ ❯ src/core/retry-client.ts:176:38
+ ❯ Axios.request node_modules/axios/lib/core/Axios.js:45:41
+ ❯ RetryableHTTPClient.retryWithBackoff src/core/retry-client.ts:197:16
+ ❯ CircuitBreaker.execute src/core/retry-client.ts:48:22
+ ❯ src/__tests__/retry-after.test.ts:250:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { status: 404, statusText: &apos;Not Found&apos;, data: { error: &apos;Endpoint not implemented in test mocks&apos; }, requestId: &apos;req_1758263131871_36i48m3vo&apos;, duration: 9, attempts: 1, originalError: { message: &apos;Request failed with status code 404&apos;, name: &apos;AxiosError&apos;, description: undefined, number: undefined, fileName: undefined, lineNumber: undefined, columnNumber: undefined, stack: &apos;AxiosError: Request failed with status code 404\n    at settle (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/core/settle.js:19:12)\n    at XMLHttpRequest.onloadend (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/adapters/xhr.js:59:7)\n    at XMLHttpRequest.methodCall (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:207:20)\n    at Proxy.&lt;anonymous&gt; (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/utils/createProxy.ts:93:29)\n    at XMLHttpRequestController.trigger (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:631:16)\n    at finalizeResponse (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:421:12)\n    at readNextResponseBodyChunk (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:437:11)&apos;, config: { transitional: { silentJSONParsing: true, forcedJSONParsing: true, clarifyTimeoutError: false }, adapter: [ &apos;xhr&apos;, &apos;http&apos;, &apos;fetch&apos; ], transformRequest: [ &apos;Function&lt;transformRequest&gt;&apos; ], transformResponse: [ &apos;Function&lt;transformResponse&gt;&apos; ], timeout: +0, xsrfCookieName: &apos;XSRF-TOKEN&apos;, xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;, maxContentLength: -1, maxBodyLength: -1, env: { FormData: &apos;Function&lt;FormData&gt;&apos;, Blob: &apos;Function&lt;Blob&gt;&apos; }, validateStatus: &apos;Function&lt;validateStatus&gt;&apos;, headers: { Accept: &apos;application/json, text/plain, */*&apos; }, maxAttempts: 3, baseDelay: 100, maxDelay: 5000, backoffFactor: 2, url: &apos;/test&apos;, allowAbsoluteUrls: true, method: &apos;get&apos;, metadata: { requestId: &apos;req_1758263131871_36i48m3vo&apos;, startTime: 1758263131871, duration: 9 } }, code: &apos;ERR_BAD_REQUEST&apos;, status: 404 }, circuitBreakerState: &apos;closed&apos; }
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; Non-429 Errors &gt; should not use Retry-After for non-429 status codes" time="0.01519593">
+            <system-out>
+MSW CATCH-ALL: GET http://localhost:3000/test
+
+            </system-out>
+            <failure message="HTTP 404 Error: Request failed with status code 404 (after 1 attempts)" type="HTTPError">
+HTTPError: HTTP 404 Error: Request failed with status code 404 (after 1 attempts)
+ ❯ RetryableHTTPClient.enrichError src/core/retry-client.ts:283:29
+ ❯ src/core/retry-client.ts:176:38
+ ❯ Axios.request node_modules/axios/lib/core/Axios.js:45:41
+ ❯ RetryableHTTPClient.retryWithBackoff src/core/retry-client.ts:197:16
+ ❯ CircuitBreaker.execute src/core/retry-client.ts:48:22
+ ❯ src/__tests__/retry-after.test.ts:273:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { status: 404, statusText: &apos;Not Found&apos;, data: { error: &apos;Endpoint not implemented in test mocks&apos; }, requestId: &apos;req_1758263131882_ax4zymbmh&apos;, duration: 14, attempts: 1, originalError: { message: &apos;Request failed with status code 404&apos;, name: &apos;AxiosError&apos;, description: undefined, number: undefined, fileName: undefined, lineNumber: undefined, columnNumber: undefined, stack: &apos;AxiosError: Request failed with status code 404\n    at settle (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/core/settle.js:19:12)\n    at XMLHttpRequest.onloadend (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/adapters/xhr.js:59:7)\n    at XMLHttpRequest.methodCall (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:207:20)\n    at Proxy.&lt;anonymous&gt; (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/utils/createProxy.ts:93:29)\n    at XMLHttpRequestController.trigger (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:631:16)\n    at finalizeResponse (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:421:12)\n    at readNextResponseBodyChunk (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:437:11)&apos;, config: { transitional: { silentJSONParsing: true, forcedJSONParsing: true, clarifyTimeoutError: false }, adapter: [ &apos;xhr&apos;, &apos;http&apos;, &apos;fetch&apos; ], transformRequest: [ &apos;Function&lt;transformRequest&gt;&apos; ], transformResponse: [ &apos;Function&lt;transformResponse&gt;&apos; ], timeout: +0, xsrfCookieName: &apos;XSRF-TOKEN&apos;, xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;, maxContentLength: -1, maxBodyLength: -1, env: { FormData: &apos;Function&lt;FormData&gt;&apos;, Blob: &apos;Function&lt;Blob&gt;&apos; }, validateStatus: &apos;Function&lt;validateStatus&gt;&apos;, headers: { Accept: &apos;application/json, text/plain, */*&apos; }, maxAttempts: 3, baseDelay: 100, maxDelay: 5000, backoffFactor: 2, url: &apos;/test&apos;, allowAbsoluteUrls: true, method: &apos;get&apos;, metadata: { requestId: &apos;req_1758263131882_ax4zymbmh&apos;, startTime: 1758263131882, duration: 14 } }, code: &apos;ERR_BAD_REQUEST&apos;, status: 404 }, circuitBreakerState: &apos;closed&apos; }
+            </failure>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/spec-completeness.test.ts" timestamp="2025-09-19T06:25:39.007Z" hostname="EWS" tests="11" failures="0" errors="0" skipped="0" time="0.006351441">
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; should have methods for all documented public endpoints" time="0.001403417">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; should have proper method signatures for public endpoints" time="0.000368932">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; should support new ClientOptions features" time="0.000099406">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Credits Endpoints &gt; should have credits balance method" time="0.000110064">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Credits Endpoints &gt; should have credits history method" time="0.000080181">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Credits Endpoints &gt; should have credits packages method" time="0.000091225">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Credits Endpoints &gt; should have credits grant-beta method" time="0.00005126">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Health Endpoints &gt; should have health status method" time="0.000060258">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Health Endpoints &gt; should have system health method" time="0.000271759">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; User Profile Endpoint (Future) &gt; should eventually have user profile endpoint when implemented" time="0.000118696">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Generated vs Manual Client Parity &gt; should ensure manual client methods align with generated types" time="0.000078871">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/upload-boundary.test.ts" timestamp="2025-09-19T06:25:39.008Z" hostname="EWS" tests="7" failures="5" errors="0" skipped="0" time="2.45569139">
+        <testcase classname="src/__tests__/upload-boundary.test.ts" name="Upload Content-Type Boundary Tests &gt; Browser Environment Upload &gt; should not manually set Content-Type for multipart uploads" time="0.634297453">
+            <system-out>
+MSW CATCH-ALL: POST https://test.evalmatch.com/api/resumes
+
+MSW CATCH-ALL: POST https://test.evalmatch.com/api/resumes
+
+MSW CATCH-ALL: POST https://test.evalmatch.com/api/resumes
+
+            </system-out>
+            <failure message="HTTP 404 Error: Request failed with status code 404 (after 1 attempts)" type="EvalMatchError">
+EvalMatchError: HTTP 404 Error: Request failed with status code 404 (after 1 attempts)
+ ❯ Function.createFromHttpError src/core/errors.ts:306:16
+ ❯ EvalMatchClient.handleError src/client.ts:131:24
+ ❯ EvalMatchClient.request src/client.ts:171:12
+ ❯ src/__tests__/upload-boundary.test.ts:95:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: &apos;RESOURCE_NOT_FOUND&apos;, context: { circuitBreakerState: &apos;closed&apos;, endpoint: &apos;/resumes&apos;, method: &apos;POST&apos;, statusCode: 404, requestId: undefined, duration: undefined, timestamp: &apos;2025-09-19T06:25:32.361Z&apos; }, recoveryActions: [ { type: &apos;check_parameters&apos;, description: &apos;Check the resource identifier and try again&apos; } ], isRetryable: false }
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/upload-boundary.test.ts" name="Upload Content-Type Boundary Tests &gt; Browser Environment Upload &gt; should let Axios automatically set multipart boundary" time="0.468357027">
+            <system-out>
+MSW CATCH-ALL: POST https://test.evalmatch.com/api/resumes
+
+MSW CATCH-ALL: POST https://test.evalmatch.com/api/resumes
+
+MSW CATCH-ALL: POST https://test.evalmatch.com/api/resumes
+
+            </system-out>
+            <failure message="HTTP 404 Error: Request failed with status code 404 (after 1 attempts)" type="EvalMatchError">
+EvalMatchError: HTTP 404 Error: Request failed with status code 404 (after 1 attempts)
+ ❯ Function.createFromHttpError src/core/errors.ts:306:16
+ ❯ EvalMatchClient.handleError src/client.ts:131:24
+ ❯ EvalMatchClient.request src/client.ts:171:12
+ ❯ src/__tests__/upload-boundary.test.ts:115:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: &apos;RESOURCE_NOT_FOUND&apos;, context: { circuitBreakerState: &apos;closed&apos;, endpoint: &apos;/resumes&apos;, method: &apos;POST&apos;, statusCode: 404, requestId: undefined, duration: undefined, timestamp: &apos;2025-09-19T06:25:32.830Z&apos; }, recoveryActions: [ { type: &apos;check_parameters&apos;, description: &apos;Check the resource identifier and try again&apos; } ], isRetryable: false }
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/upload-boundary.test.ts" name="Upload Content-Type Boundary Tests &gt; Browser Environment Upload &gt; should handle file uploads with various MIME types" time="0.437358953">
+            <system-out>
+MSW CATCH-ALL: POST https://test.evalmatch.com/api/resumes
+
+MSW CATCH-ALL: POST https://test.evalmatch.com/api/resumes
+
+MSW CATCH-ALL: POST https://test.evalmatch.com/api/resumes
+
+            </system-out>
+            <failure message="HTTP 404 Error: Request failed with status code 404 (after 1 attempts)" type="EvalMatchError">
+EvalMatchError: HTTP 404 Error: Request failed with status code 404 (after 1 attempts)
+ ❯ Function.createFromHttpError src/core/errors.ts:306:16
+ ❯ EvalMatchClient.handleError src/client.ts:131:24
+ ❯ EvalMatchClient.request src/client.ts:171:12
+ ❯ src/__tests__/upload-boundary.test.ts:145:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: &apos;RESOURCE_NOT_FOUND&apos;, context: { circuitBreakerState: &apos;closed&apos;, endpoint: &apos;/resumes&apos;, method: &apos;POST&apos;, statusCode: 404, requestId: undefined, duration: undefined, timestamp: &apos;2025-09-19T06:25:33.268Z&apos; }, recoveryActions: [ { type: &apos;check_parameters&apos;, description: &apos;Check the resource identifier and try again&apos; } ], isRetryable: false }
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/upload-boundary.test.ts" name="Upload Content-Type Boundary Tests &gt; Node.js Environment Upload &gt; should handle Node.js FormData polyfill correctly" time="0.002729779">
+        </testcase>
+        <testcase classname="src/__tests__/upload-boundary.test.ts" name="Upload Content-Type Boundary Tests &gt; Boundary Generation Verification &gt; should verify boundary is present in actual multipart requests" time="0.492554882">
+            <system-out>
+MSW CATCH-ALL: POST https://test.evalmatch.com/api/resumes
+
+MSW CATCH-ALL: POST https://test.evalmatch.com/api/resumes
+
+MSW CATCH-ALL: POST https://test.evalmatch.com/api/resumes
+
+            </system-out>
+            <failure message="HTTP 404 Error: Request failed with status code 404 (after 1 attempts)" type="EvalMatchError">
+EvalMatchError: HTTP 404 Error: Request failed with status code 404 (after 1 attempts)
+ ❯ Function.createFromHttpError src/core/errors.ts:306:16
+ ❯ EvalMatchClient.handleError src/client.ts:131:24
+ ❯ EvalMatchClient.request src/client.ts:171:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: &apos;RESOURCE_NOT_FOUND&apos;, context: { circuitBreakerState: &apos;closed&apos;, endpoint: &apos;/resumes&apos;, method: &apos;POST&apos;, statusCode: 404, requestId: undefined, duration: undefined, timestamp: &apos;2025-09-19T06:25:33.763Z&apos; }, recoveryActions: [ { type: &apos;check_parameters&apos;, description: &apos;Check the resource identifier and try again&apos; } ], isRetryable: false }
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/upload-boundary.test.ts" name="Upload Content-Type Boundary Tests &gt; Boundary Generation Verification &gt; should not double-set Content-Type headers" time="0.413936018">
+            <system-out>
+MSW CATCH-ALL: POST https://test.evalmatch.com/api/resumes
+
+MSW CATCH-ALL: POST https://test.evalmatch.com/api/resumes
+
+MSW CATCH-ALL: POST https://test.evalmatch.com/api/resumes
+
+            </system-out>
+            <failure message="HTTP 404 Error: Request failed with status code 404 (after 1 attempts)" type="EvalMatchError">
+EvalMatchError: HTTP 404 Error: Request failed with status code 404 (after 1 attempts)
+ ❯ Function.createFromHttpError src/core/errors.ts:306:16
+ ❯ EvalMatchClient.handleError src/client.ts:131:24
+ ❯ EvalMatchClient.request src/client.ts:171:12
+ ❯ src/__tests__/upload-boundary.test.ts:228:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: &apos;RESOURCE_NOT_FOUND&apos;, context: { circuitBreakerState: &apos;closed&apos;, endpoint: &apos;/resumes&apos;, method: &apos;POST&apos;, statusCode: 404, requestId: undefined, duration: undefined, timestamp: &apos;2025-09-19T06:25:34.177Z&apos; }, recoveryActions: [ { type: &apos;check_parameters&apos;, description: &apos;Check the resource identifier and try again&apos; } ], isRetryable: false }
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/upload-boundary.test.ts" name="Upload Content-Type Boundary Tests &gt; Error Handling &gt; should handle FormData creation errors gracefully" time="0.000604025">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/core/errors.test.ts" timestamp="2025-09-19T06:25:39.014Z" hostname="EWS" tests="20" failures="0" errors="0" skipped="0" time="0.017875914">
+        <testcase classname="src/__tests__/core/errors.test.ts" name="EvalMatchError &gt; should create error with all properties" time="0.003464506">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="EvalMatchError &gt; should serialize to JSON properly" time="0.002793832">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="EvalMatchError &gt; should have proper toString representation" time="0.000219412">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create NetworkError with retry actions" time="0.000936826">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create AuthenticationError with auth actions" time="0.000237948">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create RateLimitError with wait action" time="0.000218631">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create ValidationError with check parameters action" time="0.000139705">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create ServerError with appropriate retry behavior" time="0.000643106">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create CircuitBreakerError with wait action" time="0.000978165">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create FirebaseAuthError with auth action" time="0.00037298">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create ValidationError for 400 status" time="0.000625263">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create AuthenticationError for 401 status" time="0.000195717">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create RateLimitError for 429 status" time="0.000158598">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create ServerError for 5xx status" time="0.00010837">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create NetworkError for no status" time="0.000089996">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should handle file size errors (413)" time="0.000069406">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should handle unsupported media type (415)" time="0.000064879">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create CircuitBreakerError" time="0.00016733">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create FirebaseAuthError" time="0.000127754">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should enrich context for unknown status codes" time="0.000247441">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/core/interceptors.test.ts" timestamp="2025-09-19T06:25:39.018Z" hostname="EWS" tests="22" failures="2" errors="0" skipped="0" time="0.021238425">
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should manage request interceptors" time="0.001989115">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should manage response interceptors" time="0.000397099">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should manage error interceptors" time="0.000628246">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should process request through interceptors" time="0.001661823">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should process response through interceptors" time="0.000749913">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should clear all interceptors" time="0.000707588">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; requestId &gt; should add request ID to headers" time="0.000169462">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; userAgent &gt; should add user agent header" time="0.004269239">
+            <failure message="expected undefined to be &apos;EvalMatch-SDK/2.0.0 (TypeScript)&apos; // Object.is equality" type="AssertionError">
+AssertionError: expected undefined to be &apos;EvalMatch-SDK/2.0.0 (TypeScript)&apos; // Object.is equality
+
+- Expected: 
+&quot;EvalMatch-SDK/2.0.0 (TypeScript)&quot;
+
++ Received: 
+undefined
+
+ ❯ src/__tests__/core/interceptors.test.ts:134:44
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; userAgent &gt; should use default version" time="0.000919845">
+            <failure message="expected undefined to be &apos;EvalMatch-SDK/1.0.0 (TypeScript)&apos; // Object.is equality" type="AssertionError">
+AssertionError: expected undefined to be &apos;EvalMatch-SDK/1.0.0 (TypeScript)&apos; // Object.is equality
+
+- Expected: 
+&quot;EvalMatch-SDK/1.0.0 (TypeScript)&quot;
+
++ Received: 
+undefined
+
+ ❯ src/__tests__/core/interceptors.test.ts:144:44
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; timeout &gt; should set timeout when not provided" time="0.000289946">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; timeout &gt; should not override existing timeout" time="0.000245877">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; authentication &gt; should add auth header when token available" time="0.000286003">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; authentication &gt; should not add auth header when token not available" time="0.000141215">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; contentType &gt; should set JSON content type for object data" time="0.00012412">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; contentType &gt; should not set content type for FormData" time="0.000190303">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; contentType &gt; should not override existing content type" time="0.000064514">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; responseTiming &gt; should log warning for slow responses" time="0.000503174">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; responseTiming &gt; should not log for fast responses" time="0.00019295">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; errorLogging &gt; should log error details when debug enabled" time="0.001444365">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; errorLogging &gt; should not log when debug disabled" time="0.000379562">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="createDefaultInterceptors &gt; should create default interceptor sets" time="0.000799893">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="createDefaultInterceptors &gt; should configure interceptors with proper parameters" time="0.000229149">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/core/retry-client.test.ts" timestamp="2025-09-19T06:25:39.023Z" hostname="EWS" tests="11" failures="5" errors="0" skipped="0" time="0.317393703">
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="CircuitBreaker &gt; should start in CLOSED state" time="0.001684594">
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="CircuitBreaker &gt; should open after threshold failures" time="0.001762457">
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="CircuitBreaker &gt; should transition to HALF_OPEN after timeout" time="0.00653475">
+            <failure message="expected &apos;open&apos; to be &apos;half-open&apos; // Object.is equality" type="AssertionError">
+AssertionError: expected &apos;open&apos; to be &apos;half-open&apos; // Object.is equality
+
+Expected: &quot;half-open&quot;
+Received: &quot;open&quot;
+
+ ❯ src/__tests__/core/retry-client.test.ts:65:39
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="CircuitBreaker &gt; should reset to CLOSED after successful operations in HALF_OPEN" time="0.001441822">
+            <failure message="expected &apos;open&apos; to be &apos;half-open&apos; // Object.is equality" type="AssertionError">
+AssertionError: expected &apos;open&apos; to be &apos;half-open&apos; // Object.is equality
+
+Expected: &quot;half-open&quot;
+Received: &quot;open&quot;
+
+ ❯ src/__tests__/core/retry-client.test.ts:94:39
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should make successful requests" time="0.050442712">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/health
+
+            </system-out>
+            <failure message="expected { status: &apos;healthy&apos;, …(3) } to deeply equal { success: true, data: { …(3) }, …(1) }" type="AssertionError">
+AssertionError: expected { status: &apos;healthy&apos;, …(3) } to deeply equal { success: true, data: { …(3) }, …(1) }
+
+- Expected
++ Received
+
+  {
+-   &quot;data&quot;: {
+    &quot;status&quot;: &quot;healthy&quot;,
++   &quot;timestamp&quot;: Any&lt;String&gt;,
+    &quot;uptime&quot;: 12345,
+    &quot;version&quot;: &quot;1.0.0&quot;,
+-   },
+-   &quot;success&quot;: true,
+-   &quot;timestamp&quot;: Any&lt;String&gt;,
+  }
+
+ ❯ src/__tests__/core/retry-client.test.ts:133:27
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should retry on server errors" time="0.020502355">
+            <failure message="HTTP 500 Error: Request failed with status code 500 (after 1 attempts)" type="HTTPError">
+HTTPError: HTTP 500 Error: Request failed with status code 500 (after 1 attempts)
+ ❯ RetryableHTTPClient.enrichError src/core/retry-client.ts:283:29
+ ❯ src/core/retry-client.ts:176:38
+ ❯ Axios.request node_modules/axios/lib/core/Axios.js:45:41
+ ❯ RetryableHTTPClient.retryWithBackoff src/core/retry-client.ts:197:16
+ ❯ CircuitBreaker.execute src/core/retry-client.ts:48:22
+ ❯ src/__tests__/core/retry-client.test.ts:162:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { status: 500, statusText: &apos;Internal Server Error&apos;, data: { error: &apos;Internal server error&apos; }, requestId: &apos;req_1758263133919_4holvw08v&apos;, duration: +0, attempts: 1, originalError: { message: &apos;Request failed with status code 500&apos;, name: &apos;AxiosError&apos;, description: undefined, number: undefined, fileName: undefined, lineNumber: undefined, columnNumber: undefined, stack: &apos;AxiosError: Request failed with status code 500\n    at settle (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/core/settle.js:19:12)\n    at XMLHttpRequest.onloadend (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/adapters/xhr.js:59:7)\n    at XMLHttpRequest.methodCall (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:207:20)\n    at Proxy.&lt;anonymous&gt; (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/utils/createProxy.ts:93:29)\n    at XMLHttpRequestController.trigger (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:631:16)\n    at finalizeResponse (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:421:12)\n    at readNextResponseBodyChunk (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:437:11)&apos;, config: { transitional: { silentJSONParsing: true, forcedJSONParsing: true, clarifyTimeoutError: false }, adapter: [ &apos;xhr&apos;, &apos;http&apos;, &apos;fetch&apos; ], transformRequest: [ &apos;Function&lt;transformRequest&gt;&apos; ], transformResponse: [ &apos;Function&lt;transformResponse&gt;&apos; ], timeout: +0, xsrfCookieName: &apos;XSRF-TOKEN&apos;, xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;, maxContentLength: -1, maxBodyLength: -1, env: { FormData: &apos;Function&lt;FormData&gt;&apos;, Blob: &apos;Function&lt;Blob&gt;&apos; }, validateStatus: &apos;Function&lt;validateStatus&gt;&apos;, headers: { Accept: &apos;application/json, text/plain, */*&apos; }, baseURL: &apos;https://api.test.evalmatch.com&apos;, method: &apos;get&apos;, url: &apos;/retry-test?attempt=0&apos;, allowAbsoluteUrls: true, metadata: { requestId: &apos;req_1758263133919_4holvw08v&apos;, startTime: 1758263133919, duration: +0 } }, code: &apos;ERR_BAD_RESPONSE&apos;, status: 500 }, circuitBreakerState: &apos;closed&apos; }
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should not retry on 4xx errors" time="0.028512227">
+            <system-out>
+MSW intercepted ERROR 401: GET https://api.test.evalmatch.com/error/401
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should add request metadata" time="0.005678124">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/health
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should respect circuit breaker state" time="0.155225489">
+            <system-out>
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should handle network errors" time="0.029750498">
+            <system-out>
+MSW intercepted NETWORK ERROR: GET https://api.test.evalmatch.com/network-error
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should apply exponential backoff with jitter" time="0.010303253">
+            <failure message="HTTP 500 Error: Request failed with status code 500 (after 1 attempts)" type="HTTPError">
+HTTPError: HTTP 500 Error: Request failed with status code 500 (after 1 attempts)
+ ❯ RetryableHTTPClient.enrichError src/core/retry-client.ts:283:29
+ ❯ src/core/retry-client.ts:176:38
+ ❯ Axios.request node_modules/axios/lib/core/Axios.js:45:41
+ ❯ RetryableHTTPClient.retryWithBackoff src/core/retry-client.ts:197:16
+ ❯ CircuitBreaker.execute src/core/retry-client.ts:48:22
+ ❯ src/__tests__/core/retry-client.test.ts:269:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { status: 500, statusText: &apos;Internal Server Error&apos;, data: { error: &apos;Server error&apos; }, requestId: &apos;req_1758263133919_6zyhveqvn&apos;, duration: +0, attempts: 1, originalError: { message: &apos;Request failed with status code 500&apos;, name: &apos;AxiosError&apos;, description: undefined, number: undefined, fileName: undefined, lineNumber: undefined, columnNumber: undefined, stack: &apos;AxiosError: Request failed with status code 500\n    at settle (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/core/settle.js:19:12)\n    at XMLHttpRequest.onloadend (file:///home/ews/Evalmatch/sdks/typescript/node_modules/axios/lib/adapters/xhr.js:59:7)\n    at XMLHttpRequest.methodCall (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:207:20)\n    at Proxy.&lt;anonymous&gt; (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/utils/createProxy.ts:93:29)\n    at XMLHttpRequestController.trigger (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:631:16)\n    at finalizeResponse (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:421:12)\n    at readNextResponseBodyChunk (file:///home/ews/Evalmatch/sdks/typescript/node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/XMLHttpRequestController.ts:437:11)&apos;, config: { transitional: { silentJSONParsing: true, forcedJSONParsing: true, clarifyTimeoutError: false }, adapter: [ &apos;xhr&apos;, &apos;http&apos;, &apos;fetch&apos; ], transformRequest: [ &apos;Function&lt;transformRequest&gt;&apos; ], transformResponse: [ &apos;Function&lt;transformResponse&gt;&apos; ], timeout: +0, xsrfCookieName: &apos;XSRF-TOKEN&apos;, xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;, maxContentLength: -1, maxBodyLength: -1, env: { FormData: &apos;Function&lt;FormData&gt;&apos;, Blob: &apos;Function&lt;Blob&gt;&apos; }, validateStatus: &apos;Function&lt;validateStatus&gt;&apos;, headers: { Accept: &apos;application/json, text/plain, */*&apos; }, baseURL: &apos;https://api.test.evalmatch.com&apos;, method: &apos;get&apos;, url: &apos;/backoff-test&apos;, allowAbsoluteUrls: true, metadata: { requestId: &apos;req_1758263133919_6zyhveqvn&apos;, startTime: 1758263133919, duration: +0 } }, code: &apos;ERR_BAD_RESPONSE&apos;, status: 500 }, circuitBreakerState: &apos;closed&apos; }
+            </failure>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/integration/client-integration.test.ts" timestamp="2025-09-19T06:25:39.028Z" hostname="EWS" tests="5" failures="0" errors="0" skipped="0" time="0.007150558">
+        <testcase classname="src/__tests__/integration/client-integration.test.ts" name="EvalMatchClient Integration &gt; should initialize client with proper configuration" time="0.002139359">
+        </testcase>
+        <testcase classname="src/__tests__/integration/client-integration.test.ts" name="EvalMatchClient Integration &gt; should have all expected API methods" time="0.000599456">
+        </testcase>
+        <testcase classname="src/__tests__/integration/client-integration.test.ts" name="EvalMatchClient Integration &gt; should report authenticated status" time="0.000255866">
+        </testcase>
+        <testcase classname="src/__tests__/integration/client-integration.test.ts" name="EvalMatchClient Integration &gt; should create client with default configuration" time="0.000321676">
+        </testcase>
+        <testcase classname="src/__tests__/integration/client-integration.test.ts" name="EvalMatchClient Integration &gt; should handle circuit breaker configuration" time="0.000665739">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/integration/credits.test.ts" timestamp="2025-09-19T06:25:39.029Z" hostname="EWS" tests="11" failures="0" errors="0" skipped="0" time="0.40487485">
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits Balance &gt; should fetch user credit balance successfully" time="0.088960843">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits Balance &gt; should handle balance request with throwOnError: false" time="0.038579992">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits History &gt; should fetch credit transaction history" time="0.034192832">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/history
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits History &gt; should handle pagination parameters" time="0.030797198">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/history?page=2&amp;limit=5
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits Packages &gt; should fetch available credit packages" time="0.028200194">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/packages
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Grant Beta Credits &gt; should grant beta credits successfully" time="0.033346071">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/credits/grant-beta
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Grant Beta Credits &gt; should accept optional request body" time="0.041155007">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/credits/grant-beta
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Error Handling &gt; should handle authentication errors gracefully" time="0.033809448">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Error Handling &gt; should handle network errors with proper error context" time="0.001234718">
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Client Options Support &gt; should support AbortSignal for request cancellation" time="0.037607689">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Client Options Support &gt; should support timeout option" time="0.031794663">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
+
+            </system-out>
         </testcase>
     </testsuite>
 </testsuites>

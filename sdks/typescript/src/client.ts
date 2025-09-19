@@ -1,6 +1,11 @@
 /**
  * Main EvalMatch SDK Client
  * Provides a convenient wrapper around the API with retry + circuit breaker
+ * 
+ * Note: API responses follow envelope pattern - access data via .data property:
+ * - const result = await client.resumes.list();
+ * - const resumes = result.data.resumes; // Access actual data via .data
+ * - const matchResults = analysis.data.results; // Results are in .data envelope
  */
 
 // Note: Using manual HTTP client with generated types for better control over retry logic
@@ -19,7 +24,8 @@ import type {
   PostCreditsGrantBetaData,
   PostCreditsGrantBetaResponses,
   GetHealthResponses,
-  GetSystemHealthResponses
+  GetSystemHealthResponses,
+  GetUserProfileResponses
 } from './generated/types.gen';
 import { RetryableHTTPClient, RetryConfig, CircuitBreakerConfig, CircuitBreakerState } from './core/retry-client';
 import { ErrorFactory, EvalMatchError, CircuitBreakerError } from './core/errors';
@@ -217,19 +223,53 @@ export class EvalMatchClient {
 
     /**
      * Upload a new resume
+     * Supports File/Blob in browser, Buffer/Readable in Node.js
      */
-    upload: async (file: File | Blob, options: ClientOptions = {}): Promise<Resume> => {
+    upload: async (file: File | Blob | Buffer | any, options: ClientOptions = {}): Promise<Resume> => {
       const headers = await this.getAuthHeaders();
-      const formData = new FormData();
-      formData.append('file', file);
       
-      return this.request<Resume>({
-        method: 'POST',
-        url: '/resumes',
-        data: formData,
-        // Let Axios set content-type with boundary for multipart
-        headers
-      }, options);
+      // Browser environment
+      if (typeof window !== 'undefined' && typeof FormData !== 'undefined' && (file instanceof Blob || file instanceof File)) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        return this.request<Resume>({
+          method: 'POST',
+          url: '/resumes',
+          data: formData,
+          headers
+        }, options);
+      }
+      
+      // Node.js environment - use form-data polyfill
+      try {
+        const FormDataPolyfill = (await import('form-data')).default;
+        const formData = new FormDataPolyfill();
+        
+        if (Buffer.isBuffer(file)) {
+          formData.append('file', file, { filename: 'resume.pdf' });
+        } else if (file && typeof file.pipe === 'function') {
+          // Readable stream
+          formData.append('file', file, { filename: 'resume.pdf' });
+        } else {
+          throw new Error('Unsupported file type for Node.js upload. Use Buffer or Readable stream.');
+        }
+        
+        // Merge form headers (including boundary) with auth headers
+        const nodeHeaders = { ...headers, ...formData.getHeaders() };
+        
+        return this.request<Resume>({
+          method: 'POST',
+          url: '/resumes',
+          data: formData,
+          headers: nodeHeaders
+        }, options);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('form-data')) {
+          throw new Error('form-data package required for Node.js uploads. Install with: npm install form-data');
+        }
+        throw error;
+      }
     },
 
     /**
@@ -291,6 +331,20 @@ export class EvalMatchClient {
         data: {},
         headers
       }, options);
+    },
+
+    /**
+     * Analyze resume text directly against job description text
+     * Uses v1 endpoint for consistent API responses
+     */
+    analyzeText: async (data: { resumeText: string; jobDescriptionText: string }, options: ClientOptions = {}): Promise<any> => {
+      const headers = await this.getAuthHeaders();
+      return this.request<any>({
+        method: 'POST',
+        url: '/analysis/analyze-text', // v1 endpoint
+        data,
+        headers
+      }, options);
     }
   };
 
@@ -344,6 +398,23 @@ export class EvalMatchClient {
         method: 'POST',
         url: '/credits/grant-beta',
         data: body || {},
+        headers
+      }, options);
+    }
+  };
+
+  /**
+   * User management API
+   */
+  public user = {
+    /**
+     * Get current user profile information
+     */
+    profile: async (options: ClientOptions = {}): Promise<GetUserProfileResponses[200]> => {
+      const headers = await this.getAuthHeaders();
+      return this.request<GetUserProfileResponses[200]>({
+        method: 'GET',
+        url: '/user/profile',
         headers
       }, options);
     }
