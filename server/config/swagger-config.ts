@@ -22,8 +22,18 @@ export const swaggerOptions: swaggerJsdoc.Options = {
         - Enterprise-grade security and validation
         
         ## Authentication
-        All protected endpoints require Firebase JWT authentication.
-        Include the token in the Authorization header: \`Bearer <jwt-token>\`
+        Protected endpoints support dual authentication methods:
+        
+        **Firebase JWT (Web Applications)**
+        - Include Firebase ID token: \`Authorization: Bearer <firebase-jwt>\`
+        - Obtain via Firebase Auth SDK in web/mobile applications
+        
+        **API Token (Server-to-Server)**
+        - Include EvalMatch API token: \`Authorization: Bearer <api-token>\`
+        - Generate via \`POST /api/v1/tokens/generate\` (requires Firebase auth)
+        - Format: \`em_<id>_<secret>\` for programmatic access
+        
+        Most endpoints accept either authentication method for maximum flexibility.
         
         ## Rate Limiting
         - Resume uploads: 50 requests per 15 minutes
