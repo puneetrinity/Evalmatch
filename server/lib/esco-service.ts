@@ -218,8 +218,8 @@ export class ESCOService {
         s.description,
         s.category,
         s.domain,
-        bm25(fts) as bm25_score,
-        snippet(fts, 1, '<mark>', '</mark>', '...', 32) as highlighted_text
+        bm25(esco_skills_fts) as bm25_score,
+        snippet(esco_skills_fts, 1, '<mark>', '</mark>', '...', 32) as highlighted_text
       FROM esco_skills_fts fts
       JOIN esco_skills s ON s.id = fts.rowid
       WHERE fts MATCH ? 

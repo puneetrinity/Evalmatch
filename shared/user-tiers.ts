@@ -101,7 +101,7 @@ export function getApiLimitExceededError(userTier: UserTierInfo, context: string
  */
 export function getServiceUnavailableError(userTier: UserTierInfo, serviceName: string = 'AI analysis'): Error {
   if (userTier.tier === 'premium') {
-    return new Error(`${serviceName} service is temporarily experiencing high demand. Premium users get priority access - please try again in a moment.`);
+    return new Error(`${serviceName} service is temporarily unavailable due to technical issues. Please try again in a few minutes or contact support if the issue persists.`);
   } else {
     return new Error(`${serviceName} service is currently at capacity for free tier users. Upgrade to Premium for guaranteed access and faster processing.`);
   }

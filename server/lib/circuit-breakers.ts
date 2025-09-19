@@ -20,7 +20,17 @@ const registry: Map<string, CircuitBreaker> =
  */
 export function getBreaker(name: ProviderName, options?: any): CircuitBreaker {
   if (!registry.has(name)) {
-    const breaker = new CircuitBreaker(name, options);
+    // Ensure default options if none provided
+    const defaultOptions = {
+      failureThreshold: 5,
+      windowSize: 50,
+      rtP95Ms: 6000,
+      halfOpenAfterMs: 60_000,
+      succToClose: 2,
+      shouldForceOpen: () => false
+    };
+    const finalOptions = options ? { ...defaultOptions, ...options } : defaultOptions;
+    const breaker = new CircuitBreaker(name, finalOptions);
     registry.set(name, breaker);
     logger.info(`Circuit breaker initialized: ${name}`);
   }
