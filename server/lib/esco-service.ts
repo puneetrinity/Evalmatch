@@ -222,7 +222,7 @@ export class ESCOService {
         snippet(esco_skills_fts, 1, '<mark>', '</mark>', '...', 32) as highlighted_text
       FROM esco_skills_fts fts
       JOIN esco_skills s ON s.id = fts.rowid
-      WHERE fts MATCH ? 
+      WHERE esco_skills_fts MATCH ? 
         AND s.status = 'released'
         ${domain !== 'general' ? 'AND (s.domain = ? OR s.reuse_level = "transversal")' : ''}
       ORDER BY bm25_score DESC
