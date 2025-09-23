@@ -119,6 +119,7 @@ export class EvalMatchClient {
       headers: config.headers || {},
       debug: config.debug || false,
       retries: config.retries || 2,
+      unwrapEnvelope: config.unwrapEnvelope !== false, // Default to true
       authProvider: config.authProvider,
       circuitBreaker: config.circuitBreaker
     };
@@ -166,7 +167,8 @@ export class EvalMatchClient {
     const { requestInterceptors, responseInterceptors, errorInterceptors } = 
       createDefaultInterceptors(
         () => this.authProvider.getToken(),
-        this.config.debug
+        this.config.debug,
+        this.config.unwrapEnvelope
       );
 
     // Add all default interceptors

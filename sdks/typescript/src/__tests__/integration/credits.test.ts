@@ -53,23 +53,20 @@ describe('Credits Integration', () => {
       const history = await client.credits.history();
       
       expect(history).toMatchObject({
-        success: true,
-        data: {
-          transactions: expect.arrayContaining([
-            expect.objectContaining({
-              id: expect.any(Number),
-              type: expect.stringMatching(/purchase|usage|grant/),
-              amount: expect.any(Number),
-              description: expect.any(String),
-              createdAt: expect.any(String)
-            })
-          ]),
-          currentBalance: expect.any(Number),
-          pagination: expect.objectContaining({
-            page: expect.any(Number),
-            limit: expect.any(Number)
+        transactions: expect.arrayContaining([
+          expect.objectContaining({
+            id: expect.any(Number),
+            type: expect.stringMatching(/purchase|usage|grant/),
+            amount: expect.any(Number),
+            description: expect.any(String),
+            createdAt: expect.any(String)
           })
-        }
+        ]),
+        currentBalance: expect.any(Number),
+        pagination: expect.objectContaining({
+          page: expect.any(Number),
+          limit: expect.any(Number)
+        })
       });
     });
 
@@ -79,9 +76,8 @@ describe('Credits Integration', () => {
         limit: 5 
       });
       
-      expect(history.success).toBe(true);
-      expect(history.data.pagination.page).toBe(2);
-      expect(history.data.pagination.limit).toBe(5);
+      expect(history.pagination.page).toBe(2);
+      expect(history.pagination.limit).toBe(5);
     });
   });
 
@@ -135,8 +131,6 @@ describe('Credits Integration', () => {
 
   describe('Error Handling', () => {
     it('should handle authentication errors gracefully', async () => {
-      // Since MSW returns success responses regardless of auth token,
-      // we test that the auth headers are properly set up
       const unauthClient = new EvalMatchClient({
         baseUrl: 'https://api.test.evalmatch.com',
         authProvider: {
@@ -145,9 +139,10 @@ describe('Credits Integration', () => {
         }
       });
 
-      // MSW will still return success, but we verify the client structure is correct
-      const result = await unauthClient.credits.balance();
-      expect(result.success).toBe(true); // MSW returns success
+      // Should throw an authentication error
+      await expect(unauthClient.credits.balance()).rejects.toThrow('Authentication required');
+      
+      // Verify the client structure is correct
       expect(typeof unauthClient.credits.balance).toBe('function');
     });
 

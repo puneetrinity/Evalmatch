@@ -69,7 +69,7 @@ export class CircuitBreaker {
     this.failureCount++
     this.lastFailureTime = Date.now()
 
-    if (this.failureCount >= this.config.threshold) {
+    if (this.state === CircuitBreakerState.HALF_OPEN || this.failureCount >= this.config.threshold) {
       this.state = CircuitBreakerState.OPEN
     }
   }
@@ -173,10 +173,10 @@ export class RetryableHTTPClient {
         try {
           await this.interceptorManager.processError(error, context)
         } catch (processedError) {
-          return Promise.reject(this.enrichError(processedError))
+          return Promise.reject(processedError)
         }
         
-        return Promise.reject(this.enrichError(error))
+        return Promise.reject(error)
       }
     )
   }
@@ -200,7 +200,7 @@ export class RetryableHTTPClient {
 
         // Don't retry if it's not a retryable error
         if (!this.isRetryableError(error)) {
-          throw error
+          throw this.enrichError(error, attempt + 1)
         }
 
         // Don't retry on the last attempt

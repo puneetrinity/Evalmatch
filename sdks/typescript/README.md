@@ -11,10 +11,12 @@ Official TypeScript SDK for the EvalMatch API - AI-powered recruitment platform 
 - ⚡ **Automatic retries** and request optimization
 - 📦 **Tree-shakeable** - import only what you need
 
+> **⚠️ Commercial License Required:** This SDK requires a commercial license for production use. Contact hello@airevolabs.co.in for licensing. See [LICENSE-GUIDE.md](./LICENSE-GUIDE.md) for details.
+
 ## Installation
 
 ```bash
-npm install @evalmatch/sdk
+npm install @airevolabs/evalmatch-sdk
 ```
 
 ## Quick Start
@@ -353,10 +355,24 @@ This SDK is auto-generated from the EvalMatch OpenAPI specification. For issues 
 
 ## License
 
-Commercial License - see [LICENSE](https://evalmatch.app/license) for details.
+**Commercial License Required** - This SDK requires a commercial license for production use.
+
+📄 **License Information:**
+- **Type:** Commercial/Proprietary Software
+- **Copyright:** © 2025 AiRevoLabs. All rights reserved.
+- **Usage:** Commercial license required for production
+- **Support:** Included for licensed users
+
+📞 **Get Licensed:**
+- **Contact:** hello@airevolabs.co.in
+- **Details:** See [LICENSE-GUIDE.md](./LICENSE-GUIDE.md) for complete licensing information
+- **Legal:** Full terms in [LICENSE](./LICENSE) file
+
+⚠️ **Important:** Using this SDK in production without a valid commercial license constitutes copyright infringement.
 
 ## Support
 
-- 📧 Email: api-support@evalmatch.app
-- 📖 Documentation: https://evalmatch.app/docs/api
+- 📧 Email: hello@airevolabs.co.in
+- 📖 SDK Documentation: [API Reference](./docs/API.md)
+- 🌐 Platform Documentation: https://evalmatch.app/docs/api
 - 🐛 Issues: https://github.com/puneetrinity/Evalmatch/issues

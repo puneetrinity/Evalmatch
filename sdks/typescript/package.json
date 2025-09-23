@@ -1,20 +1,27 @@
 {
-  "name": "@evalmatch/sdk",
+  "name": "@airevolabs/evalmatch-sdk",
   "version": "1.0.0",
   "description": "TypeScript SDK for EvalMatch API - AI-powered recruitment platform",
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": false,
   "main": "dist/index.js",
   "module": "dist/index.mjs",
+  "browser": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "unpkg": "dist/index.global.js",
+  "jsdelivr": "dist/index.global.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "browser": "./dist/index.mjs",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "build": "tsup src/index.ts --format cjs,esm,iife --dts --clean --minify --treeshake --sourcemap --global-name EvalMatchSDK",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -35,11 +42,11 @@
     "sdk",
     "api-client"
   ],
-  "author": "EvalMatch",
-  "license": "Commercial",
+  "author": "AiRevoLabs <hello@airevolabs.co.in>",
+  "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
-    "url": "https://github.com/puneetrinity/Evalmatch.git",
+    "url": "git+https://github.com/puneetrinity/Evalmatch.git",
     "directory": "sdks/typescript"
   },
   "homepage": "https://evalmatch.app",

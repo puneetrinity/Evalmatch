@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import axios, { AxiosRequestConfig } from 'axios';
 import { EvalMatchClient } from '../client';
+import { server } from './mocks/server';
 
 // Mock FormData for testing
 class MockFormData {
@@ -69,12 +70,13 @@ describe('Upload Content-Type Boundary Tests', () => {
       }
     });
 
-    // Mock axios request method
-    mockAxios = vi.spyOn(axios, 'request').mockResolvedValue({
-      data: { 
+    // Mock the client's request method directly
+    mockAxios = vi.spyOn(client as any, 'request').mockImplementation(async (config) => {
+      // Capture the request config for assertions
+      return { 
         success: true, 
         data: { id: 1, filename: 'test.pdf' } 
-      }
+      };
     });
   });
 
@@ -97,7 +99,8 @@ describe('Upload Content-Type Boundary Tests', () => {
       // Verify request was made
       expect(mockAxios).toHaveBeenCalledTimes(1);
       
-      const requestConfig: AxiosRequestConfig = mockAxios.mock.calls[0][0];
+      expect(mockAxios.mock.calls).toHaveLength(1);
+      const requestConfig = mockAxios.mock.calls[0][0];
       
       // Should not manually set Content-Type
       expect(requestConfig.headers?.['Content-Type']).toBeUndefined();
@@ -114,7 +117,8 @@ describe('Upload Content-Type Boundary Tests', () => {
 
       await client.resumes.upload(mockFile as any);
 
-      const requestConfig: AxiosRequestConfig = mockAxios.mock.calls[0][0];
+      expect(mockAxios.mock.calls).toHaveLength(1);
+      const requestConfig = mockAxios.mock.calls[0][0];
       
       // FormData should be present
       expect(requestConfig.data).toBeInstanceOf(MockFormData);
@@ -144,7 +148,8 @@ describe('Upload Content-Type Boundary Tests', () => {
 
         await client.resumes.upload(mockFile as any);
 
-        const requestConfig: AxiosRequestConfig = mockAxios.mock.calls[0][0];
+        expect(mockAxios.mock.calls).toHaveLength(1);
+      const requestConfig = mockAxios.mock.calls[0][0];
         
         // Should never manually set Content-Type regardless of file type
         expect(requestConfig.headers?.['Content-Type']).toBeUndefined();
@@ -181,7 +186,8 @@ describe('Upload Content-Type Boundary Tests', () => {
           contentType: 'application/pdf'
         });
 
-        const requestConfig: AxiosRequestConfig = mockAxios.mock.calls[0][0];
+        expect(mockAxios.mock.calls).toHaveLength(1);
+      const requestConfig = mockAxios.mock.calls[0][0];
         
         // Should not override Content-Type even in Node.js
         expect(requestConfig.headers?.['Content-Type']).toBeUndefined();
@@ -206,7 +212,8 @@ describe('Upload Content-Type Boundary Tests', () => {
       });
 
       return client.resumes.upload(mockFile as any).then(() => {
-        const requestConfig: AxiosRequestConfig = mockAxios.mock.calls[0][0];
+        expect(mockAxios.mock.calls).toHaveLength(1);
+      const requestConfig = mockAxios.mock.calls[0][0];
         
         // Key assertion: No manual Content-Type interference
         expect(requestConfig.headers?.['Content-Type']).toBeUndefined();
@@ -227,7 +234,8 @@ describe('Upload Content-Type Boundary Tests', () => {
 
       await client.resumes.upload(mockFile as any);
 
-      const requestConfig: AxiosRequestConfig = mockAxios.mock.calls[0][0];
+      expect(mockAxios.mock.calls).toHaveLength(1);
+      const requestConfig = mockAxios.mock.calls[0][0];
       
       // Check all possible Content-Type variants are undefined
       const headers = requestConfig.headers || {};

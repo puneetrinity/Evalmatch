@@ -51,6 +51,14 @@ export interface EvalMatchConfig {
   retries?: number;
   
   /**
+   * Whether to unwrap API response envelopes automatically
+   * When true (default), returns response.data directly
+   * When false, returns full response envelope with success/data/timestamp
+   * @default true
+   */
+  unwrapEnvelope?: boolean;
+  
+  /**
    * Circuit breaker configuration
    */
   circuitBreaker?: {

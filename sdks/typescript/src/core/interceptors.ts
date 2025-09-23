@@ -284,12 +284,22 @@ export class InterceptorManager {
  */
 export function createDefaultInterceptors(
   getToken: () => Promise<string | null>,
-  debug = false
+  debug = false,
+  unwrapEnvelope = true
 ): {
   requestInterceptors: RequestInterceptor[]
   responseInterceptors: ResponseInterceptor[]
   errorInterceptors: ErrorInterceptor[]
 } {
+  const responseInterceptors = [
+    BuiltInInterceptors.responseTiming()
+  ];
+  
+  // Only add data extraction if unwrapEnvelope is enabled
+  if (unwrapEnvelope) {
+    responseInterceptors.unshift(BuiltInInterceptors.dataExtraction());
+  }
+  
   return {
     requestInterceptors: [
       BuiltInInterceptors.requestId(),
@@ -298,10 +308,7 @@ export function createDefaultInterceptors(
       BuiltInInterceptors.authentication(getToken),
       BuiltInInterceptors.contentType()
     ],
-    responseInterceptors: [
-      BuiltInInterceptors.dataExtraction(),
-      BuiltInInterceptors.responseTiming()
-    ],
+    responseInterceptors,
     errorInterceptors: [
       BuiltInInterceptors.errorLogging(debug),
       BuiltInInterceptors.rateLimitLogging()

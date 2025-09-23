@@ -131,7 +131,7 @@ describe('BuiltInInterceptors', () => {
       
       const result = interceptor(config, context)
       
-      expect(result.headers['User-Agent']).toBe('EvalMatch-SDK/2.0.0 (TypeScript)')
+      expect(result.headers['X-EvalMatch-Client']).toBe('EvalMatch-SDK/2.0.0 (TypeScript)')
     })
 
     it('should use default version', () => {
@@ -141,7 +141,7 @@ describe('BuiltInInterceptors', () => {
       
       const result = interceptor(config, context)
       
-      expect(result.headers['User-Agent']).toBe('EvalMatch-SDK/1.0.0 (TypeScript)')
+      expect(result.headers['X-EvalMatch-Client']).toBe('EvalMatch-SDK/1.0.0 (TypeScript)')
     })
   })
 
@@ -350,7 +350,7 @@ describe('createDefaultInterceptors', () => {
     const result = createDefaultInterceptors(getToken, false)
     
     expect(result.requestInterceptors).toHaveLength(5)
-    expect(result.responseInterceptors).toHaveLength(1)
+    expect(result.responseInterceptors).toHaveLength(2)
     expect(result.errorInterceptors).toHaveLength(2)
   })
 

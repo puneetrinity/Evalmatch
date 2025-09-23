@@ -35,7 +35,8 @@ describe('EvalMatchClient Basic', () => {
       baseUrl: 'https://api.test.evalmatch.com',
       authProvider: mockAuth,
       timeout: 5000,
-      retries: 2
+      retries: 2,
+      unwrapEnvelope: false
     }
     client = new EvalMatchClient(config)
   })
