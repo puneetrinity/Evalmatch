@@ -482,15 +482,24 @@ export class SkillProcessor {
   }
 
   /**
-   * Get cached regex for skill matching (performance optimization)
+   * ✅ CRITICAL FIX: Get cached regex with Node.js compatibility fallback
    */
   private getSkillRegex(skillText: string): RegExp {
     const cacheKey = skillText.toLowerCase();
     
     if (!this.regexCache.has(cacheKey)) {
       const escaped = this.escapeRegex(cacheKey);
-      const regex = new RegExp(`\\b${escaped}\\b`, 'i');
-      this.regexCache.set(cacheKey, regex);
+      
+      try {
+        // Try preferred word boundary regex
+        const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+        this.regexCache.set(cacheKey, regex);
+      } catch (error) {
+        // ✅ Fallback for Node.js compatibility: manual word boundaries
+        logger.debug(`Word boundary regex failed for "${skillText}", using fallback`, { error });
+        const fallbackRegex = new RegExp(`(^|\\W)${escaped}(\\W|$)`, 'i');
+        this.regexCache.set(cacheKey, fallbackRegex);
+      }
     }
     
     return this.regexCache.get(cacheKey)!;

@@ -421,6 +421,9 @@ async function callGroqAPI(
 
     return content;
   } catch (error) {
+    // ✅ CRITICAL FIX: Record error for conservative availability
+    recordGroqApiError(error, 'groqChatCompletion');
+    
     // Record failure for circuit breaker and retry logic
     errorHandler.recordFailure(error instanceof Error ? error : new Error(String(error)));
     logger.error("Groq API call failed", error);
@@ -558,9 +561,47 @@ interface HealthCheckCache {
 let groqHealthCache: HealthCheckCache = { result: false, timestamp: 0 };
 const HEALTH_CACHE_TTL = 60000; // 60 seconds
 
-// Real health check using models.list() API call
+// ✅ CRITICAL FIX: Conservative Groq availability - track recent errors
+const recentErrors: Date[] = [];
+const ERROR_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const ERROR_THRESHOLD = 3; // 3+ errors = unavailable
+
+// ✅ Helper function to record API errors for conservative availability
+function recordGroqApiError(error: any, context: string) {
+  const now = new Date();
+  recentErrors.push(now);
+  logger.warn('✅ GROQ API ERROR RECORDED', {
+    context,
+    error: error instanceof Error ? error.message : String(error),
+    recentErrorCount: recentErrors.length,
+    willBeUnavailableAfter: `${ERROR_THRESHOLD} errors in ${ERROR_WINDOW_MS / 60000} minutes`
+  });
+}
+
+// ✅ CRITICAL FIX: Conservative health check with error tracking
 async function checkGroqHealth(): Promise<boolean> {
   const now = Date.now();
+  
+  // ✅ IMPROVED: In-place pruning to prevent memory growth
+  const cutoff = new Date(now - ERROR_WINDOW_MS);
+  const validErrors = recentErrors.filter(errorTime => errorTime >= cutoff);
+  recentErrors.splice(0, recentErrors.length, ...validErrors);
+  const recentErrorCount = recentErrors.length;
+  
+  // ✅ Conservative policy: 3+ errors in 5 minutes = unavailable
+  if (recentErrorCount >= ERROR_THRESHOLD) {
+    groqHealthCache = { 
+      result: false, 
+      timestamp: now, 
+      error: `Too many recent errors (${recentErrorCount}/${ERROR_THRESHOLD}), marked unavailable` 
+    };
+    logger.warn('✅ CONSERVATIVE GROQ: Marked unavailable due to recent errors', {
+      recentErrorCount,
+      threshold: ERROR_THRESHOLD,
+      windowMinutes: ERROR_WINDOW_MS / 60000
+    });
+    return false;
+  }
   
   // Return cached result if still valid
   if (now - groqHealthCache.timestamp < HEALTH_CACHE_TTL) {
@@ -576,12 +617,26 @@ async function checkGroqHealth(): Promise<boolean> {
     // Test with actual API call to verify connectivity
     const models = await groq.models.list();
     const isHealthy = models.data && models.data.length > 0;
+    
+    if (isHealthy) {
+      // ✅ Clear error history on successful health check
+      recentErrors.length = 0;
+    }
+    
     groqHealthCache = { result: isHealthy, timestamp: now };
     return isHealthy;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // ✅ IMPROVED: Use recordGroqApiError for consistent tracking
+    recordGroqApiError(error, 'healthCheck');
+    
     groqHealthCache = { result: false, timestamp: now, error: errorMessage };
-    logger.warn('Groq health check failed', { error: errorMessage });
+    logger.warn('Groq health check failed', { 
+      error: errorMessage,
+      recentErrorCount: recentErrors.length,
+      willBeUnavailableAfter: `${ERROR_THRESHOLD} errors`
+    });
     return false;
   }
 }
@@ -857,6 +912,9 @@ Respond with only the JSON object, no additional text.`;
 
     return parsedResponse;
   } catch (error) {
+    // ✅ CRITICAL FIX: Record error for conservative availability
+    recordGroqApiError(error, 'analyzeResume');
+    
     logger.error("Error analyzing resume with Groq", error);
 
     // Re-throw the error instead of returning fallback response
@@ -919,6 +977,9 @@ Respond with only the JSON object, no additional text.`;
     logger.info("Job description analyzed successfully with Groq");
     return parsedResponse;
   } catch (error) {
+    // ✅ CRITICAL FIX: Record error for conservative availability  
+    recordGroqApiError(error, 'analyzeJobDescription');
+    
     logger.error("Error analyzing job description with Groq", error);
 
     // Re-throw the error instead of returning fallback response
@@ -1047,6 +1108,9 @@ Respond with only the JSON object, no additional text.`;
     );
     return parsedResponse;
   } catch (error) {
+    // ✅ CRITICAL FIX: Record error for conservative availability
+    recordGroqApiError(error, 'analyzeMatch');
+    
     logger.error("Error analyzing match with Groq", error);
 
     // Re-throw the error instead of returning fallback response
@@ -1166,6 +1230,9 @@ Generate 2-3 questions per section. Respond with only the JSON object, no additi
     logger.info("Interview script generated successfully with Groq");
     return parsedResponse;
   } catch (error) {
+    // ✅ CRITICAL FIX: Record error for conservative availability
+    recordGroqApiError(error, 'generateInterviewScript');
+    
     logger.error("Error generating interview script with Groq", error);
 
     // Re-throw the error instead of returning fallback response
@@ -1223,6 +1290,9 @@ Generate 8-12 relevant questions. Respond with only the JSON object, no addition
     logger.info("Interview questions generated successfully with Groq");
     return parsedResponse;
   } catch (error) {
+    // ✅ CRITICAL FIX: Record error for conservative availability
+    recordGroqApiError(error, 'generateInterviewQuestions');
+    
     logger.error("Error generating interview questions with Groq", error);
 
     // Re-throw the error instead of returning fallback response
@@ -1299,6 +1369,9 @@ Respond with only the JSON object, no additional text.`;
     });
     return transformedResponse;
   } catch (error) {
+    // ✅ CRITICAL FIX: Record error for conservative availability
+    recordGroqApiError(error, 'analyzeBias');
+    
     logger.error("Error analyzing bias with Groq", error);
 
     // Re-throw the error instead of returning fallback response
@@ -2193,6 +2266,9 @@ Respond with only the JSON object, no additional text.`;
     logger.info("Skill gap analysis completed successfully with Groq");
     return result;
   } catch (error) {
+    // ✅ CRITICAL FIX: Record error for conservative availability
+    recordGroqApiError(error, 'analyzeSkillGap');
+    
     logger.error("Error analyzing skill gap with Groq", error);
 
     // Re-throw the error instead of returning fallback response

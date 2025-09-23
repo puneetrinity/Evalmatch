@@ -102,8 +102,8 @@ export async function persistAuditTrail(
     const line = JSON.stringify(audit) + '\n';
     await fs.appendFile(auditPath, line, 'utf8');
   } catch (error) {
-    // Log error but don't throw - audit failures shouldn't break the analysis
-    console.error('Failed to persist audit trail:', {
+    // ✅ CRITICAL FIX: Use logger instead of console for audit errors
+    logger.error('Failed to persist audit trail', {
       analysisId: audit.analysisId,
       error: error instanceof Error ? error.message : 'Unknown error',
       path: auditPath,
@@ -152,12 +152,13 @@ export function createAnalysisAudit(params: {
 }): AuditTrail {
   const audit = generateAuditTrail({
     versions: {
-      esco: params.escoVersion || 'mock-v1',
-      embeddings: params.embeddingsVersion || 'xenova-minilm-l12-v2',
-      provider: params.provider,
-      model: params.model,
-      prompt: params.promptVersion || 'v5',
-      calibration: params.calibrationVersion || 'temp-cutoffs-2025-08-27',
+      // ✅ CRITICAL FIX: Production defaults instead of mock values
+      esco: params.escoVersion || '2024-Q4',
+      embeddings: params.embeddingsVersion || 'text-embedding-3-small',
+      provider: params.provider || 'groq',
+      model: params.model || 'llama-3.3-70b-versatile',
+      prompt: params.promptVersion || 'v5-2024.1',
+      calibration: params.calibrationVersion || '2024.1',
     },
     weights: {
       ml: params.mlWeight,

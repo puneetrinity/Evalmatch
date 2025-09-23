@@ -6,7 +6,8 @@
 // Disable automatic mocking for this test since we want to test the real implementation
 jest.unmock('../../../server/lib/skill-processor');
 
-import { SkillProcessor } from '../../../server/lib/skill-processor';
+// ✅ CRITICAL FIX: Import actual exported function instead of internal class
+import { processSkills } from '../../../server/lib/skill-processor';
 import { logger } from '../../../server/lib/logger';
 
 // Mock logger to avoid console spam during tests
@@ -20,17 +21,14 @@ jest.mock('../../../server/lib/logger', () => ({
 }));
 
 describe('Skill Processor Contamination Fixes', () => {
-  let processor: SkillProcessor;
-
   beforeEach(() => {
-    processor = SkillProcessor.getInstance();
     jest.clearAllMocks();
   });
 
   describe('Word Boundary Matching', () => {
     it('should NOT match AI in "details" or "training"', async () => {
       const text = 'I have experience with training programs and attention to details in my work.';
-      const skills = await processor.extractSkills(text, 'technology');
+      const skills = await processSkills(text, 'technology');
       
       const skillNames = skills.map(s => s.normalized || s.original);
       
@@ -42,7 +40,7 @@ describe('Skill Processor Contamination Fixes', () => {
 
     it('should NOT match PM in "3PM" or "RPM"', async () => {
       const text = 'Meeting scheduled for 3PM today. Engine runs at 3000 RPM.';
-      const skills = await processor.extractSkills(text, 'general');
+      const skills = await processSkills(text, 'general');
       
       const skillNames = skills.map(s => s.normalized || s.original);
       
@@ -52,7 +50,7 @@ describe('Skill Processor Contamination Fixes', () => {
 
     it('should NOT match TS in "cats" or "meets"', async () => {
       const text = 'She meets clients and works with cats in veterinary practice.';
-      const skills = await processor.extractSkills(text, 'general');
+      const skills = await processSkills(text, 'general');
       
       const skillNames = skills.map(s => s.normalized || s.original);
       
@@ -62,7 +60,7 @@ describe('Skill Processor Contamination Fixes', () => {
 
     it('should STILL match actual AI, PM, TS when used as real skills', async () => {
       const text = 'I work with AI systems, manage PM processes, and code in TypeScript.';
-      const skills = await processor.extractSkills(text, 'technology');
+      const skills = await processSkills(text, 'technology');
       
       const skillNames = skills.map(s => s.normalized || s.original);
       
@@ -76,7 +74,7 @@ describe('Skill Processor Contamination Fixes', () => {
   describe('Domain Filtering', () => {
     it('should skip technical skills for HR domain', async () => {
       const text = 'HR recruiter with JavaScript and React experience, excellent communication skills.';
-      const skills = await processor.extractSkills(text, 'hr');
+      const skills = await processSkills(text, 'hr');
       
       const skillNames = skills.map(s => s.normalized || s.original);
       
@@ -91,7 +89,7 @@ describe('Skill Processor Contamination Fixes', () => {
 
     it('should skip pharmaceutical skills for technology domain', async () => {
       const text = 'Software developer with GMP knowledge and FDA regulations experience, Python skills.';
-      const skills = await processor.extractSkills(text, 'technology');
+      const skills = await processSkills(text, 'technology');
       
       const skillNames = skills.map(s => s.normalized || s.original);
       
@@ -106,7 +104,7 @@ describe('Skill Processor Contamination Fixes', () => {
 
     it('should allow all skills for pharmaceutical domain', async () => {
       const text = 'Pharmaceutical scientist with Python programming, GMP compliance, and FDA regulations.';
-      const skills = await processor.extractSkills(text, 'pharmaceutical');
+      const skills = await processSkills(text, 'pharmaceutical');
       
       const skillNames = skills.map(s => s.normalized || s.original);
       
@@ -119,8 +117,8 @@ describe('Skill Processor Contamination Fixes', () => {
     it('should allow all skills for auto/general domain (backward compatibility)', async () => {
       const text = 'Professional with JavaScript, GMP, and communication skills.';
       
-      const autoSkills = await processor.extractSkills(text, 'auto');
-      const generalSkills = await processor.extractSkills(text, 'general');
+      const autoSkills = await processSkills(text, 'auto');
+      const generalSkills = await processSkills(text, 'general');
       
       const autoNames = autoSkills.map(s => s.normalized || s.original);
       const generalNames = generalSkills.map(s => s.normalized || s.original);
@@ -139,7 +137,7 @@ describe('Skill Processor Contamination Fixes', () => {
   describe('Regex Safety & Performance', () => {
     it('should handle special regex characters safely', async () => {
       const text = 'Experience with C++ and .NET framework, jQuery.';
-      const skills = await processor.extractSkills(text, 'technology');
+      const skills = await processSkills(text, 'technology');
       
       // Should not throw errors and should handle special chars
       expect(skills).toBeDefined();
@@ -153,11 +151,11 @@ describe('Skill Processor Contamination Fixes', () => {
       const text2 = 'Python developer with JavaScript knowledge.';
       
       // First call - should create regex cache
-      await processor.extractSkills(text1, 'technology');
+      await processSkills(text1, 'technology');
       
       // Second call - should use cached regex (faster)
       const start = Date.now();
-      await processor.extractSkills(text2, 'technology');
+      await processSkills(text2, 'technology');
       const end = Date.now();
       
       // Should complete quickly (cached regex)
@@ -169,7 +167,7 @@ describe('Skill Processor Contamination Fixes', () => {
       
       // Should not throw errors even with unusual text patterns
       expect(async () => {
-        await processor.extractSkills(text, 'technology');
+        await processSkills(text, 'technology');
       }).not.toThrow();
     });
   });
@@ -177,7 +175,7 @@ describe('Skill Processor Contamination Fixes', () => {
   describe('Integration with Existing System', () => {
     it('should maintain ESCO integration', async () => {
       const text = 'Software developer with JavaScript and communication skills.';
-      const skills = await processor.extractSkills(text, 'technology');
+      const skills = await processSkills(text, 'technology');
       
       // Should extract skills (combination of ESCO + local dictionary)
       expect(skills.length).toBeGreaterThan(0);
@@ -188,7 +186,7 @@ describe('Skill Processor Contamination Fixes', () => {
 
     it('should work with learning system validation', async () => {
       const text = 'Senior developer with React, TypeScript and team leadership.';
-      const skills = await processor.extractSkills(text, 'technology');
+      const skills = await processSkills(text, 'technology');
       
       // Should return properly structured skills for learning system
       skills.forEach(skill => {
@@ -213,7 +211,7 @@ describe('Skill Processor Contamination Fixes', () => {
         Must demonstrate attention to details and ability to work with diverse teams.
       `;
       
-      const skills = await processor.extractSkills(hrJob, 'hr');
+      const skills = await processSkills(hrJob, 'hr');
       const skillNames = skills.map(s => s.normalized || s.original);
       
       // Should NOT contain any technical skills
@@ -235,7 +233,7 @@ describe('Skill Processor Contamination Fixes', () => {
         agile development methodologies required.
       `;
       
-      const skills = await processor.extractSkills(techJob, 'technology');
+      const skills = await processSkills(techJob, 'technology');
       const skillNames = skills.map(s => s.normalized || s.original);
       
       // Should NOT contain pharmaceutical skills

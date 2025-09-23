@@ -25,7 +25,25 @@ export class GroqAdapter implements ProviderAdapter {
   }
 
   isAvailable(): boolean {
-    return !!config.ai.providers.groq.apiKey && config.ai.providers.groq.enabled;
+    // ✅ CRITICAL FIX: Conservative Groq availability with health checks
+    const basicAvailability = !!config.ai.providers.groq.apiKey && config.ai.providers.groq.enabled;
+    
+    // Conservative check: if too many recent errors, consider unavailable
+    const recentErrorThreshold = 3;
+    const errorTimeWindow = 5 * 60 * 1000; // 5 minutes
+    const now = Date.now();
+    
+    // If we had recent errors, be more conservative
+    if (this.lastError && (now - this.lastError.getTime()) < errorTimeWindow && this.errorCount >= recentErrorThreshold) {
+      logger.warn('✅ CONSERVATIVE GROQ: Too many recent errors, marking unavailable', {
+        errorCount: this.errorCount,
+        lastError: this.lastError,
+        threshold: recentErrorThreshold
+      });
+      return false;
+    }
+    
+    return basicAvailability;
   }
 
   getHealthStatus() {

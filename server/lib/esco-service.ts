@@ -225,7 +225,7 @@ export class ESCOService {
       WHERE esco_skills_fts MATCH ? 
         AND s.status = 'released'
         ${domain !== 'general' ? 'AND (s.domain = ? OR s.reuse_level = "transversal")' : ''}
-      ORDER BY bm25_score DESC
+      ORDER BY bm25_score ASC
       LIMIT ?
     `;
     
@@ -310,14 +310,14 @@ export class ESCOService {
         const skillText = `${skill.skillTitle} ${skill.alternativeLabel}`.toLowerCase();
         
         if (pattern.test(skillText)) {
-          const allowedContexts = guard.allowed_contexts.split(',');
-          const blockedDomains = guard.blocked_domains.split(',');
+          const allowedContexts = guard.allowed_contexts.split(',').map((ctx: string) => ctx.trim().toLowerCase());
+          const blockedDomains = guard.blocked_domains.split(',').map((domain: string) => domain.trim().toLowerCase());
           
           // Check if current domain is blocked for this skill
-          if (blockedDomains.includes(domain)) {
+          if (blockedDomains.includes(domain.toLowerCase())) {
             // Check if skill appears in allowed context within original text
             const hasValidContext = allowedContexts.some((context: string) => 
-              originalText.toLowerCase().includes(context)
+              originalText.toLowerCase().includes(context.trim().toLowerCase())
             );
             
             if (!hasValidContext) {
@@ -368,18 +368,47 @@ export class ESCOService {
         score *= 1.1;
       }
       
+      // ✅ IMPROVED: Short-skill context gating for titles AND alternative labels
+      const shortSkills = ['c', 'r', 'go', 'c++', 'c#', 'rust', 'swift'];
+      const altLabels = skill.alternativeLabel ? skill.alternativeLabel.toLowerCase().split(',').map(l => l.trim()) : [];
+      const isShortSkill = shortSkills.includes(skillText) || altLabels.some(alt => shortSkills.includes(alt));
+      
+      if (isShortSkill) {
+        const programmingContext = /\b(programming|language|developer|software|coding|engineer|development|code)\b/i;
+        if (!programmingContext.test(normalizedText)) {
+          // Significantly penalize short skills without programming context
+          score = Math.min(score, 0.2);
+        }
+      }
+      
       return { ...skill, matchScore: Math.min(1.0, score) };
     }).sort((a, b) => b.matchScore - a.matchScore);
   }
 
   /**
-   * Check if skill appears with meaningful context
+   * ✅ CRITICAL FIX: Enhanced context validation with short skill protection
    */
   private hasSkillContext(text: string, skill: string): boolean {
     const contextWords = [
       'experience', 'knowledge', 'expertise', 'proficient', 'skilled',
-      'familiar', 'understanding', 'background', 'years', 'strong'
+      'familiar', 'understanding', 'background', 'years', 'strong',
+      'working', 'using', 'developing', 'building', 'creating'
     ];
+    
+    // ✅ Enhanced validation for short skills (protect C, R, etc.)
+    if (skill.length <= 2) {
+      // For very short skills, require stronger context evidence
+      const strongContextWords = ['programming', 'language', 'years', 'experience with'];
+      const skillIndex = text.indexOf(skill);
+      if (skillIndex === -1) return false;
+      
+      // Check wider context for short skills
+      const contextBefore = text.substring(Math.max(0, skillIndex - 100), skillIndex);
+      const contextAfter = text.substring(skillIndex + skill.length, skillIndex + skill.length + 100);
+      const fullContext = (contextBefore + contextAfter).toLowerCase();
+      
+      return strongContextWords.some(word => fullContext.includes(word));
+    }
     
     const skillIndex = text.indexOf(skill);
     if (skillIndex === -1) return false;
@@ -387,17 +416,18 @@ export class ESCOService {
     // Check 50 characters before and after skill mention
     const contextBefore = text.substring(Math.max(0, skillIndex - 50), skillIndex);
     const contextAfter = text.substring(skillIndex + skill.length, skillIndex + skill.length + 50);
-    const fullContext = contextBefore + contextAfter;
+    const fullContext = (contextBefore + contextAfter).toLowerCase();
     
     return contextWords.some(word => fullContext.includes(word));
   }
 
   /**
    * Convert BM25 score to normalized 0-1 score
+   * FIXED: Proper inverted normalization - lower BM25 scores = better matches
    */
   private convertBM25ToScore(bm25Score: number, allScores?: number[]): number {
-    // BM25 scores are typically negative, with higher (less negative) being better
-    // Use min-max normalization to preserve rank separation
+    // BM25 scores: lower (more negative) = better match, higher (less negative) = worse match
+    // Invert normalization so better matches get higher scores
     if (allScores && allScores.length > 1) {
       const min = Math.min(...allScores);
       const max = Math.max(...allScores);
@@ -408,14 +438,14 @@ export class ESCOService {
         return 0.5;
       }
       
-      // Linear normalization preserving rank separation
-      const normalized = (bm25Score - min) / range;
-      return Math.max(0.1, Math.min(1.0, normalized));
+      // FIXED: Inverted normalization - lower BM25 scores get higher normalized scores
+      const inverted = (max - bm25Score) / range;
+      return Math.max(0.1, Math.min(1.0, inverted));
     } else {
-      // Fallback for single scores - improved exponential scaling
-      // Use gentler scaling to preserve more differentiation
-      const normalizedScore = Math.exp(bm25Score / 4); // Gentler scaling vs /2
-      return Math.min(1.0, Math.max(0.1, normalizedScore));
+      // ✅ IMPROVED: Logistic mapping to prevent saturation while maintaining monotonicity
+      // Lower BM25 scores get higher normalized scores
+      const logisticScore = 1 / (1 + Math.exp(bm25Score / 4));
+      return Math.min(1.0, Math.max(0.1, logisticScore));
     }
   }
 

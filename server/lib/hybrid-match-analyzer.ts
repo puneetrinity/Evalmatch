@@ -113,12 +113,22 @@ async function cleanContaminatedSkills(skills: string[], context: JobContext): P
     let isAllowed = false;
     // Check if the skill is directly in the allowed list or if an allowed skill is a word boundary match
     for (const allowed of allowedSkills) {
-        // Use word boundary regex to prevent single-letter contamination
+        // ✅ CRITICAL FIX: Node.js compatible word boundary regex with fallback
         if (allowed.length >= 3) { // Only apply word boundary for skills with 3+ chars
-          const wordBoundaryRegex = new RegExp(`\\b${allowed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-          if (wordBoundaryRegex.test(normalizedSkill)) {
-            isAllowed = true;
-            break;
+          try {
+            const wordBoundaryRegex = new RegExp(`\\b${allowed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+            if (wordBoundaryRegex.test(normalizedSkill)) {
+              isAllowed = true;
+              break;
+            }
+          } catch (error) {
+            // Fallback for Node.js compatibility: use manual word boundary check
+            const escapedAllowed = allowed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const manualBoundaryRegex = new RegExp(`(^|\\W)${escapedAllowed}(\\W|$)`, 'i');
+            if (manualBoundaryRegex.test(normalizedSkill)) {
+              isAllowed = true;
+              break;
+            }
           }
         } else {
           // For short skills, require exact match to prevent contamination
@@ -209,7 +219,7 @@ interface HybridMatchResult {
   // Task 6: Add validation metadata for comprehensive error handling
   validationMetadata?: {
     dataQualityScore: number;
-    confidenceScore: number;
+    providerConfidence?: number;  // ✅ CRITICAL FIX: Add provider confidence field
     qualityGatesPassed: boolean;
     validationTimestamp: string;
     validationVersion: string;
@@ -989,10 +999,16 @@ export class HybridMatchAnalyzer {
   /**
    * ✅ CRITICAL: Normalize ensemble weights to ensure they always sum to 1.0
    */
-  private normalizeEnsembleWeights(mlWeight: number, llmWeight: number): {ml: number, llm: number, wasNormalized: boolean} {
-    // Clamp raw inputs to non-negative
-    const rawML = Math.max(0, mlWeight);
-    const rawLLM = Math.max(0, llmWeight);
+  private normalizeEnsembleWeights(mlWeight: number, llmWeight: number, mlFailed?: boolean, llmFailed?: boolean): {ml: number, llm: number, wasNormalized: boolean} {
+    // ✅ CRITICAL FIX: Short-circuit for provider failures to prevent phantom weights
+    if (mlFailed && llmFailed) {
+      logger.warn("Both providers failed - returning zero weights");
+      return { ml: 0, llm: 0, wasNormalized: true };
+    }
+    
+    // Zero out failed providers to prevent phantom ML weights
+    const rawML = mlFailed ? 0 : Math.max(0, mlWeight);
+    const rawLLM = llmFailed ? 0 : Math.max(0, llmWeight);
 
     const mlCap = getMLWeightCap();
     const llmCap = getLLMWeightCap();
@@ -1215,8 +1231,13 @@ export class HybridMatchAnalyzer {
     // Research-backed weighting strategy (Spotify 2024)
     const rawWeights = this.calculateEnsembleWeights(mlScore, biasAdjustedLLMScore, mlConfidence, llmConfidence);
     
-    // ✅ CRITICAL: Normalize weights to ensure exact 1.0 sum
-    const normalizedWeights = this.normalizeEnsembleWeights(rawWeights.ml, rawWeights.llm);
+    // ✅ CRITICAL: Normalize weights with failure awareness to prevent phantom ML weights
+    const normalizedWeights = this.normalizeEnsembleWeights(
+      rawWeights.ml, 
+      rawWeights.llm,
+      mlFailureResult.failed,
+      llmFailureResult.failed
+    );
     
     logger.info("🔄 HYBRID BLENDING PROCESS", {
       mlScore,
@@ -1246,7 +1267,10 @@ export class HybridMatchAnalyzer {
       mlWeight: normalizedWeights.ml,
       llmWeight: normalizedWeights.llm,
       weightSum: normalizedWeights.ml + normalizedWeights.llm,
-      improvement: blendedMatchPercentage - mlScore,
+      // ✅ CRITICAL FIX: Replace single improvement with baseline + specific improvements
+      baselineScore: Math.max(mlScore, biasAdjustedLLMScore), // Best individual provider
+      improvementVsML: blendedMatchPercentage - mlScore,
+      improvementVsLLM: blendedMatchPercentage - biasAdjustedLLMScore,
       biasAdjustment: biasResult ? llmScore - biasAdjustedLLMScore : 0,
       failureDetection: {
         mlFailed: mlScore <= getFailureThreshold(),
@@ -1429,8 +1453,9 @@ export class HybridMatchAnalyzer {
       semanticAlignment: dataQualityFactors.semanticAlignment
     });
     
-    // Update result with enhanced confidence
-    result.confidence = enhancedConfidence;
+    // ✅ CRITICAL FIX: Preserve provider confidence, use validationMetadata for data quality
+    // Don't overwrite provider confidence - maintain original provider insight
+    const originalProviderConfidence = result.confidence;
     const level = getConfidenceLevel(enhancedConfidence);
     result.confidenceLevel = level === 'excellent' ? 'high' : level;
     
@@ -1452,10 +1477,10 @@ export class HybridMatchAnalyzer {
     // Task 8: Apply unified match quality thresholds
     result.matchQuality = getMatchQualityLevel(result.matchPercentage ?? 0);
     
-    // Task 6: Add comprehensive validation metadata
+    // ✅ CRITICAL FIX: Use validationMetadata structure to preserve provider confidence
     result.validationMetadata = {
-      dataQualityScore: dataQualityFactors.dataQuality,
-      confidenceScore: enhancedConfidence,
+      dataQualityScore: enhancedConfidence,  // Enhanced confidence goes here
+      providerConfidence: originalProviderConfidence,  // Preserve original provider confidence
       qualityGatesPassed: enhancedConfidence >= confidenceThreshold,
       validationTimestamp: new Date().toISOString(),
       validationVersion: "2024.1"
@@ -1466,7 +1491,7 @@ export class HybridMatchAnalyzer {
       confidence: enhancedConfidence,
       confidenceLevel: result.confidenceLevel,
       matchQuality: result.matchQuality,
-      qualityGatesPassed: result.validationMetadata.qualityGatesPassed
+      qualityGatesPassed: result.validationMetadata?.qualityGatesPassed || false
     });
     
     return result;
