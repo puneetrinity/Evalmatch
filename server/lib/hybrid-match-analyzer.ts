@@ -45,6 +45,7 @@ import {
   isProviderResultFailed,
   generateProviderMetadata 
 } from "./provider-calibration";
+import { callGroq, callOpenAI, callAnthropic } from './providers/tieredAI';
 
 // Define missing types locally until they are implemented
 interface JobContext {
@@ -900,7 +901,9 @@ export class HybridMatchAnalyzer {
     resumeText?: string,
     jobText?: string,
   ): Promise<LLMAnalysisResult> {
-    const response = await groq.analyzeMatch(resumeAnalysis, jobAnalysis, resumeText, jobText);
+    const response = await callGroq(() => 
+      groq.analyzeMatch(resumeAnalysis, jobAnalysis, resumeText, jobText)
+    );
     
     // Groq.analyzeMatch returns MatchAnalysisResponse directly, not wrapped in results array
     if (!response) {
@@ -925,7 +928,9 @@ export class HybridMatchAnalyzer {
     resumeAnalysis: AnalyzeResumeResponse,
     jobAnalysis: AnalyzeJobDescriptionResponse,
   ): Promise<LLMAnalysisResult> {
-    const response = await openai.analyzeMatch(resumeAnalysis, jobAnalysis);
+    const response = await callOpenAI(() => 
+      openai.analyzeMatch(resumeAnalysis, jobAnalysis)
+    );
     
     // OpenAI.analyzeMatch returns MatchAnalysisResponse directly, not wrapped in results array
     if (!response) {
@@ -950,7 +955,9 @@ export class HybridMatchAnalyzer {
     resumeAnalysis: AnalyzeResumeResponse,
     jobAnalysis: AnalyzeJobDescriptionResponse,
   ): Promise<LLMAnalysisResult> {
-    const response = await anthropic.analyzeMatch(resumeAnalysis, jobAnalysis);
+    const response = await callAnthropic(() => 
+      anthropic.analyzeMatch(resumeAnalysis, jobAnalysis)
+    );
     
     // Anthropic.analyzeMatch returns MatchAnalysisResponse directly, not wrapped in results array
     if (!response) {
@@ -1471,7 +1478,7 @@ export class HybridMatchAnalyzer {
       });
       
       // Task 3: Fallback mechanism when confidence is too low
-      result = await this.applyLowConfidenceFallback(result, dataQualityFactors);
+      result = await this.applyLowConfidenceFallback(result, dataQualityFactors, enhancedConfidence);
     }
     
     // Task 8: Apply unified match quality thresholds
@@ -1631,7 +1638,8 @@ export class HybridMatchAnalyzer {
    */
   private async applyLowConfidenceFallback(
     result: HybridMatchResult,
-    dataQualityFactors: { dataQuality: number }
+    dataQualityFactors: { dataQuality: number },
+    enhancedConfidence: number
   ): Promise<HybridMatchResult> {
     
     logger.info("Applying low confidence fallback mechanisms", {
@@ -1641,7 +1649,7 @@ export class HybridMatchAnalyzer {
     
     // Conservative scoring adjustment for low confidence matches (skip for abstain cases)
     if (result.matchPercentage !== null && result.matchPercentage > 70) {
-      const adjustment = (result.matchPercentage - 70) * 0.3; // Reduce high scores by 30% of excess
+      const adjustment = (result.matchPercentage - 70) * 0.2; // Reduce high scores by 20% of excess (less aggressive)
       result.matchPercentage = Math.max(70, result.matchPercentage - adjustment);
       logger.info("Applied conservative scoring adjustment", {
         reduction: adjustment,
@@ -1654,8 +1662,19 @@ export class HybridMatchAnalyzer {
       "⚠️ This match has lower confidence due to limited data quality. Review carefully."
     );
     
-    // Set confidence level explicitly
-    result.confidenceLevel = "low";
+    // Set confidence level to "low" only if enhancedConfidence is below 0.5
+    // Otherwise preserve the computed confidence level
+    if (enhancedConfidence < 0.5) {
+      result.confidenceLevel = "low";
+      logger.info("Confidence level set to 'low' due to very low enhanced confidence", {
+        enhancedConfidence
+      });
+    } else {
+      logger.info("Preserving computed confidence level despite fallback", {
+        enhancedConfidence,
+        computedLevel: result.confidenceLevel
+      });
+    }
     
     return result;
   }

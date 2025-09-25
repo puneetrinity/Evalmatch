@@ -83,7 +83,9 @@ export class CircuitBreaker {
         this._notifyStateChange();
       }
       
-      if (this.p95() < this._opts.rtP95Ms && this.fails < this._opts.failureThreshold) {
+      // Guard against premature closure in half-open state
+      // Half-open state should only close via succToClose mechanism above
+      if (this.state !== 'half-open' && this.p95() < this._opts.rtP95Ms && this.fails < this._opts.failureThreshold) {
         const newState = 'closed';
         if (this.state !== newState) {
           this.state = newState;

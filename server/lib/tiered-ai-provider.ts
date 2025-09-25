@@ -5,7 +5,7 @@ import { config } from "../config/unified-config";
 import { logger } from "./logger";
 import { AI_PROVIDER_CONFIG, UNIFIED_SCORING_WEIGHTS as _UNIFIED_SCORING_WEIGHTS } from "./unified-scoring-config";
 import { getBreaker } from "./circuit-breakers";
-import { getMemoryPressure } from "./memory-monitor";
+import { getMemoryPressure } from "../observability/health-snapshot";
 import {
   AnalyzeResumeResponse,
   AnalyzeJobDescriptionResponse,
@@ -56,9 +56,9 @@ const isGroqConfigured = !!process.env.GROQ_API_KEY;
 const isOpenAIConfigured = !!process.env.OPENAI_API_KEY;
 
 // Memory pressure monitoring for circuit breaker force-open
+// Uses health-snapshot 'critical' threshold (~90%) instead of memory-monitor 'high' (~80%)
 function forceOpen(): boolean {
-  const memoryPressure = getMemoryPressure();
-  return memoryPressure.isHighPressure;
+  return getMemoryPressure() === 'critical';
 }
 
 // Get singleton circuit breakers with memory pressure integration

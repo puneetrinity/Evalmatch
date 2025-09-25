@@ -361,7 +361,7 @@ export function loadUnifiedConfig(): AppConfig {
       mlWeightCap: parseFloat(process.env.HYBRID_ML_WEIGHT_CAP || '0.4'),        // Align to existing ML_MAX
       llmWeightCap: parseFloat(process.env.HYBRID_LLM_WEIGHT_CAP || '0.8'),      // Align to existing LLM_MAX
       biasAdjustmentLimit: parseFloat(process.env.HYBRID_BIAS_LIMIT || '0.1'),   // From BIAS_DETECTION_CONFIG
-      confidenceFloor: parseFloat(process.env.HYBRID_CONFIDENCE_FLOOR || '0.75'), // Aligned with CONFIDENCE_THRESHOLDS.MINIMUM_VIABLE
+      confidenceFloor: parseFloat(process.env.HYBRID_CONFIDENCE_FLOOR || '0.70'), // Reduced from 0.75 to decrease fallback triggers
     },
     features: {
       enableBiasAdjustment: process.env.HYBRID_BIAS_ADJUSTMENT === 'true',        // Default false
