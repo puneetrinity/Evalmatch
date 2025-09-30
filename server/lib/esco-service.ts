@@ -53,8 +53,9 @@ export class ESCOService {
       path.resolve(cwd, 'server/data/esco_skills.db'),           // Development
       path.resolve(cwd, 'build/server/data/esco_skills.db'),     // Local build
       path.resolve(cwd, '../server/data/esco_skills.db'),        // Production alternative 1
-      path.resolve('/app/server/data/esco_skills.db'),           // Production alternative 2
-      path.resolve('/app/build/server/data/esco_skills.db'),     // Production alternative 3
+      path.resolve('/app/server/data/esco_skills.db'),           // Production Dockerfile
+      path.resolve('/app/build/server/data/esco_skills.db'),     // Production build output
+      path.resolve('/app/dist/server/data/esco_skills.db'),      // Nixpacks dist fallback
     ];
     
     // Find the first path that exists
@@ -144,7 +145,14 @@ export class ESCOService {
       return result;
       
     } catch (error) {
-      logger.error('ESCO skill extraction failed:', error);
+      logger.error('ESCO skill extraction failed:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        dbPath: this.dbPath,
+        dbExists: fs.existsSync(this.dbPath),
+        textLength: text.length,
+        domain,
+        stack: error instanceof Error ? error.stack : undefined
+      });
       return {
         success: false,
         skills: [],

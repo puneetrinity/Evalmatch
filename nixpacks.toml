@@ -12,7 +12,11 @@ cmds = [
     "npm run build",
     "mkdir -p dist/migrations",
     "cp -v server/migrations/*.sql dist/migrations/",
-    "ls -la dist/migrations/"
+    "ls -la dist/migrations/",
+    # Ensure ESCO SQLite DB is present at runtime when using Nixpacks
+    "mkdir -p build/server/data",
+    "cp -v server/data/esco_skills.db build/server/data/ || true",
+    "ls -la build/server/data/ || true"
 ]
 
 [phases.start]
