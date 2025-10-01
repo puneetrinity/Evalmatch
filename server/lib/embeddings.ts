@@ -50,28 +50,43 @@ async function initializeEmbeddingPipeline(): Promise<FeatureExtractionPipeline>
 /**
  * Generate embeddings for text using local model
  * Falls back to OpenAI if local model fails
+ * ✅ FIX: Added timeout protection to prevent WASM crashes from killing the process
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
   // Use embedding manager for caching and memory management
   return embeddingManager.getEmbedding(text, async (textToEmbed) => {
     try {
-      // Try local model first
-      const pipeline = await initializeEmbeddingPipeline();
-      const result = await pipeline(textToEmbed, { pooling: "mean", normalize: true });
+      // ✅ FIX: Wrap in timeout to prevent WASM hangs from crashing the server
+      const EMBEDDING_TIMEOUT = parseInt(process.env.EMBEDDING_TIMEOUT_MS || '5000'); // 5 second timeout
 
-      // Convert to regular array
-      if (
-        result &&
-        typeof result === "object" &&
-        "data" in result &&
-        result.data
-      ) {
-        return Array.from(result.data as ArrayLike<number>);
-      } else {
-        throw new Error("Invalid embedding result format");
-      }
+      const embeddingPromise = (async () => {
+        const pipeline = await initializeEmbeddingPipeline();
+        const result = await pipeline(textToEmbed, { pooling: "mean", normalize: true });
+
+        // Convert to regular array
+        if (
+          result &&
+          typeof result === "object" &&
+          "data" in result &&
+          result.data
+        ) {
+          return Array.from(result.data as ArrayLike<number>);
+        } else {
+          throw new Error("Invalid embedding result format");
+        }
+      })();
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Embedding generation timeout - WASM likely hung')), EMBEDDING_TIMEOUT);
+      });
+
+      return await Promise.race([embeddingPromise, timeoutPromise]);
+
     } catch (error) {
-      logger.warn("Local embedding failed, falling back to OpenAI:", error);
+      logger.warn("Local embedding failed, falling back to OpenAI:", {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        isTimeout: error instanceof Error && error.message.includes('timeout')
+      });
 
       // Fallback to OpenAI embeddings
       try {
