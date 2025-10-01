@@ -44,6 +44,7 @@ export class ESCOService {
   private queryCache = new Map<string, ESCOExtractionResult>();
   private readonly CACHE_TTL = 3600000; // 1 hour
   private cacheTimestamps = new Map<string, number>();
+  private dbInitPromise: Promise<void> | null = null; // ✅ FIX #4: Race condition guard
 
   constructor() {
     const cwd = process.cwd();
@@ -78,22 +79,88 @@ export class ESCOService {
 
   /**
    * Initialize database connection
+   * ✅ FIX #4: Thread-safe initialization with promise guard
    */
   private async initializeDatabase(): Promise<void> {
-    if (!this.db) {
-      try {
-        this.db = await open({
-          filename: this.dbPath,
-          driver: sqlite3.Database,
-          mode: sqlite3.OPEN_READONLY // Read-only for production safety
-        });
-        
-        logger.info('✅ ESCO database connected (read-only)');
-      } catch (error) {
-        logger.error('❌ Failed to connect to ESCO database:', error);
-        throw new Error(`ESCO database unavailable: ${error}`);
-      }
+    // Fast path: already initialized
+    if (this.db) return;
+
+    // If initialization is in progress, wait for it
+    if (this.dbInitPromise) {
+      return this.dbInitPromise;
     }
+
+    // Start initialization and store promise
+    this.dbInitPromise = this._performDatabaseInit();
+
+    try {
+      await this.dbInitPromise;
+    } finally {
+      // Clear promise after completion (success or failure)
+      this.dbInitPromise = null;
+    }
+  }
+
+  /**
+   * Internal database initialization logic
+   */
+  private async _performDatabaseInit(): Promise<void> {
+    try {
+      this.db = await open({
+        filename: this.dbPath,
+        driver: sqlite3.Database,
+        mode: sqlite3.OPEN_READONLY // Read-only for production safety
+      });
+
+      logger.info('✅ ESCO database connected (read-only)', {
+        dbPath: this.dbPath
+      });
+    } catch (error) {
+      logger.error('❌ Failed to connect to ESCO database:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        dbPath: this.dbPath,
+        dbExists: fs.existsSync(this.dbPath)
+      });
+      throw new Error(`ESCO database unavailable: ${error}`);
+    }
+  }
+
+  /**
+   * Expose database path for diagnostics
+   */
+  public getDatabasePath(): string {
+    return this.dbPath;
+  }
+
+  /**
+   * Gather startup statistics for verification in production
+   */
+  public async getStartupStats(): Promise<{
+    dbPath: string;
+    pathExists: boolean;
+    fileSizeBytes: number;
+    totalSkills: number;
+    ftsEntries: number;
+  }> {
+    const dbPath = this.getDatabasePath();
+    const pathExists = fs.existsSync(dbPath);
+    const fileSizeBytes = pathExists ? fs.statSync(dbPath).size : 0;
+
+    let totalSkills = 0;
+    let ftsEntries = 0;
+    try {
+      await this.initializeDatabase();
+      const count1 = await this.db!.get('SELECT COUNT(*) as count FROM esco_skills');
+      const count2 = await this.db!.get('SELECT COUNT(*) as count FROM esco_skills_fts');
+      totalSkills = (count1 as any)?.count ?? 0;
+      ftsEntries = (count2 as any)?.count ?? 0;
+    } catch (error) {
+      logger.warn('ESCO startup stats query failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    return { dbPath, pathExists, fileSizeBytes, totalSkills, ftsEntries };
   }
 
   /**
@@ -145,12 +212,20 @@ export class ESCOService {
       return result;
       
     } catch (error) {
+      // ✅ FIX #5: Enhanced error logging with full diagnostic context
       logger.error('ESCO skill extraction failed:', {
         error: error instanceof Error ? error.message : 'Unknown error',
+        errorName: error instanceof Error ? error.name : 'UnknownError',
         dbPath: this.dbPath,
         dbExists: fs.existsSync(this.dbPath),
+        dbConnected: !!this.db,
+        dbInitInProgress: !!this.dbInitPromise,
         textLength: text.length,
+        textSample: text.slice(0, 100), // First 100 chars for context
         domain,
+        maxResults,
+        minScore,
+        cacheSize: this.queryCache.size,
         stack: error instanceof Error ? error.stack : undefined
       });
       return {
@@ -205,21 +280,39 @@ export class ESCOService {
 
   /**
    * Perform SQLite FTS5 search with BM25 ranking
+   * ✅ FIX #7: Includes retry logic for transient failures
    */
   private async performFTSSearch(
-    text: string, 
-    domain: string, 
+    text: string,
+    domain: string,
     maxResults: number
   ): Promise<ESCOSearchResult[]> {
     if (!this.db) throw new Error('Database not initialized');
-    
+
     // Extract search terms and clean them
     const searchTerms = this.extractSearchTerms(text);
-    const query = searchTerms.join(' OR ');
-    
+
+    // ✅ FIX #1: Quote each term for FTS5 safety (handles edge cases with dots, hyphens)
+    // FTS5 tokenization can split on dots/hyphens; quoting forces literal matching
+    const quotedTerms = searchTerms.map(term => {
+      // Escape any double quotes within the term
+      const escaped = term.replace(/"/g, '""');
+      return `"${escaped}"`;
+    });
+    const query = quotedTerms.join(' OR ');
+
+    // ✅ FIX #5: Log query construction for debugging
+    logger.debug('FTS5 query constructed', {
+      searchTermsCount: searchTerms.length,
+      searchTermsSample: searchTerms.slice(0, 10),
+      queryLength: query.length,
+      domain,
+      maxResults
+    });
+
     // FTS5 query with BM25 ranking and domain filtering
     const sql = `
-      SELECT 
+      SELECT
         s.esco_id,
         s.skill_title,
         s.alternative_label,
@@ -230,30 +323,74 @@ export class ESCOService {
         snippet(esco_skills_fts, 1, '<mark>', '</mark>', '...', 32) as highlighted_text
       FROM esco_skills_fts fts
       JOIN esco_skills s ON s.id = fts.rowid
-      WHERE esco_skills_fts MATCH ? 
+      WHERE esco_skills_fts MATCH ?
         AND s.status = 'released'
         ${domain !== 'general' ? 'AND (s.domain = ? OR s.reuse_level = "transversal")' : ''}
       ORDER BY bm25_score ASC
       LIMIT ?
     `;
-    
+
     const params = domain !== 'general' ? [query, domain, maxResults] : [query, maxResults];
-    const results = await this.db.all(sql, params);
-    
-    // Extract all BM25 scores for proper min-max normalization
-    const allBM25Scores = results.map(row => row.bm25_score);
-    
-    return results.map(row => ({
-      escoId: row.esco_id,
-      skillTitle: row.skill_title,
-      alternativeLabel: row.alternative_label || '',
-      description: row.description || '',
-      category: row.category,
-      domain: row.domain,
-      matchScore: this.convertBM25ToScore(row.bm25_score, allBM25Scores),
-      matchType: this.determineMatchType(text, row.skill_title, row.alternative_label),
-      highlightedText: row.highlighted_text
-    }));
+
+    // ✅ FIX #7: Retry logic for transient SQLite failures (SQLITE_BUSY, lock contention)
+    const maxRetries = 3;
+    const retryDelays = [50, 150, 300]; // ms - exponential backoff
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const results = await this.db.all(sql, params);
+
+        // Extract all BM25 scores for proper min-max normalization
+        const allBM25Scores = results.map(row => row.bm25_score);
+
+        return results.map(row => ({
+          escoId: row.esco_id,
+          skillTitle: row.skill_title,
+          alternativeLabel: row.alternative_label || '',
+          description: row.description || '',
+          category: row.category,
+          domain: row.domain,
+          matchScore: this.convertBM25ToScore(row.bm25_score, allBM25Scores),
+          matchType: this.determineMatchType(text, row.skill_title, row.alternative_label),
+          highlightedText: row.highlighted_text
+        }));
+      } catch (error) {
+        const isTransientError = error instanceof Error &&
+          (error.message.includes('SQLITE_BUSY') ||
+           error.message.includes('database is locked') ||
+           error.message.includes('SQLITE_LOCKED'));
+
+        // If this is the last attempt or not a transient error, throw
+        if (attempt === maxRetries || !isTransientError) {
+          // ✅ FIX #5: Enhanced error context for FTS5 query failures
+          logger.error('FTS5 query execution failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            fts5Query: query,
+            searchTermsCount: searchTerms.length,
+            searchTerms: searchTerms.slice(0, 10), // First 10 terms for debugging
+            domain,
+            maxResults,
+            textLength: text.length,
+            attemptsUsed: attempt + 1,
+            stack: error instanceof Error ? error.stack : undefined
+          });
+          throw error;
+        }
+
+        // Wait before retry
+        logger.debug('Transient SQLite error, retrying', {
+          attempt: attempt + 1,
+          maxRetries,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          delayMs: retryDelays[attempt]
+        });
+
+        await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
+      }
+    }
+
+    // Should never reach here due to throw in loop, but TypeScript needs this
+    throw new Error('FTS5 search failed after retries');
   }
 
   /**
@@ -261,7 +398,7 @@ export class ESCOService {
    */
   private extractSearchTerms(text: string): string[] {
     const normalizedText = text.toLowerCase();
-    
+
     // Remove common stop words and noise
     const stopWords = new Set([
       'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
@@ -270,19 +407,30 @@ export class ESCOService {
       'years', 'year', 'experience', 'work', 'working', 'job', 'role', 'position',
       'required', 'preferred', 'must', 'should', 'would', 'could', 'can', 'will'
     ]);
-    
+
     // Extract meaningful terms (2+ chars, not stop words)
     const terms = normalizedText
       .replace(/[^\w\s\-.]/g, ' ') // Replace special chars with space
       .split(/\s+/)
-      .filter(term => 
-        term.length >= 2 && 
-        !stopWords.has(term) && 
+      .filter(term =>
+        term.length >= 2 &&
+        !stopWords.has(term) &&
         !/^\d+$/.test(term) // Remove pure numbers
       )
       .slice(0, 20); // Limit to prevent query explosion
-    
-    return [...new Set(terms)]; // Deduplicate
+
+    const uniqueTerms = [...new Set(terms)]; // Deduplicate
+
+    // ✅ FIX #3: Guard against empty search terms
+    if (uniqueTerms.length === 0) {
+      logger.debug('Empty search terms after filtering, using fallback', {
+        textLength: text.length,
+        textSample: text.slice(0, 100)
+      });
+      return ['skill', 'experience']; // Generic fallback terms that exist in ESCO
+    }
+
+    return uniqueTerms;
   }
 
   /**
@@ -504,12 +652,23 @@ export class ESCOService {
   private setCache(key: string, result: ESCOExtractionResult): void {
     this.queryCache.set(key, result);
     this.cacheTimestamps.set(key, Date.now());
-    
-    // Limit cache size (LRU-like cleanup)
+
+    // ✅ FIX #6: Improved cache cleanup for memory pressure
+    // Delete in chunks to prevent gradual memory growth
     if (this.queryCache.size > 1000) {
-      const oldestKey = this.queryCache.keys().next().value;
-      this.queryCache.delete(oldestKey);
-      this.cacheTimestamps.delete(oldestKey);
+      const keysToDelete = Array.from(this.queryCache.keys()).slice(0, 100);
+      let deletedCount = 0;
+
+      for (const oldKey of keysToDelete) {
+        this.queryCache.delete(oldKey);
+        this.cacheTimestamps.delete(oldKey);
+        deletedCount++;
+      }
+
+      logger.debug('ESCO cache cleanup performed', {
+        deletedCount,
+        remainingSize: this.queryCache.size
+      });
     }
   }
 
@@ -572,3 +731,27 @@ export async function extractESCOSkills(
 }
 
 logger.info('✅ ESCO TypeScript service initialized (replacing Python service)');
+
+// One-time production startup verification (invoked from server startup)
+let escoStartupVerified = false;
+export async function verifyESCOServiceStartup(): Promise<void> {
+  if (escoStartupVerified) return;
+  if (process.env.NODE_ENV !== 'production') return;
+  try {
+    const service = getESCOService();
+    const stats = await service.getStartupStats();
+    logger.info('🔎 ESCO startup verification', {
+      dbPath: stats.dbPath,
+      pathExists: stats.pathExists,
+      fileSizeBytes: stats.fileSizeBytes,
+      totalSkills: stats.totalSkills,
+      ftsEntries: stats.ftsEntries,
+    });
+  } catch (error) {
+    logger.warn('ESCO startup verification failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  } finally {
+    escoStartupVerified = true;
+  }
+}
