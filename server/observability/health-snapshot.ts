@@ -27,6 +27,7 @@ let lastSnapshot: HealthSnapshot = {
 };
 
 let sampling = false;
+let samplerTimer: NodeJS.Timeout | null = null;
 
 // Event loop delay monitor
 const eld = monitorEventLoopDelay({ resolution: 20 });
@@ -107,8 +108,13 @@ function getRuntimeHealth() {
  */
 export function startHealthSampler(intervalMs: number = 2000): void {
   console.log('[health-sampler] Starting background sampling');
-  
-  setInterval(async () => {
+
+  // Clear existing timer if any
+  if (samplerTimer) {
+    clearInterval(samplerTimer);
+  }
+
+  samplerTimer = setInterval(async () => {
     if (sampling) return;
     sampling = true;
     
@@ -123,11 +129,13 @@ export function startHealthSampler(intervalMs: number = 2000): void {
     try {
       const startTime = Date.now();
       
-      // Fast Redis ping (150ms budget)
-      const redisCheck = withBudget(
-        redis.ping().then(result => result === 'PONG').catch(() => false),
-        150
-      );
+      // Fast Redis ping (150ms budget) - guard against null Redis
+      const redisCheck = redis
+        ? withBudget(
+            redis.ping().then(result => result === 'PONG').catch(() => false),
+            150
+          )
+        : Promise.resolve(false); // Redis not configured, mark as unavailable but not critical
       
       // Fast database check (just check if URL exists, no connection)
       const dbCheck = Promise.resolve({
@@ -140,10 +148,12 @@ export function startHealthSampler(intervalMs: number = 2000): void {
       
       const [redisOk, dbInfo] = await Promise.all([redisCheck, dbCheck]);
       const latency = Date.now() - startTime;
-      
+
       // Determine overall status based on comprehensive health
+      // RELIABILITY FIX: Don't mark as degraded if Redis is simply not configured
       const memoryOk = runtimeHealth.pressure === 'low' || runtimeHealth.pressure === 'medium';
-      const isHealthy = redisOk && dbInfo.ok && memoryOk;
+      const redisConfigured = !!process.env.REDIS_URL;
+      const isHealthy = (redisConfigured ? redisOk : true) && dbInfo.ok && memoryOk;
       const status = runtimeHealth.pressure === 'critical' ? 'critical' :
                     isHealthy ? 'healthy' : 'degraded';
       
@@ -151,7 +161,7 @@ export function startHealthSampler(intervalMs: number = 2000): void {
         status,
         ts: Date.now(),
         data: {
-          redis: redisOk,
+          redis: { ok: redisOk, configured: redisConfigured },
           database: dbInfo,
           runtime: runtimeHealth,
           latency,
@@ -174,6 +184,17 @@ export function startHealthSampler(intervalMs: number = 2000): void {
       sampling = false;
     }
   }, intervalMs);
+}
+
+/**
+ * Stop health sampler and clean up timer
+ */
+export function stopHealthSampler(): void {
+  if (samplerTimer) {
+    clearInterval(samplerTimer);
+    samplerTimer = null;
+    console.log('[health-sampler] Stopped background sampling');
+  }
 }
 
 /**

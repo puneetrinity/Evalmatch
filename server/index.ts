@@ -43,13 +43,11 @@ app.set('trust proxy', 1); // Use 1 for single proxy (Railway)
 // PHASE 1: EMERGENCY STABILIZATION - Fixed middleware order
 // 1) Ultra-light fast paths FIRST (no DB, no Redis, no dynamic imports)
 import { fastRoutes } from './routes/fast';
-import { readyzHandler, startHealthSampler } from './observability/health-snapshot';
+import { readyzHandler, startHealthSampler, stopHealthSampler } from './observability/health-snapshot';
 
 fastRoutes(app); // Adds X-Fast-Path headers, bypasses ALL middleware
 
-// 2) Crash shields (see errors instead of 502 loops)
-process.on('unhandledRejection', r => console.error('[unhandledRejection]', r));
-process.on('uncaughtException', e => console.error('[uncaughtException]', e));
+// REMOVED: Duplicate crash shields - now handled by initializeGlobalErrorHandling()
 
 // Generate CSP nonce for each request
 app.use((req, res, next) => {
@@ -57,14 +55,23 @@ app.use((req, res, next) => {
   next();
 });
 
-// Security middleware with improved CSP (nonce-based)
+// Security middleware with nonce-based CSP (XSS protection)
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "https://www.gstatic.com", "https://www.googleapis.com", "'unsafe-inline'", "data:"],
-      scriptSrcAttr: ["'unsafe-inline'"],
+      styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"], // Keep unsafe-inline for styles (common practice)
+      // SECURITY FIX: Use nonce instead of 'unsafe-inline' for scripts
+      scriptSrc: [
+        "'self'",
+        "https://www.gstatic.com",
+        "https://www.googleapis.com",
+        (req, res) => `'nonce-${res.locals.nonce}'`, // Use generated nonce
+        "data:"
+      ],
+      scriptSrcAttr: [
+        (req, res) => `'nonce-${res.locals.nonce}'` // Remove 'unsafe-inline', use nonce
+      ],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
       connectSrc: ["'self'", "https:", "wss:", "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
@@ -88,7 +95,7 @@ app.use(helmet({
   },
   noSniff: true,
   frameguard: { action: 'deny' },
-  xssFilter: true,
+  // SECURITY FIX: Remove deprecated xssFilter (replaced by CSP nonce)
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
 }));
 
@@ -224,6 +231,18 @@ if (process.env.NODE_ENV === "development") {
       if (config.env === 'production') {
         logger.error('Cannot start in production without authentication');
         process.exit(1);
+      }
+    }
+
+    // One-time ESCO DB verification in production (logs path, size, and counts)
+    if (config.env === 'production') {
+      try {
+        const { verifyESCOServiceStartup } = await import('./lib/esco-service');
+        await verifyESCOServiceStartup();
+      } catch (error) {
+        logger.warn('Failed to run ESCO startup verification', {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
       }
     }
 
@@ -387,8 +406,9 @@ if (process.env.NODE_ENV === "development") {
           }
         }
 
-        // PHASE 1: Graceful health sampler shutdown (background process handles cleanup)
-        logger.info('Health sampling will stop with process termination');
+        // PHASE 1: Graceful health sampler shutdown
+        logger.info('Stopping health sampling...');
+        stopHealthSampler();
 
         // Close database connections gracefully
         if (config.database.enabled) {
@@ -406,20 +426,13 @@ if (process.env.NODE_ENV === "development") {
       }
     };
 
-    // Handle Railway SIGTERM signals
+    // Railway-specific signal handlers for graceful shutdown
+    // SIGTERM/SIGINT must be handled here to trigger our gracefulShutdown with cleanup
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-    
-    // Handle uncaught exceptions for Railway stability
-    process.on('uncaughtException', (error) => {
-      logger.error('Uncaught Exception:', error);
-      gracefulShutdown('UNCAUGHT_EXCEPTION');
-    });
 
-    process.on('unhandledRejection', (reason, promise) => {
-      logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-      gracefulShutdown('UNHANDLED_REJECTION');
-    });
+    // NOTE: initializeGlobalErrorHandling() handles uncaughtException/unhandledRejection
+    // but SIGTERM/SIGINT need application-specific cleanup (database, health sampler, etc.)
 
     // Setup Vite in development or serve static files in production
     if (config.env === 'development') {

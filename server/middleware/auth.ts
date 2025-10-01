@@ -71,11 +71,15 @@ export async function authenticateUser(
           ip: req.ip?.startsWith('127.') || req.ip?.startsWith('::1') ? 'local' : 'external',
           timestamp: new Date().toISOString(),
           severity: 'CRITICAL',
-          action: 'TERMINATING_PROCESS'
+          action: 'REJECTING_REQUEST'
         });
-        
-        // Immediate process termination to prevent security breach
-        process.exit(1);
+
+        // Return 403 error instead of terminating process (prevents DoS)
+        return res.status(403).json({
+          error: "Authentication bypass forbidden",
+          message: "AUTH_BYPASS_MODE cannot be enabled in production or unknown environments",
+          code: "AUTH_BYPASS_FORBIDDEN"
+        });
       }
       
       // Additional localhost verification for extra security

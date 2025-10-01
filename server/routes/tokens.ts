@@ -186,8 +186,31 @@ router.delete('/:tokenId', authenticateUser, async (req: Request, res: Response)
       });
     }
 
-    // Note: In a production system, you'd want to verify the token belongs to the user
-    // For now, we'll rely on the tokenUsageService to handle security
+    // SECURITY FIX: Verify token belongs to the requesting user
+    const token = await tokenUsageService.getToken(tokenId);
+
+    if (!token) {
+      return res.status(404).json({
+        error: 'Token not found',
+        message: 'The specified token does not exist',
+        code: 'TOKEN_NOT_FOUND',
+      });
+    }
+
+    if (token.userId !== req.user.uid) {
+      logger.warn('Unauthorized token deletion attempt', {
+        requestingUserId: req.user.uid,
+        tokenOwnerId: token.userId,
+        tokenId,
+      });
+
+      return res.status(404).json({
+        error: 'Token not found',
+        message: 'The specified token does not exist',
+        code: 'TOKEN_NOT_FOUND',
+      });
+    }
+
     await tokenUsageService.deactivateToken(tokenId);
 
     logger.info('Token deactivated via API', {

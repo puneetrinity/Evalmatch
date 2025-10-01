@@ -55,10 +55,29 @@ const isAnthropicConfigured = !!config.ai.providers.anthropic.apiKey;
 const isGroqConfigured = !!process.env.GROQ_API_KEY;
 const isOpenAIConfigured = !!process.env.OPENAI_API_KEY;
 
-// Memory pressure monitoring for circuit breaker force-open
+// Memory pressure monitoring for circuit breaker force-open with hysteresis
 // Uses health-snapshot 'critical' threshold (~90%) instead of memory-monitor 'high' (~80%)
+// RELIABILITY FIX: Add hysteresis to prevent oscillation when memory hovers around threshold
+let lastForceOpenTime = 0;
+const FORCE_OPEN_COOLDOWN = 30000; // 30 seconds cooldown to prevent thrashing
+
 function forceOpen(): boolean {
-  return getMemoryPressure() === 'critical';
+  const now = Date.now();
+  const pressure = getMemoryPressure();
+
+  // If currently critical, set force-open and record time
+  if (pressure === 'critical') {
+    lastForceOpenTime = now;
+    return true;
+  }
+
+  // Stay open for cooldown period even if pressure drops below threshold
+  // This prevents oscillation when memory hovers around 90%
+  if (now - lastForceOpenTime < FORCE_OPEN_COOLDOWN) {
+    return true;
+  }
+
+  return false;
 }
 
 // Get singleton circuit breakers with memory pressure integration

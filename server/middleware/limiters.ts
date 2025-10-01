@@ -105,18 +105,28 @@ function createRateLimiters() {
 }
 
 // Initialize rate limiters when Redis is ready
-redis.on('ready', () => {
-  if (!userLimiter) {
-    createRateLimiters();
-  }
-});
+if (redis) {
+  redis.on('ready', () => {
+    if (!userLimiter) {
+      createRateLimiters();
+    }
+  });
 
-// If Redis is already ready, create limiters immediately
-if (redis.status === 'ready') {
-  createRateLimiters();
+  // If Redis is already ready, create limiters immediately
+  if (redis.status === 'ready') {
+    createRateLimiters();
+  } else {
+    // Create fallback limiters immediately for startup
+    console.log('[rate-limiters] Creating fallback rate limiters during startup');
+    createFallbackLimiters();
+  }
 } else {
-  // Create fallback limiters immediately for startup
-  console.log('[rate-limiters] Creating fallback rate limiters during startup');
+  // No Redis configured - use memory-based limiters
+  console.log('[rate-limiters] Redis not configured - using memory-based rate limiters');
+  createFallbackLimiters();
+}
+
+function createFallbackLimiters() {
   
   userLimiter = rateLimit({
     windowMs: 60 * 1000,
