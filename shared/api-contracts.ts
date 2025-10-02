@@ -306,18 +306,27 @@ export interface JobItem {
 }
 
 export interface JobListResponse {
-  jobs: Array<{
+  jobDescriptions: Array<{
     id: JobId;
     title: string;
     description: string;
     createdAt: string;
+    skills?: string[];
+    requirements?: string[];
+    experience?: string;
     analyzedData?: {
       requiredSkills?: string[];
       preferredSkills?: string[];
       experienceLevel?: string;
     };
   }>;
-  totalCount: number;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
 }
 
 export interface JobDetailsResponse {

@@ -296,10 +296,10 @@ export function isJobCreateRequest(value: unknown): value is JobCreateRequest {
 
 export function isJobListResponse(value: unknown): value is JobListResponse {
   if (!isObject(value)) return false;
-  
+
   return (
-    'jobs' in value &&
-    isArray(value.jobs, (item): item is any => (
+    'jobDescriptions' in value &&
+    isArray(value.jobDescriptions, (item): item is any => (
       isObject(item) &&
       'id' in item &&
       isJobId(item.id) &&
@@ -310,8 +310,10 @@ export function isJobListResponse(value: unknown): value is JobListResponse {
       'createdAt' in item &&
       isValidDateString(item.createdAt)
     )) &&
-    'totalCount' in value &&
-    isNonNegativeNumber(value.totalCount)
+    'pagination' in value &&
+    isObject(value.pagination) &&
+    'total' in value.pagination &&
+    isNonNegativeNumber(value.pagination.total)
   );
 }
 
