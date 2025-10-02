@@ -25,6 +25,8 @@ const Feedback = lazy(() => import("./pages/feedback"));
 const MyResumesPage = lazy(() => import("./pages/my-resumes"));
 const MyAnalysesPage = lazy(() => import("./pages/my-analyses"));
 const ProfilePage = lazy(() => import("./pages/profile"));
+const JobDetailsPage = lazy(() => import("./pages/job-details"));
+const MyJobDescriptionsPage = lazy(() => import("./pages/my-job-descriptions"));
 
 // Lazy load onboarding components
 const Welcome = lazy(() => import("@/components/onboarding").then(m => ({ default: m.Welcome })));
@@ -82,6 +84,20 @@ function Router() {
         <RequireAuth>
           <Suspense fallback={<PageLoader />}>
             <JobDescriptionPage />
+          </Suspense>
+        </RequireAuth>
+      </Route>
+      <Route path="/job-details/:jobId">
+        <RequireAuth>
+          <Suspense fallback={<PageLoader />}>
+            <JobDetailsPage />
+          </Suspense>
+        </RequireAuth>
+      </Route>
+      <Route path="/my-job-descriptions">
+        <RequireAuth>
+          <Suspense fallback={<PageLoader />}>
+            <MyJobDescriptionsPage />
           </Suspense>
         </RequireAuth>
       </Route>

@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useCreateJobDescription } from "@/hooks/use-job-descriptions";
+import { useCreateJobDescription, useJobDescriptions } from "@/hooks/use-job-descriptions";
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
 import StepProgress from "@/components/step-progress";
 import { useSteps } from "@/hooks/use-steps";
 import { Button } from "@/components/ui/button";
-import { X, Info, Loader2 } from 'lucide-react';
+import { X, Info, Loader2, Briefcase, Plus, ChevronRight, FileText } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { JobCreateRequest } from "@shared/api-contracts";
@@ -16,25 +18,87 @@ export default function JobDescriptionPage() {
   const { toast } = useToast();
   const [_, setLocation] = useLocation();
   const { steps } = useSteps(["Resume Upload", "Job Description", "Bias Detection", "Fit Analysis", "Interview Prep"], 1);
-  // This is the second step (Job Description)
-  
+
+  // Extract sessionId and batchId from URL params
+  const params = new URLSearchParams(window.location.search);
+  const sessionId = params.get('sessionId');
+  const batchId = params.get('batchId');
+
+  // UI State
+  const [showJobSelection, setShowJobSelection] = useState(true);
+  const [showCreateNew, setShowCreateNew] = useState(false);
+
   // State for form fields
   const [jobTitle, setJobTitle] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [requirements, setRequirements] = useState<string[]>([]);
   const [newRequirement, setNewRequirement] = useState("");
   
+  // Fetch user's existing job descriptions
+  const { data: jobsResponse, isLoading: loadingJobs } = useJobDescriptions();
+  const existingJobs = jobsResponse?.jobDescriptions || [];
+
+  // Fetch uploaded resumes count for current session/batch
+  const { data: resumesData } = useQuery({
+    queryKey: ['/api/resumes', sessionId, batchId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (sessionId) params.append('sessionId', sessionId);
+      if (batchId) params.append('batchId', batchId);
+
+      const response = await apiRequest("GET", `/api/resumes?${params.toString()}`);
+      const data = await response.json();
+      return data.data?.resumes || [];
+    },
+    enabled: !!(sessionId && batchId)
+  });
+
+  const uploadedCount = resumesData?.length || 0;
+
   // Use the custom hook for job description creation
   const createJobMutation = useCreateJobDescription();
 
+  // Mutation for triggering analysis
+  const analyzeM = useMutation({
+    mutationFn: async (jobId: number) => {
+      const body: any = {};
+      if (sessionId) body.sessionId = sessionId;
+      if (batchId) body.batchId = batchId;
+
+      const response = await apiRequest("POST", `/api/analysis/analyze/${jobId}`, body);
+      const data = await response.json();
+      return data;
+    },
+    onSuccess: (data, jobId) => {
+      toast({
+        title: "Analysis Started",
+        description: `Analyzing ${uploadedCount} resume(s) against this job description.`,
+      });
+      // Navigate to job details page
+      setLocation(`/job-details/${jobId}?sessionId=${sessionId}&batchId=${batchId}`);
+    },
+    onError: (error) => {
+      toast({
+        title: "Analysis Failed",
+        description: error instanceof Error ? error.message : "Failed to start analysis",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Handle existing job selection
+  const handleSelectExistingJob = (jobId: number) => {
+    analyzeM.mutate(jobId);
+  };
+
   // Handle successful job creation
   const handleJobCreated = (jobData: any) => {
-    // Navigate to bias detection page with job ID
     const jobId = jobData.jobDescription?.id;
     console.log('Job created with ID:', jobId);
-    
+
     if (jobId) {
-      setLocation(`/bias-detection/${jobId}`);
+      // Auto-trigger analysis with the new job
+      analyzeM.mutate(jobId);
     } else {
       console.error('Job ID not found in response:', jobData);
       toast({
@@ -97,15 +161,107 @@ export default function JobDescriptionPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      
+
       <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <StepProgress steps={steps} />
-        
+
         <div className="mt-12">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Enter Job Description</h1>
-          <p className="text-gray-600 mb-8">
-            Paste the job description text below. Our AI will analyze it to extract key requirements and match them against candidate resumes.
-          </p>
+          {/* Header with resume count */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Select or Create Job Description</h1>
+            {sessionId && batchId && (
+              <p className="text-gray-600 flex items-center gap-2">
+                <FileText className="h-5 w-5 text-blue-600" />
+                You uploaded <span className="font-semibold text-blue-600">{uploadedCount} resume(s)</span>.
+                Select an existing job or create a new one to start analysis.
+              </p>
+            )}
+            {!sessionId && !batchId && (
+              <p className="text-gray-600">
+                Create a new job description or go back to upload resumes first.
+              </p>
+            )}
+          </div>
+
+          {/* Job Selection Section */}
+          {showJobSelection && !showCreateNew && existingJobs.length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">Select Existing Job</h2>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCreateNew(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create New Job
+                </Button>
+              </div>
+
+              {loadingJobs ? (
+                <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+                  <p className="text-gray-500">Loading your job descriptions...</p>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {existingJobs.map((job: any) => (
+                    <div
+                      key={job.id}
+                      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer"
+                      onClick={() => handleSelectExistingJob(job.id)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Briefcase className="h-5 w-5 text-blue-600" />
+                            <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
+                          </div>
+                          <p className="text-gray-600 mb-3 line-clamp-2">{job.description}</p>
+                          {job.skills && job.skills.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {job.skills.slice(0, 5).map((skill: string, idx: number) => (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                              {job.skills.length > 5 && (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                  +{job.skills.length - 5} more
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0 ml-4" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Create New Job Form */}
+          {(showCreateNew || existingJobs.length === 0) && (
+            <div>
+              {existingJobs.length > 0 && (
+                <div className="mb-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCreateNew(false)}
+                  >
+                    Back to Job Selection
+                  </Button>
+                </div>
+              )}
+
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Create New Job Description</h2>
+              <p className="text-gray-600 mb-6">
+                Paste the job description text below. Our AI will analyze it to extract key requirements and match them against candidate resumes.
+              </p>
           
           <form onSubmit={handleSubmit}>
             <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
@@ -215,9 +371,11 @@ export default function JobDescriptionPage() {
               </Button>
             </div>
           </form>
+            </div>
+          )}
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );

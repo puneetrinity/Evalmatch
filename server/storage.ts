@@ -297,12 +297,23 @@ export interface IStorage {
   
   /**
    * Creates a new analysis result in the storage system.
-   * 
+   *
    * @param analysisResult - The analysis result data to insert (without ID)
    * @returns Promise resolving to the created analysis result object with assigned ID
    * @throws {Error} If creation fails or required fields are missing
    */
   createAnalysisResult(_analysisResult: InsertAnalysisResult): Promise<AnalysisResult>;
+
+  /**
+   * Deletes analysis result(s) by job and resume IDs.
+   *
+   * @param userId - The ID of the user who owns the analysis
+   * @param jobId - The ID of the job description
+   * @param resumeId - The ID of the resume
+   * @returns Promise that resolves when deletion is complete
+   * @throws {Error} If deletion fails
+   */
+  deleteAnalysisResultByJobAndResume(_userId: string, _jobId: number, _resumeId: number): Promise<void>;
   
   // ==================== INTERVIEW QUESTIONS METHODS ====================
   
@@ -794,6 +805,28 @@ export class MemStorage implements IStorage {
     };
     this.analysisResultsData.set(id, analysisResult);
     return analysisResult;
+  }
+
+  async deleteAnalysisResultByJobAndResume(userId: string, jobId: number, resumeId: number): Promise<void> {
+    const toDelete: number[] = [];
+
+    // Find all matching analysis results
+    for (const [id, analysis] of this.analysisResultsData.entries()) {
+      if (
+        analysis.userId === userId &&
+        analysis.jobDescriptionId === jobId &&
+        analysis.resumeId === resumeId
+      ) {
+        toDelete.push(id);
+      }
+    }
+
+    // Delete all found results
+    for (const id of toDelete) {
+      this.analysisResultsData.delete(id);
+    }
+
+    logger.info(`Deleted ${toDelete.length} analysis result(s) for user ${userId}, job ${jobId}, resume ${resumeId}`);
   }
 
   // Interview questions methods

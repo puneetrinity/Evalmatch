@@ -103,7 +103,8 @@ export default function MyJobDescriptionsPage() {
       try {
         const response = await apiRequest("GET", "/api/job-descriptions");
         const data = await response.json();
-        return data.jobs || mockJobDescriptions; // Fallback to mock data
+        // ✅ FIXED: Server returns { data: { jobDescriptions: [...] } }
+        return data.data?.jobDescriptions || mockJobDescriptions;
       } catch (error) {
         console.warn('Failed to fetch job descriptions, using mock data:', error);
         return mockJobDescriptions;
@@ -127,8 +128,8 @@ export default function MyJobDescriptionsPage() {
   };
 
   const handleViewJob = (jobId: string) => {
-    // Navigate to job details or analysis
-    setLocation(`/analysis/${jobId}`);
+    // Navigate to job details page
+    setLocation(`/job-details/${jobId}`);
   };
 
   const handleEditJob = (jobId: string) => {

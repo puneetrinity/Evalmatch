@@ -440,7 +440,23 @@ export class DatabaseStorage implements IStorage {
       return analysisResult;
     }, 'createAnalysisResult()');
   }
-  
+
+  async deleteAnalysisResultByJobAndResume(userId: string, jobId: number, resumeId: number): Promise<void> {
+    return withRetry(async () => {
+      await this.db
+        .delete(analysisResults)
+        .where(
+          and(
+            eq(analysisResults.userId, userId),
+            eq(analysisResults.jobDescriptionId, jobId),
+            eq(analysisResults.resumeId, resumeId)
+          )
+        );
+
+      logger.info(`Deleted analysis result for user ${userId}, job ${jobId}, resume ${resumeId}`);
+    }, `deleteAnalysisResultByJobAndResume(${userId}, ${jobId}, ${resumeId})`);
+  }
+
   // Interview questions methods
   async getInterviewQuestions(id: number): Promise<InterviewQuestions | undefined> {
     return withRetry(async () => {

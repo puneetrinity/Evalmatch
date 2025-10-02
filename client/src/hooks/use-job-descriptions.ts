@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  API_ROUTES, 
+import {
+  API_ROUTES,
   buildJobRoute,
-  JobListResponse, 
+  JobListResponse,
   JobDetailsResponse,
   JobCreateResponse,
   JobCreateRequest,
@@ -12,6 +12,26 @@ import {
   ApiResponse,
   isApiSuccess
 } from "@shared/api-contracts";
+
+// ✅ Define actual server response type for job creation
+interface JobCreationResult {
+  jobDescription: {
+    id: number;
+    title: string;
+    description: string;
+    skills?: string[];
+    requirements?: string[];
+    experience?: string;
+    analyzedData?: any;
+    createdAt: string;
+  };
+  analysis?: {
+    skillsExtracted: number;
+    requirementsFound: number;
+    experienceLevel: string;
+  };
+  processingTime: number;
+}
 
 // Custom hook for fetching job descriptions list
 export function useJobDescriptions() {
@@ -81,13 +101,14 @@ export function useCreateJobDescription() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (jobData: JobCreateRequest): Promise<JobCreateResponse> => {
+    mutationFn: async (jobData: JobCreateRequest): Promise<JobCreationResult> => {
       try {
         const response = await apiRequest("POST", API_ROUTES.JOBS.CREATE, jobData);
-        const data = await response.json() as ApiResponse<JobCreateResponse>;
-        
+        const data = await response.json();
+
         if (isApiSuccess(data)) {
-          return data.data;
+          // ✅ Return actual server shape: { jobDescription, analysis, processingTime }
+          return data.data as JobCreationResult;
         }
         throw new Error("Invalid response format");
       } catch (error) {
@@ -98,10 +119,10 @@ export function useCreateJobDescription() {
     onSuccess: (data) => {
       // Invalidate and refetch job descriptions list
       queryClient.invalidateQueries({ queryKey: ["job-descriptions"] });
-      
+
       toast({
         title: "Job Description Created Successfully",
-        description: `"${data.title}" has been created and analyzed.`,
+        description: `"${data.jobDescription.title}" has been created and analyzed.`, // ✅ Correct path
       });
     },
     onError: (error) => {

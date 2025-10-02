@@ -602,6 +602,119 @@ router.get(
   },
 );
 
+/**
+ * @swagger
+ * /analysis/analyze/{jobId}/{resumeId}:
+ *   delete:
+ *     tags: [Analysis]
+ *     summary: Delete analysis result for a specific job-resume pair
+ *     description: |
+ *       Permanently removes the analysis result linking a specific resume to a job description.
+ *       This is useful when you want to re-analyze a resume or remove it from job results.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: jobId
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the job description
+ *       - name: resumeId
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the resume
+ *     responses:
+ *       200:
+ *         description: Analysis result deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 message:
+ *                   type: string
+ *                   example: "Analysis removed successfully"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Invalid job ID or resume ID
+ *       404:
+ *         description: Job description not found or access denied
+ *       500:
+ *         description: Server error during deletion
+ */
+// Delete analysis result for a specific job-resume pair
+router.delete(
+  "/analyze/:jobId/:resumeId",
+  eitherAuth,
+  validators.rateLimitModerate,
+  async (req: Request, res: Response) => {
+    try {
+      const jobId = parseInt(req.params.jobId);
+      const resumeId = parseInt(req.params.resumeId);
+      const userId = (req as any).auth.userId;
+
+      // Validate IDs
+      if (isNaN(jobId) || isNaN(resumeId)) {
+        return res.status(400).json({
+          success: false,
+          error: "VALIDATION_ERROR",
+          message: "Invalid job ID or resume ID",
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      const storage = getStorage();
+
+      // Verify job ownership
+      const job = await storage.getJobDescriptionById(jobId, userId);
+      if (!job) {
+        return res.status(404).json({
+          success: false,
+          error: "NOT_FOUND",
+          message: "Job description not found or you don't have access to it",
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Delete the analysis result
+      await storage.deleteAnalysisResultByJobAndResume(userId, jobId, resumeId);
+
+      logger.info('Analysis result deleted', {
+        userId,
+        jobId,
+        resumeId,
+        timestamp: new Date().toISOString()
+      });
+
+      res.json({
+        success: true,
+        status: "success",
+        message: "Analysis removed successfully",
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      logger.error("Delete analysis route failed:", error);
+      res.status(500).json({
+        success: false,
+        error: "ROUTE_ERROR",
+        message: "Failed to remove analysis",
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+);
+
 // Generate interview questions
 router.post(
   "/interview-questions/:resumeId/:jobId",

@@ -482,8 +482,13 @@ export default function UploadPage() {
         return;
       }
     }
-    
-    setLocation("/job-description");
+
+    // Pass sessionId and batchId to job-description page for context preservation
+    const params = new URLSearchParams();
+    if (sessionId) params.append('sessionId', sessionId);
+    if (currentBatchId) params.append('batchId', currentBatchId);
+
+    setLocation(`/job-description?${params.toString()}`);
   };
 
   return (

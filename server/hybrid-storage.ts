@@ -670,7 +670,21 @@ export class HybridStorage implements IStorage {
       true
     );
   }
-  
+
+  async deleteAnalysisResultByJobAndResume(userId: string, jobId: number, resumeId: number): Promise<void> {
+    logger.info('🗑️  HybridStorage.deleteAnalysisResultByJobAndResume called with:', {
+      userId,
+      jobId,
+      resumeId
+    });
+    return this.executeWithFallback(
+      'deleteAnalysisResultByJobAndResume',
+      () => this.dbStorage.deleteAnalysisResultByJobAndResume(userId, jobId, resumeId),
+      () => this.memStorage.deleteAnalysisResultByJobAndResume(userId, jobId, resumeId),
+      true
+    );
+  }
+
   // Interview questions methods
   async getInterviewQuestions(id: number): Promise<InterviewQuestions | undefined> {
     return this.executeWithFallback(
