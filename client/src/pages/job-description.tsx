@@ -74,8 +74,8 @@ export default function JobDescriptionPage() {
         title: "Analysis Started",
         description: `Analyzing ${uploadedCount} resume(s) against this job description.`,
       });
-      // Navigate to job details page
-      setLocation(`/job-details/${jobId}?sessionId=${sessionId}&batchId=${batchId}`);
+      // Navigate to analysis page to continue the workflow (bias detection → fit analysis → interview prep)
+      setLocation(`/analysis/${jobId}?sessionId=${sessionId}&batchId=${batchId}`);
     },
     onError: (error) => {
       toast({
