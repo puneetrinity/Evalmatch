@@ -12,6 +12,44 @@
 import { Request, Response } from "express";
 import { logger } from "../config/logger";
 import { config } from "../config/unified-config";
+import * as fs from 'fs';
+
+// Cache cgroup memory limit for Railway container
+let cgroupMemoryLimit: number | null = null;
+
+/**
+ * Get container memory limit from cgroup (Railway/Docker environment)
+ * This reads the actual memory limit imposed by the container orchestrator
+ */
+function getCgroupLimitBytes(): number {
+  if (cgroupMemoryLimit) return cgroupMemoryLimit;
+
+  // cgroup v2
+  try {
+    const v2 = fs.readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim();
+    if (v2 && v2 !== 'max') {
+      cgroupMemoryLimit = Number(v2);
+      return cgroupMemoryLimit;
+    }
+  } catch {
+    // Ignore cgroup v2 read errors
+  }
+
+  // cgroup v1
+  try {
+    const v1 = fs.readFileSync('/sys/fs/cgroup/memory/memory.limit_in_bytes', 'utf8').trim();
+    if (v1) {
+      cgroupMemoryLimit = Number(v1);
+      return cgroupMemoryLimit;
+    }
+  } catch {
+    // Ignore cgroup v1 read errors
+  }
+
+  // fallback: 8GB for Railway (conservative default)
+  cgroupMemoryLimit = 8 * 1024 * 1024 * 1024;
+  return cgroupMemoryLimit;
+}
 
 // Error handling utility for health checks
 const getErrorMessage = (error: unknown): string => {
@@ -373,11 +411,6 @@ async function checkMemoryUsage(): Promise<HealthCheckResult> {
 
   try {
     const memUsage = process.memoryUsage();
-    const mbUsed = Math.round(memUsage.heapUsed / 1024 / 1024);
-    const mbTotal = Math.round(memUsage.heapTotal / 1024 / 1024);
-    const usagePercent = Math.round(
-      (memUsage.heapUsed / memUsage.heapTotal) * 100,
-    );
 
     // Get V8 heap statistics to verify NODE_OPTIONS
     const v8 = await import("v8");
@@ -387,17 +420,25 @@ async function checkMemoryUsage(): Promise<HealthCheckResult> {
       heapStats.total_available_size / 1024 / 1024,
     );
 
+    // CRITICAL FIX: Use RSS vs cgroup limit, not heap vs heapTotal
+    const cgroupLimit = getCgroupLimitBytes();
+    const rssMB = Math.round(memUsage.rss / 1024 / 1024);
+    const cgroupLimitMB = Math.round(cgroupLimit / 1024 / 1024);
+    const rssPct = Math.round((memUsage.rss / cgroupLimit) * 100);
+
+    // Also track heap metrics for NODE_OPTIONS verification
+    const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+
     // Check if NODE_OPTIONS is properly applied
     // Railway and other cloud platforms may have different memory constraints
-    // Be flexible with heap limit expectations based on available system memory
-    const systemMemoryGB = Math.round(mbTotal / 1024);
-    const expectedHeapLimitMB = systemMemoryGB >= 8 ? 7168 : Math.min(7168, mbTotal * 0.8); // Use 80% of system memory if less than 8GB
+    const systemMemoryGB = Math.round(cgroupLimitMB / 1024);
+    const expectedHeapLimitMB = systemMemoryGB >= 8 ? 7168 : Math.min(7168, cgroupLimitMB * 0.8);
     const nodeOptionsApplied = heapLimitMB > 2000; // Much higher than default ~1.7GB
-    const nodeOptionsWorking = heapLimitMB >= Math.min(expectedHeapLimitMB * 0.7, 4000); // Accept at least 4GB or 70% of expected
+    const nodeOptionsWorking = heapLimitMB >= Math.min(expectedHeapLimitMB * 0.7, 4000);
     const nodeOptionsCorrect = nodeOptionsWorking;
 
     let status: "healthy" | "degraded" | "unhealthy" = "healthy";
-    let message = `Memory: ${mbUsed}/${mbTotal}MB (${usagePercent}%), Limit: ${heapLimitMB}MB`;
+    let message = `Memory: ${rssMB}/${cgroupLimitMB}MB (${rssPct}%), Heap: ${heapUsedMB}MB, Limit: ${heapLimitMB}MB`;
 
     // Primary concern: Is NODE_OPTIONS working reasonably?
     if (!nodeOptionsApplied) {
@@ -408,12 +449,12 @@ async function checkMemoryUsage(): Promise<HealthCheckResult> {
       status = "degraded";
       message = `NODE_OPTIONS could be higher. Heap limit: ${heapLimitMB}MB (system has ${systemMemoryGB}GB)`;
     }
-    // Secondary concern: Current memory usage
-    // Adjusted thresholds for Node.js heap behavior on Railway
-    else if (usagePercent > 98) {
+    // Secondary concern: Current memory usage (use RSS, not heap)
+    // Use actual container memory percentage
+    else if (rssPct > 90) {
       status = "unhealthy";
       message += " - Critical memory usage";
-    } else if (usagePercent > 96) {
+    } else if (rssPct > 80) {
       status = "degraded";
       message += " - High memory usage";
     } else {
@@ -427,11 +468,11 @@ async function checkMemoryUsage(): Promise<HealthCheckResult> {
       message,
       details: {
         current: {
-          heapUsed: mbUsed,
-          heapTotal: mbTotal,
-          usagePercent,
+          heapUsed: heapUsedMB,
+          rss: rssMB,
+          rssPct,
+          containerLimit: cgroupLimitMB,
           external: Math.round(memUsage.external / 1024 / 1024),
-          rss: Math.round(memUsage.rss / 1024 / 1024),
         },
         limits: {
           heapSizeLimit: heapLimitMB,
@@ -440,6 +481,7 @@ async function checkMemoryUsage(): Promise<HealthCheckResult> {
           nodeOptionsCorrect,
           expectedLimit: expectedHeapLimitMB,
           actualvsExpected: `${heapLimitMB}MB vs ${expectedHeapLimitMB}MB`,
+          containerMemory: `${rssMB}MB / ${cgroupLimitMB}MB (${rssPct}%)`,
         },
         configuration: {
           nodeOptions: process.env.NODE_OPTIONS || "NOT SET",
@@ -1074,14 +1116,16 @@ async function checkSystemResources(): Promise<HealthCheckResult> {
     };
 
     const processMemory = process.memoryUsage();
+
+    // CRITICAL FIX: Use RSS vs cgroup limit for accurate container memory
+    const cgroupLimit = getCgroupLimitBytes();
     const processMemoryMB = {
       heapUsed: Math.round(processMemory.heapUsed / 1024 / 1024),
       heapTotal: Math.round(processMemory.heapTotal / 1024 / 1024),
       external: Math.round(processMemory.external / 1024 / 1024),
       rss: Math.round(processMemory.rss / 1024 / 1024), // Resident Set Size
-      heapUsagePercent: Math.round(
-        (processMemory.heapUsed / processMemory.heapTotal) * 100,
-      ),
+      containerLimit: Math.round(cgroupLimit / 1024 / 1024),
+      rssPct: Math.round((processMemory.rss / cgroupLimit) * 100),
     };
 
     // Disk space information (current working directory)
@@ -1143,10 +1187,10 @@ async function checkSystemResources(): Promise<HealthCheckResult> {
       issues.push("High system memory usage");
     }
 
-    if (processMemoryMB.heapUsagePercent > 98) {
-      issues.push("Critical process heap usage");
-    } else if (processMemoryMB.heapUsagePercent > 96) {
-      issues.push("High process heap usage");
+    if (processMemoryMB.rssPct > 90) {
+      issues.push(`Critical process memory: ${processMemoryMB.rss}MB / ${processMemoryMB.containerLimit}MB (${processMemoryMB.rssPct}%)`);
+    } else if (processMemoryMB.rssPct > 80) {
+      issues.push(`High process memory: ${processMemoryMB.rss}MB / ${processMemoryMB.containerLimit}MB (${processMemoryMB.rssPct}%)`);
     }
 
     if (cpuInfo.loadAverage[0] > cpuInfo.cores * 2) {
@@ -1866,9 +1910,12 @@ export async function livenessProbe(
     const responseTime = Date.now() - startTime;
     const uptime = Math.round(process.uptime());
     const memoryUsage = process.memoryUsage();
-    const heapUsagePercent = Math.round(
-      (memoryUsage.heapUsed / memoryUsage.heapTotal) * 100,
-    );
+
+    // CRITICAL FIX: Use RSS vs cgroup limit for accurate memory check
+    const cgroupLimit = getCgroupLimitBytes();
+    const rssMB = Math.round(memoryUsage.rss / 1024 / 1024);
+    const cgroupLimitMB = Math.round(cgroupLimit / 1024 / 1024);
+    const rssPct = Math.round((memoryUsage.rss / cgroupLimit) * 100);
 
     // Simple liveness checks - app is alive if it can respond and isn't critically broken
     let isAlive = true;
@@ -1876,10 +1923,10 @@ export async function livenessProbe(
     let status = "alive";
 
     // Check for critical memory issues that would require restart
-    // Adjusted threshold: Node.js heap can show high percentages with low absolute usage
-    if (heapUsagePercent > 98) {
+    // Use actual container memory (RSS) vs limit
+    if (rssPct > 95) {
       isAlive = false;
-      issues.push("Critical memory exhaustion detected");
+      issues.push(`Critical memory exhaustion: ${rssMB}MB / ${cgroupLimitMB}MB (${rssPct}%)`);
       status = "requires_restart";
     }
 
@@ -1910,15 +1957,16 @@ export async function livenessProbe(
           processId: process.pid,
           nodeVersion: process.version,
           platform: process.platform,
-          memoryUsagePercent: heapUsagePercent,
+          memoryUsagePercent: rssPct,
+          rssMB: rssMB,
+          containerLimitMB: cgroupLimitMB,
           heapUsedMB: Math.round(memoryUsage.heapUsed / 1024 / 1024),
-          heapTotalMB: Math.round(memoryUsage.heapTotal / 1024 / 1024),
         },
         issues: issues.length > 0 ? issues : undefined,
         metadata: {
           probeType: "liveness",
           thresholds: {
-            memoryWarning: "95%",
+            memoryWarning: "90%",
             responseTimeWarning: "10000ms",
             minimumUptime: "5s",
           },
@@ -2154,22 +2202,29 @@ export async function railwayHealthCheck(
   try {
     const uptime = Math.round(process.uptime());
     const memoryUsage = process.memoryUsage();
-    const heapUsagePercent = Math.round(
-      (memoryUsage.heapUsed / memoryUsage.heapTotal) * 100,
+
+    // CRITICAL FIX: Use actual container memory (RSS) vs cgroup limit
+    // Instead of heap vs heapTotal which gives false positives
+    const cgroupLimit = getCgroupLimitBytes();
+    const rssPct = Math.round(
+      (memoryUsage.rss / cgroupLimit) * 100,
     );
+    const rssMB = Math.round(memoryUsage.rss / 1024 / 1024);
+    const cgroupLimitMB = Math.round(cgroupLimit / 1024 / 1024);
 
     // Only check absolute critical factors for Railway deployment
     let isHealthy = true;
     let status = "healthy";
     const issues = [];
-    
+
     // Check 1: Memory exhaustion that would prevent serving requests
-    // Railway adjustment: More permissive threshold since Node.js heap management 
-    // can show high percentages even with low absolute memory usage
-    if (heapUsagePercent > 98) {
+    // Use RSS percentage against actual container limit (not heap)
+    if (rssPct > 90) {
       isHealthy = false;
       status = "unhealthy";
-      issues.push("Critical memory exhaustion");
+      issues.push(`Critical memory exhaustion: ${rssMB}MB / ${cgroupLimitMB}MB (${rssPct}%)`);
+    } else if (rssPct > 80) {
+      issues.push(`High memory usage: ${rssMB}MB / ${cgroupLimitMB}MB (${rssPct}%)`);
     }
 
     // Check 2: App is responsive (implicit - if we got here, it's responding)
@@ -2258,8 +2313,11 @@ export async function railwayHealthCheck(
         },
         checks: {
           memory: {
-            status: heapUsagePercent > 98 ? "unhealthy" : "healthy",
-            usagePercent: heapUsagePercent,
+            status: rssPct > 90 ? "unhealthy" : rssPct > 80 ? "degraded" : "healthy",
+            usagePercent: rssPct,
+            rssMB: rssMB,
+            limitMB: cgroupLimitMB,
+            detail: `${rssMB}MB / ${cgroupLimitMB}MB`,
           },
           database: {
             status: dbAvailable ? "healthy" : (uptime < 60 ? "starting" : "unhealthy"),
@@ -2299,7 +2357,8 @@ export async function railwayHealthCheck(
           healthy: isHealthy,
           responseTime,
           uptime,
-          memoryUsage: heapUsagePercent,
+          memoryUsage: rssPct,
+          memoryDetail: `${rssMB}MB/${cgroupLimitMB}MB`,
           dbAvailable,
           httpStatus,
           issues: issues.length,
