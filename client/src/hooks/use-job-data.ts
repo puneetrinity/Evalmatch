@@ -34,10 +34,10 @@ export function useJobData({ jobId, isValidJobId }: UseJobDataOptions) {
     queryFn: async ({ queryKey }) => {
       const response = await apiRequest("GET", String(queryKey[0]));
       const data = await response.json();
-      // Extract jobDescription from the response
-      if (data.jobDescription) {
+      // Extract jobDescription from nested response (server returns data: { jobDescription, isAnalyzed })
+      if (data.data?.jobDescription) {
         // Add isAnalyzed flag from the parent response
-        return { ...data.jobDescription, isAnalyzed: data.isAnalyzed };
+        return { ...data.data.jobDescription, isAnalyzed: data.data.isAnalyzed };
       }
       return data;
     },

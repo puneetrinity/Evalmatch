@@ -28,12 +28,9 @@ import {
   AlertCircle,
   ChevronLeft
 } from "lucide-react";
+import type { MatchedSkill } from "@shared/api-contracts";
 
-interface SkillMatch {
-  skill: string;
-  matchPercentage: number;
-  category: string;
-  importance: 'critical' | 'important' | 'nice-to-have';
+interface SkillMatch extends MatchedSkill {
   source: 'exact' | 'semantic' | 'inferred';
 }
 
