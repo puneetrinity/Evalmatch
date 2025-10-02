@@ -66,11 +66,11 @@ app.use(helmet({
         "'self'",
         "https://www.gstatic.com",
         "https://www.googleapis.com",
-        (req, res) => `'nonce-${res.locals.nonce}'`, // Use generated nonce
+        (req, res) => `'nonce-${(res as express.Response).locals.nonce}'`, // Use generated nonce
         "data:"
       ],
       scriptSrcAttr: [
-        (req, res) => `'nonce-${res.locals.nonce}'` // Remove 'unsafe-inline', use nonce
+        (req, res) => `'nonce-${(res as express.Response).locals.nonce}'` // Remove 'unsafe-inline', use nonce
       ],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
       connectSrc: ["'self'", "https:", "wss:", "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com"],

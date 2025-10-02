@@ -37,19 +37,19 @@ export class CacheManager {
     }
     
     // Use singleton connection status
-    this.isConnected = this.redis.status === 'ready';
-    
+    this.isConnected = this.redis?.status === 'ready';
+
     // Listen to singleton events
-    this.redis.on('ready', () => {
+    this.redis?.on('ready', () => {
       this.isConnected = true;
       logger.info('✅ Redis cache ready (using singleton)');
     });
-    
-    this.redis.on('error', () => {
+
+    this.redis?.on('error', () => {
       this.isConnected = false;
     });
-    
-    this.redis.on('close', () => {
+
+    this.redis?.on('close', () => {
       this.isConnected = false;
     });
     

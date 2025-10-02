@@ -46,6 +46,12 @@ export async function getOrSWRE<T>(
   
   try {
     // Try to get from cache first
+    if (!redis) {
+      // No Redis available, execute fetcher directly
+      const data = await fetcher();
+      return { data, stale: false, hit: false, age: 0 };
+    }
+
     const raw = await redis.get(key);
     
     if (raw) {
@@ -153,8 +159,11 @@ async function cacheData<T>(key: string, data: T, ttl: number): Promise<void> {
     data,
     at: Date.now()
   };
-  
-  await redis.setex(key, ttl, JSON.stringify(entry));
+
+
+  if (redis) {
+    await redis.setex(key, ttl, JSON.stringify(entry));
+  }
 }
 
 /**
@@ -173,7 +182,9 @@ export function generateCacheKey(namespace: string, ...components: string[]): st
  */
 export async function invalidateCache(key: string): Promise<void> {
   try {
-    await redis.del(key);
+    if (redis) {
+      await redis.del(key);
+    }
     logger.debug('SWRE cache invalidated', { key });
   } catch (error) {
     logger.warn('SWRE cache invalidation failed', { key, error });
@@ -205,6 +216,10 @@ export async function getCacheStats(pattern: string = 'swre:*'): Promise<{
   hitRate?: number;
 }> {
   try {
+    if (!redis) {
+      return { keys: 0 };
+    }
+
     const keys = await redis.keys(pattern);
     return {
       keys: keys.length,

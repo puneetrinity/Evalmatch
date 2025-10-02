@@ -60,6 +60,8 @@ export function getBreakerStatuses() {
  * Called internally when breaker state changes
  */
 export async function persistBreakerState(name: string, state: any): Promise<void> {
+  if (!redis) return; // Skip if Redis not configured
+
   try {
     await redis.hset(`cb:${name}`, {
       state: state.state,
@@ -78,10 +80,12 @@ export async function persistBreakerState(name: string, state: any): Promise<voi
  * Load circuit breaker states from Redis (for admin dashboard)
  */
 export async function loadBreakerStatesFromRedis(): Promise<Record<string, any>> {
+  if (!redis) return {}; // Return empty if Redis not configured
+
   try {
     const keys = await redis.keys('cb:*');
     const states: Record<string, any> = {};
-    
+
     for (const key of keys) {
       const providerName = key.replace('cb:', '');
       const data = await redis.hgetall(key);

@@ -1987,7 +1987,7 @@ export async function livenessProbe(
           responseTime,
           requestId,
           uptime,
-          memoryUsagePercent: heapUsagePercent,
+          memoryUsagePercent: rssPct,
           issues: issues.length,
         },
       },

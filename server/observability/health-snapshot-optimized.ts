@@ -38,10 +38,10 @@ async function getHealthSnapshot(): Promise<LightweightSnapshot> {
     const heapPercent = Math.round((mem.heapUsed / mem.heapTotal) * 100);
     
     // Fast Redis ping (100ms budget)
-    const redisOk = await Promise.race([
+    const redisOk = redis ? await Promise.race([
       redis.ping().then(() => true).catch(() => false),
       new Promise<boolean>(resolve => setTimeout(() => resolve(false), 100))
-    ]);
+    ]) : false;
     
     // DB check (just config check, no connection)
     const dbOk = !!process.env.DATABASE_URL;
