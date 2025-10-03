@@ -206,47 +206,45 @@ export default function JobDescriptionPage() {
                 </Button>
               </div>
 
-              {(
-                <div className="grid gap-4">
-                  {existingJobs.map((job: any) => (
-                    <div
-                      key={job.id}
-                      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer"
-                      onClick={() => handleSelectExistingJob(job.id)}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Briefcase className="h-5 w-5 text-blue-600" />
-                            <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
-                          </div>
-                          <p className="text-gray-600 mb-3 line-clamp-2">{job.description}</p>
-                          {job.skills && job.skills.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {job.skills.slice(0, 5).map((skill: string, idx: number) => (
-                                <span
-                                  key={idx}
-                                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                                >
-                                  {skill}
-                                </span>
-                              ))}
-                              {job.skills.length > 5 && (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                  +{job.skills.length - 5} more
-                                </span>
-                              )}
-                            </div>
-                          )}
+              <div className="grid gap-4">
+                {existingJobs.map((job: any) => (
+                  <div
+                    key={job.id}
+                    className="bg-white border border-gray-200 rounded-lg p-6 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer"
+                    onClick={() => handleSelectExistingJob(job.id)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Briefcase className="h-5 w-5 text-blue-600" />
+                          <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
                         </div>
-                        <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0 ml-4" />
+                        <p className="text-gray-600 mb-3 line-clamp-2">{job.description}</p>
+                        {job.skills && job.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {job.skills.slice(0, 5).map((skill: string, idx: number) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                            {job.skills.length > 5 && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                +{job.skills.length - 5} more
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
+                      <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0 ml-4" />
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
             </div>
-          )}
+          ) : null}
 
           {/* Create New Job Form */}
           {(showCreateNew || existingJobs.length === 0) && (
