@@ -97,8 +97,12 @@ export default function JobDescriptionPage() {
     console.log('Job created with ID:', jobId);
 
     if (jobId) {
-      // Auto-trigger analysis with the new job
-      analyzeM.mutate(jobId);
+      // If session/batch context exists (came from upload), trigger batch analysis; otherwise go to Bias Detection step
+      if (sessionId && batchId) {
+        analyzeM.mutate(jobId);
+      } else {
+        setLocation(`/bias-detection/${jobId}`);
+      }
     } else {
       console.error('Job ID not found in response:', jobData);
       toast({
@@ -184,7 +188,12 @@ export default function JobDescriptionPage() {
           </div>
 
           {/* Job Selection Section */}
-          {showJobSelection && !showCreateNew && existingJobs.length > 0 && (
+          {loadingJobs ? (
+            <div className="mb-8 bg-white rounded-lg shadow-sm p-12 text-center">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+              <p className="text-gray-500">Loading your job descriptions...</p>
+            </div>
+          ) : showJobSelection && !showCreateNew && existingJobs.length > 0 ? (
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-900">Select Existing Job</h2>
@@ -197,12 +206,7 @@ export default function JobDescriptionPage() {
                 </Button>
               </div>
 
-              {loadingJobs ? (
-                <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-                  <p className="text-gray-500">Loading your job descriptions...</p>
-                </div>
-              ) : (
+              {(
                 <div className="grid gap-4">
                   {existingJobs.map((job: any) => (
                     <div
