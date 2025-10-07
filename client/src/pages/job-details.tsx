@@ -111,7 +111,7 @@ export default function JobDetailsPage() {
       await apiRequest("DELETE", `/api/job-descriptions/${jobId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/job-descriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['job-descriptions'] });
       toast({
         title: "Job Deleted",
         description: "Job description has been deleted successfully.",
@@ -238,18 +238,44 @@ export default function JobDetailsPage() {
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">{job.title}</h1>
               <p className="text-gray-600 mb-4">{job.description}</p>
-              {job.skills && job.skills.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {job.skills.map((skill: string, idx: number) => (
-                    <span
-                      key={idx}
-                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              )}
+              {(() => {
+                const required: string[] = job?.analyzedData?.requiredSkills || [];
+                const preferred: string[] = job?.analyzedData?.preferredSkills || [];
+                const manual: string[] = job?.skills || [];
+                const dedupedManual = manual.filter(
+                  (s) => !required.includes(s) && !preferred.includes(s)
+                );
+                const hasAny = required.length + preferred.length + manual.length > 0;
+                if (!hasAny) return null;
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {required.map((skill: string, idx: number) => (
+                      <span
+                        key={`req-${idx}`}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-600 text-white"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                    {preferred.map((skill: string, idx: number) => (
+                      <span
+                        key={`pref-${idx}`}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                    {dedupedManual.map((skill: string, idx: number) => (
+                      <span
+                        key={`man-${idx}`}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
             <div className="flex gap-2">
               <Button

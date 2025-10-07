@@ -144,7 +144,8 @@ export function useUpdateJobDescription() {
     mutationFn: async (params: { jobId: number; jobData: JobCreateRequest }): Promise<JobItem> => {
       try {
         const url = buildJobRoute(params.jobId as any);
-        const response = await apiRequest("PUT", url, params.jobData);
+        // Use PATCH to match server's partial update semantics
+        const response = await apiRequest("PATCH", url, params.jobData);
         const data = await response.json() as ApiResponse<JobItem>;
         
         if (isApiSuccess(data)) {

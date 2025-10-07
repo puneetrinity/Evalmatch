@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useJobDescriptions } from "@/hooks/use-job-descriptions";
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
@@ -24,15 +23,15 @@ import {
 } from "lucide-react";
 
 interface JobDescriptionItem {
-  id: string;
+  id: number;
   title: string;
   description: string;
   requirements?: string[];
   skills?: string[];
   experience?: string;
   createdAt: string;
-  updatedAt: string;
-  status: "active" | "draft" | "archived";
+  updatedAt?: string;
+  analyzedData?: any;
   analysesCount?: number;
   averageMatchScore?: number;
 }
@@ -40,46 +39,42 @@ interface JobDescriptionItem {
 // Mock data based on typical job descriptions
 const mockJobDescriptions: JobDescriptionItem[] = [
   {
-    id: "1",
+    id: 1,
     title: "Senior Frontend Developer",
     description: "We are looking for a Senior Frontend Developer to join our dynamic team. You will be responsible for developing user-facing web applications using modern JavaScript frameworks...",
     requirements: ["React", "TypeScript", "Node.js", "CSS", "Git"],
     createdAt: "2025-08-22T16:00:00Z",
     updatedAt: "2025-08-22T16:00:00Z",
-    status: "active",
     analysesCount: 15,
     averageMatchScore: 85,
   },
   {
-    id: "2", 
+    id: 2, 
     title: "Full Stack Engineer",
     description: "Join our engineering team as a Full Stack Engineer. You'll work on both frontend and backend systems, building scalable web applications and APIs...",
     requirements: ["JavaScript", "Python", "React", "Django", "PostgreSQL"],
     createdAt: "2025-08-21T19:50:00Z",
     updatedAt: "2025-08-21T19:50:00Z",
-    status: "active",
     analysesCount: 8,
     averageMatchScore: 78,
   },
   {
-    id: "3",
+    id: 3,
     title: "Data Scientist",
     description: "We're seeking a Data Scientist to help us make data-driven decisions. You'll work with large datasets, build machine learning models, and create insights...",
     requirements: ["Python", "Machine Learning", "SQL", "Statistics", "Pandas"],
     createdAt: "2025-08-20T14:45:00Z",
     updatedAt: "2025-08-20T14:45:00Z",
-    status: "draft",
     analysesCount: 0,
     averageMatchScore: 0,
   },
   {
-    id: "4",
+    id: 4,
     title: "Product Manager",
     description: "Looking for an experienced Product Manager to lead our product strategy and roadmap. You'll work closely with engineering, design, and sales teams...",
     requirements: ["Product Strategy", "Agile", "Analytics", "Leadership", "Communication"],
     createdAt: "2025-08-19T10:30:00Z",
     updatedAt: "2025-08-19T10:30:00Z",
-    status: "archived",
     analysesCount: 12,
     averageMatchScore: 72,
   }
@@ -96,30 +91,20 @@ export default function MyJobDescriptionsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
 
-  // Fetch job descriptions from API
-  const { data: jobDescriptions = mockJobDescriptions, isLoading, error, refetch } = useQuery({
-    queryKey: ['/api/job-descriptions'],
-    queryFn: async () => {
-      try {
-        const response = await apiRequest("GET", "/api/job-descriptions");
-        const data = await response.json();
-        // ✅ FIXED: Server returns { data: { jobDescriptions: [...] } }
-        return data.data?.jobDescriptions || mockJobDescriptions;
-      } catch (error) {
-        console.warn('Failed to fetch job descriptions, using mock data:', error);
-        return mockJobDescriptions;
-      }
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: 1
-  });
+  // Fetch job descriptions from API using shared hook
+  const { data: jobsResponse, isLoading, error, refetch } = useJobDescriptions();
+  const jobDescriptions = jobsResponse?.jobDescriptions || mockJobDescriptions;
 
   // Filter job descriptions based on search and filter
+  // Derive display status from available data: analyzed → Active, otherwise Draft
+  const getDerivedStatus = (job: JobDescriptionItem): 'Active' | 'Draft' =>
+    job.analyzedData ? 'Active' : 'Draft';
+
   const filteredJobDescriptions = jobDescriptions.filter((job: JobDescriptionItem) => {
     const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          job.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "All Status" || 
-                         job.status.toLowerCase() === statusFilter.toLowerCase();
+                         getDerivedStatus(job).toLowerCase() === statusFilter.toLowerCase();
     return matchesSearch && matchesStatus;
   });
 
@@ -127,7 +112,7 @@ export default function MyJobDescriptionsPage() {
     setLocation("/job-description");
   };
 
-  const handleViewJob = (jobId: string) => {
+  const handleViewJob = (jobId: number) => {
     // Navigate to job details page
     setLocation(`/job-details/${jobId}`);
   };
@@ -195,7 +180,7 @@ export default function MyJobDescriptionsPage() {
 
   // Calculate summary statistics
   const totalJobs = jobDescriptions.length;
-  const activeJobs = jobDescriptions.length; // All jobs are considered active for now
+  const activeJobs = jobDescriptions.filter((j: JobDescriptionItem) => !!j.analyzedData).length;
   const totalSkills = jobDescriptions.reduce((sum: number, j: JobDescriptionItem) => sum + (j.skills?.length || 0), 0);
   const avgSkillsPerJob = totalJobs > 0 ? Math.round(totalSkills / totalJobs) : 0;
 
@@ -246,7 +231,6 @@ export default function MyJobDescriptionsPage() {
                 <option>All Status</option>
                 <option>Active</option>
                 <option>Draft</option>
-                <option>Archived</option>
               </select>
             </div>
           </div>
@@ -307,7 +291,7 @@ export default function MyJobDescriptionsPage() {
                       <div className="flex items-center gap-3 mb-2">
                         <Building className="h-5 w-5 text-blue-600 flex-shrink-0" />
                         <h3 className="text-xl font-semibold text-gray-900 truncate">{job.title}</h3>
-                        {getStatusBadge(job.status)}
+                        {getStatusBadge(getDerivedStatus(job).toLowerCase())}
                       </div>
                       
                       {/* Description */}

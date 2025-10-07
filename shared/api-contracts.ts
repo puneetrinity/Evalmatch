@@ -11,7 +11,7 @@ export type UserId = string & { readonly _brand: 'UserId' };
 export type SessionId = string & { readonly _brand: 'SessionId' };
 export type ResumeId = number & { readonly _brand: 'ResumeId' };
 export type JobId = number & { readonly _brand: 'JobId' };
-export type AnalysisId = number & { readonly _brand: 'AnalysisId' };
+export type AnalysisId = (string | number) & { readonly _brand: 'AnalysisId' };
 export type FileHash = string & { readonly _brand: 'FileHash' };
 
 // Utility type for creating branded types

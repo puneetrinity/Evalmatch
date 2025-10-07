@@ -129,9 +129,9 @@ export default function MyAnalysesPage() {
     setLocation("/upload");
   };
 
-  const handleViewAnalysis = (analysisId: number) => {
-    // Navigate to analysis details page with proper ID
-    setLocation(`/analysis/${analysisId}`);
+  const handleViewAnalysis = (jobId: number) => {
+    // Navigate to per-job hub (Job Details) for all candidate analyses of that job
+    setLocation(`/job-details/${jobId}`);
   };
 
   const handleInterviewPrep = (analysisId: number) => {

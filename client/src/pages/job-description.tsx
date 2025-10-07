@@ -33,6 +33,7 @@ export default function JobDescriptionPage() {
   const [jobDescription, setJobDescription] = useState("");
   const [requirements, setRequirements] = useState<string[]>([]);
   const [newRequirement, setNewRequirement] = useState("");
+  const [skipBiasDetection, setSkipBiasDetection] = useState(false);
   
   // Fetch user's existing job descriptions
   const { data: jobsResponse, isLoading: loadingJobs } = useJobDescriptions();
@@ -97,10 +98,11 @@ export default function JobDescriptionPage() {
     console.log('Job created with ID:', jobId);
 
     if (jobId) {
-      // If session/batch context exists (came from upload), trigger batch analysis; otherwise go to Bias Detection step
-      if (sessionId && batchId) {
+      // Check if user wants to skip bias detection for faster processing
+      if (skipBiasDetection && sessionId && batchId) {
         analyzeM.mutate(jobId);
       } else {
+        // Always go through bias detection unless explicitly skipped
         setLocation(`/bias-detection/${jobId}`);
       }
     } else {
@@ -347,8 +349,30 @@ export default function JobDescriptionPage() {
                   <span>Our AI will extract additional skills and requirements automatically from the description</span>
                 </div>
               </div>
+
+              {/* Bias Detection Toggle (only show when in upload flow) */}
+              {sessionId && batchId && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <label className="flex items-start cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={skipBiasDetection}
+                      onChange={(e) => setSkipBiasDetection(e.target.checked)}
+                      className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <div className="ml-3">
+                      <span className="text-sm font-medium text-gray-900">
+                        Skip bias detection (faster processing)
+                      </span>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Enable this to go directly to analysis results. You can always review bias detection later.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              )}
             </div>
-            
+
             <div className="flex justify-between">
               <Button
                 type="button"
