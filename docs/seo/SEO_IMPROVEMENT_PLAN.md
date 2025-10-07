@@ -281,6 +281,12 @@ Sub-topics:
 
 ### 2. **Content Calendar**
 
+**News Hub (newshub.evalmatch.app)**:
+- Daily HR industry news updates
+- Weekly trend analysis articles
+- Monthly industry reports and insights
+- Cross-linked with main evalmatch.app for SEO authority flow
+
 **Month 1**:
 - Week 1: "Complete Guide to AI Recruitment in 2025"
 - Week 2: "How to Eliminate Hiring Bias with Technology"

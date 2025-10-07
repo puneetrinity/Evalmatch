@@ -92,7 +92,7 @@ export async function setupVite(app: Express, server: Server) {
 export function serveStatic(app: Express) {
   const buildPath = path.resolve(__dirname, "..", "build", "public");
   const distPath = path.resolve(__dirname, "..", "dist", "public");
-  
+
   // Try build directory first, fall back to dist directory
   const staticPath = fs.existsSync(buildPath) ? buildPath : distPath;
 
@@ -101,6 +101,18 @@ export function serveStatic(app: Express) {
       `Could not find static files in either ${buildPath} or ${distPath}, make sure to build the client first`,
     );
   }
+
+  // SEO FIX: Serve sitemap.xml with correct content type
+  app.get('/sitemap.xml', (req, res) => {
+    res.type('application/xml');
+    res.sendFile(path.resolve(staticPath, "sitemap.xml"));
+  });
+
+  // SEO FIX: Serve robots.txt with correct content type
+  app.get('/robots.txt', (req, res) => {
+    res.type('text/plain');
+    res.sendFile(path.resolve(staticPath, "robots.txt"));
+  });
 
   app.use(express.static(staticPath));
 

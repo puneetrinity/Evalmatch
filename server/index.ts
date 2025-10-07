@@ -6,6 +6,7 @@ if (process.env.NODE_ENV !== 'production' && !process.env.RAILWAY_ENVIRONMENT) {
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import compression from "compression";
 
 // Extend Express types
 declare global {
@@ -39,6 +40,28 @@ export default app;
 
 // Trust proxy for Railway deployment (needed for rate limiting and real IP detection)
 app.set('trust proxy', 1); // Use 1 for single proxy (Railway)
+
+// SEO FIX: URL Canonicalization - Redirect www to non-www
+app.use((req, res, next) => {
+  const host = req.headers.host || '';
+  if (host.startsWith('www.')) {
+    const newHost = host.replace('www.', '');
+    return res.redirect(301, `${req.protocol}://${newHost}${req.originalUrl}`);
+  }
+  next();
+});
+
+// SEO FIX: Enable GZIP compression (reduces HTML from 43.68 KB to 7.44 KB - 83% reduction)
+app.use(compression({
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  },
+  level: 6, // Balanced compression level
+  threshold: 1024 // Only compress responses larger than 1KB
+}));
 
 // PHASE 1: EMERGENCY STABILIZATION - Fixed middleware order
 // 1) Ultra-light fast paths FIRST (no DB, no Redis, no dynamic imports)

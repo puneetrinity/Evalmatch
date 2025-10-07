@@ -57,13 +57,17 @@ export default function JobDescriptionPage() {
 
   const uploadedCount = resumesData?.length || 0;
 
-  // Debug: Log conditions for dropdown visibility
-  console.log('Job Description Page Debug:', {
+  // Debug: Check all conditions for dropdown visibility
+  console.log('🔍 Job Description Page Debug:', {
+    hasSessionId: !!sessionId,
+    hasBatchId: !!batchId,
     sessionId,
     batchId,
     loadingJobs,
     existingJobsCount: existingJobs.length,
-    shouldShowDropdown: !!(sessionId && batchId && !loadingJobs && existingJobs.length > 0)
+    showJobSelection,
+    showCreateNew,
+    shouldShowQuickSelector: !!(sessionId && batchId && !loadingJobs)
   });
 
   // Use the custom hook for job description creation
@@ -201,7 +205,7 @@ export default function JobDescriptionPage() {
 
           {/* Quick Job Selector for Upload Flow */}
           {sessionId && batchId && !loadingJobs && (
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-8 border-4 border-blue-500">
               {existingJobs.length > 0 ? (
                 <>
                   <div className="flex items-start gap-4">

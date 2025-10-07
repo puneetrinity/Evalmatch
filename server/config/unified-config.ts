@@ -126,6 +126,11 @@ export interface AppConfig {
     corsOrigins: string[];
   };
 
+  // Analytics
+  analytics: {
+    googleAnalyticsId: string | null;
+  };
+
   // Features
   features: {
     staticFiles: boolean;
@@ -458,6 +463,9 @@ export function loadUnifiedConfig(): AppConfig {
     security: {
       sessionSecret,
       corsOrigins,
+    },
+    analytics: {
+      googleAnalyticsId: process.env.VITE_GOOGLE_ANALYTICS_ID || null,
     },
     features,
     hybridAnalyzer,

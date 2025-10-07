@@ -1,143 +1,874 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuites name="vitest tests" tests="11" failures="3" errors="0" time="0.657516762">
-    <testsuite name="src/__tests__/integration/credits.test.ts" timestamp="2025-09-19T16:59:48.883Z" hostname="EWS" tests="11" failures="3" errors="0" skipped="0" time="0.657516762">
-        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits Balance &gt; should fetch user credit balance successfully" time="0.056862244">
+<testsuites name="vitest tests" tests="220" failures="0" errors="0" time="9.809887032">
+    <testsuite name="src/__tests__/client-basic.test.ts" timestamp="2025-09-23T15:47:05.572Z" hostname="EWS" tests="12" failures="0" errors="0" skipped="0" time="0.165799027">
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Configuration &gt; should initialize with default configuration" time="0.003631894">
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Configuration &gt; should use custom configuration" time="0.000589585">
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Configuration &gt; should check authentication status" time="0.000510821">
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; API Structure &gt; should have resume management methods" time="0.000542205">
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; API Structure &gt; should have job management methods" time="0.000711685">
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; API Structure &gt; should have analysis methods" time="0.000428553">
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; API Structure &gt; should have utility methods" time="0.000506526">
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Mock Service Integration &gt; should successfully list resumes" time="0.067934486">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Mock Service Integration &gt; should successfully get resume by ID" time="0.015488127">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes/123
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Mock Service Integration &gt; should successfully create job description" time="0.015698445">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/job-descriptions
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Mock Service Integration &gt; should successfully analyze resumes" time="0.019784371">
+            <system-out>
+MSW intercepted ANALYZE 123: POST https://api.test.evalmatch.com/analysis/analyze/123
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client-basic.test.ts" name="EvalMatchClient Basic &gt; Mock Service Integration &gt; should successfully analyze job bias" time="0.028090669">
+            <system-out>
+MSW intercepted BIAS 123: POST https://api.test.evalmatch.com/analysis/analyze-bias/123
+
+MSW BIAS 123 body: {}
+
+            </system-out>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/client.test.ts" timestamp="2025-09-23T15:47:05.582Z" hostname="EWS" tests="19" failures="0" errors="0" skipped="1" time="2.09467007">
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Configuration &gt; should initialize with default configuration" time="0.004190665">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Configuration &gt; should use custom configuration" time="0.000668002">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Configuration &gt; should check authentication status" time="0.000752328">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Resume Management &gt; should list resumes successfully" time="0.08112245">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Resume Management &gt; should get specific resume by ID" time="0.017110892">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes/123
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Resume Management &gt; should upload resume file" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Resume Management &gt; should handle resume not found error" time="0.02410947">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes/999
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Job Description Management &gt; should create job description successfully" time="0.016741073">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/job-descriptions
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Job Description Management &gt; should handle validation errors for job creation" time="0.017784779">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; AI Analysis &gt; should analyze resumes against job" time="0.022424573">
+            <system-out>
+MSW intercepted ANALYZE 123: POST https://api.test.evalmatch.com/analysis/analyze/123
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; AI Analysis &gt; should analyze job bias" time="0.036828041">
+            <system-out>
+MSW intercepted BIAS 123: POST https://api.test.evalmatch.com/analysis/analyze-bias/123
+
+MSW BIAS 123 body: {}
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; AI Analysis &gt; should handle analysis timeout" time="0.004166611">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should handle authentication errors" time="0.018223243">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should handle rate limiting with retry after" time="0.847615093">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should handle server errors with retry" time="0.459709241">
+            <system-out>
+Retry test attempt 1
+
+Retry test attempt 2
+
+Retry test attempt 3
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should handle circuit breaker opening" time="0.520114121">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Error Handling &gt; should enrich errors with request context" time="0.005813725">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Request Interceptors &gt; should add authentication headers automatically" time="0.004388224">
+        </testcase>
+        <testcase classname="src/__tests__/client.test.ts" name="EvalMatchClient &gt; Request Interceptors &gt; should handle requests without authentication" time="0.00451404">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/error-factory.test.ts" timestamp="2025-09-23T15:47:05.596Z" hostname="EWS" tests="22" failures="0" errors="0" skipped="0" time="0.022558765">
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 400 to ValidationError with INVALID_REQUEST code" time="0.004865653">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 401 to AuthenticationError" time="0.001079529">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 403 to EvalMatchError with INSUFFICIENT_PERMISSIONS" time="0.000447448">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 404 to EvalMatchError with RESOURCE_NOT_FOUND" time="0.00032345">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 408 to EvalMatchError with REQUEST_TIMEOUT" time="0.000613363">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 409 to EvalMatchError with CONFLICT" time="0.000872528">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 413 to ValidationError with FILE_TOO_LARGE" time="0.000284622">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 415 to ValidationError with INVALID_FILE_FORMAT" time="0.000221206">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 422 to EvalMatchError with UNPROCESSABLE_ENTITY" time="0.000898876">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should map 429 to RateLimitError with retry information" time="0.000484283">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 4xx Client Errors &gt; should use default retryAfter for 429 when not provided" time="0.000171812">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 5xx Server Errors &gt; should map 500 to ServerError with INTERNAL_SERVER_ERROR" time="0.000532146">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; 5xx Server Errors &gt; should map 502/503/504 to ServerError with SERVICE_UNAVAILABLE" time="0.000566573">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Network Errors &gt; should map network errors (no status) to NetworkError" time="0.000314072">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Unknown Status Codes &gt; should map unknown 4xx codes to generic EvalMatchError (non-retryable)" time="0.000264433">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Unknown Status Codes &gt; should map unknown 5xx codes to generic EvalMatchError (retryable)" time="0.000400664">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Error Context Enrichment &gt; should enrich error context with request metadata" time="0.000299803">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Error Context Enrichment &gt; should prioritize provided context over error object data" time="0.000202277">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Recovery Actions Validation &gt; should provide appropriate recovery actions for each error type" time="0.000939823">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Error Envelope Integration &gt; should return error envelope with recovery actions when throwOnError: false" time="0.000511113">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Error Envelope Integration &gt; should handle 429 errors with header-based retry information" time="0.000237764">
+        </testcase>
+        <testcase classname="src/__tests__/error-factory.test.ts" name="ErrorFactory HTTP Status Code Mappings &gt; Error Envelope Integration &gt; should fallback to body retryAfter when header is missing" time="0.000151757">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/retry-after.test.ts" timestamp="2025-09-23T15:47:05.606Z" hostname="EWS" tests="10" failures="0" errors="0" skipped="0" time="1.042622338">
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; Client Setup &gt; should setup request and response interceptors" time="0.00440631">
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; Delay-Seconds Format &gt; should parse numeric Retry-After header (seconds)" time="0.007112009">
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; Delay-Seconds Format &gt; should cap delay to maxDelay for large Retry-After values" time="0.002331516">
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; Delay-Seconds Format &gt; should ignore zero or negative Retry-After values" time="0.001466694">
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; HTTP-Date Format &gt; should parse RFC 7231 HTTP-date Retry-After header" time="0.001779309">
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; HTTP-Date Format &gt; should cap HTTP-date delay to maxDelay" time="0.001541845">
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; HTTP-Date Format &gt; should ignore past HTTP-date values" time="0.001415892">
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; Invalid Retry-After Values &gt; should fall back to exponential backoff for invalid values" time="0.749857216">
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; Invalid Retry-After Values &gt; should handle missing Retry-After header" time="0.120534379">
+        </testcase>
+        <testcase classname="src/__tests__/retry-after.test.ts" name="Retry-After Header Parsing &gt; Non-429 Errors &gt; should not use Retry-After for non-429 status codes" time="0.141914824">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/spec-completeness.test.ts" timestamp="2025-09-23T15:47:05.611Z" hostname="EWS" tests="18" failures="0" errors="0" skipped="0" time="0.013127764">
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; should have methods for all documented public endpoints" time="0.002298465">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; should have proper method signatures for public endpoints" time="0.000804753">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; should support new ClientOptions features" time="0.000174771">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Credits Endpoints &gt; should have credits balance method" time="0.000158251">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Credits Endpoints &gt; should have credits history method" time="0.000210539">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Credits Endpoints &gt; should have credits packages method" time="0.000288538">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Credits Endpoints &gt; should have credits grant-beta method" time="0.00046257">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Health Endpoints &gt; should have health status method" time="0.000295267">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Health Endpoints &gt; should have system health method" time="0.000834081">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Jobs Endpoints &gt; should have jobs list method" time="0.000212111">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Jobs Endpoints &gt; should have jobs get method" time="0.000147641">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Jobs Endpoints &gt; should have jobs update method" time="0.000088078">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Jobs Endpoints &gt; should have jobs delete method" time="0.000060744">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Batch Upload &gt; should have resumes batch upload method" time="0.000064835">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Tokens &gt; should have tokens status by token method" time="0.000058334">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Analysis Text &gt; should have analyze text method with proper typing" time="0.000198644">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; User Profile Endpoint &gt; should have user profile method" time="0.000103021">
+        </testcase>
+        <testcase classname="src/__tests__/spec-completeness.test.ts" name="SDK Spec Completeness &gt; Generated vs Manual Client Parity &gt; should ensure manual client methods align with generated types" time="0.000105467">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/upload-boundary.test.ts" timestamp="2025-09-23T15:47:05.619Z" hostname="EWS" tests="7" failures="0" errors="0" skipped="0" time="0.020642313">
+        <testcase classname="src/__tests__/upload-boundary.test.ts" name="Upload Content-Type Boundary Tests &gt; Browser Environment Upload &gt; should not manually set Content-Type for multipart uploads" time="0.005762635">
+        </testcase>
+        <testcase classname="src/__tests__/upload-boundary.test.ts" name="Upload Content-Type Boundary Tests &gt; Browser Environment Upload &gt; should let Axios automatically set multipart boundary" time="0.001106449">
+        </testcase>
+        <testcase classname="src/__tests__/upload-boundary.test.ts" name="Upload Content-Type Boundary Tests &gt; Browser Environment Upload &gt; should handle file uploads with various MIME types" time="0.001343492">
+        </testcase>
+        <testcase classname="src/__tests__/upload-boundary.test.ts" name="Upload Content-Type Boundary Tests &gt; Node.js Environment Upload &gt; should handle Node.js FormData polyfill correctly" time="0.004476163">
+        </testcase>
+        <testcase classname="src/__tests__/upload-boundary.test.ts" name="Upload Content-Type Boundary Tests &gt; Boundary Generation Verification &gt; should verify boundary is present in actual multipart requests" time="0.000960475">
+        </testcase>
+        <testcase classname="src/__tests__/upload-boundary.test.ts" name="Upload Content-Type Boundary Tests &gt; Boundary Generation Verification &gt; should not double-set Content-Type headers" time="0.000750347">
+        </testcase>
+        <testcase classname="src/__tests__/upload-boundary.test.ts" name="Upload Content-Type Boundary Tests &gt; Error Handling &gt; should handle FormData creation errors gracefully" time="0.000706069">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/core/errors.test.ts" timestamp="2025-09-23T15:47:05.623Z" hostname="EWS" tests="20" failures="0" errors="0" skipped="0" time="0.016070597">
+        <testcase classname="src/__tests__/core/errors.test.ts" name="EvalMatchError &gt; should create error with all properties" time="0.002841693">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="EvalMatchError &gt; should serialize to JSON properly" time="0.002080314">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="EvalMatchError &gt; should have proper toString representation" time="0.000259021">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create NetworkError with retry actions" time="0.001369255">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create AuthenticationError with auth actions" time="0.000291472">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create RateLimitError with wait action" time="0.00040729">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create ValidationError with check parameters action" time="0.000254886">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create ServerError with appropriate retry behavior" time="0.000334548">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create CircuitBreakerError with wait action" time="0.000513911">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="Specific Error Classes &gt; should create FirebaseAuthError with auth action" time="0.000282524">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create ValidationError for 400 status" time="0.000479127">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create AuthenticationError for 401 status" time="0.000217173">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create RateLimitError for 429 status" time="0.000184464">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create ServerError for 5xx status" time="0.000179174">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create NetworkError for no status" time="0.000145648">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should handle file size errors (413)" time="0.000124091">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should handle unsupported media type (415)" time="0.000103657">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create CircuitBreakerError" time="0.000218129">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should create FirebaseAuthError" time="0.000181698">
+        </testcase>
+        <testcase classname="src/__tests__/core/errors.test.ts" name="ErrorFactory &gt; should enrich context for unknown status codes" time="0.00033022">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/core/interceptors.test.ts" timestamp="2025-09-23T15:47:05.633Z" hostname="EWS" tests="22" failures="0" errors="0" skipped="0" time="0.024254535">
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should manage request interceptors" time="0.002595308">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should manage response interceptors" time="0.000527873">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should manage error interceptors" time="0.00052798">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should process request through interceptors" time="0.001770061">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should process response through interceptors" time="0.000703719">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="InterceptorManager &gt; should clear all interceptors" time="0.001150647">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; requestId &gt; should add request ID to headers" time="0.000253068">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; userAgent &gt; should add user agent header" time="0.000180963">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; userAgent &gt; should use default version" time="0.000330944">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; timeout &gt; should set timeout when not provided" time="0.000235747">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; timeout &gt; should not override existing timeout" time="0.000104197">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; authentication &gt; should add auth header when token available" time="0.00035899">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; authentication &gt; should not add auth header when token not available" time="0.00029629">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; contentType &gt; should set JSON content type for object data" time="0.000174495">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; contentType &gt; should not set content type for FormData" time="0.000264167">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; contentType &gt; should not override existing content type" time="0.000096405">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; responseTiming &gt; should log warning for slow responses" time="0.001389995">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; responseTiming &gt; should not log for fast responses" time="0.00070999">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; errorLogging &gt; should log error details when debug enabled" time="0.003146025">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="BuiltInInterceptors &gt; errorLogging &gt; should not log when debug disabled" time="0.000570139">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="createDefaultInterceptors &gt; should create default interceptor sets" time="0.001234359">
+        </testcase>
+        <testcase classname="src/__tests__/core/interceptors.test.ts" name="createDefaultInterceptors &gt; should configure interceptors with proper parameters" time="0.000386115">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/core/retry-client.test.ts" timestamp="2025-09-23T15:47:05.649Z" hostname="EWS" tests="11" failures="0" errors="0" skipped="0" time="3.223112344">
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="CircuitBreaker &gt; should start in CLOSED state" time="0.00237392">
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="CircuitBreaker &gt; should open after threshold failures" time="0.003673309">
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="CircuitBreaker &gt; should transition to HALF_OPEN after timeout" time="1.104943345">
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="CircuitBreaker &gt; should reset to CLOSED after successful operations in HALF_OPEN" time="1.103812049">
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should make successful requests" time="0.10074442">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/health
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should retry on server errors" time="0.094822363">
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should not retry on 4xx errors" time="0.03203061">
+            <system-out>
+MSW intercepted ERROR 401: GET https://api.test.evalmatch.com/error/401
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should add request metadata" time="0.007082995">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/health
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should respect circuit breaker state" time="0.449324756">
+            <system-out>
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+
+MSW intercepted ERROR 500: GET https://api.test.evalmatch.com/error/500
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should handle network errors" time="0.1698681">
+            <system-out>
+MSW intercepted NETWORK ERROR: GET https://api.test.evalmatch.com/network-error
+
+MSW intercepted NETWORK ERROR: GET https://api.test.evalmatch.com/network-error
+
+MSW intercepted NETWORK ERROR: GET https://api.test.evalmatch.com/network-error
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/core/retry-client.test.ts" name="RetryableHTTPClient &gt; should apply exponential backoff with jitter" time="0.147046025">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/integration/auth-negative-tests.test.ts" timestamp="2025-09-23T15:47:05.674Z" hostname="EWS" tests="17" failures="0" errors="0" skipped="0" time="0.793558484">
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; No Authentication (401 Expected) &gt; should fail jobs.list without auth" time="0.20197661">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions
+
+MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; No Authentication (401 Expected) &gt; should fail jobs.get without auth" time="0.053070547">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions/1
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; No Authentication (401 Expected) &gt; should fail jobs.create without auth" time="0.01852563">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/job-descriptions
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; No Authentication (401 Expected) &gt; should fail resumes.list without auth" time="0.010902722">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; No Authentication (401 Expected) &gt; should fail analysis.analyzeText without auth" time="0.050932893">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/analysis/analyze-text
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; No Authentication (401 Expected) &gt; should fail credits.getBalance without auth" time="0.04228633">
             <system-out>
 MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
 
             </system-out>
         </testcase>
-        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits Balance &gt; should handle balance request with throwOnError: false" time="0.020129967">
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; No Authentication (401 Expected) &gt; should fail user.getProfile without auth" time="0.038840354">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/user/profile
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; No Authentication (401 Expected) &gt; should fail tokens.statusByToken without auth" time="0.05158549">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/v1/tokens/status/by-token
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; Invalid Token (401/403 Expected) &gt; should fail jobs.list with invalid token" time="0.083921457">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions
+
+MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; Invalid Token (401/403 Expected) &gt; should fail resumes.get with invalid token" time="0.010947221">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes/1
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; Invalid Token (401/403 Expected) &gt; should fail analysis.analyzeText with invalid token" time="0.039376053">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/analysis/analyze-text
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; Invalid Token (401/403 Expected) &gt; should fail credits.getBalance with invalid token" time="0.032476929">
             <system-out>
 MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
 
             </system-out>
         </testcase>
-        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits History &gt; should fetch credit transaction history" time="0.026900036">
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; Invalid Token (401/403 Expected) &gt; should fail tokens.statusByToken with invalid token" time="0.055907727">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/v1/tokens/status/by-token
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; Protected vs Public Endpoints &gt; should allow health.status without auth" time="0.005577544">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/health
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; Protected vs Public Endpoints &gt; should allow health.system without auth" time="0.005759559">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/system-health
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; Error Context Validation &gt; should provide detailed error context for auth failures" time="0.042686619">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/auth-negative-tests.test.ts" name="Authentication Negative Tests &gt; Error Context Validation &gt; should provide recovery actions for auth errors" time="0.0425362">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/v1/tokens/status/by-token
+
+            </system-out>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/integration/client-integration.test.ts" timestamp="2025-09-23T15:47:05.693Z" hostname="EWS" tests="5" failures="0" errors="0" skipped="0" time="0.011937321">
+        <testcase classname="src/__tests__/integration/client-integration.test.ts" name="EvalMatchClient Integration &gt; should initialize client with proper configuration" time="0.003105388">
+        </testcase>
+        <testcase classname="src/__tests__/integration/client-integration.test.ts" name="EvalMatchClient Integration &gt; should have all expected API methods" time="0.000916652">
+        </testcase>
+        <testcase classname="src/__tests__/integration/client-integration.test.ts" name="EvalMatchClient Integration &gt; should report authenticated status" time="0.000514993">
+        </testcase>
+        <testcase classname="src/__tests__/integration/client-integration.test.ts" name="EvalMatchClient Integration &gt; should create client with default configuration" time="0.000773167">
+        </testcase>
+        <testcase classname="src/__tests__/integration/client-integration.test.ts" name="EvalMatchClient Integration &gt; should handle circuit breaker configuration" time="0.001163163">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/integration/credits.test.ts" timestamp="2025-09-23T15:47:05.696Z" hostname="EWS" tests="11" failures="0" errors="0" skipped="0" time="0.45275318">
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits Balance &gt; should fetch user credit balance successfully" time="0.111097045">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits Balance &gt; should handle balance request with throwOnError: false" time="0.045639188">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits History &gt; should fetch credit transaction history" time="0.041736294">
             <system-out>
 MSW intercepted: GET https://api.test.evalmatch.com/credits/history
 
             </system-out>
-            <failure message="expected { …(5) } to match object { success: true, data: { …(3) } }
-(9 matching properties omitted from actual)" type="AssertionError">
-AssertionError: expected { …(5) } to match object { success: true, data: { …(3) } }
-(9 matching properties omitted from actual)
-
-- Expected
-+ Received
-
-  {
--   &quot;data&quot;: {
--     &quot;currentBalance&quot;: Any&lt;Number&gt;,
--     &quot;pagination&quot;: ObjectContaining {
--       &quot;limit&quot;: Any&lt;Number&gt;,
--       &quot;page&quot;: Any&lt;Number&gt;,
-+   &quot;currentBalance&quot;: 150,
-+   &quot;pagination&quot;: {
-+     &quot;limit&quot;: 10,
-+     &quot;page&quot;: 1,
-+     &quot;total&quot;: 25,
-+     &quot;totalPages&quot;: 3,
-    },
--     &quot;transactions&quot;: ArrayContaining [
--       ObjectContaining {
--         &quot;amount&quot;: Any&lt;Number&gt;,
--         &quot;createdAt&quot;: Any&lt;String&gt;,
--         &quot;description&quot;: Any&lt;String&gt;,
--         &quot;id&quot;: Any&lt;Number&gt;,
--         &quot;type&quot;: StringMatching /purchase|usage|grant/,
-+   &quot;totalPurchased&quot;: 200,
-+   &quot;totalUsed&quot;: 50,
-+   &quot;transactions&quot;: [
-+     {
-+       &quot;amount&quot;: 100,
-+       &quot;createdAt&quot;: &quot;2024-01-15T10:00:00Z&quot;,
-+       &quot;description&quot;: &quot;Premium plan credits&quot;,
-+       &quot;id&quot;: 1,
-+       &quot;type&quot;: &quot;purchase&quot;,
-      },
--     ],
-+     {
-+       &quot;amount&quot;: -5,
-+       &quot;createdAt&quot;: &quot;2024-01-15T11:00:00Z&quot;,
-+       &quot;description&quot;: &quot;Resume analysis&quot;,
-+       &quot;id&quot;: 2,
-+       &quot;type&quot;: &quot;usage&quot;,
-      },
--   &quot;success&quot;: true,
-+   ],
-  }
-
- ❯ src/__tests__/integration/credits.test.ts:55:23
-            </failure>
         </testcase>
-        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits History &gt; should handle pagination parameters" time="0.023044036">
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits History &gt; should handle pagination parameters" time="0.054084454">
             <system-out>
 MSW intercepted: GET https://api.test.evalmatch.com/credits/history?page=2&amp;limit=5
 
             </system-out>
-            <failure message="expected undefined to be true // Object.is equality" type="AssertionError">
-AssertionError: expected undefined to be true // Object.is equality
-
-- Expected: 
-true
-
-+ Received: 
-undefined
-
- ❯ src/__tests__/integration/credits.test.ts:82:31
-            </failure>
         </testcase>
-        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits Packages &gt; should fetch available credit packages" time="0.018940091">
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Credits Packages &gt; should fetch available credit packages" time="0.03305097">
             <system-out>
 MSW intercepted: GET https://api.test.evalmatch.com/credits/packages
 
             </system-out>
         </testcase>
-        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Grant Beta Credits &gt; should grant beta credits successfully" time="0.018585521">
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Grant Beta Credits &gt; should grant beta credits successfully" time="0.028497442">
             <system-out>
 MSW intercepted: POST https://api.test.evalmatch.com/credits/grant-beta
 
             </system-out>
         </testcase>
-        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Grant Beta Credits &gt; should accept optional request body" time="0.018549348">
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Grant Beta Credits &gt; should accept optional request body" time="0.029244344">
             <system-out>
 MSW intercepted: POST https://api.test.evalmatch.com/credits/grant-beta
 
             </system-out>
         </testcase>
-        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Error Handling &gt; should handle authentication errors gracefully" time="0.440301132">
-            <system-out>
-MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
-
-MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
-
-MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
-
-            </system-out>
-            <failure message="Authentication required" type="EvalMatchError">
-EvalMatchError: Authentication required
- ❯ new AuthenticationError src/core/errors.ts:145:5
- ❯ Function.createFromHttpError src/core/errors.ts:293:16
- ❯ EvalMatchClient.handleError src/client.ts:208:24
- ❯ EvalMatchClient.request src/client.ts:248:12
- ❯ src/__tests__/integration/credits.test.ts:149:22
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-Serialized Error: { code: &apos;INVALID_CREDENTIALS&apos;, context: { circuitBreakerState: &apos;closed&apos;, endpoint: &apos;/credits/balance&apos;, method: &apos;GET&apos;, statusCode: 401, requestId: undefined, duration: undefined, timestamp: &apos;2025-09-19T16:59:48.807Z&apos; }, recoveryActions: [ { type: &apos;authenticate&apos;, description: &apos;Re-authenticate with valid credentials&apos; }, { type: &apos;contact_support&apos;, description: &apos;Contact support if authentication continues to fail&apos; } ], isRetryable: false }
-            </failure>
-        </testcase>
-        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Error Handling &gt; should handle network errors with proper error context" time="0.0003813">
-        </testcase>
-        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Client Options Support &gt; should support AbortSignal for request cancellation" time="0.015088228">
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Error Handling &gt; should handle authentication errors gracefully" time="0.037475368">
             <system-out>
 MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
 
             </system-out>
         </testcase>
-        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Client Options Support &gt; should support timeout option" time="0.015445437">
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Error Handling &gt; should handle network errors with proper error context" time="0.000926909">
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Client Options Support &gt; should support AbortSignal for request cancellation" time="0.032437049">
             <system-out>
 MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/credits.test.ts" name="Credits Integration &gt; Client Options Support &gt; should support timeout option" time="0.030735813">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
+
+            </system-out>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/integration/dual-auth-matrix.test.ts" timestamp="2025-09-23T15:47:05.703Z" hostname="EWS" tests="32" failures="0" errors="0" skipped="0" time="1.101550192">
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Jobs Endpoints (Both Auth Methods) &gt; should list jobs with Firebase auth" time="0.12639418">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Jobs Endpoints (Both Auth Methods) &gt; should list jobs with API token" time="0.050527516">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Jobs Endpoints (Both Auth Methods) &gt; should get job with Firebase auth" time="0.062162206">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions/1
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Jobs Endpoints (Both Auth Methods) &gt; should get job with API token" time="0.041134324">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions/1
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Jobs Endpoints (Both Auth Methods) &gt; should create job with Firebase auth" time="0.014804861">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/job-descriptions
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Jobs Endpoints (Both Auth Methods) &gt; should create job with API token" time="0.013486909">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/job-descriptions
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Jobs Endpoints (Both Auth Methods) &gt; should update job with Firebase auth" time="0.044702204">
+            <system-out>
+MSW intercepted: PATCH https://api.test.evalmatch.com/job-descriptions/1
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Jobs Endpoints (Both Auth Methods) &gt; should update job with API token" time="0.040028054">
+            <system-out>
+MSW intercepted: PATCH https://api.test.evalmatch.com/job-descriptions/1
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Jobs Endpoints (Both Auth Methods) &gt; should delete job with Firebase auth" time="0.043399604">
+            <system-out>
+MSW intercepted: DELETE https://api.test.evalmatch.com/job-descriptions/1
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Jobs Endpoints (Both Auth Methods) &gt; should delete job with API token" time="0.042775512">
+            <system-out>
+MSW intercepted: DELETE https://api.test.evalmatch.com/job-descriptions/1
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Resumes Endpoints (Both Auth Methods) &gt; should list resumes with Firebase auth" time="0.007970646">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Resumes Endpoints (Both Auth Methods) &gt; should list resumes with API token" time="0.006751477">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Resumes Endpoints (Both Auth Methods) &gt; should get resume with Firebase auth" time="0.013470341">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes/1
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Resumes Endpoints (Both Auth Methods) &gt; should get resume with API token" time="0.008605275">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/resumes/1
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Resumes Endpoints (Both Auth Methods) &gt; should handle batch upload with Firebase auth" time="0.040334216">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/resumes/batch
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Resumes Endpoints (Both Auth Methods) &gt; should handle batch upload with API token" time="0.058968918">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/resumes/batch
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Analysis Endpoints (Both Auth Methods) &gt; should analyze text with Firebase auth" time="0.03929656">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/analysis/analyze-text
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Analysis Endpoints (Both Auth Methods) &gt; should analyze text with API token" time="0.042387865">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/analysis/analyze-text
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Credits Endpoints (Both Auth Methods) &gt; should get credit balance with Firebase auth" time="0.036542223">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Credits Endpoints (Both Auth Methods) &gt; should get credit balance with API token" time="0.032662409">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/balance
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Credits Endpoints (Both Auth Methods) &gt; should get credit history with Firebase auth" time="0.029401289">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/history
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Credits Endpoints (Both Auth Methods) &gt; should get credit history with API token" time="0.031938078">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/history
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Credits Endpoints (Both Auth Methods) &gt; should get credit packages with Firebase auth" time="0.033615787">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/packages
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Credits Endpoints (Both Auth Methods) &gt; should get credit packages with API token" time="0.033593463">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/credits/packages
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; User Endpoints (Both Auth Methods) &gt; should get profile with Firebase auth" time="0.034734451">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/user/profile
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; User Endpoints (Both Auth Methods) &gt; should get profile with API token" time="0.045706413">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/user/profile
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Tokens Endpoints (Token-Only) &gt; should get token status with API token" time="0.043240562">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/v1/tokens/status/by-token
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Tokens Endpoints (Token-Only) &gt; should fail token status with Firebase auth" time="0.04922197">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/v1/tokens/status/by-token
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Health Endpoints (Public) &gt; should get health status with Firebase auth" time="0.004432919">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/health
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Health Endpoints (Public) &gt; should get health status with API token" time="0.00486374">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/health
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Health Endpoints (Public) &gt; should get system health with Firebase auth" time="0.00607444">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/system-health
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/dual-auth-matrix.test.ts" name="Dual Authentication Matrix &gt; Health Endpoints (Public) &gt; should get system health with API token" time="0.008173525">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/system-health
+
+            </system-out>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/integration/new-features.test.ts" timestamp="2025-09-23T15:47:05.719Z" hostname="EWS" tests="14" failures="0" errors="0" skipped="1" time="0.827230102">
+        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Jobs CRUD Operations &gt; should list job descriptions" time="0.110956426">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Jobs CRUD Operations &gt; should get a specific job description" time="0.063885214">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions/1
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Jobs CRUD Operations &gt; should create a new job description" time="0.0176652">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/job-descriptions
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Jobs CRUD Operations &gt; should update a job description" time="0.059110487">
+            <system-out>
+MSW intercepted: PATCH https://api.test.evalmatch.com/job-descriptions/1
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Jobs CRUD Operations &gt; should delete a job description" time="0.04455679">
+            <system-out>
+MSW intercepted: DELETE https://api.test.evalmatch.com/job-descriptions/1
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Batch Upload &gt; should upload multiple resumes" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Batch Upload &gt; should handle empty file array" time="0.058156565">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/resumes/batch
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Analysis Text Endpoint &gt; should analyze resume text against job description" time="0.060725325">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/analysis/analyze-text
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Analysis Text Endpoint &gt; should handle empty text inputs" time="0.065255668">
+            <system-out>
+MSW intercepted: POST https://api.test.evalmatch.com/analysis/analyze-text
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Token Status &gt; should get token status information" time="0.059808182">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/v1/tokens/status/by-token
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Error Handling with throwOnError: false &gt; should return error envelope for jobs.get with invalid ID" time="0.052726748">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions/999
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Error Handling with throwOnError: false &gt; should return error envelope for jobs.delete with invalid ID" time="0.047259859">
+            <system-out>
+MSW intercepted: DELETE https://api.test.evalmatch.com/job-descriptions/999
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Type Safety Validation &gt; should enforce correct types for JobDescriptionInput" time="0.000484658">
+        </testcase>
+        <testcase classname="src/__tests__/integration/new-features.test.ts" name="New SDK Features Integration &gt; Type Safety Validation &gt; should enforce correct return types" time="0.179623408">
+            <system-out>
+MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions
+
+MSW intercepted: GET https://api.test.evalmatch.com/job-descriptions/1
+
+MSW intercepted: POST https://api.test.evalmatch.com/analysis/analyze-text
+
+MSW intercepted: GET https://api.test.evalmatch.com/v1/tokens/status/by-token
 
             </system-out>
         </testcase>

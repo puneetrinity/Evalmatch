@@ -45,7 +45,25 @@
     <!-- Preload critical resources -->
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"></noscript>
-    
+
+    <!-- Google Analytics - Loaded from environment variable -->
+    <script type="module">
+      const GA_ID = import.meta.env.VITE_GOOGLE_ANALYTICS_ID;
+      if (GA_ID) {
+        // Load gtag.js dynamically
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
+        document.head.appendChild(script);
+
+        // Initialize Google Analytics
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', GA_ID);
+      }
+    </script>
+
     <!-- Enhanced Structured Data with Entity-Based Optimization -->
     <script type="application/ld+json">
     {
@@ -169,8 +187,8 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    
-    <!-- Performance optimization script -->
-    <script src="/js/performance.js"></script>
+
+    <!-- Performance optimization script (deferred to eliminate render-blocking) -->
+    <script defer src="/js/performance.js"></script>
   </body>
 </html>
