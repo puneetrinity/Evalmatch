@@ -283,47 +283,55 @@ export class JobService {
         hasDateRange: !!options.dateRange
       });
 
-      // Build query with filters
-      const queryBuilder = QueryBuilder.forUser(options.userId);
-
-      if (options.searchQuery) {
-        // Use generic where method with LIKE operator for title search
-        // TODO: Implement proper LIKE search in QueryBuilder
-        // For now, we'll use exact match
-        queryBuilder.where('title', options.searchQuery);
-      }
-
-      if (options.dateRange) {
-        queryBuilder.dateRange('createdAt', options.dateRange.start, options.dateRange.end);
-      }
-
       const page = options.page || 1;
       const limit = Math.min(options.limit || 20, 100); // Max 100 per page
 
-      queryBuilder.paginate(page, limit);
-
-      // Execute query
-      let jobs, total;
+      // Use storage provider directly (QueryBuilder is a stub and returns empty arrays)
+      let allJobs: JobDescription[] = [];
       try {
-        jobs = await queryBuilder.execute(jobDescriptions);
-        // For now, we'll use the returned data length as total
-        // TODO: Implement proper count functionality in QueryBuilder
-        total = jobs.data.length;
+        allJobs = await this.getStorageProvider().getJobDescriptionsByUserId(options.userId);
       } catch (error) {
         const appError = toAppError(error, 'job_retrieval');
         if (appError.code === 'NOT_FOUND') {
           return failure(AppNotFoundError.resourceNotFound('jobs'));
-        } else {
-          return failure(AppExternalServiceError.databaseFailure('job_retrieval', appError.message));
         }
+        return failure(AppExternalServiceError.databaseFailure('job_retrieval', appError.message));
       }
-      
+
+      // Apply optional filters (search by title/description, date range)
+      let filtered = allJobs;
+
+      if (options.searchQuery && options.searchQuery.trim().length > 0) {
+        const q = options.searchQuery.trim().toLowerCase();
+        filtered = filtered.filter((j) =>
+          (j.title || '').toLowerCase().includes(q) ||
+          (j.description || '').toLowerCase().includes(q)
+        );
+      }
+
+      if (options.dateRange) {
+        const start = options.dateRange.start?.getTime();
+        const end = options.dateRange.end?.getTime();
+        filtered = filtered.filter((j) => {
+          const created = j.createdAt ? new Date(j.createdAt as any).getTime() : 0;
+          if (start && created < start) return false;
+          if (end && created > end) return false;
+          return true;
+        });
+      }
+
+      const total = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      const startIdx = Math.max(0, (page - 1) * limit);
+      const endIdx = startIdx + limit;
+      const pageData = filtered.slice(startIdx, endIdx);
+
       const result = {
-        jobs: jobs.data as any[],
+        jobs: pageData,
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit)
+        totalPages
       };
 
       logger.info('Job descriptions retrieved successfully', {
@@ -344,9 +352,8 @@ export class JobService {
       const appError = toAppError(error, 'job_retrieval');
       if (appError.code === 'NOT_FOUND') {
         return failure(AppNotFoundError.resourceNotFound('jobs'));
-      } else {
-        return failure(AppExternalServiceError.databaseFailure('job_retrieval', appError.message));
       }
+      return failure(AppExternalServiceError.databaseFailure('job_retrieval', appError.message));
     }
   }
 

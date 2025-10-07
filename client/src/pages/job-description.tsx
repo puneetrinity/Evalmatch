@@ -188,6 +188,16 @@ export default function JobDescriptionPage() {
         <div className="mt-12">
           {/* Header with resume count */}
           <div className="mb-8">
+            {/* DEBUG BANNER */}
+            {sessionId && batchId && !loadingJobs && (
+              <div className="bg-yellow-200 border-4 border-red-600 p-4 mb-4 text-center">
+                <p className="text-xl font-bold">🚨 DEBUG: Quick Selector SHOULD be visible below this! 🚨</p>
+                <p>sessionId: {sessionId}</p>
+                <p>batchId: {batchId}</p>
+                <p>loadingJobs: {String(loadingJobs)}</p>
+                <p>existingJobs: {existingJobs.length}</p>
+              </div>
+            )}
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Select or Create Job Description</h1>
             {sessionId && batchId && (
               <p className="text-gray-600 flex items-center gap-2">
@@ -204,8 +214,17 @@ export default function JobDescriptionPage() {
           </div>
 
           {/* Quick Job Selector for Upload Flow */}
-          {sessionId && batchId && !loadingJobs && (
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-8 border-4 border-blue-500">
+          {(() => {
+            const shouldShow = sessionId && batchId && !loadingJobs;
+            console.log('🎯 SHOULD SHOW QUICK SELECTOR:', shouldShow, {
+              hasSessionId: !!sessionId,
+              hasBatchId: !!batchId,
+              loadingJobs,
+              condition: `${!!sessionId} && ${!!batchId} && ${!loadingJobs}`
+            });
+            return shouldShow;
+          })() && (
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-8 border-4 border-blue-500" style={{minHeight: '200px'}}>
               {existingJobs.length > 0 ? (
                 <>
                   <div className="flex items-start gap-4">
