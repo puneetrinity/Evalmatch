@@ -57,6 +57,15 @@ export default function JobDescriptionPage() {
 
   const uploadedCount = resumesData?.length || 0;
 
+  // Debug: Log conditions for dropdown visibility
+  console.log('Job Description Page Debug:', {
+    sessionId,
+    batchId,
+    loadingJobs,
+    existingJobsCount: existingJobs.length,
+    shouldShowDropdown: !!(sessionId && batchId && !loadingJobs && existingJobs.length > 0)
+  });
+
   // Use the custom hook for job description creation
   const createJobMutation = useCreateJobDescription();
 
@@ -191,57 +200,74 @@ export default function JobDescriptionPage() {
           </div>
 
           {/* Quick Job Selector for Upload Flow */}
-          {sessionId && batchId && !loadingJobs && existingJobs.length > 0 && (
+          {sessionId && batchId && !loadingJobs && (
             <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-              <div className="flex items-start gap-4">
-                <div className="flex-1">
-                  <label htmlFor="jobSelect" className="block text-sm font-medium text-gray-700 mb-2">
-                    Select an existing job description
-                  </label>
-                  <select
-                    id="jobSelect"
-                    value={selectedJobId}
-                    onChange={(e) => setSelectedJobId(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">-- Choose a job description --</option>
-                    {existingJobs.map((job: any) => (
-                      <option key={job.id} value={job.id}>
-                        {job.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="pt-7">
-                  <Button
-                    onClick={() => selectedJobId && handleSelectExistingJob(parseInt(selectedJobId))}
-                    disabled={!selectedJobId || analyzeM.isPending}
-                  >
-                    {analyzeM.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Starting Analysis...
-                      </>
-                    ) : (
-                      <>
-                        Analyze Resumes
-                        <ChevronRight className="h-4 w-4 ml-2" />
-                      </>
-                    )}
+              {existingJobs.length > 0 ? (
+                <>
+                  <div className="flex items-start gap-4">
+                    <div className="flex-1">
+                      <label htmlFor="jobSelect" className="block text-sm font-medium text-gray-700 mb-2">
+                        Select an existing job description
+                      </label>
+                      <select
+                        id="jobSelect"
+                        value={selectedJobId}
+                        onChange={(e) => setSelectedJobId(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">-- Choose a job description --</option>
+                        {existingJobs.map((job: any) => (
+                          <option key={job.id} value={job.id}>
+                            {job.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="pt-7">
+                      <Button
+                        onClick={() => selectedJobId && handleSelectExistingJob(parseInt(selectedJobId))}
+                        disabled={!selectedJobId || analyzeM.isPending}
+                      >
+                        {analyzeM.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Starting Analysis...
+                          </>
+                        ) : (
+                          <>
+                            Analyze Resumes
+                            <ChevronRight className="h-4 w-4 ml-2" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-sm text-gray-600 text-center">
+                      Or{' '}
+                      <Button
+                        variant="link"
+                        className="p-0 h-auto font-medium text-blue-600 hover:text-blue-700"
+                        onClick={() => setShowCreateNew(true)}
+                      >
+                        create a new job description
+                      </Button>
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-4">
+                  <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Job Descriptions Yet</h3>
+                  <p className="text-gray-600 mb-4">
+                    Create your first job description to analyze the {uploadedCount} resume(s) you uploaded.
+                  </p>
+                  <Button onClick={() => setShowCreateNew(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Job Description
                   </Button>
                 </div>
-              </div>
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-600 text-center">
-                  Or <button
-                    type="button"
-                    onClick={() => setShowCreateNew(true)}
-                    className="text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    create a new job description
-                  </button>
-                </p>
-              </div>
+              )}
             </div>
           )}
 
@@ -309,15 +335,15 @@ export default function JobDescriptionPage() {
           )}
 
           {/* Create New Job Form */}
-          {(showCreateNew || existingJobs.length === 0) && (
+          {(showCreateNew || (!sessionId && !batchId && existingJobs.length === 0)) && (
             <div>
-              {existingJobs.length > 0 && (
+              {existingJobs.length > 0 && (sessionId && batchId || !sessionId && !batchId) && (
                 <div className="mb-4">
                   <Button
                     variant="outline"
                     onClick={() => setShowCreateNew(false)}
                   >
-                    Back to Job Selection
+                    {sessionId && batchId ? 'Back to Job Selection' : 'Back to Job List'}
                   </Button>
                 </div>
               )}
