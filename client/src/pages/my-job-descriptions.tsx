@@ -117,7 +117,7 @@ export default function MyJobDescriptionsPage() {
     setLocation(`/job-details/${jobId}`);
   };
 
-  const handleEditJob = (jobId: string) => {
+  const handleEditJob = (jobId: number) => {
     // Navigate to edit job description
     toast({
       title: "Edit Job Description",
@@ -125,7 +125,7 @@ export default function MyJobDescriptionsPage() {
     });
   };
 
-  const handleDeleteJob = (jobId: string, jobTitle: string) => {
+  const handleDeleteJob = (jobId: number, jobTitle: string) => {
     // Handle delete with confirmation
     if (window.confirm(`Are you sure you want to delete "${jobTitle}"?`)) {
       toast({
