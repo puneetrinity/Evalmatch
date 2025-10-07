@@ -27,6 +27,7 @@ export default function JobDescriptionPage() {
   // UI State
   const [showJobSelection, setShowJobSelection] = useState(true);
   const [showCreateNew, setShowCreateNew] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState<string>("");
 
   // State for form fields
   const [jobTitle, setJobTitle] = useState("");
@@ -189,64 +190,123 @@ export default function JobDescriptionPage() {
             )}
           </div>
 
-          {/* Job Selection Section */}
-          {loadingJobs ? (
-            <div className="mb-8 bg-white rounded-lg shadow-sm p-12 text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-              <p className="text-gray-500">Loading your job descriptions...</p>
-            </div>
-          ) : showJobSelection && !showCreateNew && existingJobs.length > 0 ? (
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">Select Existing Job</h2>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowCreateNew(true)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create New Job
-                </Button>
-              </div>
-
-              <div className="grid gap-4">
-                {existingJobs.map((job: any) => (
-                  <div
-                    key={job.id}
-                    className="bg-white border border-gray-200 rounded-lg p-6 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer"
-                    onClick={() => handleSelectExistingJob(job.id)}
+          {/* Quick Job Selector for Upload Flow */}
+          {sessionId && batchId && !loadingJobs && existingJobs.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+              <div className="flex items-start gap-4">
+                <div className="flex-1">
+                  <label htmlFor="jobSelect" className="block text-sm font-medium text-gray-700 mb-2">
+                    Select an existing job description
+                  </label>
+                  <select
+                    id="jobSelect"
+                    value={selectedJobId}
+                    onChange={(e) => setSelectedJobId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Briefcase className="h-5 w-5 text-blue-600" />
-                          <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
-                        </div>
-                        <p className="text-gray-600 mb-3 line-clamp-2">{job.description}</p>
-                        {job.skills && job.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {job.skills.slice(0, 5).map((skill: string, idx: number) => (
-                              <span
-                                key={idx}
-                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                              >
-                                {skill}
-                              </span>
-                            ))}
-                            {job.skills.length > 5 && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                +{job.skills.length - 5} more
-                              </span>
+                    <option value="">-- Choose a job description --</option>
+                    {existingJobs.map((job: any) => (
+                      <option key={job.id} value={job.id}>
+                        {job.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="pt-7">
+                  <Button
+                    onClick={() => selectedJobId && handleSelectExistingJob(parseInt(selectedJobId))}
+                    disabled={!selectedJobId || analyzeM.isPending}
+                  >
+                    {analyzeM.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Starting Analysis...
+                      </>
+                    ) : (
+                      <>
+                        Analyze Resumes
+                        <ChevronRight className="h-4 w-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <p className="text-sm text-gray-600 text-center">
+                  Or <button
+                    type="button"
+                    onClick={() => setShowCreateNew(true)}
+                    className="text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    create a new job description
+                  </button>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Job Selection Section (Card Grid) - Only shown when NOT in upload flow */}
+          {!sessionId && !batchId && (
+            <>
+              {loadingJobs ? (
+                <div className="mb-8 bg-white rounded-lg shadow-sm p-12 text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+                  <p className="text-gray-500">Loading your job descriptions...</p>
+                </div>
+              ) : showJobSelection && !showCreateNew && existingJobs.length > 0 ? (
+                <div className="mb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-900">Select Existing Job</h2>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowCreateNew(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create New Job
+                    </Button>
+                  </div>
+
+                  <div className="grid gap-4">
+                    {existingJobs.map((job: any) => (
+                      <div
+                        key={job.id}
+                        className="bg-white border border-gray-200 rounded-lg p-6 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer"
+                        onClick={() => handleSelectExistingJob(job.id)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Briefcase className="h-5 w-5 text-blue-600" />
+                              <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
+                            </div>
+                            <p className="text-gray-600 mb-3 line-clamp-2">{job.description}</p>
+                            {job.skills && job.skills.length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {job.skills.slice(0, 5).map((skill: string, idx: number) => (
+                                  <span
+                                    key={idx}
+                                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                  >
+                                    {skill}
+                                  </span>
+                                ))}
+                                {job.skills.length > 5 && (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                    +{job.skills.length - 5} more
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </div>
-                        )}
+                          <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0 ml-4" />
+                        </div>
                       </div>
-                      <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0 ml-4" />
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
+                </div>
+              ) : null}
+            </>
+          )}
 
           {/* Create New Job Form */}
           {(showCreateNew || existingJobs.length === 0) && (
