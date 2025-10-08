@@ -36,34 +36,34 @@ export default function AnalysisPage() {
   
   const [expanded, setExpanded] = useState<number | null>(null);
   
-  // Initialize session ID and batch ID from URL parameters first, then localStorage
+  // Initialize session ID and batch ID from URL parameters ONLY (don't use localStorage to avoid expired sessions)
   const [sessionId, setSessionId] = useState<SessionId | null>(() => {
-    // Prioritize URL parameters over localStorage to handle navigation context
-    const finalSessionId = urlSessionId || localStorage.getItem('currentUploadSession');
-    
+    // Only use URL parameters to avoid using expired localStorage values
+    const finalSessionId = urlSessionId || null;
+
     if (process.env.NODE_ENV === 'development') {
       const timestamp = new Date().toISOString();
       console.log(`[${timestamp}] === LOADING SESSION VALUES ===`);
       console.log(`[${timestamp}] URL sessionId: ${urlSessionId}`);
-      console.log(`[${timestamp}] localStorage sessionId: ${localStorage.getItem('currentUploadSession')}`);
+      console.log(`[${timestamp}] localStorage sessionId (ignored): ${localStorage.getItem('currentUploadSession')}`);
       console.log(`[${timestamp}] Final sessionId: ${finalSessionId}`);
     }
-    
+
     return finalSessionId as SessionId | null;
   });
-  
+
   const [currentBatchId, setCurrentBatchId] = useState<string | null>(() => {
-    // Prioritize URL parameters over localStorage to handle navigation context
-    const finalBatchId = urlBatchId || localStorage.getItem('currentBatchId');
-    
+    // Only use URL parameters to avoid using expired localStorage values
+    const finalBatchId = urlBatchId || null;
+
     if (process.env.NODE_ENV === 'development') {
       const timestamp = new Date().toISOString();
       console.log(`[${timestamp}] === LOADING BATCH VALUES ===`);
       console.log(`[${timestamp}] URL batchId: ${urlBatchId}`);
-      console.log(`[${timestamp}] localStorage batchId: ${localStorage.getItem('currentBatchId')}`);
+      console.log(`[${timestamp}] localStorage batchId (ignored): ${localStorage.getItem('currentBatchId')}`);
       console.log(`[${timestamp}] Final batchId: ${finalBatchId}`);
     }
-    
+
     return finalBatchId;
   });
   
