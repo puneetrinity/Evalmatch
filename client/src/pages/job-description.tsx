@@ -28,6 +28,7 @@ export default function JobDescriptionPage() {
   const [showJobSelection, setShowJobSelection] = useState(true);
   const [showCreateNew, setShowCreateNew] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string>("");
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // State for form fields
   const [jobTitle, setJobTitle] = useState("");
@@ -116,6 +117,14 @@ export default function JobDescriptionPage() {
 
   // Handle existing job selection
   const handleSelectExistingJob = (jobId: number) => {
+    setIsNavigating(true);
+
+    // Show feedback toast
+    toast({
+      title: "Preparing Analysis",
+      description: `Loading analysis for ${uploadedCount} resume(s)...`,
+    });
+
     // Navigate directly to analysis; the Analysis page will auto-run batch analysis
     if (sessionId && batchId) {
       setLocation(`/analysis/${jobId}?sessionId=${sessionId}&batchId=${batchId}`);
@@ -268,12 +277,12 @@ export default function JobDescriptionPage() {
                     <div className="pt-7">
                       <Button
                         onClick={() => selectedJobId && handleSelectExistingJob(parseInt(selectedJobId))}
-                        disabled={!selectedJobId || analyzeM.isPending}
+                        disabled={!selectedJobId || isNavigating}
                       >
-                        {analyzeM.isPending ? (
+                        {isNavigating ? (
                           <>
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Starting Analysis...
+                            Loading...
                           </>
                         ) : (
                           <>
