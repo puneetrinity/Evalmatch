@@ -76,15 +76,27 @@ export default function JobDescriptionPage() {
   // Mutation for triggering analysis
   const analyzeM = useMutation({
     mutationFn: async (jobId: number) => {
+      console.log('🔄 Starting analysis mutation:', {
+        jobId,
+        sessionId,
+        batchId,
+        uploadedCount
+      });
+
       const body: any = {};
       if (sessionId) body.sessionId = sessionId;
       if (batchId) body.batchId = batchId;
 
+      console.log('📤 Sending POST request to:', `/api/analysis/analyze/${jobId}`, 'Body:', body);
+
       const response = await apiRequest("POST", `/api/analysis/analyze/${jobId}`, body);
       const data = await response.json();
+
+      console.log('📥 Analysis response:', data);
       return data;
     },
     onSuccess: (data, jobId) => {
+      console.log('✅ Analysis mutation succeeded, navigating to analysis page');
       toast({
         title: "Analysis Started",
         description: `Analyzing ${uploadedCount} resume(s) against this job description.`,
@@ -93,6 +105,7 @@ export default function JobDescriptionPage() {
       setLocation(`/analysis/${jobId}?sessionId=${sessionId}&batchId=${batchId}`);
     },
     onError: (error) => {
+      console.error('❌ Analysis mutation failed:', error);
       toast({
         title: "Analysis Failed",
         description: error instanceof Error ? error.message : "Failed to start analysis",
@@ -103,7 +116,13 @@ export default function JobDescriptionPage() {
 
   // Handle existing job selection
   const handleSelectExistingJob = (jobId: number) => {
-    analyzeM.mutate(jobId);
+    // Navigate directly to analysis; the Analysis page will auto-run batch analysis
+    if (sessionId && batchId) {
+      setLocation(`/analysis/${jobId}?sessionId=${sessionId}&batchId=${batchId}`);
+    } else {
+      // No upload context – route user to bias detection first
+      setLocation(`/bias-detection/${jobId}`);
+    }
   };
 
   // Handle successful job creation
@@ -112,11 +131,11 @@ export default function JobDescriptionPage() {
     console.log('Job created with ID:', jobId);
 
     if (jobId) {
-      // Check if user wants to skip bias detection for faster processing
-      if (skipBiasDetection && sessionId && batchId) {
-        analyzeM.mutate(jobId);
+      // If we have session/batch context, go straight to analysis; the Analysis page will auto-run if needed
+      if (sessionId && batchId) {
+        setLocation(`/analysis/${jobId}?sessionId=${sessionId}&batchId=${batchId}`);
       } else {
-        // Always go through bias detection unless explicitly skipped
+        // Otherwise, proceed to bias detection flow
         setLocation(`/bias-detection/${jobId}`);
       }
     } else {
